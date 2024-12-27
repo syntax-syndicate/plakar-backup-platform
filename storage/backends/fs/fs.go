@@ -102,21 +102,31 @@ func (repo *Repository) Create(location string, config storage.Configuration) er
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
 	jconfig, err := msgpack.Marshal(config)
 	if err != nil {
+		f.Close()
 		return err
 	}
 
 	compressedConfig, err := compression.DeflateStream("GZIP", bytes.NewReader(jconfig))
 	if err != nil {
+		f.Close()
 		return err
 	}
 
 	_, err = io.Copy(f, compressedConfig)
 	if err != nil {
+		f.Close()
 		return err
+	}
+
+	if runtime.GOOS == "windows" {
+		if closeErr := f.Close(); closeErr != nil {
+			return closeErr
+		}
+	} else {
+		defer f.Close()
 	}
 
 	repo.config = config
