@@ -30,8 +30,8 @@ import (
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/storage"
 
-	"github.com/mattn/go-sqlite3"
-	_ "github.com/mattn/go-sqlite3"
+	"modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 type Repository struct {
@@ -231,11 +231,11 @@ func (repo *Repository) PutState(checksum objects.Checksum, rd io.Reader) error 
 	_, err = statement.Exec(checksum[:], data)
 	repo.wrMutex.Unlock()
 	if err != nil {
-		if sqliteErr, ok := err.(sqlite3.Error); !ok {
+		var sqliteErr *sqlite.Error
+		if !errors.As(err, &sqliteErr) {
 			return err
-		} else if !errors.As(err, &sqliteErr) {
-			return err
-		} else if !errors.Is(sqliteErr.Code, sqlite3.ErrConstraint) {
+		}
+		if sqliteErr.Code() != sqlite3.SQLITE_CONSTRAINT {
 			return err
 		}
 	}
@@ -307,11 +307,11 @@ func (repo *Repository) PutPackfile(checksum objects.Checksum, rd io.Reader) err
 	_, err = statement.Exec(checksum[:], data)
 	repo.wrMutex.Unlock()
 	if err != nil {
-		if sqliteErr, ok := err.(sqlite3.Error); !ok {
+		var sqliteErr *sqlite.Error
+		if !errors.As(err, &sqliteErr) {
 			return err
-		} else if !errors.As(err, &sqliteErr) {
-			return err
-		} else if !errors.Is(sqliteErr.Code, sqlite3.ErrConstraint) {
+		}
+		if sqliteErr.Code() != sqlite3.SQLITE_CONSTRAINT {
 			return err
 		}
 	}
