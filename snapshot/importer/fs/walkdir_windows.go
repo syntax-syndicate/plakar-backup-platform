@@ -1,6 +1,3 @@
-//go:build !windows
-// +build !windows
-
 /*
  * Copyright (c) 2023 Gilles Chehade <gilles@poolp.org>
  *
