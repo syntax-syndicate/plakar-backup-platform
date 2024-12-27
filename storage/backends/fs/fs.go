@@ -25,6 +25,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/PlakarKorp/plakar/compression"
@@ -282,10 +283,18 @@ func (repo *Repository) PutPackfile(checksum objects.Checksum, rd io.Reader) err
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
 	if _, err := io.Copy(f, rd); err != nil {
+		f.Close()
 		return err
+	}
+
+	if runtime.GOOS == "windows" {
+		if closeErr := f.Close(); closeErr != nil {
+			return closeErr
+		}
+	} else {
+		defer f.Close()
 	}
 
 	return os.Rename(tmpfile, pathname)
@@ -347,12 +356,21 @@ func (repo *Repository) PutState(checksum objects.Checksum, rd io.Reader) error 
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
 	_, err = io.Copy(f, rd)
 	if err != nil {
+		f.Close()
 		return err
 	}
+
+	if runtime.GOOS == "windows" {
+		if closeErr := f.Close(); closeErr != nil {
+			return closeErr
+		}
+	} else {
+		defer f.Close()
+	}
+
 	return os.Rename(tmpfile, pathname)
 }
 
