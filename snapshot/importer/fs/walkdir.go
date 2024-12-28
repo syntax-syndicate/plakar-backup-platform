@@ -33,17 +33,16 @@ import (
 )
 
 // Worker pool to handle file scanning in parallel
-func walkDir_worker(rootDir string, jobs <-chan string, results chan<- importer.ScanResult, wg *sync.WaitGroup) {
+func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for path := range jobs {
-		info, err := os.Lstat(path) // Use Lstat to handle symlinks properly
+		info, err := os.Lstat(path)
 		if err != nil {
 			results <- importer.ScanError{Pathname: path, Err: err}
 			continue
 		}
 
-		// Use fs.DirEntry.Type() to avoid another stat call when possible
 		var recordType importer.RecordType
 		switch mode := info.Mode(); {
 		case mode.IsRegular():
@@ -59,10 +58,10 @@ func walkDir_worker(rootDir string, jobs <-chan string, results chan<- importer.
 		case mode&os.ModeSocket != 0:
 			recordType = importer.RecordTypeSocket
 		default:
-			recordType = importer.RecordTypeFile // Default to file if type is unknown
+			// Default to file if type is unknown
+			recordType = importer.RecordTypeFile
 		}
 
-		// Get extended attributes (if applicable)
 		extendedAttributes, err := getExtendedAttributes(path)
 		if err != nil {
 			results <- importer.ScanError{Pathname: path, Err: err}
@@ -71,24 +70,15 @@ func walkDir_worker(rootDir string, jobs <-chan string, results chan<- importer.
 
 		fileinfo := objects.FileInfoFromStat(info)
 
-		var username string
-		var groupname string
-
-		u, err := user.LookupId(fmt.Sprintf("%d", fileinfo.Uid()))
-		if err == nil {
-			username = u.Username
+		if u, err := user.LookupId(fmt.Sprintf("%d", fileinfo.Uid())); err == nil {
+			fileinfo.Lusername = u.Username
 		}
-
-		g, err := user.LookupGroupId(fmt.Sprintf("%d", fileinfo.Gid()))
-		if err == nil {
-			groupname = g.Name
+		if g, err := user.LookupGroupId(fmt.Sprintf("%d", fileinfo.Gid())); err == nil {
+			fileinfo.Lgroupname = g.Name
 		}
-		fileinfo.Lusername = username
-		fileinfo.Lgroupname = groupname
 
 		results <- importer.ScanRecord{Type: recordType, Pathname: filepath.ToSlash(path), FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
 
-		// Handle symlinks separately
 		if fileinfo.Mode()&os.ModeSymlink != 0 {
 			originFile, err := os.Readlink(path)
 			if err != nil {
@@ -112,13 +102,11 @@ func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results ch
 			path = "/" + path
 		}
 
-		// Check if the directory exists
 		if _, err := os.Stat(path); err != nil {
 			results <- importer.ScanError{Pathname: path, Err: err}
 			continue
 		}
 
-		// Send the directory to the jobs channel for processing
 		jobs <- path
 	}
 }
@@ -131,23 +119,40 @@ func walkDir_walker(rootDir string, numWorkers int) (<-chan importer.ScanResult,
 	// Launch worker pool
 	for w := 1; w <= numWorkers; w++ {
 		wg.Add(1)
-		go walkDir_worker(rootDir, jobs, results, &wg)
+		go walkDir_worker(jobs, results, &wg)
 	}
 
 	// Start walking the directory and sending file paths to workers
 	go func() {
 		defer close(jobs)
 
+		info, err := os.Lstat(rootDir)
+		if err != nil {
+			results <- importer.ScanError{Pathname: rootDir, Err: err}
+			return
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			originFile, err := os.Readlink(rootDir)
+			if err != nil {
+				results <- importer.ScanError{Pathname: rootDir, Err: err}
+				return
+			}
+
+			if !filepath.IsAbs(originFile) {
+				originFile = filepath.Join(filepath.Dir(rootDir), originFile)
+			}
+
+			rootDir = originFile
+		}
+
 		// Add prefix directories first
 		walkDir_addPrefixDirectories(rootDir, jobs, results)
 
-		err := filepath.WalkDir(rootDir, func(path string, d fs.DirEntry, err error) error {
+		err = filepath.WalkDir(rootDir, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				results <- importer.ScanError{Pathname: path, Err: err}
 				return nil
 			}
-
-			// If d is a directory, send its path directly to the job queue
 			jobs <- path
 			return nil
 		})
