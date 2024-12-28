@@ -83,64 +83,7 @@ func walkDir_worker(rootDir string, jobs <-chan string, results chan<- importer.
 		fileinfo.Lusername = username
 		fileinfo.Lgroupname = groupname
 
-		if fileinfo.Mode().IsDir() {
-			entries, err := os.ReadDir(path)
-			if err != nil {
-				results <- importer.ScanError{Pathname: path, Err: err}
-				continue
-			}
-			var children []objects.FileInfo
-			prefix := rootDir
-			if rootDir != "/" {
-				prefix = prefix + "/"
-			}
-			for _, child := range entries {
-				info, err := child.Info()
-				if err != nil {
-					results <- importer.ScanError{Pathname: path, Err: err}
-					continue
-				}
-
-				fullpath := filepath.Join(path, child.Name())
-				if !info.IsDir() {
-					if !strings.HasPrefix(fullpath, prefix) {
-						continue
-					}
-				} else {
-					if len(fullpath) < len(prefix) {
-						if !strings.HasPrefix(prefix, fullpath) {
-							continue
-						}
-					} else {
-						if !strings.HasPrefix(fullpath, prefix) {
-							continue
-						}
-					}
-				}
-				childinfo := objects.FileInfoFromStat(info)
-
-				var username string
-				var groupname string
-
-				u, err := user.LookupId(fmt.Sprintf("%d", childinfo.Uid()))
-				if err == nil {
-					username = u.Username
-				}
-
-				g, err := user.LookupGroupId(fmt.Sprintf("%d", childinfo.Gid()))
-				if err == nil {
-					groupname = g.Name
-				}
-				childinfo.Lusername = username
-				childinfo.Lgroupname = groupname
-
-				children = append(children, childinfo)
-			}
-			//results <- importer.ScanRecord{Type: recordType, Pathname: filepath.ToSlash(path), FileInfo: fileinfo, ExtendedAttributes: extendedAttributes, Children: children}
-			results <- importer.ScanRecord{Type: recordType, Pathname: filepath.ToSlash(path), FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
-		} else {
-			results <- importer.ScanRecord{Type: recordType, Pathname: filepath.ToSlash(path), FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
-		}
+		results <- importer.ScanRecord{Type: recordType, Pathname: filepath.ToSlash(path), FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
 
 		// Handle symlinks separately
 		if fileinfo.Mode()&os.ModeSymlink != 0 {
