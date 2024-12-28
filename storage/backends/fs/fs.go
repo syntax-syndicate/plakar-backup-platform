@@ -181,6 +181,9 @@ func (repo *Repository) GetPackfiles() ([]objects.Checksum, error) {
 	}
 
 	for _, bucket := range buckets {
+		if bucket.Name() == "." || bucket.Name() == ".." {
+			continue
+		}
 		if !bucket.IsDir() {
 			continue
 		}
@@ -190,6 +193,9 @@ func (repo *Repository) GetPackfiles() ([]objects.Checksum, error) {
 			return ret, err
 		}
 		for _, packfile := range packfiles {
+			if packfile.Name() == "." || packfile.Name() == ".." {
+				continue
+			}
 			if packfile.IsDir() {
 				continue
 			}
@@ -324,6 +330,9 @@ func (repo *Repository) GetStates() ([]objects.Checksum, error) {
 	}
 
 	for _, bucket := range buckets {
+		if bucket.Name() == "." || bucket.Name() == ".." {
+			continue
+		}
 		if !bucket.IsDir() {
 			continue
 		}
@@ -333,6 +342,9 @@ func (repo *Repository) GetStates() ([]objects.Checksum, error) {
 			return ret, err
 		}
 		for _, blob := range blobs {
+			if blob.Name() == "." || blob.Name() == ".." {
+				continue
+			}
 			if blob.IsDir() {
 				continue
 			}
