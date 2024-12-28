@@ -20,6 +20,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/PlakarKorp/plakar/snapshot/importer"
@@ -67,6 +68,9 @@ func (p *FSImporter) Scan() (<-chan importer.ScanResult, error) {
 }
 
 func (p *FSImporter) NewReader(pathname string) (io.ReadCloser, error) {
+	if pathname[0] == '/' && runtime.GOOS == "windows" {
+		pathname = pathname[1:]
+	}
 	return os.Open(pathname)
 }
 
