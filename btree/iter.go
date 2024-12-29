@@ -1,13 +1,12 @@
 package btree
 
-type Iterator[K any, P any, V any] interface {
+type Iterator[K, V any] interface {
 	Next() bool
 	Current() (K, V)
-	Node() P
 	Err() error
 }
 
-type forwardIter[K any, P any, V any] struct {
+type forwardIter[K, P any, V any] struct {
 	b       *BTree[K, P, V]
 	ptr     P
 	current *Node[K, P, V]
@@ -46,17 +45,13 @@ func (fit *forwardIter[K, P, V]) Current() (K, V) {
 	return fit.current.Keys[fit.idx], fit.current.Values[fit.idx]
 }
 
-func (fit *forwardIter[K, P, V]) Node() P {
-	return fit.ptr
-}
-
 func (fit *forwardIter[K, P, V]) Err() error {
 	return fit.err
 }
 
 // ScanAll returns an iterator that visits all the values from the
 // smaller one onwards.
-func (b *BTree[K, P, V]) ScanAll() (Iterator[K, P, V], error) {
+func (b *BTree[K, P, V]) ScanAll() (Iterator[K, V], error) {
 	ptr := b.Root
 
 	var n *Node[K, P, V]
@@ -84,7 +79,7 @@ func (b *BTree[K, P, V]) ScanAll() (Iterator[K, P, V], error) {
 // ScanFrom returns an iterator that visits all the values starting
 // from the given key, or the first key larger than the given one,
 // onwards.
-func (b *BTree[K, P, V]) ScanFrom(key K) (Iterator[K, P, V], error) {
+func (b *BTree[K, P, V]) ScanFrom(key K) (Iterator[K, V], error) {
 	node, path, err := b.findleaf(key)
 	if err != nil {
 		return nil, err
@@ -201,15 +196,11 @@ func (bit *backwardIter[K, P, V]) Current() (K, V) {
 	return bit.cur.Keys[last.idx], bit.cur.Values[last.idx]
 }
 
-func (bit *backwardIter[K, P, V]) Node() P {
-	return bit.steps[len(bit.steps)-1].ptr
-}
-
 func (bit *backwardIter[K, P, V]) Err() error {
 	return bit.err
 }
 
-func (b *BTree[K, P, V]) ScanAllReverse() (Iterator[K, P, V], error) {
+func (b *BTree[K, P, V]) ScanAllReverse() (Iterator[K, V], error) {
 	bit := &backwardIter[K, P, V]{
 		b: b,
 	}
