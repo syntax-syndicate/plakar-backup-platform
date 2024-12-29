@@ -61,6 +61,9 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 				continue
 			}
 			fileinfo = objects.FileInfoFromStat(info)
+			if info.Name() == "\\" {
+				fileinfo.Lname = pathname
+			}
 		}
 		var recordType importer.RecordType
 		switch mode := fileinfo.Mode(); {

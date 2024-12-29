@@ -182,7 +182,7 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 	} else {
 		scanDir = imp.Root()
 	}
-	snap.Header.Importer.Directory = filepath.ToSlash(scanDir)
+	snap.Header.Importer.Directory = scanDir
 
 	maxConcurrency := options.MaxConcurrency
 	if maxConcurrency == 0 {
