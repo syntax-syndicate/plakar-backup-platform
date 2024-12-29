@@ -141,7 +141,7 @@ func walkDir_walker(rootDir string, numWorkers int) (<-chan importer.ScanResult,
 			if !filepath.IsAbs(originFile) {
 				originFile = filepath.Join(filepath.Dir(rootDir), originFile)
 			}
-
+			jobs <- rootDir
 			rootDir = originFile
 		}
 
