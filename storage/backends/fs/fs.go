@@ -25,6 +25,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/PlakarKorp/plakar/compression"
@@ -101,21 +102,31 @@ func (repo *Repository) Create(location string, config storage.Configuration) er
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
 	jconfig, err := msgpack.Marshal(config)
 	if err != nil {
+		f.Close()
 		return err
 	}
 
 	compressedConfig, err := compression.DeflateStream("GZIP", bytes.NewReader(jconfig))
 	if err != nil {
+		f.Close()
 		return err
 	}
 
 	_, err = io.Copy(f, compressedConfig)
 	if err != nil {
+		f.Close()
 		return err
+	}
+
+	if runtime.GOOS == "windows" {
+		if closeErr := f.Close(); closeErr != nil {
+			return closeErr
+		}
+	} else {
+		defer f.Close()
 	}
 
 	repo.config = config
@@ -170,6 +181,9 @@ func (repo *Repository) GetPackfiles() ([]objects.Checksum, error) {
 	}
 
 	for _, bucket := range buckets {
+		if bucket.Name() == "." || bucket.Name() == ".." {
+			continue
+		}
 		if !bucket.IsDir() {
 			continue
 		}
@@ -179,6 +193,9 @@ func (repo *Repository) GetPackfiles() ([]objects.Checksum, error) {
 			return ret, err
 		}
 		for _, packfile := range packfiles {
+			if packfile.Name() == "." || packfile.Name() == ".." {
+				continue
+			}
 			if packfile.IsDir() {
 				continue
 			}
@@ -282,10 +299,18 @@ func (repo *Repository) PutPackfile(checksum objects.Checksum, rd io.Reader) err
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
 	if _, err := io.Copy(f, rd); err != nil {
+		f.Close()
 		return err
+	}
+
+	if runtime.GOOS == "windows" {
+		if closeErr := f.Close(); closeErr != nil {
+			return closeErr
+		}
+	} else {
+		defer f.Close()
 	}
 
 	return os.Rename(tmpfile, pathname)
@@ -305,6 +330,9 @@ func (repo *Repository) GetStates() ([]objects.Checksum, error) {
 	}
 
 	for _, bucket := range buckets {
+		if bucket.Name() == "." || bucket.Name() == ".." {
+			continue
+		}
 		if !bucket.IsDir() {
 			continue
 		}
@@ -314,6 +342,9 @@ func (repo *Repository) GetStates() ([]objects.Checksum, error) {
 			return ret, err
 		}
 		for _, blob := range blobs {
+			if blob.Name() == "." || blob.Name() == ".." {
+				continue
+			}
 			if blob.IsDir() {
 				continue
 			}
@@ -347,12 +378,21 @@ func (repo *Repository) PutState(checksum objects.Checksum, rd io.Reader) error 
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
 	_, err = io.Copy(f, rd)
 	if err != nil {
+		f.Close()
 		return err
 	}
+
+	if runtime.GOOS == "windows" {
+		if closeErr := f.Close(); closeErr != nil {
+			return closeErr
+		}
+	} else {
+		defer f.Close()
+	}
+
 	return os.Rename(tmpfile, pathname)
 }
 

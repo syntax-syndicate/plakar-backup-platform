@@ -1,6 +1,3 @@
-//go:build !windows
-// +build !windows
-
 /*
  * Copyright (c) 2023 Gilles Chehade <gilles@poolp.org>
  *
@@ -27,24 +24,49 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 )
 
+func toUnixPath(pathname string) string {
+	unixPath := filepath.ToSlash(pathname)
+	if len(unixPath) > 1 && unixPath[1] == ':' {
+		// Convert drive letter to Unix format (e.g., C: -> /c)
+		unixPath = "/" + strings.ToUpper(unixPath[0:2]) + unixPath[2:]
+	}
+	if !strings.HasPrefix(unixPath, "/") {
+		unixPath = "/" + unixPath
+	}
+	return unixPath
+}
+
 // Worker pool to handle file scanning in parallel
 func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	for path := range jobs {
-		info, err := os.Lstat(path)
-		if err != nil {
-			results <- importer.ScanError{Pathname: path, Err: err}
-			continue
-		}
+	for pathname := range jobs {
+		unixPath := toUnixPath(pathname)
 
+		var fileinfo objects.FileInfo
+		var err error
+
+		if pathname == "/" {
+			fileinfo = objects.NewFileInfo("/", 0, os.ModeDir, time.Now(), 0, 0, 0, 0, 1)
+		} else {
+			info, err := os.Lstat(pathname)
+			if err != nil {
+				results <- importer.ScanError{Pathname: unixPath, Err: err}
+				continue
+			}
+			fileinfo = objects.FileInfoFromStat(info)
+			if info.Name() == "\\" {
+				fileinfo.Lname = pathname
+			}
+		}
 		var recordType importer.RecordType
-		switch mode := info.Mode(); {
+		switch mode := fileinfo.Mode(); {
 		case mode.IsRegular():
 			recordType = importer.RecordTypeFile
 		case mode.IsDir():
@@ -62,13 +84,11 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 			recordType = importer.RecordTypeFile
 		}
 
-		extendedAttributes, err := getExtendedAttributes(path)
+		extendedAttributes, err := getExtendedAttributes(pathname)
 		if err != nil {
-			results <- importer.ScanError{Pathname: path, Err: err}
+			results <- importer.ScanError{Pathname: unixPath, Err: err}
 			continue
 		}
-
-		fileinfo := objects.FileInfoFromStat(info)
 
 		if u, err := user.LookupId(fmt.Sprintf("%d", fileinfo.Uid())); err == nil {
 			fileinfo.Lusername = u.Username
@@ -77,15 +97,15 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 			fileinfo.Lgroupname = g.Name
 		}
 
-		results <- importer.ScanRecord{Type: recordType, Pathname: filepath.ToSlash(path), FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
+		results <- importer.ScanRecord{Type: recordType, Pathname: unixPath, FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
 
 		if fileinfo.Mode()&os.ModeSymlink != 0 {
-			originFile, err := os.Readlink(path)
+			originFile, err := os.Readlink(pathname)
 			if err != nil {
-				results <- importer.ScanError{Pathname: path, Err: err}
+				results <- importer.ScanError{Pathname: unixPath, Err: err}
 				continue
 			}
-			results <- importer.ScanRecord{Type: recordType, Pathname: filepath.ToSlash(path), Target: originFile, FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
+			results <- importer.ScanRecord{Type: recordType, Pathname: unixPath, Target: originFile, FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
 		}
 	}
 }
@@ -95,19 +115,16 @@ func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results ch
 	directory := filepath.Clean(rootDir)
 	atoms := strings.Split(directory, string(os.PathSeparator))
 
+	jobs <- "/"
 	for i := 0; i < len(atoms)-1; i++ {
-		path := filepath.Join(atoms[0 : i+1]...)
+		pathname := strings.Join(atoms[0:i+1], string(os.PathSeparator))
 
-		if !strings.HasPrefix(path, "/") {
-			path = "/" + path
-		}
-
-		if _, err := os.Stat(path); err != nil {
-			results <- importer.ScanError{Pathname: path, Err: err}
+		if _, err := os.Stat(pathname); err != nil {
+			results <- importer.ScanError{Pathname: pathname, Err: err}
 			continue
 		}
 
-		jobs <- path
+		jobs <- pathname
 	}
 }
 
@@ -148,12 +165,12 @@ func walkDir_walker(rootDir string, numWorkers int) (<-chan importer.ScanResult,
 		// Add prefix directories first
 		walkDir_addPrefixDirectories(rootDir, jobs, results)
 
-		err = filepath.WalkDir(rootDir, func(path string, d fs.DirEntry, err error) error {
+		err = filepath.WalkDir(rootDir, func(pathname string, d fs.DirEntry, err error) error {
 			if err != nil {
-				results <- importer.ScanError{Pathname: path, Err: err}
+				results <- importer.ScanError{Pathname: pathname, Err: err}
 				return nil
 			}
-			jobs <- path
+			jobs <- pathname
 			return nil
 		})
 		if err != nil {
