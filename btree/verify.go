@@ -31,8 +31,6 @@ type VerifyState struct {
 	VisitedCount int64
 }
 
-/* It is expected that we do not call verify on an empty tree. This avoids
- * special casing the root node as a leaf case invariants */
 func (b *BTree[K, P, V]) Verify() error {
 	state := VerifyState{b.depth(), 0, 0}
 
@@ -40,6 +38,10 @@ func (b *BTree[K, P, V]) Verify() error {
 
 	if err != nil {
 		panic("Failed to fetch root node")
+	}
+
+	if rootNode.isleaf() {
+		return nil
 	}
 
 	err = b.verifyNode(rootNode, nil, -1, &state)
