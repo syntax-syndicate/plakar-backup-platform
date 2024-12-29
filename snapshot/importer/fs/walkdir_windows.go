@@ -29,14 +29,28 @@ import (
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 )
 
+func toUnixPath(path string) string {
+	unixPath := filepath.ToSlash(path)
+	if len(unixPath) > 1 && unixPath[1] == ':' {
+		// Convert drive letter to Unix format (e.g., C: -> /c)
+		unixPath = "/" + strings.ToLower(unixPath[0:1]) + unixPath[2:]
+	}
+	if !strings.HasPrefix(unixPath, "/") {
+		unixPath = "/" + unixPath
+	}
+	return unixPath
+}
+
 // Worker pool to handle file scanning in parallel
 func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for path := range jobs {
+		unixPath := toUnixPath(path)
+
 		info, err := os.Lstat(path)
 		if err != nil {
-			results <- importer.ScanError{Pathname: path, Err: err}
+			results <- importer.ScanError{Pathname: unixPath, Err: err}
 			continue
 		}
 
@@ -61,7 +75,7 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 
 		extendedAttributes, err := getExtendedAttributes(path)
 		if err != nil {
-			results <- importer.ScanError{Pathname: path, Err: err}
+			results <- importer.ScanError{Pathname: unixPath, Err: err}
 			continue
 		}
 
@@ -74,7 +88,7 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 			fileinfo.Lgroupname = g.Name
 		}
 
-		results <- importer.ScanRecord{Type: recordType, Pathname: filepath.ToSlash(path), FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
+		results <- importer.ScanRecord{Type: recordType, Pathname: unixPath, FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
 
 		if fileinfo.Mode()&os.ModeSymlink != 0 {
 			originFile, err := os.Readlink(path)
@@ -82,7 +96,7 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 				results <- importer.ScanError{Pathname: path, Err: err}
 				continue
 			}
-			results <- importer.ScanRecord{Type: recordType, Pathname: filepath.ToSlash(path), Target: originFile, FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
+			results <- importer.ScanRecord{Type: recordType, Pathname: unixPath, Target: originFile, FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
 		}
 	}
 }
