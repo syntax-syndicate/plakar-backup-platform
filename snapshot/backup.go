@@ -4,6 +4,7 @@ import (
 	"io"
 	"math"
 	"mime"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -78,6 +79,7 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 
 	go func() {
 		for _record := range scanner {
+
 			if backupCtx.aborted.Load() {
 				break
 			}
@@ -222,7 +224,7 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 				scannerWg.Done()
 			}()
 
-			snap.Event(events.FileEvent(snap.Header.Identifier, _record.Pathname))
+			snap.Event(events.FileEvent(snap.Header.Identifier, record.Pathname))
 
 			var fileEntry *vfs.FileEntry
 			var object *objects.Object
@@ -299,7 +301,7 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 			if fileEntry != nil && snap.BlobExists(packfile.TYPE_FILE, cachedFileEntryChecksum) {
 				fileEntryChecksum = cachedFileEntryChecksum
 			} else {
-				fileEntry = vfs.NewFileEntry(filepath.Dir(record.Pathname), &record)
+				fileEntry = vfs.NewFileEntry(path.Dir(record.Pathname), &record)
 				if object != nil {
 					fileEntry.Object = object
 				}
@@ -378,7 +380,7 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 		return err
 	}
 	for record := range directories {
-		dirEntry := vfs.NewDirectoryEntry(filepath.Dir(record.Pathname), &record)
+		dirEntry := vfs.NewDirectoryEntry(path.Dir(record.Pathname), &record)
 
 		childrenChan, err := sc2.EnumerateImmediateChildPathnames(record.Pathname, true)
 		if err != nil {
@@ -578,7 +580,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 	cprocessor := cf.Processor(record.Pathname)
 
 	object := objects.NewObject()
-	object.ContentType = mime.TypeByExtension(filepath.Ext(record.Pathname))
+	object.ContentType = mime.TypeByExtension(path.Ext(record.Pathname))
 
 	objectHasher := snap.repository.Hasher()
 

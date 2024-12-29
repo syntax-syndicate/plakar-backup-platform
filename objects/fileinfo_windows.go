@@ -85,8 +85,13 @@ func FileInfoFromStat(stat fs.FileInfo) FileInfo {
 	Lgid := uint64(0)
 	Lnlink := uint16(0)
 
+	name := stat.Name()
+	if name == "\\" {
+		name = "/"
+	}
+
 	return FileInfo{
-		Lname:    stat.Name(),
+		Lname:    name,
 		Lsize:    stat.Size(),
 		Lmode:    stat.Mode(),
 		LmodTime: stat.ModTime(),
