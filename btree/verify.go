@@ -2,6 +2,7 @@ package btree
 
 import (
 	"fmt"
+	"io"
 )
 
 func (b *BTree[K, P, V]) depth() int {
@@ -155,4 +156,17 @@ func (b *BTree[K, P, V]) verifyNode(cur, parent *Node[K, P, V], ptrIdx int, stat
 	state.CurrDepth--
 
 	return nil
+}
+
+func (b *BTree[K, P, V]) Dot(w io.Writer) error {
+	return b.VisitLevelOrder(func(ptr P, n *Node[K, P, V]) bool {
+		fmt.Fprintf(w, "%v [label=%q]\n", ptr, fmt.Sprintf("%v %v", ptr, n.Keys))
+		for _, cptr := range n.Pointers {
+			fmt.Fprintf(w, "%v -> %v\n", ptr, cptr)
+		}
+		// if n.Next != nil {
+		// 	fmt.Fprintf(w, "%v -> %v\n", ptr, *n.Next)
+		// }
+		return true
+	})
 }
