@@ -33,7 +33,7 @@ func toUnixPath(path string) string {
 	unixPath := filepath.ToSlash(path)
 	if len(unixPath) > 1 && unixPath[1] == ':' {
 		// Convert drive letter to Unix format (e.g., C: -> /c)
-		unixPath = "/" + strings.ToLower(unixPath[0:1]) + unixPath[2:]
+		unixPath = "/" + strings.ToLower(unixPath[0:1]) + "/" + unixPath[2:]
 	}
 	if !strings.HasPrefix(unixPath, "/") {
 		unixPath = "/" + unixPath
