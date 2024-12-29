@@ -35,9 +35,8 @@ func (b *BTree[K, P, V]) Verify() error {
 	state := VerifyState{b.depth(), 0, 0}
 
 	rootNode, err := b.store.Get(b.Root)
-
 	if err != nil {
-		panic("Failed to fetch root node")
+		return fmt.Errorf("failed to get root node: %w", err)
 	}
 
 	if rootNode.isleaf() {
@@ -145,7 +144,7 @@ func (b *BTree[K, P, V]) verifyNode(cur, parent *Node[K, P, V], ptrIdx int, stat
 		childNode, err := b.store.Get(child)
 
 		if err != nil {
-			panic(fmt.Sprintf("Failed to fetch node (%v)", child))
+			return fmt.Errorf("Failed to fetch node (%v)", child)
 		}
 
 		err = b.verifyNode(childNode, cur, i, state)
