@@ -23,26 +23,30 @@ func (s *InMemoryStore[K, V]) get(ptr int) (*Node[K, int, V], error) {
 	return &s.store[ptr], nil
 }
 
-func (s *InMemoryStore[K, V]) Get(ptr int) (n Node[K, int, V], err error) {
+func (s *InMemoryStore[K, V]) Get(ptr int) (n *Node[K, int, V], err error) {
 	node, err := s.get(ptr)
 	if err != nil {
 		return
 	}
-	return *node, nil
+	return node, nil
 }
 
-func (s *InMemoryStore[K, V]) Update(ptr int, n Node[K, int, V]) error {
+func (s *InMemoryStore[K, V]) Update(ptr int, n *Node[K, int, V]) error {
 	_, err := s.get(ptr)
 	if err != nil {
 		return err
 	}
 
-	s.store[ptr] = n
+	dup := newNodeFrom(n.Keys, n.Pointers, n.Values)
+	dup.Next = n.Next
+	s.store[ptr] = *dup
 	return nil
 }
 
-func (s *InMemoryStore[K, V]) Put(n Node[K, int, V]) (int, error) {
-	s.store = append(s.store, n)
+func (s *InMemoryStore[K, V]) Put(n *Node[K, int, V]) (int, error) {
+	dup := newNodeFrom(n.Keys, n.Pointers, n.Values)
+	dup.Next = n.Next
+	s.store = append(s.store, *dup)
 	return len(s.store) - 1, nil
 }
 
@@ -58,7 +62,7 @@ func cmp(a, b rune) int {
 
 func printtree[K any, P any, V any](b *BTree[K, P, V]) {
 	n := -1
-	b.VisitLevelOrder(func(node Node[K, P, V]) bool {
+	b.VisitLevelOrder(func(ptr P, node *Node[K, P, V]) bool {
 		n++
 		log.Printf("%v keys: %+v (ptrs: %+v)", n, node.Keys, node.Pointers)
 		return true
@@ -151,7 +155,10 @@ func TestInsert(t *testing.T) {
 		}
 	}
 
-	unique := []struct{key string; val int}{
+	unique := []struct {
+		key string
+		val int
+	}{
 		{"a", 2},
 		{"b", 3},
 		{"c", 9},
@@ -233,6 +240,44 @@ func TestScanFrom(t *testing.T) {
 		r := alphabet[i]
 		if !iter.Next() {
 			t.Fatalf("iterator stopped too early!")
+		}
+		k, v := iter.Current()
+		if k != r {
+			t.Errorf("Got key %c; want %c", k, r)
+		}
+		if v != i {
+			t.Errorf("Got value %v; want %v", v, i)
+		}
+	}
+
+	if iter.Next() {
+		t.Fatalf("iterator could unexpectedly continue")
+	}
+}
+
+func TestScanAllReverse(t *testing.T) {
+	store := InMemoryStore[rune, int]{}
+	tree, err := New(&store, cmp, 3)
+	if err != nil {
+		t.Fatalf("New failed: %v", err)
+	}
+
+	alphabet := []rune("abcdefghijklmnopqrstuvwxyz")
+	for i, r := range alphabet {
+		if err := tree.Insert(r, i); err != nil {
+			t.Fatalf("Failed to insert(%v, %v): %v", r, i, err)
+		}
+	}
+
+	iter, err := tree.ScanAllReverse()
+	if err != nil {
+		t.Fatalf("ScanAll failed: %v", err)
+	}
+
+	for i := len(alphabet) - 1; i >= 0; i-- {
+		r := alphabet[i]
+		if !iter.Next() {
+			t.Fatalf("iterator stopped too early at %v (%c)", i, r)
 		}
 		k, v := iter.Current()
 		if k != r {

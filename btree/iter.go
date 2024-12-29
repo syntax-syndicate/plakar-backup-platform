@@ -37,7 +37,7 @@ func (fit *forwardIter[K, P, V]) Next() bool {
 	}
 
 	fit.ptr = nextptr
-	fit.current = &next
+	fit.current = next
 	fit.idx = 0
 	return true
 }
@@ -67,7 +67,7 @@ func (b *BTree[K, P, V]) ScanAll() (Iterator[K, P, V], error) {
 		}
 
 		if node.isleaf() {
-			n = &node
+			n = node
 			break
 		}
 		ptr = node.Pointers[0]
@@ -119,12 +119,109 @@ func (b *BTree[K, P, V]) ScanFrom(key K) (Iterator[K, P, V], error) {
 	return &forwardIter[K, P, V]{
 		b:       b,
 		ptr:     ptr,
-		current: &node,
+		current: node,
 		idx:     idx,
 	}, nil
 }
 
-func (b *BTree[K, P, V]) VisitLevelOrder(cb func(Node[K, P, V]) bool) error {
+type step[K, P, V any] struct {
+	ptr  P
+	idx  int
+}
+
+type backwardIter[K, P, V any] struct {
+	b     *BTree[K, P, V]
+	cur   *Node[K, P, V]
+	steps []step[K, P, V]
+	err   error
+}
+
+func (bit *backwardIter[K, P, V]) dive(ptr P) error {
+	for {
+		node, err := bit.b.store.Get(ptr)
+		if err != nil {
+			return err
+		}
+
+		bit.steps = append(bit.steps, step[K, P, V]{
+			ptr:  ptr,
+			idx:  len(node.Keys),
+		})
+
+		if node.isleaf() {
+			bit.cur = node
+			return nil
+		}
+		ptr = node.Pointers[len(node.Keys)]
+	}
+}
+
+func (bit *backwardIter[K, P, V]) Next() bool {
+	if bit.err != nil {
+		return false
+	}
+
+	if len(bit.steps) == 0 {
+		return false
+	}
+
+	if bit.steps[len(bit.steps)-1].idx > 0 {
+		bit.steps[len(bit.steps)-1].idx--
+		return true
+	}
+
+	// rewinding upwards to then dive down
+	for len(bit.steps) > 1 {
+		// discard last step
+		bit.steps = bit.steps[:len(bit.steps)-1]
+		last := bit.steps[len(bit.steps)-1]
+		if last.idx == 0 {
+			// bubble up once more
+			continue
+		}
+
+		// fetch parent node
+		node, err := bit.b.store.Get(last.ptr)
+		if err != nil {
+			bit.err = err
+			return false
+		}
+
+		bit.steps[len(bit.steps)-1].idx--
+		bit.err = bit.dive(node.Pointers[bit.steps[len(bit.steps)-1].idx])
+		bit.steps[len(bit.steps)-1].idx--
+		return bit.err == nil
+	}
+
+	return false
+}
+
+func (bit *backwardIter[K, P, V]) Current() (K, V) {
+	last := bit.steps[len(bit.steps)-1]
+	return bit.cur.Keys[last.idx], bit.cur.Values[last.idx]
+}
+
+func (bit *backwardIter[K, P, V]) Node() P {
+	return bit.steps[len(bit.steps)-1].ptr
+}
+
+func (bit *backwardIter[K, P, V]) Err() error {
+	return bit.err
+}
+
+func (b *BTree[K, P, V]) ScanAllReverse() (Iterator[K, P, V], error) {
+	bit := &backwardIter[K, P, V]{
+		b: b,
+	}
+
+	if err := bit.dive(b.Root); err != nil {
+		return nil, err
+	}
+
+	return bit, nil
+}
+
+func (b *BTree[K, P, V]) VisitLevelOrder(cb func(P, *Node[K, P, V]) bool) error {
 	stack := []P{b.Root}
 
 	for {
@@ -139,7 +236,7 @@ func (b *BTree[K, P, V]) VisitLevelOrder(cb func(Node[K, P, V]) bool) error {
 			return err
 		}
 
-		if !cb(node) {
+		if !cb(ptr, node) {
 			return nil
 		}
 
