@@ -26,7 +26,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"path/filepath"
+	"path"
 	"strings"
 	"time"
 
@@ -495,7 +495,7 @@ func info_vfs(repo *repository.Repository, snapshotPath string) error {
 		return err
 	}
 
-	pathname = filepath.Clean(pathname)
+	pathname = path.Clean(pathname)
 	fsinfo, err := fs.Stat(pathname)
 	if err != nil {
 		return err
