@@ -75,9 +75,6 @@ type State struct {
 	muErrors sync.Mutex
 	Errors   map[uint64]Location
 
-	muList sync.Mutex
-	List   map[uint64]Location
-
 	muDeletedSnapshots sync.Mutex
 	DeletedSnapshots   map[uint64]time.Time
 
