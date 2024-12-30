@@ -18,9 +18,6 @@ func TestNew(t *testing.T) {
 	if len(st.Objects) != 0 {
 		t.Errorf("Expected Objects to be empty, got %d", len(st.Objects))
 	}
-	if st.dirty != 0 {
-		t.Errorf("Expected dirty to be 0, got %d", st.dirty)
-	}
 }
 
 func TestMerge(t *testing.T) {
@@ -52,26 +49,6 @@ func TestMerge(t *testing.T) {
 		t.Errorf("Expected %d Objects, got %d", expectedObjects, len(st1.Objects))
 	}
 
-}
-
-func TestIsDirtyAndResetDirty(t *testing.T) {
-	st := New()
-
-	if st.Dirty() {
-		t.Errorf("Expected IsDirty to be false initially")
-	}
-
-	checksum := [32]byte{200, 201, 202}
-	st.SetPackfileForBlob(packfile.TYPE_CHUNK, checksum, checksum, 300, 400)
-
-	if !st.Dirty() {
-		t.Errorf("Expected IsDirty to be true after adding a checksum")
-	}
-
-	st.ResetDirty()
-	if st.Dirty() {
-		t.Errorf("Expected IsDirty to be false after ResetDirty")
-	}
 }
 
 func TestGetSubpartForChunk(t *testing.T) {

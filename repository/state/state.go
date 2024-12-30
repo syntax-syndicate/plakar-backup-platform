@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/PlakarKorp/plakar/objects"
@@ -79,8 +78,6 @@ type State struct {
 	DeletedSnapshots   map[uint64]time.Time
 
 	Metadata Metadata
-
-	dirty int32
 }
 
 func New() *State {
@@ -558,14 +555,6 @@ func (st *State) BlobExists(Type packfile.Type, blobChecksum objects.Checksum) b
 	}
 }
 
-func (st *State) Dirty() bool {
-	return atomic.LoadInt32(&st.dirty) != 0
-}
-
-func (st *State) ResetDirty() {
-	atomic.StoreInt32(&st.dirty, 0)
-}
-
 func (st *State) SetPackfileForBlob(Type packfile.Type, packfileChecksum objects.Checksum, blobChecksum objects.Checksum, packfileOffset uint32, chunkLength uint32) {
 	packfileID := st.getOrCreateIdForChecksum(packfileChecksum)
 	blobID := st.getOrCreateIdForChecksum(blobChecksum)
@@ -618,7 +607,6 @@ func (st *State) SetPackfileForBlob(Type packfile.Type, packfileChecksum objects
 			Offset:   packfileOffset,
 			Length:   chunkLength,
 		}
-		atomic.StoreInt32(&st.dirty, 1)
 	}
 }
 
@@ -639,7 +627,6 @@ func (st *State) DeleteSnapshot(snapshotChecksum objects.Checksum) error {
 	st.DeletedSnapshots[snapshotID] = time.Now()
 	st.muDeletedSnapshots.Unlock()
 
-	atomic.StoreInt32(&st.dirty, 1)
 	return nil
 }
 
