@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/plakar/packfile"
+	"github.com/PlakarKorp/plakar/repository/state"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/vmihailenco/msgpack/v5"
@@ -40,6 +42,10 @@ func (c *ScanCache) Close() error {
 
 func (c *ScanCache) put(prefix string, key string, data []byte) error {
 	return c.db.Put([]byte(fmt.Sprintf("%s:%s", prefix, key)), data, nil)
+}
+
+func (c *ScanCache) has(prefix, key string) (bool, error) {
+	return c.db.Has([]byte(fmt.Sprintf("%s:%s", prefix, key)), nil)
 }
 
 func (c *ScanCache) get(prefix, key string) ([]byte, error) {
@@ -87,6 +93,43 @@ func (c *ScanCache) GetChecksum(pathname string) (objects.Checksum, error) {
 	}
 
 	return objects.Checksum(data), nil
+}
+
+func (c *ScanCache) PutDelta(blobType packfile.Type, packfileChecksum objects.Checksum, blobChecksum objects.Checksum, offset uint32, length uint32) error {
+	if serializedLocation, err := msgpack.Marshal(state.Delta{
+		Type: blobType,
+		Blob: blobChecksum,
+		Location: state.Location2{
+			Packfile: packfileChecksum,
+			Offset:   offset,
+			Length:   length,
+		},
+	}); err != nil {
+		return err
+	} else {
+		return c.put("__delta__", fmt.Sprintf("%d:%x", blobType, blobChecksum), serializedLocation)
+	}
+}
+
+func (c *ScanCache) HasDelta(blobType packfile.Type, blobChecksum objects.Checksum) (bool, error) {
+	return c.has("__delta__", fmt.Sprintf("%d:%x", blobType, blobChecksum))
+}
+
+func (c *ScanCache) GetDelta(blobType packfile.Type, blobChecksum objects.Checksum) (*state.Delta, error) {
+	data, err := c.get("__delta__", fmt.Sprintf("%d:%x", blobType, blobChecksum))
+	if err != nil {
+		if err == leveldb.ErrNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var delta state.Delta
+	if err = msgpack.Unmarshal(data, &delta); err != nil {
+		return nil, err
+	} else {
+		return &delta, nil
+	}
 }
 
 func (c *ScanCache) PutSummary(pathname string, data []byte) error {

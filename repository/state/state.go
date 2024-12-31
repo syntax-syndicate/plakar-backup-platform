@@ -42,6 +42,18 @@ type Location struct {
 	Length   uint32
 }
 
+type Location2 struct {
+	Packfile objects.Checksum
+	Offset   uint32
+	Length   uint32
+}
+
+type Delta struct {
+	Type     packfile.Type
+	Blob     objects.Checksum
+	Location Location2
+}
+
 type State struct {
 	muChecksum   sync.Mutex
 	checksumToId map[objects.Checksum]uint64

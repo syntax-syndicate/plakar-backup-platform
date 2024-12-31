@@ -3,6 +3,7 @@ package repository
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"hash"
 	"io"
 	"strings"
@@ -82,6 +83,10 @@ func (r *Repository) RebuildState() error {
 	if err != nil {
 		return err
 	}
+
+	fmt.Println("remote states:", remoteStates)
+	fmt.Println("local states:", localStates)
+
 	remoteStatesMap := make(map[objects.Checksum]struct{})
 	for _, stateID := range remoteStates {
 		remoteStatesMap[stateID] = struct{}{}
@@ -113,6 +118,7 @@ func (r *Repository) RebuildState() error {
 			if err != nil {
 				return err
 			}
+
 			remoteState, err := io.ReadAll(remoteStateRd)
 			if err != nil {
 				return err

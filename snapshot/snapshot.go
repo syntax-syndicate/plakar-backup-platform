@@ -310,6 +310,12 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 						blobChecksum,
 						packer.Packfile.Index[idx].Offset,
 						packer.Packfile.Index[idx].Length)
+					err := snap.scanCache.PutDelta(
+						Type, checksum32, blobChecksum, packer.Packfile.Index[idx].Offset, packer.Packfile.Index[idx].Length,
+					)
+					if err != nil {
+						return err
+					}
 					break
 				}
 			}
