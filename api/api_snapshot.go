@@ -32,6 +32,7 @@ func snapshotHeader(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	defer snap.Close()
 
 	return json.NewEncoder(w).Encode(Item{Item: snap.Header})
 }
@@ -62,6 +63,7 @@ func snapshotReader(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	defer snap.Close()
 
 	fs, err := snap.Filesystem()
 	if err != nil {
@@ -248,6 +250,7 @@ func snapshotVFSBrowse(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	defer snap.Close()
 
 	fs, err := snap.Filesystem()
 	if err != nil {
@@ -305,6 +308,7 @@ func snapshotVFSChildren(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	defer snap.Close()
 
 	fs, err := snap.Filesystem()
 	if err != nil {
@@ -386,6 +390,7 @@ func snapshotVFSErrors(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	defer snap.Close()
 
 	if path == "" {
 		path = "/"
@@ -441,6 +446,7 @@ func snapshotSearch(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	defer snap.Close()
 
 	results, err := snap.Search(path, queryStr)
 	if err != nil {

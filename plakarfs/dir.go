@@ -45,6 +45,8 @@ func (d *Dir) Attr(ctx context.Context, a *fuse.Attr) error {
 		if err != nil {
 			return err
 		}
+		defer snap.Close()
+
 		snapfs, err := snap.Filesystem()
 		if err != nil {
 			return err

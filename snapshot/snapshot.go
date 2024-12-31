@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
@@ -33,12 +34,21 @@ type Snapshot struct {
 
 	filesystem *vfs.Filesystem
 
+	scanCache *caching.ScanCache
+
 	SkipDirs []string
 
 	Header *header.Header
 
 	packerChan     chan interface{}
 	packerChanDone chan bool
+}
+
+func (snap *Snapshot) Close() error {
+	if snap.scanCache != nil {
+		snap.scanCache.Close()
+	}
+	return nil
 }
 
 type PackerMsg struct {
@@ -112,6 +122,12 @@ func New(repo *repository.Repository) (*Snapshot, error) {
 		packerChanDone: make(chan bool),
 	}
 
+	scanCache, err := snap.repository.Context().GetCache().Scan(snap.Header.Identifier)
+	if err != nil {
+		return nil, err
+	}
+	snap.scanCache = scanCache
+
 	if snap.Context().GetIdentity() != uuid.Nil {
 		snap.Header.Identity.Identifier = snap.Context().GetIdentity()
 		snap.Header.Identity.PublicKey = snap.Context().GetKeypair().PublicKey
@@ -161,6 +177,11 @@ func Clone(repo *repository.Repository, Identifier objects.Checksum) (*Snapshot,
 	}
 
 	snap.stateDelta = state.New()
+	scanCache, err := snap.repository.Context().GetCache().Scan(snap.Header.Identifier)
+	if err != nil {
+		return nil, err
+	}
+	snap.scanCache = scanCache
 
 	snap.Header.Identifier = repo.Checksum(uuidBytes[:])
 	snap.packerChan = make(chan interface{}, runtime.NumCPU()*2+1)

@@ -140,12 +140,6 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 	snap.Event(events.StartEvent())
 	defer snap.Event(events.DoneEvent())
 
-	sc2, err := snap.repository.Context().GetCache().Scan(snap.Header.Identifier)
-	if err != nil {
-		return err
-	}
-	defer sc2.Close()
-
 	imp, err := importer.NewImporter(scanDir)
 	if err != nil {
 		return err
@@ -191,13 +185,13 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 
 	backupCtx := &BackupContext{
 		imp:            imp,
-		sc:             sc2,
+		sc:             snap.scanCache,
 		maxConcurrency: make(chan bool, maxConcurrency),
 	}
 
 	ds := caching.DBStore[string, ErrorItem]{
 		Prefix: "__error__",
-		Cache:  sc2,
+		Cache:  snap.scanCache,
 	}
 	backupCtx.tree, err = btree.New(&ds, strings.Compare, 50)
 	if err != nil {
@@ -358,7 +352,7 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 			}
 
 			// Record the checksum of the FileEntry in the cache
-			err = sc2.PutChecksum(record.Pathname, fileEntryChecksum)
+			err = snap.scanCache.PutChecksum(record.Pathname, fileEntryChecksum)
 			if err != nil {
 				backupCtx.recordError(record.Pathname, err)
 				return
@@ -375,14 +369,14 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 
 	var rootSummary *vfs.Summary
 
-	directories, err := sc2.EnumerateKeysWithPrefixReverse("__pathname__", true)
+	directories, err := snap.scanCache.EnumerateKeysWithPrefixReverse("__pathname__", true)
 	if err != nil {
 		return err
 	}
 	for record := range directories {
 		dirEntry := vfs.NewDirectoryEntry(path.Dir(record.Pathname), &record)
 
-		childrenChan, err := sc2.EnumerateImmediateChildPathnames(record.Pathname, true)
+		childrenChan, err := snap.scanCache.EnumerateImmediateChildPathnames(record.Pathname, true)
 		if err != nil {
 			return err
 		}
@@ -390,7 +384,7 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 		/* children */
 		var lastChecksum *objects.Checksum
 		for child := range childrenChan {
-			childChecksum, err := sc2.GetChecksum(child.Pathname)
+			childChecksum, err := snap.scanCache.GetChecksum(child.Pathname)
 			if err != nil {
 				continue
 			}
@@ -399,7 +393,7 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 				LfileInfo: child.FileInfo,
 			}
 			if child.FileInfo.Mode().IsDir() {
-				data, err := sc2.GetSummary(child.Pathname)
+				data, err := snap.scanCache.GetSummary(child.Pathname)
 				if err != nil {
 					continue
 				}
@@ -476,7 +470,7 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 				return err
 			}
 		}
-		err = sc2.PutChecksum(record.Pathname, dirEntryChecksum)
+		err = snap.scanCache.PutChecksum(record.Pathname, dirEntryChecksum)
 		if err != nil {
 			backupCtx.recordError(record.Pathname, err)
 			return err
@@ -488,7 +482,7 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 			return err
 		}
 
-		err = sc2.PutSummary(record.Pathname, serializedSummary)
+		err = snap.scanCache.PutSummary(record.Pathname, serializedSummary)
 		if err != nil {
 			backupCtx.recordError(record.Pathname, err)
 			return err
@@ -504,7 +498,7 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 		return backupCtx.abortedReason
 	}
 
-	value, err := sc2.GetChecksum("/")
+	value, err := snap.scanCache.GetChecksum("/")
 	if err != nil {
 		return err
 	}
