@@ -147,6 +147,9 @@ func (e *Entry) Getdents(fsc *Filesystem) (iter.Seq2[*Entry, error], error) {
 	return func(yield func(*Entry, error) bool) {
 		for iter.Next() {
 			path, entry := iter.Current()
+			if prefix == path {
+				continue
+			}
 			if !strings.HasPrefix(path, prefix) {
 				break
 			}
