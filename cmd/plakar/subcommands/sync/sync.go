@@ -23,6 +23,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/PlakarKorp/plakar/btree"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/context"
@@ -31,7 +32,9 @@ import (
 	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
+	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/PlakarKorp/plakar/storage"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 func init() {
@@ -222,9 +225,20 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 		}
 	}
 
-	if true {
-		return fmt.Errorf("XXX need to implement file sync")
+	fs, err := srcSnapshot.Filesystem()
+	if err != nil {
+		return err
 	}
+	fs.VisitNodes(func(csum objects.Checksum, node *btree.Node[string, objects.Checksum, vfs.Entry]) error {
+		if !dstRepository.BlobExists(packfile.TYPE_FILE, csum) {
+			bytes, err := msgpack.Marshal(node)
+			if err != nil {
+				return err
+			}
+			dstSnapshot.PutBlob(packfile.TYPE_FILE, csum, bytes)
+		}
+		return nil
+	})
 
 	c, err = srcSnapshot.ListDatas()
 	if err != nil {

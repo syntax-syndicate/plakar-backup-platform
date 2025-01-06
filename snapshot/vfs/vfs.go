@@ -189,3 +189,7 @@ func (fsc *Filesystem) Children(path string) (<-chan string, error) {
 	}()
 	return ch, nil
 }
+
+func (fsc *Filesystem) VisitNodes(cb func(objects.Checksum, *btree.Node[string, objects.Checksum, Entry]) error) error {
+	return fsc.tree.VisitDFS(cb)
+}
