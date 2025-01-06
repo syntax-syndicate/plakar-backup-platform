@@ -54,7 +54,7 @@ func PathCmp(a, b string) int {
 }
 
 func NewFilesystem(repo *repository.Repository, root objects.Checksum) (*Filesystem, error) {
-	rd, err := repo.GetBlob(packfile.TYPE_FILE, root)
+	rd, err := repo.GetBlob(packfile.TYPE_VFS, root)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func NewFilesystem(repo *repository.Repository, root objects.Checksum) (*Filesys
 		return nil, err
 	}
 
-	storage := repository.NewRepositoryStore[string, Entry](repo, packfile.TYPE_FILE)
+	storage := repository.NewRepositoryStore[string, Entry](repo, packfile.TYPE_VFS)
 	fs := &Filesystem{
 		tree: btree.FromStorage(tree.Root, storage, PathCmp, tree.Order),
 		repo: repo,

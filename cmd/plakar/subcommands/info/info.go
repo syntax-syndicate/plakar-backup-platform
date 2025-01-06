@@ -320,17 +320,9 @@ func info_state(repo *repository.Repository, args []string) error {
 					subpart.Length)
 			}
 
-			for file, subpart := range st.Files {
-				fmt.Printf("file %x : packfile %x, offset %d, length %d\n",
+			for file, subpart := range st.VFS {
+				fmt.Printf("vfs node %x : packfile %x, offset %d, length %d\n",
 					st.IdToChecksum[file],
-					st.IdToChecksum[subpart.Packfile],
-					subpart.Offset,
-					subpart.Length)
-			}
-
-			for directory, subpart := range st.Directories {
-				fmt.Printf("directory %x : packfile %x, offset %d, length %d\n",
-					st.IdToChecksum[directory],
 					st.IdToChecksum[subpart.Packfile],
 					subpart.Offset,
 					subpart.Length)

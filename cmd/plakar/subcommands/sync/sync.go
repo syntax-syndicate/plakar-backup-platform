@@ -230,12 +230,12 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 		return err
 	}
 	fs.VisitNodes(func(csum objects.Checksum, node *btree.Node[string, objects.Checksum, vfs.Entry]) error {
-		if !dstRepository.BlobExists(packfile.TYPE_FILE, csum) {
+		if !dstRepository.BlobExists(packfile.TYPE_VFS, csum) {
 			bytes, err := msgpack.Marshal(node)
 			if err != nil {
 				return err
 			}
-			dstSnapshot.PutBlob(packfile.TYPE_FILE, csum, bytes)
+			dstSnapshot.PutBlob(packfile.TYPE_VFS, csum, bytes)
 		}
 		return nil
 	})

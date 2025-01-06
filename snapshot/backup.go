@@ -319,7 +319,7 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 			}
 
 			var fileEntryChecksum objects.Checksum
-			if fileEntry != nil && snap.BlobExists(packfile.TYPE_FILE, cachedFileEntryChecksum) {
+			if fileEntry != nil && snap.BlobExists(packfile.TYPE_VFS, cachedFileEntryChecksum) {
 				fileEntryChecksum = cachedFileEntryChecksum
 			} else {
 				fileEntry = vfs.NewEntry(path.Dir(record.Pathname), &record)
@@ -347,7 +347,7 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 				}
 
 				fileEntryChecksum = snap.repository.Checksum(serialized)
-				err = snap.PutBlob(packfile.TYPE_FILE, fileEntryChecksum, serialized)
+				err = snap.PutBlob(packfile.TYPE_VFS, fileEntryChecksum, serialized)
 				if err != nil {
 					backupCtx.recordError(record.Pathname, err)
 					return
@@ -533,7 +533,7 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 		}
 	}
 
-	rootcsum, err := persistIndex(snap, backupCtx.fileidx, packfile.TYPE_FILE)
+	rootcsum, err := persistIndex(snap, backupCtx.fileidx, packfile.TYPE_VFS)
 	if err != nil {
 		return err
 	}
