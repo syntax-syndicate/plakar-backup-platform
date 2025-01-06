@@ -1,6 +1,8 @@
 package snapshot
 
 import (
+	"bytes"
+	"encoding/binary"
 	"io"
 	"math"
 	"mime"
@@ -686,4 +688,112 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 	}
 
 	return object, nil
+}
+
+func (snap *Snapshot) PutPackfile(packer *Packer) error {
+
+	repo := snap.repository
+
+	serializedData, err := packer.Packfile.SerializeData()
+	if err != nil {
+		panic("could not serialize pack file data" + err.Error())
+	}
+	serializedIndex, err := packer.Packfile.SerializeIndex()
+	if err != nil {
+		panic("could not serialize pack file index" + err.Error())
+	}
+	serializedFooter, err := packer.Packfile.SerializeFooter()
+	if err != nil {
+		panic("could not serialize pack file footer" + err.Error())
+	}
+
+	encryptedIndex, err := repo.EncodeBuffer(serializedIndex)
+	if err != nil {
+		return err
+	}
+
+	encryptedFooter, err := repo.EncodeBuffer(serializedFooter)
+	if err != nil {
+		return err
+	}
+
+	encryptedFooterLength := uint8(len(encryptedFooter))
+
+	versionBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(versionBytes, packer.Packfile.Footer.Version)
+
+	serializedPackfile := append(serializedData, encryptedIndex...)
+	serializedPackfile = append(serializedPackfile, encryptedFooter...)
+	serializedPackfile = append(serializedPackfile, versionBytes...)
+	serializedPackfile = append(serializedPackfile, byte(encryptedFooterLength))
+
+	checksum := snap.repository.Checksum(serializedPackfile)
+
+	var checksum32 objects.Checksum
+	copy(checksum32[:], checksum[:])
+
+	repo.Logger().Trace("snapshot", "%x: PutPackfile(%x, ...)", snap.Header.GetIndexShortID(), checksum32)
+	err = snap.repository.PutPackfile(checksum32, bytes.NewBuffer(serializedPackfile))
+	if err != nil {
+		panic("could not write pack file")
+	}
+
+	for _, Type := range packer.Types() {
+		for blobChecksum := range packer.Blobs[Type] {
+			for idx, blob := range packer.Packfile.Index {
+				if blob.Checksum == blobChecksum && blob.Type == Type {
+					snap.Repository().SetPackfileForBlob(Type, checksum32,
+						blobChecksum,
+						packer.Packfile.Index[idx].Offset,
+						packer.Packfile.Index[idx].Length)
+					snap.stateDelta.SetPackfileForBlob(Type, checksum32,
+						blobChecksum,
+						packer.Packfile.Index[idx].Offset,
+						packer.Packfile.Index[idx].Length)
+					break
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (snap *Snapshot) Commit() error {
+
+	repo := snap.repository
+
+	serializedHdr, err := snap.Header.Serialize()
+	if err != nil {
+		return err
+	}
+
+	if kp := snap.Context().GetKeypair(); kp != nil {
+		serializedHdrChecksum := snap.repository.Checksum(serializedHdr)
+		signature := kp.Sign(serializedHdrChecksum[:])
+		if err := snap.PutBlob(packfile.TYPE_SIGNATURE, snap.Header.Identifier, signature); err != nil {
+			return err
+		}
+	}
+
+	if err := snap.PutBlob(packfile.TYPE_SNAPSHOT, snap.Header.Identifier, serializedHdr); err != nil {
+		return err
+	}
+
+	close(snap.packerChan)
+	<-snap.packerChanDone
+
+	var serializedRepositoryIndex bytes.Buffer
+	err = snap.stateDelta.SerializeStream(&serializedRepositoryIndex)
+	if err != nil {
+		snap.Logger().Warn("could not serialize repository index: %s", err)
+		return err
+	}
+	err = repo.PutState(snap.Header.Identifier, &serializedRepositoryIndex)
+	if err != nil {
+		return err
+	}
+
+	snap.Logger().Trace("snapshot", "%x: Commit()", snap.Header.GetIndexShortID())
+	return nil
 }
