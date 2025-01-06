@@ -18,7 +18,6 @@ package classifier
 
 import (
 	"fmt"
-
 	"log"
 	"sync"
 
