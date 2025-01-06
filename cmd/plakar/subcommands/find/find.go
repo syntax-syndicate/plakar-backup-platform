@@ -48,6 +48,7 @@ func cmd_find(ctx *context.Context, repo *repository.Repository, args []string) 
 	if err != nil {
 		log.Fatalf("failed to open snapshot: %v", err)
 	}
+	defer snap.Close()
 
 	results, err := snap.Search(prefix, flags.Arg(1))
 	if err != nil {
@@ -69,83 +70,3 @@ func cmd_find(ctx *context.Context, repo *repository.Repository, args []string) 
 
 	return 0
 }
-
-/*
-func cmd_find(ctx *context.Context, repo *repository.Repository, args []string) int {
-	flags := flag.NewFlagSet("find", flag.ExitOnError)
-	flags.Parse(args)
-
-	if flags.NArg() < 1 {
-		log.Fatalf("%s: need at least a chunk prefix to search", flag.CommandLine.Name())
-	}
-
-	result := make(map[*snapshot.Snapshot]map[string]bool)
-	snapshotsList, err := utils.GetSnapshotsList(repo)
-	if err != nil {
-		log.Fatal(err)
-	}
-	for _, snapshotUuid := range snapshotsList {
-		snap, err := snapshot.Load(repo, snapshotUuid)
-		if err != nil {
-			log.Fatal(err)
-			return 1
-		}
-
-		fs, err := snap.Filesystem()
-		if err != nil {
-			log.Fatal(err)
-			return 1
-		}
-
-		result[snap] = make(map[string]bool)
-
-		for _, arg := range flags.Args() {
-			// try finding a pathname to a directory of file
-			if strings.Contains(arg, "/") {
-				for pathname := range fs.Pathnames() {
-					if pathname == arg {
-						if exists := result[snap][pathname]; !exists {
-							result[snap][pathname] = true
-						}
-					}
-				}
-			}
-
-			// try finding a directory or file
-			for name := range fs.Pathnames() {
-				if filepath.Base(name) == arg {
-					if exists := result[snap][arg]; !exists {
-						result[snap][name] = true
-					}
-				}
-			}
-
-		}
-	}
-
-	snapshots := make([]*snapshot.Snapshot, 0)
-	for snap := range result {
-		snapshots = append(snapshots, snap)
-	}
-	sort.Slice(snapshots, func(i, j int) bool {
-		return snapshots[i].Header.CreationTime.Before(snapshots[j].Header.CreationTime)
-	})
-
-	for _, snap := range snapshots {
-		files := make([]string, 0)
-		for file := range result[snap] {
-			files = append(files, file)
-		}
-
-		sort.Slice(files, func(i, j int) bool {
-			return files[i] < files[j]
-		})
-
-		for _, pathname := range files {
-			fmt.Printf("%s  %x %s\n", snap.Header.CreationTime.UTC().Format(time.RFC3339), snap.Header.GetIndexShortID(), pathname)
-		}
-	}
-
-	return 0
-}
-*/

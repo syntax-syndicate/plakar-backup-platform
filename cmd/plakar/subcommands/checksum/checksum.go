@@ -55,6 +55,8 @@ func cmd_checksum(ctx *context.Context, repo *repository.Repository, args []stri
 
 	errors := 0
 	for offset, snap := range snapshots {
+		defer snap.Close()
+
 		fs, err := snap.Filesystem()
 		if err != nil {
 			continue

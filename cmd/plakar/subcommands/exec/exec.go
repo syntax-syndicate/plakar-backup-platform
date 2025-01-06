@@ -50,6 +50,7 @@ func cmd_exec(ctx *context.Context, repo *repository.Repository, args []string) 
 		return 0
 	}
 	snap := snapshots[0]
+	defer snap.Close()
 
 	_, pathname := utils.ParseSnapshotID(flags.Args()[0])
 

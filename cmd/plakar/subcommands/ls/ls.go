@@ -166,6 +166,7 @@ func list_snapshot(repo *repository.Repository, snapshotPath string, recursive b
 	if err != nil {
 		log.Fatalf("%s: could not fetch snapshot: %s", flag.CommandLine.Name(), err)
 	}
+	defer snap.Close()
 
 	pvfs, err := snap.Filesystem()
 	if err != nil {

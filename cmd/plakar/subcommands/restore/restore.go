@@ -83,6 +83,7 @@ func cmd_restore(ctx *context.Context, repo *repository.Repository, args []strin
 					return 1
 				}
 				snap.Restore(exporterInstance, ctx.GetCWD(), ctx.GetCWD(), opts)
+				snap.Close()
 				return 0
 			}
 		}
@@ -98,6 +99,7 @@ func cmd_restore(ctx *context.Context, repo *repository.Repository, args []strin
 	for offset, snap := range snapshots {
 		_, pattern := utils.ParseSnapshotID(flags.Args()[offset])
 		snap.Restore(exporterInstance, ctx.GetCWD(), pattern, opts)
+		snap.Close()
 	}
 
 	return 0
