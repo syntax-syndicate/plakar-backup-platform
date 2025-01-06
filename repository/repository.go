@@ -158,7 +158,6 @@ func (r *Repository) RebuildState() error {
 		aggregateState.Merge(stateID, tmp)
 		aggregateState.Extends(stateID)
 	}
-	aggregateState.ResetDirty()
 	r.state = aggregateState
 	return nil
 }
@@ -176,10 +175,6 @@ func (r *Repository) Close() error {
 	defer func() {
 		r.Logger().Trace("repository", "Close(): %s", time.Since(t0))
 	}()
-
-	if r.state.Dirty() {
-	}
-
 	return nil
 }
 
