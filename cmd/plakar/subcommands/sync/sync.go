@@ -184,11 +184,13 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 	if err != nil {
 		return err
 	}
+	defer srcSnapshot.Close()
 
 	dstSnapshot, err := snapshot.Clone(dstRepository, snapshotID)
 	if err != nil {
 		return err
 	}
+	defer dstSnapshot.Close()
 
 	dstSnapshot.Header = srcSnapshot.Header
 

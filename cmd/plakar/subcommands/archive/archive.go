@@ -69,6 +69,7 @@ func cmd_archive(ctx *context.Context, repo *repository.Repository, args []strin
 	if err != nil {
 		log.Fatalf("%s: could not open snapshot: %s", flag.CommandLine.Name(), snapshotPrefix)
 	}
+	defer snap.Close()
 
 	fs, err := snap.Filesystem()
 	if err != nil {

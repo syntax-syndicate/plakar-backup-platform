@@ -105,6 +105,7 @@ func cmd_backup(ctx *context.Context, repo *repository.Repository, args []string
 		ctx.GetLogger().Error("%s", err)
 		return 1
 	}
+	defer snap.Close()
 
 	identityID := os.Getenv("PLAKAR_IDENTITY")
 	if opt_identity != "" {

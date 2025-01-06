@@ -59,6 +59,8 @@ func cmd_cat(ctx *context.Context, repo *repository.Repository, args []string) i
 
 	errors := 0
 	for offset, snap := range snapshots {
+		defer snap.Close()
+
 		_, pathname := utils.ParseSnapshotID(flags.Args()[offset])
 
 		if pathname == "" {

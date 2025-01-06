@@ -87,6 +87,7 @@ func cmd_check(ctx *context.Context, repo *repository.Repository, args []string)
 			failures = true
 		}
 
+		snap.Close()
 	}
 
 	if failures {

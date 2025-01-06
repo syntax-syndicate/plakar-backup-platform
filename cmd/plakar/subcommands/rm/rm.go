@@ -153,6 +153,8 @@ func cmd_rm(ctx *context.Context, repo *repository.Repository, args []string) in
 
 		wg.Add(1)
 		go func(snap *snapshot.Snapshot) {
+			defer snap.Close()
+
 			t0 := time.Now()
 			err := repo.DeleteSnapshot(snap.Header.GetIndexID())
 			if err != nil {

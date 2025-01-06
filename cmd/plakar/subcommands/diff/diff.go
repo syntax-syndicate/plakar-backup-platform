@@ -56,11 +56,13 @@ func cmd_diff(ctx *context.Context, repo *repository.Repository, args []string) 
 	if err != nil {
 		log.Fatalf("%s: could not open snapshot: %s", flag.CommandLine.Name(), snapshotPrefix1)
 	}
+	defer snap1.Close()
 
 	snap2, err := utils.OpenSnapshotByPrefix(repo, snapshotPrefix2)
 	if err != nil {
 		log.Fatalf("%s: could not open snapshot: %s", flag.CommandLine.Name(), snapshotPrefix2)
 	}
+	defer snap2.Close()
 
 	var diff string
 	if pathname1 == "" && pathname2 == "" {

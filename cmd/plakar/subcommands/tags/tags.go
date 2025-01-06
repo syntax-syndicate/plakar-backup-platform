@@ -61,6 +61,7 @@ func list_tags(repo *repository.Repository, display string) {
 			}
 			tags[tag] = append(tags[tag], snapshotID)
 		}
+		snap.Close()
 	}
 
 	tagsList := make([]string, 0, len(tags))

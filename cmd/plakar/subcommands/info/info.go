@@ -173,6 +173,7 @@ func info_snapshot(repo *repository.Repository, snapshotID string) error {
 	if err != nil {
 		return err
 	}
+	defer snap.Close()
 
 	header := snap.Header
 
@@ -490,6 +491,8 @@ func info_vfs(repo *repository.Repository, snapshotPath string) error {
 	if err != nil {
 		return err
 	}
+	defer snap1.Close()
+
 	fs, err := snap1.Filesystem()
 	if err != nil {
 		return err
@@ -666,6 +669,7 @@ func info_errors(repo *repository.Repository, snapshotID string) error {
 	if err != nil {
 		return err
 	}
+	defer snap.Close()
 
 	errstream, err := snap.Errors(pathname)
 	if err != nil {
