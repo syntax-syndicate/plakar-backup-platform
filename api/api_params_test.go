@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"reflect"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -205,6 +206,69 @@ func TestQueryParamToInt64(t *testing.T) {
 			}
 			if gotExists != tt.wantExists {
 				t.Errorf("QueryParamToInt64() gotExists = %v, want %v", gotExists, tt.wantExists)
+			}
+		})
+	}
+}
+
+func TestQueryParamToSortKeys(t *testing.T) {
+	tests := []struct {
+		name    string
+		param   string
+		def     string
+		want    []string
+		wantErr bool
+	}{
+		{
+			name:    "empty param",
+			param:   "",
+			def:     "Timestamp",
+			want:    []string{"Timestamp"},
+			wantErr: false,
+		},
+		{
+			name:    "valid param",
+			param:   "-Timestamp",
+			def:     "",
+			want:    []string{"-Timestamp"},
+			wantErr: false,
+		},
+		{
+			name:    "multiple valid params",
+			param:   "Timestamp,Identifier",
+			def:     "",
+			want:    []string{"Timestamp", "Identifier"},
+			wantErr: false,
+		},
+		{
+			name:    "invalid param",
+			param:   "InvalidKey",
+			def:     "",
+			want:    []string{},
+			wantErr: true,
+		},
+		{
+			name:    "default multiple params",
+			param:   "",
+			def:     "-Identifier,-Timestamp",
+			want:    []string{"-Identifier", "-Timestamp"},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := http.NewRequest("GET", "/?sort="+tt.param, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := QueryParamToSortKeys(req, "sort", tt.def)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("QueryParamToSortKeys() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("QueryParamToSortKeys() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
