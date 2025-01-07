@@ -158,7 +158,7 @@ func archiveTarball(snap *snapshot.Snapshot, out io.Writer, vfs *vfs.Filesystem,
 			ModTime:  sb.ModTime(),
 		}
 
-		if _, ok := fp.(fs.ReadDirFile); ok {
+		if sb.Mode().IsDir() {
 			header.Typeflag = tar.TypeDir
 		}
 
@@ -202,21 +202,21 @@ func archiveZip(snap *snapshot.Snapshot, out io.Writer, vfs *vfs.Filesystem, pat
 			return err
 		}
 
-		filepath := file
-		if rebase {
-			filepath = strings.TrimPrefix(filepath, path)
-		}
-
-		if _, isDir := fp.(fs.ReadDirFile); isDir {
-			fp.Close()
-			continue
-		}
-
 		sb, err := fp.Stat()
 		if err != nil {
 			snap.Logger().Printf("couldn't stat %s: %s", file, err)
 			fp.Close()
 			return err
+		}
+
+		filepath := file
+		if rebase {
+			filepath = strings.TrimPrefix(filepath, path)
+		}
+
+		if sb.Mode().IsDir() {
+			fp.Close()
+			continue
 		}
 
 		header, err := zip.FileInfoHeader(sb)
