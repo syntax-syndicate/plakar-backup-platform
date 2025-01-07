@@ -85,41 +85,40 @@ func (r *Repository) RebuildState() error {
 	}()
 
 	// identify local states
-	localStatesMap := make(map[objects.Checksum]struct{})
 	localStates, err := cacheInstance.GetStates()
 	if err != nil {
 		return err
 	}
 
-	for _, stateID := range localStates {
-		localStatesMap[stateID] = struct{}{}
-	}
+	desynchronized := false
 
 	// identify remote states
 	remoteStates, err := r.GetStates()
 	if err != nil {
 		return err
 	}
+
 	remoteStatesMap := make(map[objects.Checksum]struct{})
 	for _, stateID := range remoteStates {
 		remoteStatesMap[stateID] = struct{}{}
 	}
 
-	desynchronized := false
-
 	// build delta of local and remote states
-	missingStates := make([]objects.Checksum, 0)
-	for _, stateID := range remoteStates {
-		if _, exists := localStatesMap[stateID]; !exists {
-			missingStates = append(missingStates, stateID)
+	localStatesMap := make(map[objects.Checksum]struct{})
+	outdatedStates := make([]objects.Checksum, 0)
+	for _, stateID := range localStates {
+		localStatesMap[stateID] = struct{}{}
+
+		if _, exists := remoteStatesMap[stateID]; !exists {
+			outdatedStates = append(outdatedStates, stateID)
 			desynchronized = true
 		}
 	}
 
-	outdatedStates := make([]objects.Checksum, 0)
-	for stateID := range localStatesMap {
-		if _, exists := remoteStatesMap[stateID]; !exists {
-			outdatedStates = append(outdatedStates, stateID)
+	missingStates := make([]objects.Checksum, 0)
+	for _, stateID := range remoteStates {
+		if _, exists := localStatesMap[stateID]; !exists {
+			missingStates = append(missingStates, stateID)
 			desynchronized = true
 		}
 	}
