@@ -3,6 +3,7 @@ package btree
 import (
 	"errors"
 	"log"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -360,5 +361,35 @@ func TestPersist(t *testing.T) {
 
 	if iter.Next() {
 		t.Fatalf("iterator could unexpectedly continue")
+	}
+}
+
+func TestVisitDFS(t *testing.T) {
+	store := InMemoryStore[rune, int]{}
+	tree, err := New(&store, cmp, 3)
+	if err != nil {
+		t.Fatalf("New failed: %v", err)
+	}
+
+	alphabet := []rune("abcdefghijklmnopqrstuvwxyz")
+	for i, r := range alphabet {
+		if err := tree.Insert(r, i); err != nil {
+			t.Fatalf("Failed to insert(%v, %v): %v", r, i, err)
+		}
+	}
+
+	keySaw := []rune{}
+	tree.VisitDFS(func(ptr int, node *Node[rune, int, int]) error {
+		if node.isleaf() {
+			for i := range node.Keys {
+				keySaw = append(keySaw, node.Keys[i])
+			}
+		}
+		return nil
+	})
+
+	if slices.Compare(alphabet, keySaw) != 0 {
+		t.Errorf("some keys weren't seen; got %v but want %v",
+			keySaw, alphabet)
 	}
 }

@@ -1,12 +1,12 @@
 module github.com/PlakarKorp/plakar
 
-go 1.22.2
+go 1.23.3
 
 require (
 	github.com/PlakarKorp/go-cdc-chunkers v0.0.8
 	github.com/alecthomas/chroma v0.10.0
 	github.com/alecthomas/participle/v2 v2.1.1
-	github.com/anacrolix/fuse v0.4.0
+	github.com/anacrolix/fuse v0.3.1
 	github.com/charmbracelet/glamour v0.8.0
 	github.com/charmbracelet/lipgloss v1.0.0
 	github.com/charmbracelet/log v0.4.0
