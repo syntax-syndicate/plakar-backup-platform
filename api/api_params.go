@@ -54,7 +54,7 @@ func QueryParamToInt64(r *http.Request, param string) (int64, bool, error) {
 		return 0, false, nil
 	}
 
-	n, err := strconv.ParseInt(str, 10, 32)
+	n, err := strconv.ParseInt(str, 10, 64)
 	if err != nil {
 		return 0, true, err
 	}

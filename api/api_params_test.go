@@ -143,3 +143,69 @@ func TestQueryParamToUint32(t *testing.T) {
 		})
 	}
 }
+
+func TestQueryParamToInt64(t *testing.T) {
+	tests := []struct {
+		name       string
+		param      string
+		want       int64
+		wantErr    bool
+		wantExists bool
+	}{
+		{
+			name:       "empty param",
+			param:      "",
+			want:       0,
+			wantErr:    false,
+			wantExists: false,
+		},
+		{
+			name:       "valid param",
+			param:      "123",
+			want:       123,
+			wantErr:    false,
+			wantExists: true,
+		},
+		{
+			name:       "valid param max 64 bit",
+			param:      "9223372036854775807",
+			want:       9223372036854775807,
+			wantErr:    false,
+			wantExists: true,
+		},
+		{
+			name:       "invalid param",
+			param:      "abc",
+			want:       0,
+			wantErr:    true,
+			wantExists: true,
+		},
+		{
+			name:       "out of range param",
+			param:      "9223372036854775808",
+			want:       0,
+			wantErr:    true,
+			wantExists: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := http.NewRequest("GET", "/?param="+tt.param, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, gotExists, err := QueryParamToInt64(req, "param")
+			if (err != nil) != tt.wantErr {
+				t.Errorf("QueryParamToInt64() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("QueryParamToInt64() got = %v, want %v", got, tt.want)
+			}
+			if gotExists != tt.wantExists {
+				t.Errorf("QueryParamToInt64() gotExists = %v, want %v", gotExists, tt.wantExists)
+			}
+		})
+	}
+}
