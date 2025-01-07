@@ -126,7 +126,10 @@ func archiveTarball(snap *snapshot.Snapshot, out io.Writer, vfs *vfs.Filesystem,
 	tarWriter := tar.NewWriter(out)
 	defer tarWriter.Close()
 
-	for file := range vfs.Pathnames() {
+	for file, err := range vfs.Pathnames() {
+		if err != nil {
+			return err
+		}
 		if path != "" && !utils.PathIsWithin(file, path) {
 			continue
 		}
@@ -189,7 +192,10 @@ func archiveZip(snap *snapshot.Snapshot, out io.Writer, vfs *vfs.Filesystem, pat
 	zipWriter := zip.NewWriter(out)
 	defer zipWriter.Close()
 
-	for file := range vfs.Pathnames() {
+	for file, err := range vfs.Pathnames() {
+		if err != nil {
+			return err
+		}
 		if path != "" {
 			if !utils.PathIsWithin(file, path) {
 				continue

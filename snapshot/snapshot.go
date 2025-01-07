@@ -196,7 +196,11 @@ func (snap *Snapshot) ListChunks() (iter.Seq2[objects.Checksum, error], error) {
 		return nil, err
 	}
 	return func(yield func(objects.Checksum, error) bool) {
-		for filename := range fs.Files() {
+		for filename, err := range fs.Files() {
+			if err != nil {
+				yield(objects.Checksum{}, err)
+				return
+			}
 			fsentry, err := fs.GetEntry(filename)
 			if err != nil {
 				yield(objects.Checksum{}, err)
@@ -220,7 +224,11 @@ func (snap *Snapshot) ListObjects() (iter.Seq2[objects.Checksum, error], error) 
 		return nil, err
 	}
 	return func(yield func(objects.Checksum, error) bool) {
-		for filename := range fs.Files() {
+		for filename, err := range fs.Files() {
+			if err != nil {
+				yield(objects.Checksum{}, err)
+				return
+			}
 			fsentry, err := fs.GetEntry(filename)
 			if err != nil {
 				yield(objects.Checksum{}, err)
