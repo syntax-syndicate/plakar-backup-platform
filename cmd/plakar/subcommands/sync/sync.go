@@ -23,6 +23,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/PlakarKorp/plakar/btree"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/context"
@@ -31,7 +32,9 @@ import (
 	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
+	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/PlakarKorp/plakar/storage"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 func init() {
@@ -222,33 +225,20 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 		}
 	}
 
-	c, err = srcSnapshot.ListFiles()
+	fs, err := srcSnapshot.Filesystem()
 	if err != nil {
 		return err
 	}
-	for fileID := range c {
-		if !dstRepository.BlobExists(packfile.TYPE_FILE, fileID) {
-			fileData, err := srcSnapshot.GetBlob(packfile.TYPE_FILE, fileID)
+	fs.VisitNodes(func(csum objects.Checksum, node *btree.Node[string, objects.Checksum, vfs.Entry]) error {
+		if !dstRepository.BlobExists(packfile.TYPE_VFS, csum) {
+			bytes, err := msgpack.Marshal(node)
 			if err != nil {
 				return err
 			}
-			dstSnapshot.PutBlob(packfile.TYPE_FILE, fileID, fileData)
+			dstSnapshot.PutBlob(packfile.TYPE_VFS, csum, bytes)
 		}
-	}
-
-	c, err = srcSnapshot.ListDirectories()
-	if err != nil {
-		return err
-	}
-	for directoryID := range c {
-		if !dstRepository.BlobExists(packfile.TYPE_DIRECTORY, directoryID) {
-			directoryData, err := srcSnapshot.GetBlob(packfile.TYPE_DIRECTORY, directoryID)
-			if err != nil {
-				return err
-			}
-			dstSnapshot.PutBlob(packfile.TYPE_DIRECTORY, directoryID, directoryData)
-		}
-	}
+		return nil
+	})
 
 	c, err = srcSnapshot.ListDatas()
 	if err != nil {
