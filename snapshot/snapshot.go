@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"runtime"
 	"time"
 
@@ -189,28 +190,28 @@ func (snap *Snapshot) LookupObject(checksum objects.Checksum) (*objects.Object, 
 	return objects.NewObjectFromBytes(buffer)
 }
 
-func (snap *Snapshot) ListChunks() (<-chan objects.Checksum, error) {
+func (snap *Snapshot) ListChunks() (iter.Seq2[objects.Checksum, error], error) {
 	fs, err := snap.Filesystem()
 	if err != nil {
 		return nil, err
 	}
-	c := make(chan objects.Checksum)
-	go func() {
+	return func(yield func(objects.Checksum, error) bool) {
 		for filename := range fs.Files() {
 			fsentry, err := fs.GetEntry(filename)
 			if err != nil {
-				break
+				yield(objects.Checksum{}, err)
+				return
 			}
 			if fsentry.Object == nil {
 				continue
 			}
 			for _, chunk := range fsentry.Object.Chunks {
-				c <- chunk.Checksum
+				if !yield(chunk.Checksum, nil) {
+					return
+				}
 			}
 		}
-		close(c)
-	}()
-	return c, nil
+	}, nil
 }
 
 func (snap *Snapshot) ListObjects() (<-chan objects.Checksum, error) {
