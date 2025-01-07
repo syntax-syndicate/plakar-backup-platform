@@ -236,15 +236,10 @@ func (snap *Snapshot) ListObjects() (iter.Seq2[objects.Checksum, error], error) 
 	}, nil
 }
 
-func (snap *Snapshot) ListDatas() (<-chan objects.Checksum, error) {
-	c := make(chan objects.Checksum)
-
-	go func() {
-		c <- snap.Header.Metadata
-		close(c)
-	}()
-
-	return c, nil
+func (snap *Snapshot) ListDatas() iter.Seq2[objects.Checksum, error] {
+	return func(yield func(objects.Checksum, error) bool) {
+		yield(snap.Header.Metadata, nil)
+	}
 }
 
 func (snap *Snapshot) Logger() *logging.Logger {
