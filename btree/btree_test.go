@@ -2,7 +2,6 @@ package btree
 
 import (
 	"errors"
-	"log"
 	"slices"
 	"strings"
 	"testing"
@@ -61,15 +60,6 @@ func cmp(a, b rune) int {
 	return +1
 }
 
-func printtree[K any, P any, V any](b *BTree[K, P, V]) {
-	n := -1
-	b.VisitLevelOrder(func(ptr P, node *Node[K, P, V]) bool {
-		n++
-		log.Printf("%v keys: %+v (ptrs: %+v)", n, node.Keys, node.Pointers)
-		return true
-	})
-}
-
 func TestBTree(t *testing.T) {
 	store := InMemoryStore[rune, int]{}
 	tree, err := New(&store, cmp, 3)
@@ -79,11 +69,6 @@ func TestBTree(t *testing.T) {
 
 	alphabet := []rune("abcdefghijklmnopqrstuvwxyz")
 	for i, r := range alphabet {
-		// log.Println("==== tree dump ====")
-		// printtree(tree)
-		// log.Println("==== tree dump ====")
-		// log.Println("-> inserting", r, i)
-
 		if err := tree.Insert(r, i); err != nil {
 			t.Fatalf("Failed to insert(%v, %v): %v", r, i, err)
 		}
@@ -96,10 +81,6 @@ func TestBTree(t *testing.T) {
 			t.Fatalf("insertion of (%v, %v) failed with unexpected succeeded", r, i)
 		}
 	}
-
-	// log.Println("==== done; now querying ====")
-	// printtree(tree)
-	// log.Println("====")
 
 	for i, r := range alphabet {
 		v, found, err := tree.Find(r)
@@ -147,10 +128,6 @@ func TestInsert(t *testing.T) {
 
 	items := []string{"e", "z", "a", "b", "a", "a", "b", "b", "a", "c", "d"}
 	for i, r := range items {
-		// log.Println("==== tree dump ====")
-		// printtree(tree)
-		// log.Println("==== tree dump ====")
-		// log.Println("-> inserting", r, i)
 		if err := tree.Insert(r, i); err != nil && err != ErrExists {
 			t.Fatalf("Failed to insert(%v, %v): %v", r, i, err)
 		}
@@ -316,9 +293,6 @@ func TestPersist(t *testing.T) {
 	}
 
 	tree2 := FromStorage(root, &store2, cmp, order)
-	// printtree(tree)
-	// log.Println("===")
-	// printtree(tree2)
 	for i, r := range alphabet {
 		v, found, err := tree2.Find(r)
 		if err != nil {

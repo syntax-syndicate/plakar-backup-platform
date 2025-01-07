@@ -236,26 +236,3 @@ func (b *BTree[K, P, V]) VisitDFS(cb func(P, *Node[K, P, V]) error) error {
 	}
 	return nil
 }
-
-func (b *BTree[K, P, V]) VisitLevelOrder(cb func(P, *Node[K, P, V]) bool) error {
-	stack := []P{b.Root}
-
-	for {
-		if len(stack) == 0 {
-			return nil
-		}
-		ptr := stack[0]
-		stack = stack[1:]
-
-		node, err := b.store.Get(ptr)
-		if err != nil {
-			return err
-		}
-
-		if !cb(ptr, node) {
-			return nil
-		}
-
-		stack = append(stack, node.Pointers...)
-	}
-}
