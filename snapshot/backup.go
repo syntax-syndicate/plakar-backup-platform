@@ -28,7 +28,6 @@ type BackupContext struct {
 	aborted        atomic.Bool
 	abortedReason  error
 	imp            importer.Importer
-	sc             *caching.ScanCache
 	maxConcurrency chan bool
 
 	fileidx   *btree.BTree[string, int, vfs.Entry]
@@ -203,7 +202,6 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 
 	backupCtx := &BackupContext{
 		imp:            imp,
-		sc:             sc2,
 		maxConcurrency: make(chan bool, maxConcurrency),
 	}
 
@@ -211,7 +209,7 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 		Prefix: "__path__",
 		Cache:  sc2,
 	}
-	backupCtx.fileidx, err = btree.New(&filestore, vfs.PathCmp, 3)
+	backupCtx.fileidx, err = btree.New(&filestore, vfs.PathCmp, 50)
 	if err != nil {
 		return err
 	}
@@ -400,18 +398,6 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 	errcsum, err := persistIndex(snap, backupCtx.erridx, packfile.TYPE_ERROR)
 	if err != nil {
 		return err
-	}
-
-	fit, _ := backupCtx.fileidx.ScanAll()
-	var previous *string
-	for fit.Next() {
-		path, _ := fit.Current()
-		if previous != nil {
-			if vfs.PathCmp(*previous, path) != -1 {
-				panic(fmt.Sprintf("unexpected ordering issue: %s vs %s", *previous, path))
-			}
-		}
-		previous = &path
 	}
 
 	var rootSummary *vfs.Summary
