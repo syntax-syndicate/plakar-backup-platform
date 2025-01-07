@@ -214,11 +214,14 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 		}
 	}
 
-	c, err := srcSnapshot.ListObjects()
+	iter, err = srcSnapshot.ListObjects()
 	if err != nil {
 		return err
 	}
-	for objectID := range c {
+	for objectID, err := range iter {
+		if err != nil {
+			return err
+		}
 		if !dstRepository.BlobExists(packfile.TYPE_OBJECT, objectID) {
 			objectData, err := srcSnapshot.GetBlob(packfile.TYPE_OBJECT, objectID)
 			if err != nil {
@@ -243,7 +246,7 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 		return nil
 	})
 
-	c, err = srcSnapshot.ListDatas()
+	c, err := srcSnapshot.ListDatas()
 	if err != nil {
 		return err
 	}
