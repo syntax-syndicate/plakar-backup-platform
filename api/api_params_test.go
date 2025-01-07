@@ -77,3 +77,69 @@ func TestPathParamToID_Invalid(t *testing.T) {
 		})
 	}
 }
+
+func TestQueryParamToUint32(t *testing.T) {
+	tests := []struct {
+		name       string
+		param      string
+		want       uint32
+		wantErr    bool
+		wantExists bool
+	}{
+		{
+			name:       "empty param",
+			param:      "",
+			want:       0,
+			wantErr:    false,
+			wantExists: false,
+		},
+		{
+			name:       "valid param",
+			param:      "123",
+			want:       123,
+			wantErr:    false,
+			wantExists: true,
+		},
+		{
+			name:       "invalid param",
+			param:      "abc",
+			want:       0,
+			wantErr:    true,
+			wantExists: true,
+		},
+		{
+			name:       "negative param",
+			param:      "-1",
+			want:       0,
+			wantErr:    true,
+			wantExists: true,
+		},
+		{
+			name:       "out of range param",
+			param:      "4294967296",
+			want:       0,
+			wantErr:    true,
+			wantExists: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := http.NewRequest("GET", "/?param="+tt.param, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, gotExists, err := QueryParamToUint32(req, "param")
+			if (err != nil) != tt.wantErr {
+				t.Errorf("QueryParamToUint32() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("QueryParamToUint32() got = %v, want %v", got, tt.want)
+			}
+			if gotExists != tt.wantExists {
+				t.Errorf("QueryParamToUint32() gotExists = %v, want %v", gotExists, tt.wantExists)
+			}
+		})
+	}
+}

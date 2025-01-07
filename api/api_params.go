@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/hex"
-	"math"
 	"net/http"
 	"strconv"
 
@@ -46,10 +45,6 @@ func QueryParamToUint32(r *http.Request, param string) (uint32, bool, error) {
 		return 0, true, parameterError(param, BadNumber, ErrNegativeNumber)
 	}
 
-	if n > math.MaxUint32 {
-		return 0, true, parameterError(param, BadNumber, ErrNumberOutOfRange)
-	}
-
 	return uint32(n), true, nil
 }
 
@@ -66,7 +61,6 @@ func QueryParamToInt64(r *http.Request, param string) (int64, bool, error) {
 
 	return n, true, nil
 }
-
 
 func QueryParamToSortKeys(r *http.Request, param, def string) ([]string, error) {
 	str := r.URL.Query().Get(param)
