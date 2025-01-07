@@ -85,14 +85,14 @@ func (r *Repository) RebuildState() error {
 	}()
 
 	// identify local states
-	localStates := make(map[objects.Checksum]struct{})
-	statesChan, err := cacheInstance.ListStates()
+	localStatesMap := make(map[objects.Checksum]struct{})
+	localStates, err := cacheInstance.GetStates()
 	if err != nil {
 		return err
 	}
 
-	for stateID := range statesChan {
-		localStates[stateID] = struct{}{}
+	for _, stateID := range localStates {
+		localStatesMap[stateID] = struct{}{}
 	}
 
 	// identify remote states
@@ -110,14 +110,14 @@ func (r *Repository) RebuildState() error {
 	// build delta of local and remote states
 	missingStates := make([]objects.Checksum, 0)
 	for _, stateID := range remoteStates {
-		if _, exists := localStates[stateID]; !exists {
+		if _, exists := localStatesMap[stateID]; !exists {
 			missingStates = append(missingStates, stateID)
 			desynchronized = true
 		}
 	}
 
 	outdatedStates := make([]objects.Checksum, 0)
-	for stateID := range localStates {
+	for stateID := range localStatesMap {
 		if _, exists := remoteStatesMap[stateID]; !exists {
 			outdatedStates = append(outdatedStates, stateID)
 			desynchronized = true
@@ -143,12 +143,12 @@ func (r *Repository) RebuildState() error {
 					return err
 				}
 			}
-			localStates[stateID] = struct{}{}
+			localStatesMap[stateID] = struct{}{}
 		}
 
 		// delete local states that are not present in remote
 		for _, stateID := range outdatedStates {
-			delete(localStates, stateID)
+			delete(localStatesMap, stateID)
 			if err := cacheInstance.DelState(stateID); err != nil {
 				return err
 			}
@@ -158,7 +158,7 @@ func (r *Repository) RebuildState() error {
 	// merge all local states into a new aggregate state
 	aggregateState := state.New()
 
-	for stateID := range localStates {
+	for stateID := range localStatesMap {
 		idxRd, err := r.GetState(stateID)
 		if err != nil {
 			return err

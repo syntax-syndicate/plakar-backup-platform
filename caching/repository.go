@@ -72,29 +72,25 @@ func (c *_RepositoryCache) DelState(stateID [32]byte) error {
 	return c.delete("__state__", fmt.Sprintf("%x", stateID))
 }
 
-func (c *_RepositoryCache) ListStates() (chan [32]byte, error) {
-	ch := make(chan [32]byte)
-	go func() {
-		defer close(ch)
+func (c *_RepositoryCache) GetStates() ([][32]byte, error) {
+	ret := make([][32]byte, 0)
+	iter := c.db.NewIterator(nil, nil)
+	defer iter.Release()
 
-		iter := c.db.NewIterator(nil, nil)
-		defer iter.Release()
-
-		keyPrefix := "__state__:"
-		for iter.Seek([]byte(keyPrefix)); iter.Valid(); iter.Next() {
-			if !strings.HasPrefix(string(iter.Key()), keyPrefix) {
-				break
-			}
-
-			var stateID [32]byte
-			_, err := hex.Decode(stateID[:], iter.Key()[len(keyPrefix):])
-			if err != nil {
-				fmt.Printf("Error decoding state ID: %v\n", err)
-				continue
-			}
-			ch <- stateID
+	keyPrefix := "__state__:"
+	for iter.Seek([]byte(keyPrefix)); iter.Valid(); iter.Next() {
+		if !strings.HasPrefix(string(iter.Key()), keyPrefix) {
+			break
 		}
 
-	}()
-	return ch, nil
+		var stateID [32]byte
+		_, err := hex.Decode(stateID[:], iter.Key()[len(keyPrefix):])
+		if err != nil {
+			fmt.Printf("Error decoding state ID: %v\n", err)
+			return nil, err
+		}
+		ret = append(ret, stateID)
+	}
+
+	return ret, nil
 }
