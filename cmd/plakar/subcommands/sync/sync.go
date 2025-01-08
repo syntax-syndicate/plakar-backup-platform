@@ -197,11 +197,14 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 
 	dstSnapshot.Header = srcSnapshot.Header
 
-	c, err := srcSnapshot.ListChunks()
+	iter, err := srcSnapshot.ListChunks()
 	if err != nil {
 		return err
 	}
-	for chunkID := range c {
+	for chunkID, err := range iter {
+		if err != nil {
+			return err
+		}
 		if !dstRepository.BlobExists(packfile.TYPE_CHUNK, chunkID) {
 			chunkData, err := srcSnapshot.GetBlob(packfile.TYPE_CHUNK, chunkID)
 			if err != nil {
@@ -211,11 +214,14 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 		}
 	}
 
-	c, err = srcSnapshot.ListObjects()
+	iter, err = srcSnapshot.ListObjects()
 	if err != nil {
 		return err
 	}
-	for objectID := range c {
+	for objectID, err := range iter {
+		if err != nil {
+			return err
+		}
 		if !dstRepository.BlobExists(packfile.TYPE_OBJECT, objectID) {
 			objectData, err := srcSnapshot.GetBlob(packfile.TYPE_OBJECT, objectID)
 			if err != nil {
@@ -240,11 +246,8 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 		return nil
 	})
 
-	c, err = srcSnapshot.ListDatas()
-	if err != nil {
-		return err
-	}
-	for dataID := range c {
+	iter = srcSnapshot.ListDatas()
+	for dataID := range iter {
 		if !dstRepository.BlobExists(packfile.TYPE_DATA, dataID) {
 			dataData, err := srcSnapshot.GetBlob(packfile.TYPE_DATA, dataID)
 			if err != nil {
