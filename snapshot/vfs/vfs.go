@@ -3,6 +3,7 @@ package vfs
 import (
 	"io"
 	"io/fs"
+	"iter"
 	"path"
 	"strings"
 
@@ -120,49 +121,56 @@ func (fsc *Filesystem) ReadDir(path string) (entries []fs.DirEntry, err error) {
 	return dir.ReadDir(-1)
 }
 
-func (fsc *Filesystem) Files() <-chan string {
-	ch := make(chan string)
-	go func() {
-		defer close(ch)
-
+func (fsc *Filesystem) Files() iter.Seq2[string, error] {
+	return func(yield func(string, error) bool) {
 		iter, err := fsc.tree.ScanAll()
 		if err != nil {
+			yield("", err)
 			return
 		}
 
 		for iter.Next() {
 			path, entry := iter.Current()
 			if entry.FileInfo.Lmode.IsRegular() {
-				ch <- path
+				if !yield(path, nil) {
+					return
+				}
 			}
 		}
-	}()
-	return ch
+		if err := iter.Err(); err != nil {
+			yield("", err)
+			return
+		}
+	}
 }
 
-func (fsc *Filesystem) Pathnames() <-chan string {
-	ch := make(chan string)
-	go func() {
-		defer close(ch)
-
+func (fsc *Filesystem) Pathnames() iter.Seq2[string, error] {
+	return func(yield func(string, error) bool) {
 		iter, err := fsc.tree.ScanAll()
 		if err != nil {
+			yield("", err)
 			return
 		}
 
 		for iter.Next() {
 			path, _ := iter.Current()
-			ch <- path
+			if !yield(path, nil) {
+				return
+			}
 		}
-	}()
-	return ch
+
+		if err := iter.Err(); err != nil {
+			yield("", err)
+			return
+		}
+	}
 }
 
 func (fsc *Filesystem) GetEntry(path string) (*Entry, error) {
 	return fsc.lookup(path)
 }
 
-func (fsc *Filesystem) Children(path string) (<-chan string, error) {
+func (fsc *Filesystem) Children(path string) (iter.Seq2[string, error], error) {
 	fp, err := fsc.Open(path)
 	if err != nil {
 		return nil, err
@@ -174,20 +182,20 @@ func (fsc *Filesystem) Children(path string) (<-chan string, error) {
 		return nil, fs.ErrInvalid
 	}
 
-	ch := make(chan string)
-	go func() {
-		defer close(ch)
+	return func(yield func(string, error) bool) {
 		for {
 			entries, err := dir.ReadDir(16)
 			if err != nil {
+				yield("", err)
 				return
 			}
 			for i := range entries {
-				ch <- entries[i].Name()
+				if !yield(entries[i].Name(), nil) {
+					return
+				}
 			}
 		}
-	}()
-	return ch, nil
+	}, nil
 }
 
 func (fsc *Filesystem) VisitNodes(cb func(objects.Checksum, *btree.Node[string, objects.Checksum, Entry]) error) error {

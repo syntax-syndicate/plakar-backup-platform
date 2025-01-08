@@ -236,7 +236,10 @@ func (snap *Snapshot) searchMatch(fileEntry *vfs.Entry, q search.Query) (bool, e
 }
 
 func (snap *Snapshot) search(fs *vfs.Filesystem, prefix string, q search.Query, c chan search.Result) error {
-	for f := range fs.Pathnames() {
+	for f, err := range fs.Pathnames() {
+		if err != nil {
+			return err
+		}
 		if !strings.HasPrefix(f, prefix) {
 			continue
 		}

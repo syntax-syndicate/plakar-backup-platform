@@ -137,7 +137,10 @@ func (d *Dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	}
 
 	dirDirs := make([]fuse.Dirent, 0)
-	for child := range children {
+	for child, err := range children {
+		if err != nil {
+			return nil, err
+		}
 		cleanpath := filepath.Clean(d.fullpath + "/" + child)
 		entry, err := d.vfs.GetEntry(cleanpath)
 		if err != nil {

@@ -2,6 +2,7 @@ package caching
 
 import (
 	"fmt"
+	"iter"
 	"os"
 	"path/filepath"
 	"strings"
@@ -109,14 +110,8 @@ func (c *ScanCache) GetSummary(pathname string) ([]byte, error) {
 
 // / BELOW IS THE OLD CODE FROM BACKUP LAYER, NEEDS TO BE CLEANED UP
 
-func (c *ScanCache) EnumerateKeysWithPrefixReverse(prefix string, isDirectory bool) (<-chan importer.ScanRecord, error) {
-	// Create a channel to return the keys
-	keyChan := make(chan importer.ScanRecord)
-
-	// Start a goroutine to perform the iteration
-	go func() {
-		defer close(keyChan) // Ensure the channel is closed when the function exits
-
+func (c *ScanCache) EnumerateKeysWithPrefixReverse(prefix string, isDirectory bool) iter.Seq2[importer.ScanRecord, error] {
+	return func(yield func(importer.ScanRecord, error) bool) {
 		// Use LevelDB's iterator
 		iter := c.db.NewIterator(nil, nil)
 		defer iter.Release()
@@ -145,33 +140,21 @@ func (c *ScanCache) EnumerateKeysWithPrefixReverse(prefix string, isDirectory bo
 
 			var record importer.ScanRecord
 			err := msgpack.Unmarshal(value, &record)
-			if err != nil {
-				fmt.Printf("Error unmarshaling value: %v\n", err)
-				continue
+			if !yield(record, err) {
+				return
 			}
-
-			// Send the record through the channel
-			keyChan <- record
 		}
-	}()
-
-	// Return the channel for the caller to consume
-	return keyChan, nil
+	}
 }
 
-func (c *ScanCache) EnumerateImmediateChildPathnames(directory string, reverse bool) (<-chan importer.ScanRecord, error) {
+func (c *ScanCache) EnumerateImmediateChildPathnames(directory string, reverse bool) iter.Seq2[importer.ScanRecord, error] {
 	// Ensure directory ends with a trailing slash for consistency
 	if !strings.HasSuffix(directory, "/") {
 		directory += "/"
 	}
 
-	// Create a channel to return the keys
-	keyChan := make(chan importer.ScanRecord)
-
 	// Start a goroutine to perform the iteration
-	go func() {
-		defer close(keyChan) // Ensure the channel is closed when the function exits
-
+	return func(yield func(importer.ScanRecord, error) bool) {
 		iter := c.db.NewIterator(nil, nil)
 		defer iter.Release()
 
@@ -221,18 +204,9 @@ func (c *ScanCache) EnumerateImmediateChildPathnames(directory string, reverse b
 
 					var record importer.ScanRecord
 					err := msgpack.Unmarshal(value, &record)
-					if err != nil {
-						fmt.Printf("Error unmarshaling value: %v\n", err)
-						if reverse {
-							iter.Prev()
-						} else {
-							iter.Next()
-						}
-						continue
+					if !yield(record, err) {
+						return
 					}
-
-					// Send the immediate child key through the channel
-					keyChan <- record
 				}
 			} else {
 				// Stop if the key is no longer within the expected prefix
@@ -246,8 +220,5 @@ func (c *ScanCache) EnumerateImmediateChildPathnames(directory string, reverse b
 				iter.Next()
 			}
 		}
-	}()
-
-	// Return the channel for the caller to consume
-	return keyChan, nil
+	}
 }
