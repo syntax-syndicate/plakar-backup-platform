@@ -18,7 +18,6 @@ import (
 	"github.com/alecthomas/chroma/lexers"
 	"github.com/alecthomas/chroma/styles"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/gorilla/mux"
 )
 
 func snapshotHeader(w http.ResponseWriter, r *http.Request) error {
@@ -36,8 +35,10 @@ func snapshotHeader(w http.ResponseWriter, r *http.Request) error {
 }
 
 func snapshotReader(w http.ResponseWriter, r *http.Request) error {
-	vars := mux.Vars(r)
-	path := vars["path"]
+	snapshotID32, path, err := SnapshotPathParam(r, lrepository, "snapshot_path")
+	if err != nil {
+		return err
+	}
 
 	do_highlight := false
 	do_download := false
@@ -50,11 +51,6 @@ func snapshotReader(w http.ResponseWriter, r *http.Request) error {
 	render := r.URL.Query().Get("render")
 	if render == "highlight" {
 		do_highlight = true
-	}
-
-	snapshotID32, err := PathParamToID(r, "snapshot")
-	if err != nil {
-		return err
 	}
 
 	snap, err := snapshot.Load(lrepository, snapshotID32)
@@ -147,17 +143,14 @@ type SnapshotSignedURLClaims struct {
 }
 
 func (signer SnapshotReaderURLSigner) Sign(w http.ResponseWriter, r *http.Request) error {
-	vars := mux.Vars(r)
-	path := vars["path"]
-
-	_, err := PathParamToID(r, "snapshot")
+	_, path, err := SnapshotPathParam(r, lrepository, "snapshot_path")
 	if err != nil {
 		return err
 	}
 
 	now := time.Now()
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, SnapshotSignedURLClaims{
-		SnapshotID: vars["snapshot"],
+		SnapshotID: r.PathValue("snapshot"),
 		Path:       path,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(2 * time.Hour)),
@@ -187,14 +180,16 @@ func (signer SnapshotReaderURLSigner) VerifyMiddleware(next http.Handler) http.H
 
 		// No signature provided, fall back to Authorization header
 		if signature == "" {
-			AuthMiddleware(signer.token)(next).ServeHTTP(w, r)
+			TokenAuthMiddleware(signer.token)(next).ServeHTTP(w, r)
 			return
 		}
 
-		// Parse signature
-		vars := mux.Vars(r)
-		path := vars["path"]
-		snapshotId := vars["snapshot"]
+		snapshotID32, path, err := SnapshotPathParam(r, lrepository, "snapshot_path")
+		if err != nil {
+			handleError(w, parameterError("snapshot_path", InvalidArgument, err))
+			return
+		}
+		snapshotId := fmt.Sprintf("%0x", snapshotID32[:])
 
 		jwtToken, err := jwt.ParseWithClaims(signature, &SnapshotSignedURLClaims{}, func(jwtToken *jwt.Token) (interface{}, error) {
 			if _, ok := jwtToken.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -231,10 +226,7 @@ func (signer SnapshotReaderURLSigner) VerifyMiddleware(next http.Handler) http.H
 }
 
 func snapshotVFSBrowse(w http.ResponseWriter, r *http.Request) error {
-	vars := mux.Vars(r)
-	path := vars["path"]
-
-	snapshotID32, err := PathParamToID(r, "snapshot")
+	snapshotID32, path, err := SnapshotPathParam(r, lrepository, "snapshot_path")
 	if err != nil {
 		return err
 	}
@@ -261,8 +253,10 @@ func snapshotVFSBrowse(w http.ResponseWriter, r *http.Request) error {
 }
 
 func snapshotVFSChildren(w http.ResponseWriter, r *http.Request) error {
-	vars := mux.Vars(r)
-	path := vars["path"]
+	snapshotID32, path, err := SnapshotPathParam(r, lrepository, "snapshot_path")
+	if err != nil {
+		return err
+	}
 
 	offset, _, err := QueryParamToInt64(r, "offset")
 	if err != nil {
@@ -283,11 +277,6 @@ func snapshotVFSChildren(w http.ResponseWriter, r *http.Request) error {
 		return parameterError("sort", InvalidArgument, err)
 	}
 	_ = sortKeys
-
-	snapshotID32, err := PathParamToID(r, "snapshot")
-	if err != nil {
-		return err
-	}
 
 	snap, err := snapshot.Load(lrepository, snapshotID32)
 	if err != nil {
@@ -344,8 +333,10 @@ func snapshotVFSChildren(w http.ResponseWriter, r *http.Request) error {
 }
 
 func snapshotVFSErrors(w http.ResponseWriter, r *http.Request) error {
-	vars := mux.Vars(r)
-	path := vars["path"]
+	snapshotID32, path, err := SnapshotPathParam(r, lrepository, "snapshot_path")
+	if err != nil {
+		return err
+	}
 
 	sortKeysStr := r.URL.Query().Get("sort")
 	if sortKeysStr == "" {
@@ -361,11 +352,6 @@ func snapshotVFSErrors(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	limit, _, err := QueryParamToInt64(r, "limit")
-	if err != nil {
-		return err
-	}
-
-	snapshotID32, err := PathParamToID(r, "snapshot")
 	if err != nil {
 		return err
 	}
@@ -405,8 +391,10 @@ func snapshotVFSErrors(w http.ResponseWriter, r *http.Request) error {
 }
 
 func snapshotSearch(w http.ResponseWriter, r *http.Request) error {
-	vars := mux.Vars(r)
-	path := vars["path"]
+	snapshotID32, path, err := SnapshotPathParam(r, lrepository, "snapshot_path")
+	if err != nil {
+		return err
+	}
 
 	queryStr := r.URL.Query().Get("q")
 
@@ -416,11 +404,6 @@ func snapshotSearch(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	limit, _, err := QueryParamToInt64(r, "limit")
-	if err != nil {
-		return err
-	}
-
-	snapshotID32, err := PathParamToID(r, "snapshot")
 	if err != nil {
 		return err
 	}

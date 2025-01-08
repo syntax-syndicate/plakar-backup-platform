@@ -8,7 +8,6 @@ import (
 
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/snapshot/header"
-	"github.com/gorilla/mux"
 )
 
 func repositoryConfiguration(w http.ResponseWriter, r *http.Request) error {
@@ -72,9 +71,6 @@ func repositorySnapshots(w http.ResponseWriter, r *http.Request) error {
 }
 
 func repositoryStates(w http.ResponseWriter, r *http.Request) error {
-	vars := mux.Vars(r)
-	_ = vars
-
 	states, err := lrepository.GetStates()
 	if err != nil {
 		return err

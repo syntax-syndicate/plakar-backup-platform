@@ -9,7 +9,6 @@ import (
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/storage"
-	"github.com/gorilla/mux"
 )
 
 var lstore storage.Store
@@ -24,19 +23,8 @@ type Items struct {
 	Items []interface{} `json:"items"`
 }
 
-type Handler func(http.ResponseWriter, *http.Request) error
-
 type ApiErrorRes struct {
 	Error *ApiError `json:"error"`
-}
-
-func (fn Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	err := fn(w, r)
-	if err == nil {
-		return
-	}
-
-	handleError(w, err)
 }
 
 func handleError(w http.ResponseWriter, err error) {
@@ -55,30 +43,54 @@ func handleError(w http.ResponseWriter, err error) {
 
 	apierr, ok := err.(*ApiError)
 	if !ok {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		apierr = &ApiError{
+			HttpCode: 500,
+			ErrCode:  "internal-error",
+			Message:  "Internal server error. Check server logs for more information.",
+		}
+	}
+
+	w.WriteHeader(apierr.HttpCode)
+	_ = json.NewEncoder(w).Encode(&ApiErrorRes{apierr})
+}
+
+type APIView struct {
+	fn     func(w http.ResponseWriter, r *http.Request) error
+	method string
+}
+
+func (view APIView) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	expectedMethod := view.method
+	if expectedMethod == "" {
+		expectedMethod = http.MethodGet
+	}
+
+	if r.Method != expectedMethod {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	h := w.Header()
-	h.Set("Content-Type", "application/json")
-	w.WriteHeader(apierr.HttpCode)
-
-	json.NewEncoder(w).Encode(&ApiErrorRes{apierr})
+	w.Header().Set("Content-Type", "application/json")
+	if err := view.fn(w, r); err != nil {
+		handleError(w, err)
+	}
 }
 
-// AuthMiddleware is a middleware that checks for the token in the request.
-func AuthMiddleware(token string) func(http.Handler) http.Handler {
+// TokenAuthMiddleware is a middleware that checks for the token in the request. If the token is empty, the middleware is a no-op.
+func TokenAuthMiddleware(token string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			key := r.Header.Get("Authorization")
-			if key == "" {
-				handleError(w, authError("missing Authorization header"))
-				return
-			}
+			if token != "" {
+				key := r.Header.Get("Authorization")
+				if key == "" {
+					handleError(w, authError("missing Authorization header"))
+					return
+				}
 
-			if strings.Compare(key, "Bearer "+token) != 0 {
-				handleError(w, authError("invalid token"))
-				return
+				if strings.Compare(key, "Bearer "+token) != 0 {
+					handleError(w, authError("invalid token"))
+					return
+				}
 			}
 
 			next.ServeHTTP(w, r)
@@ -86,61 +98,32 @@ func AuthMiddleware(token string) func(http.Handler) http.Handler {
 	}
 }
 
-func NewRouter(repo *repository.Repository, token string) *mux.Router {
+func SetupRoutes(server *http.ServeMux, repo *repository.Repository, token string) {
 	lstore = repo.Store()
 	lrepository = repo
 
-	r := mux.NewRouter()
-
-	apiRouter := r.PathPrefix("/api").Subrouter()
-	if token != "" {
-		apiRouter.Use(AuthMiddleware(token))
-	}
-
+	authToken := TokenAuthMiddleware(token)
 	urlSigner := NewSnapshotReaderURLSigner(token)
 
-	readerRouter := r.PathPrefix("/api").Subrouter()
-	if token != "" {
-		readerRouter.Use(urlSigner.VerifyMiddleware)
-	}
+	server.Handle("/api/storage/configuration", authToken(APIView{fn: storageConfiguration}))
+	server.Handle("/api/storage/states", authToken(APIView{fn: storageStates}))
+	server.Handle("/api/storage/state/{state}", authToken(APIView{fn: storageState}))
+	server.Handle("/api/storage/packfiles", authToken(APIView{fn: storagePackfiles}))
+	server.Handle("/api/storage/packfile/{packfile}", authToken(APIView{fn: storagePackfile}))
 
-	handle := func(path string, handler func(http.ResponseWriter, *http.Request) error) *mux.Route {
-		return apiRouter.Handle(path, Handler(handler))
-	}
+	server.Handle("/api/repository/configuration", authToken(APIView{fn: repositoryConfiguration}))
+	server.Handle("/api/repository/snapshots", authToken(APIView{fn: repositorySnapshots}))
+	server.Handle("/api/repository/states", authToken(APIView{fn: repositoryStates}))
+	server.Handle("/api/repository/state/{state}", authToken(APIView{fn: repositoryState}))
+	server.Handle("/api/repository/packfiles", authToken(APIView{fn: repositoryPackfiles}))
+	server.Handle("/api/repository/packfile/{packfile}", authToken(APIView{fn: repositoryPackfile}))
 
-	readerHandle := func(path string, handler func(http.ResponseWriter, *http.Request) error) *mux.Route {
-		return readerRouter.Handle(path, Handler(handler))
-	}
+	server.Handle("/api/snapshot/{snapshot}", authToken(APIView{fn: snapshotHeader}))
+	server.Handle("/api/snapshot/reader/{snapshot_path...}", urlSigner.VerifyMiddleware(APIView{fn: snapshotReader}))
+	server.Handle("/api/snapshot/reader-sign-url/{snapshot_path...}", authToken(APIView{fn: urlSigner.Sign, method: http.MethodPost}))
 
-	handle("/storage/configuration", storageConfiguration).Methods("GET")
-	handle("/storage/states", storageStates).Methods("GET")
-	handle("/storage/state/{state}", storageState).Methods("GET")
-	handle("/storage/packfiles", storagePackfiles).Methods("GET")
-	handle("/storage/packfile/{packfile}", storagePackfile).Methods("GET")
-
-	handle("/repository/configuration", repositoryConfiguration).Methods("GET")
-	handle("/repository/snapshots", repositorySnapshots).Methods("GET")
-	handle("/repository/states", repositoryStates).Methods("GET")
-	handle("/repository/state/{state}", repositoryState).Methods("GET")
-	handle("/repository/packfiles", repositoryPackfiles).Methods("GET")
-	handle("/repository/packfile/{packfile}", repositoryPackfile).Methods("GET")
-
-	handle("/snapshot/{snapshot}", snapshotHeader).Methods("GET")
-	readerHandle("/snapshot/reader/{snapshot}:{path:.+}", snapshotReader).Methods("GET")
-	handle("/snapshot/reader-sign-url/{snapshot}:{path:.+}", urlSigner.Sign).Methods("POST")
-	handle("/snapshot/search/{snapshot}:{path:.+}", snapshotSearch).Methods("GET")
-
-	handle("/snapshot/vfs/{snapshot}:/", snapshotVFSBrowse).Methods("GET")
-	handle("/snapshot/vfs/{snapshot}:{path:.+}/", snapshotVFSBrowse).Methods("GET")
-	handle("/snapshot/vfs/{snapshot}:{path:.+}", snapshotVFSBrowse).Methods("GET")
-
-	handle("/snapshot/vfs/children/{snapshot}:/", snapshotVFSChildren).Methods("GET")
-	handle("/snapshot/vfs/children/{snapshot}:{path:.+}/", snapshotVFSChildren).Methods("GET")
-	handle("/snapshot/vfs/children/{snapshot}:{path:.+}", snapshotVFSChildren).Methods("GET")
-
-	handle("/snapshot/vfs/errors/{snapshot}:/", snapshotVFSErrors).Methods("GET")
-	handle("/snapshot/vfs/errors/{snapshot}:{path:.+}/", snapshotVFSErrors).Methods("GET")
-	handle("/snapshot/vfs/errors/{snapshot}:{path:.+}", snapshotVFSErrors).Methods("GET")
-
-	return r
+	server.Handle("/api/snapshot/search/{snapshot_path...}", authToken(APIView{fn: snapshotSearch}))
+	server.Handle("/api/snapshot/vfs/{snapshot_path...}", authToken(APIView{fn: snapshotVFSBrowse}))
+	server.Handle("/api/snapshot/vfs/children/{snapshot_path...}", authToken(APIView{fn: snapshotVFSChildren}))
+	server.Handle("/api/snapshot/vfs/errors/{snapshot_path...}", authToken(APIView{fn: snapshotVFSErrors}))
 }
