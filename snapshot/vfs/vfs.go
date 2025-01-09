@@ -1,7 +1,6 @@
 package vfs
 
 import (
-	"io"
 	"io/fs"
 	"iter"
 	"path"
@@ -11,7 +10,6 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/vmihailenco/msgpack/v5"
 )
 
 const VERSION = 002
@@ -60,19 +58,14 @@ func NewFilesystem(repo *repository.Repository, root objects.Checksum) (*Filesys
 		return nil, err
 	}
 
-	bytes, err := io.ReadAll(rd)
+	storage := repository.NewRepositoryStore[string, Entry](repo, packfile.TYPE_VFS)
+	tree, err := btree.Deserialize(rd, storage, PathCmp)
 	if err != nil {
 		return nil, err
 	}
 
-	var tree btree.BTree[string, objects.Checksum, Entry]
-	if err := msgpack.Unmarshal(bytes, &tree); err != nil {
-		return nil, err
-	}
-
-	storage := repository.NewRepositoryStore[string, Entry](repo, packfile.TYPE_VFS)
 	fs := &Filesystem{
-		tree: btree.FromStorage(tree.Root, storage, PathCmp, tree.Order),
+		tree: tree,
 		repo: repo,
 	}
 
