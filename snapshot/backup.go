@@ -3,7 +3,6 @@ package snapshot
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"math"
 	"mime"
@@ -409,15 +408,8 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 		return err
 	}
 
-	visited := make(map[string]bool)
 	for fileiter.Next() {
 		dirPath, dirEntry := fileiter.Current()
-
-		if saw, _ := visited[dirPath]; saw {
-			panic(fmt.Sprintf("already saw %s", dirPath))
-		}
-		visited[dirPath] = true
-
 		if !dirEntry.Stat().IsDir() {
 			continue
 		}

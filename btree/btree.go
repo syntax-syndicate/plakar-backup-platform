@@ -2,7 +2,10 @@ package btree
 
 import (
 	"errors"
+	"io"
 	"slices"
+
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 var (
@@ -68,6 +71,14 @@ func FromStorage[K any, P any, V any](root P, store Storer[K, P, V], compare fun
 		store:   store,
 		compare: compare,
 	}
+}
+
+func Deserialize[K, P, V any](rd io.Reader, store Storer[K, P, V], compare func(K, K) int) (*BTree[K, P, V], error) {
+	var root BTree[K, P, V]
+	if err := msgpack.NewDecoder(rd).Decode(&root); err != nil {
+		return nil, err
+	}
+	return FromStorage(root.Root, store, compare, root.Order), nil
 }
 
 func newNodeFrom[K, P, V any](keys []K, pointers []P, values []V) *Node[K, P, V] {
