@@ -30,7 +30,6 @@ import (
 
 	"github.com/PlakarKorp/plakar/api"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/gorilla/handlers"
 )
 
 type UiOptions struct {
@@ -44,12 +43,12 @@ type UiOptions struct {
 var content embed.FS
 
 func Ui(repo *repository.Repository, addr string, opts *UiOptions) error {
-	r := api.NewRouter(repo, opts.Token)
+	server := http.NewServeMux()
+	api.SetupRoutes(server, repo, opts.Token)
 
 	// Serve files from the ./frontend directory
-	r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Join internally call path.Clean to prevent directory traversal
-		path := filepath.Join("frontend", r.URL.Path)
+	server.HandleFunc("/{path...}", func(w http.ResponseWriter, r *http.Request) {
+		path := filepath.Join("frontend", r.PathValue("path"))
 
 		_, err := content.Open(path)
 		if os.IsNotExist(err) {
@@ -116,9 +115,24 @@ func Ui(repo *repository.Repository, addr string, opts *UiOptions) error {
 	}
 
 	if opts.Cors {
-		return http.ListenAndServe(addr, handlers.CORS(
-			handlers.AllowedHeaders([]string{"Authorization", "Content-Type"}),
-		)(r))
+		return http.ListenAndServe(addr, corsMiddleware(server))
 	}
-	return http.ListenAndServe(addr, r)
+	return http.ListenAndServe(addr, server)
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		// Handle preflight OPTIONS request
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		// Pass the request to the next handler
+		next.ServeHTTP(w, r)
+	})
 }

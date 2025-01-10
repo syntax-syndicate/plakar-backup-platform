@@ -5,8 +5,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-
-	"github.com/gorilla/mux"
 )
 
 func storageConfiguration(w http.ResponseWriter, r *http.Request) error {
@@ -15,8 +13,6 @@ func storageConfiguration(w http.ResponseWriter, r *http.Request) error {
 }
 
 func storageStates(w http.ResponseWriter, r *http.Request) error {
-	vars := mux.Vars(r)
-	_ = vars
 
 	states, err := lstore.GetStates()
 	if err != nil {
