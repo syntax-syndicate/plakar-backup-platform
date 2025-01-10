@@ -42,7 +42,7 @@ func cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, args [
 	var opt_quiet bool
 
 	flags := flag.NewFlagSet("restore", flag.ExitOnError)
-	flags.Uint64Var(&opt_concurrency, "concurrency", uint64(ctx.GetMaxConcurrency()), "maximum number of parallel tasks")
+	flags.Uint64Var(&opt_concurrency, "concurrency", uint64(ctx.MaxConcurrency), "maximum number of parallel tasks")
 	flags.StringVar(&pullPath, "to", "", "base directory where pull will restore")
 	flags.BoolVar(&pullRebase, "rebase", false, "strip pathname when pulling")
 	flags.BoolVar(&opt_quiet, "quiet", false, "do not print progress")
@@ -52,7 +52,7 @@ func cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, args [
 
 	var err error
 	if pullPath == "" {
-		exporterInstance, err = exporter.NewExporter(ctx.GetCWD())
+		exporterInstance, err = exporter.NewExporter(ctx.Cwd)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -77,12 +77,12 @@ func cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, args [
 
 		for i := len(metadatas); i != 0; i-- {
 			metadata := metadatas[i-1]
-			if ctx.GetCWD() == metadata.Importer.Directory || strings.HasPrefix(ctx.GetCWD(), fmt.Sprintf("%s/", metadata.Importer.Directory)) {
+			if ctx.Cwd == metadata.Importer.Directory || strings.HasPrefix(ctx.Cwd, fmt.Sprintf("%s/", metadata.Importer.Directory)) {
 				snap, err := snapshot.Load(repo, metadata.GetIndexID())
 				if err != nil {
 					return 1
 				}
-				snap.Restore(exporterInstance, ctx.GetCWD(), ctx.GetCWD(), opts)
+				snap.Restore(exporterInstance, ctx.Cwd, ctx.Cwd, opts)
 				snap.Close()
 				return 0
 			}
@@ -98,7 +98,7 @@ func cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, args [
 
 	for offset, snap := range snapshots {
 		_, pattern := utils.ParseSnapshotID(flags.Args()[offset])
-		snap.Restore(exporterInstance, ctx.GetCWD(), pattern, opts)
+		snap.Restore(exporterInstance, ctx.Cwd, pattern, opts)
 		snap.Close()
 	}
 

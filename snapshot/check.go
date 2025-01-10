@@ -137,7 +137,7 @@ func (snap *Snapshot) Check(pathname string, opts *CheckOptions) (bool, error) {
 
 	maxConcurrency := opts.MaxConcurrency
 	if maxConcurrency == 0 {
-		maxConcurrency = uint64(snap.AppContext().GetMaxConcurrency())
+		maxConcurrency = uint64(snap.AppContext().MaxConcurrency)
 	}
 
 	maxConcurrencyChan := make(chan bool, maxConcurrency)

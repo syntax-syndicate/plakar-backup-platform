@@ -52,7 +52,7 @@ func cmd_id(ctx *appcontext.AppContext, _ *repository.Repository, args []string)
 		return 1
 	}
 
-	os.MkdirAll(ctx.GetKeyringDir(), 0700)
+	os.MkdirAll(ctx.KeyringDir, 0700)
 
 	subcommand := flags.Arg(0)
 
@@ -70,7 +70,7 @@ func cmd_id(ctx *appcontext.AppContext, _ *repository.Repository, args []string)
 		flags.Usage()
 	}
 
-	fmt.Println(ctx.GetKeyringDir())
+	fmt.Println(ctx.KeyringDir)
 
 	return 0
 }
@@ -130,7 +130,7 @@ func identity_create(ctx *appcontext.AppContext, args []string) int {
 		return 1
 	}
 
-	fp, err := os.Create(filepath.Join(ctx.GetKeyringDir(), id.Identifier.String()))
+	fp, err := os.Create(filepath.Join(ctx.KeyringDir, id.Identifier.String()))
 	if err != nil {
 		fmt.Println("Error creating identity file:", err)
 		return 1
@@ -165,7 +165,7 @@ func identity_info(ctx *appcontext.AppContext, args []string) int {
 		}
 	}
 
-	data, err := os.ReadFile(filepath.Join(ctx.GetKeyringDir(), args[0]))
+	data, err := os.ReadFile(filepath.Join(ctx.KeyringDir, args[0]))
 	if err != nil {
 		fmt.Println("Error reading identity file:", err)
 		return 1
@@ -182,14 +182,14 @@ func identity_info(ctx *appcontext.AppContext, args []string) int {
 }
 
 func identity_list(ctx *appcontext.AppContext) int {
-	files, err := os.ReadDir(ctx.GetKeyringDir())
+	files, err := os.ReadDir(ctx.KeyringDir)
 	if err != nil {
 		fmt.Println("Error reading keyring directory:", err)
 		return 1
 	}
 
 	for _, file := range files {
-		si, err := identity.Load(ctx.GetKeyringDir(), uuid.MustParse(file.Name()))
+		si, err := identity.Load(ctx.KeyringDir, uuid.MustParse(file.Name()))
 		if err != nil {
 			fmt.Println("Error loading identity:", err)
 			return 1

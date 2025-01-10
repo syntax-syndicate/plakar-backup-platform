@@ -60,21 +60,21 @@ func New(repo *repository.Repository) (*Snapshot, error) {
 		packerChanDone: make(chan bool),
 	}
 
-	if snap.AppContext().GetIdentity() != uuid.Nil {
-		snap.Header.Identity.Identifier = snap.AppContext().GetIdentity()
-		snap.Header.Identity.PublicKey = snap.AppContext().GetKeypair().PublicKey
+	if snap.AppContext().Identity != uuid.Nil {
+		snap.Header.Identity.Identifier = snap.AppContext().Identity
+		snap.Header.Identity.PublicKey = snap.AppContext().Keypair.PublicKey
 	}
 
-	snap.Header.SetContext("Hostname", snap.AppContext().GetHostname())
-	snap.Header.SetContext("Username", snap.AppContext().GetUsername())
-	snap.Header.SetContext("OperatingSystem", snap.AppContext().GetOperatingSystem())
-	snap.Header.SetContext("MachineID", snap.AppContext().GetMachineID())
-	snap.Header.SetContext("CommandLine", snap.AppContext().GetCommandLine())
-	snap.Header.SetContext("ProcessID", fmt.Sprintf("%d", snap.AppContext().GetProcessID()))
-	snap.Header.SetContext("Architecture", snap.AppContext().GetArchitecture())
+	snap.Header.SetContext("Hostname", snap.AppContext().Hostname)
+	snap.Header.SetContext("Username", snap.AppContext().Username)
+	snap.Header.SetContext("OperatingSystem", snap.AppContext().OperatingSystem)
+	snap.Header.SetContext("MachineID", snap.AppContext().MachineID)
+	snap.Header.SetContext("CommandLine", snap.AppContext().CommandLine)
+	snap.Header.SetContext("ProcessID", fmt.Sprintf("%d", snap.AppContext().ProcessID))
+	snap.Header.SetContext("Architecture", snap.AppContext().Architecture)
 	snap.Header.SetContext("NumCPU", fmt.Sprintf("%d", runtime.NumCPU()))
 	snap.Header.SetContext("GOMAXPROCS", fmt.Sprintf("%d", runtime.GOMAXPROCS(0)))
-	snap.Header.SetContext("Client", snap.AppContext().GetPlakarClient())
+	snap.Header.SetContext("Client", snap.AppContext().PlakarClient)
 
 	go packerJob(snap)
 

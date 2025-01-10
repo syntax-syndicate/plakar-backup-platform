@@ -198,7 +198,7 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 
 	maxConcurrency := options.MaxConcurrency
 	if maxConcurrency == 0 {
-		maxConcurrency = uint64(snap.AppContext().GetMaxConcurrency())
+		maxConcurrency = uint64(snap.AppContext().MaxConcurrency)
 	}
 
 	backupCtx := &BackupContext{
@@ -791,7 +791,7 @@ func (snap *Snapshot) Commit() error {
 		return err
 	}
 
-	if kp := snap.AppContext().GetKeypair(); kp != nil {
+	if kp := snap.AppContext().Keypair; kp != nil {
 		serializedHdrChecksum := snap.repository.Checksum(serializedHdr)
 		signature := kp.Sign(serializedHdrChecksum[:])
 		if err := snap.PutBlob(packfile.TYPE_SIGNATURE, snap.Header.Identifier, signature); err != nil {

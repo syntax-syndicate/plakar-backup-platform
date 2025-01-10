@@ -62,7 +62,7 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 
 	excludes := []glob.Glob{}
 	flags := flag.NewFlagSet("backup", flag.ExitOnError)
-	flags.Uint64Var(&opt_concurrency, "concurrency", uint64(ctx.GetMaxConcurrency()), "maximum number of parallel tasks")
+	flags.Uint64Var(&opt_concurrency, "concurrency", uint64(ctx.MaxConcurrency), "maximum number of parallel tasks")
 	flags.StringVar(&opt_identity, "identity", "", "use identity from keyring")
 	flags.StringVar(&opt_tags, "tag", "", "tag to assign to this snapshot")
 	flags.StringVar(&opt_excludes, "excludes", "", "file containing a list of exclusions")
@@ -118,13 +118,13 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 			return 1
 		}
 
-		id, err := identity.UnsealIdentity(ctx.GetKeyringDir(), parsedID)
+		id, err := identity.UnsealIdentity(ctx.KeyringDir, parsedID)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: could not unseal identity: %s\n", flag.CommandLine.Name(), err)
 			return 1
 		}
-		ctx.SetIdentity(id.Identifier)
-		ctx.SetKeypair(&id.KeyPair)
+		ctx.Identity = id.Identifier
+		ctx.Keypair = &id.KeyPair
 	} else {
 		ctx.GetLogger().Warn("no identity set, snapshot will not be signed")
 		ctx.GetLogger().Warn("consider using 'plakar id' to create an identity")
@@ -145,14 +145,14 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 	}
 
 	if flags.NArg() == 0 {
-		err = snap.Backup(ctx.GetCWD(), opts)
+		err = snap.Backup(ctx.Cwd, opts)
 	} else if flags.NArg() == 1 {
 		var cleanPath string
 
 		if !strings.HasPrefix(flags.Arg(0), "/") {
 			_, err := importer.NewImporter(flags.Arg(0))
 			if err != nil {
-				cleanPath = path.Clean(ctx.GetCWD() + "/" + flags.Arg(0))
+				cleanPath = path.Clean(ctx.Cwd + "/" + flags.Arg(0))
 			} else {
 				cleanPath = flags.Arg(0)
 			}
@@ -170,7 +170,7 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 	}
 
 	signedStr := "unsigned"
-	if ctx.GetIdentity() != uuid.Nil {
+	if ctx.Identity != uuid.Nil {
 		signedStr = "signed"
 	}
 	ctx.GetLogger().Info("created %s snapshot %x with root %s of size %s in %s",
