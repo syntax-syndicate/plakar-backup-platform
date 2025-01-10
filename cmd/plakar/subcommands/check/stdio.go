@@ -1,7 +1,7 @@
 package check
 
 import (
-	"github.com/PlakarKorp/plakar/context"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -11,7 +11,7 @@ var (
 	crossMark = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).SetString("✘")
 )
 
-func eventsProcessorStdio(ctx *context.Context, quiet bool) chan struct{} {
+func eventsProcessorStdio(ctx *appcontext.AppContext, quiet bool) chan struct{} {
 	done := make(chan struct{})
 	go func() {
 		for event := range ctx.Events().Listen() {

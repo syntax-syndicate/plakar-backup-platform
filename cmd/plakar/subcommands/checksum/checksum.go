@@ -22,9 +22,9 @@ import (
 	"io"
 	"path"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
@@ -34,7 +34,7 @@ func init() {
 	subcommands.Register("checksum", cmd_checksum)
 }
 
-func cmd_checksum(ctx *context.Context, repo *repository.Repository, args []string) int {
+func cmd_checksum(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
 	var enableFastChecksum bool
 
 	flags := flag.NewFlagSet("checksum", flag.ExitOnError)

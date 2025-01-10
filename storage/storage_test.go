@@ -5,14 +5,14 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/PlakarKorp/plakar/context"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/storage"
 	_ "github.com/PlakarKorp/plakar/testing"
 )
 
 func TestNewStore(t *testing.T) {
-	ctx := context.NewContext()
+	ctx := appcontext.NewAppContext()
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
 	ctx.SetMaxConcurrency(runtime.NumCPU()*8 + 1)
 
@@ -27,7 +27,7 @@ func TestNewStore(t *testing.T) {
 }
 
 func TestCreateStore(t *testing.T) {
-	ctx := context.NewContext()
+	ctx := appcontext.NewAppContext()
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
 	ctx.SetMaxConcurrency(runtime.NumCPU()*8 + 1)
 
@@ -43,7 +43,7 @@ func TestCreateStore(t *testing.T) {
 }
 
 func TestOpenStore(t *testing.T) {
-	ctx := context.NewContext()
+	ctx := appcontext.NewAppContext()
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
 	ctx.SetMaxConcurrency(runtime.NumCPU()*8 + 1)
 

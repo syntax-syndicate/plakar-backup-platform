@@ -12,8 +12,8 @@ import (
 	chunkers "github.com/PlakarKorp/go-cdc-chunkers"
 	_ "github.com/PlakarKorp/go-cdc-chunkers/chunkers/fastcdc"
 	_ "github.com/PlakarKorp/go-cdc-chunkers/chunkers/ultracdc"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/compression"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/logging"
@@ -33,12 +33,12 @@ type Repository struct {
 	state         *state.State
 	configuration storage.Configuration
 
-	context *context.Context
+	appContext *appcontext.AppContext
 
 	secret []byte
 }
 
-func New(ctx *context.Context, store storage.Store, secret []byte) (*Repository, error) {
+func New(ctx *appcontext.AppContext, store storage.Store, secret []byte) (*Repository, error) {
 	t0 := time.Now()
 	defer func() {
 		ctx.GetLogger().Trace("repository", "New(store=%p): %s", store, time.Since(t0))
@@ -47,7 +47,7 @@ func New(ctx *context.Context, store storage.Store, secret []byte) (*Repository,
 	r := &Repository{
 		store:         store,
 		configuration: store.Configuration(),
-		context:       ctx,
+		appContext:    ctx,
 		secret:        secret,
 	}
 	if err := r.RebuildState(); err != nil {
@@ -57,7 +57,7 @@ func New(ctx *context.Context, store storage.Store, secret []byte) (*Repository,
 }
 
 func (r *Repository) RebuildState() error {
-	cacheInstance, err := r.Context().GetCache().Repository(r.Configuration().RepositoryID)
+	cacheInstance, err := r.AppContext().GetCache().Repository(r.Configuration().RepositoryID)
 	if err != nil {
 		return err
 	}
@@ -163,8 +163,8 @@ func (r *Repository) RebuildState() error {
 	return nil
 }
 
-func (r *Repository) Context() *context.Context {
-	return r.context
+func (r *Repository) AppContext() *appcontext.AppContext {
+	return r.appContext
 }
 
 func (r *Repository) Store() storage.Store {
@@ -488,5 +488,5 @@ func (r *Repository) SetPackfileForBlob(Type packfile.Type, packfileChecksum obj
 }
 
 func (r *Repository) Logger() *logging.Logger {
-	return r.Context().GetLogger()
+	return r.AppContext().GetLogger()
 }

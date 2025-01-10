@@ -25,9 +25,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/dustin/go-humanize"
@@ -37,7 +37,7 @@ func init() {
 	subcommands.Register("rm", cmd_rm)
 }
 
-func cmd_rm(ctx *context.Context, repo *repository.Repository, args []string) int {
+func cmd_rm(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
 	var opt_older string
 	var opt_tag string
 	flags := flag.NewFlagSet("rm", flag.ExitOnError)

@@ -3,17 +3,17 @@ package subcommands
 import (
 	"fmt"
 
-	"github.com/PlakarKorp/plakar/context"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/repository"
 )
 
-var subcommands map[string]func(*context.Context, *repository.Repository, []string) int = make(map[string]func(*context.Context, *repository.Repository, []string) int)
+var subcommands map[string]func(*appcontext.AppContext, *repository.Repository, []string) int = make(map[string]func(*appcontext.AppContext, *repository.Repository, []string) int)
 
-func Register(command string, fn func(*context.Context, *repository.Repository, []string) int) {
+func Register(command string, fn func(*appcontext.AppContext, *repository.Repository, []string) int) {
 	subcommands[command] = fn
 }
 
-func Execute(ctx *context.Context, repo *repository.Repository, command string, args []string) (int, error) {
+func Execute(ctx *appcontext.AppContext, repo *repository.Repository, command string, args []string) (int, error) {
 	fn, exists := subcommands[command]
 	if !exists {
 		return 1, fmt.Errorf("unknown command: %s", command)

@@ -30,9 +30,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository"
@@ -45,7 +45,7 @@ func init() {
 	subcommands.Register("info", cmd_info)
 }
 
-func cmd_info(ctx *context.Context, repo *repository.Repository, args []string) int {
+func cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
 	if len(args) == 0 {
 		return info_repository(repo)
 	}

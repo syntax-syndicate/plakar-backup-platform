@@ -24,8 +24,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/repository"
 	v2 "github.com/PlakarKorp/plakar/ui/v2"
 	"github.com/google/uuid"
@@ -35,7 +35,7 @@ func init() {
 	subcommands.Register("ui", cmd_ui)
 }
 
-func cmd_ui(ctx *context.Context, repo *repository.Repository, args []string) int {
+func cmd_ui(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
 	var opt_addr string
 	var opt_cors bool
 	var opt_noauth bool

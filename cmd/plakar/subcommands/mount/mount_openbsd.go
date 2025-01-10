@@ -19,8 +19,8 @@ package mount
 import (
 	"flag"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/repository"
 )
 
@@ -28,7 +28,7 @@ func init() {
 	subcommands.Register("mount", cmd_mount)
 }
 
-func cmd_mount(ctx *context.Context, repo *repository.Repository, args []string) int {
+func cmd_mount(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
 	flags := flag.NewFlagSet("mount", flag.ExitOnError)
 	flags.Parse(args)
 

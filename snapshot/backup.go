@@ -3,7 +3,6 @@ package snapshot
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"math"
 	"mime"
@@ -153,7 +152,7 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 	snap.Event(events.StartEvent())
 	defer snap.Event(events.DoneEvent())
 
-	sc2, err := snap.repository.Context().GetCache().Scan(snap.Header.Identifier)
+	sc2, err := snap.AppContext().GetCache().Scan(snap.Header.Identifier)
 	if err != nil {
 		return err
 	}
@@ -165,12 +164,12 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 	}
 	defer imp.Close()
 
-	vfsCache, err := snap.Repository().Context().GetCache().VFS(imp.Type(), imp.Origin())
+	vfsCache, err := snap.AppContext().GetCache().VFS(imp.Type(), imp.Origin())
 	if err != nil {
 		return err
 	}
 
-	cf, err := classifier.NewClassifier(snap.Context())
+	cf, err := classifier.NewClassifier(snap.AppContext())
 	if err != nil {
 		return err
 	}
@@ -199,7 +198,7 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 
 	maxConcurrency := options.MaxConcurrency
 	if maxConcurrency == 0 {
-		maxConcurrency = uint64(snap.Context().GetMaxConcurrency())
+		maxConcurrency = uint64(snap.AppContext().GetMaxConcurrency())
 	}
 
 	backupCtx := &BackupContext{
@@ -409,15 +408,8 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 		return err
 	}
 
-	visited := make(map[string]bool)
 	for fileiter.Next() {
 		dirPath, dirEntry := fileiter.Current()
-
-		if saw, _ := visited[dirPath]; saw {
-			panic(fmt.Sprintf("already saw %s", dirPath))
-		}
-		visited[dirPath] = true
-
 		if !dirEntry.Stat().IsDir() {
 			continue
 		}
@@ -787,7 +779,7 @@ func (snap *Snapshot) Commit() error {
 		return err
 	}
 
-	if kp := snap.Context().GetKeypair(); kp != nil {
+	if kp := snap.AppContext().GetKeypair(); kp != nil {
 		serializedHdrChecksum := snap.repository.Checksum(serializedHdr)
 		signature := kp.Sign(serializedHdrChecksum[:])
 		if err := snap.PutBlob(packfile.TYPE_SIGNATURE, snap.Header.Identifier, signature); err != nil {
