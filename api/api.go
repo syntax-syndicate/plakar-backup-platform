@@ -92,7 +92,8 @@ func SetupRoutes(server *http.ServeMux, repo *repository.Repository, token strin
 	authToken := TokenAuthMiddleware(token)
 	urlSigner := NewSnapshotReaderURLSigner(token)
 
-	server.Handle("/api/{path...}", APIView(func(w http.ResponseWriter, r *http.Request) error {
+	// Catch all API endpoint, called if no more specific API endpoint is found
+	server.Handle("/api/", APIView(func(w http.ResponseWriter, r *http.Request) error {
 		return &ApiError{
 			HttpCode: 404,
 			ErrCode:  "not-found",
