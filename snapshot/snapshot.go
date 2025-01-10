@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/objects"
@@ -28,6 +29,7 @@ var (
 type Snapshot struct {
 	repository *repository.Repository
 	stateDelta *state.State
+	scanCache  *caching.ScanCache
 
 	filesystem *vfs.Filesystem
 
@@ -50,9 +52,15 @@ func New(repo *repository.Repository) (*Snapshot, error) {
 		return nil, io.ErrShortWrite
 	}
 
+	scanCache, err := repo.AppContext().GetCache().Scan(identifier)
+	if err != nil {
+		return nil, err
+	}
+
 	snap := &Snapshot{
 		repository: repo,
 		stateDelta: repo.NewStateDelta(),
+		scanCache:  scanCache,
 
 		Header: header.NewHeader("default", identifier),
 
@@ -143,6 +151,11 @@ func Fork(repo *repository.Repository, Identifier objects.Checksum) (*Snapshot, 
 
 func (snap *Snapshot) Close() error {
 	snap.Logger().Trace("snapshot", "%x: Close(): %s", snap.Header.Identifier, snap.Header.GetIndexShortID())
+
+	if snap.scanCache != nil {
+		return snap.scanCache.Close()
+	}
+
 	return nil
 }
 

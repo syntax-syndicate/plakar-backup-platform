@@ -176,12 +176,11 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	snap.Event(events.StartEvent())
 	defer snap.Event(events.DoneEvent())
 
-	sc2, err := snap.AppContext().GetCache().Scan(snap.Header.Identifier)
-
+	imp, err := importer.NewImporter(scanDir)
 	if err != nil {
 		return err
 	}
-	defer sc2.Close()
+	defer imp.Close()
 
 	vfsCache, err := snap.AppContext().GetCache().VFS(imp.Type(), imp.Origin())
 	if err != nil {
@@ -227,7 +226,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 
 	filestore := caching.DBStore[string, vfs.Entry]{
 		Prefix: "__path__",
-		Cache:  sc2,
+		Cache:  snap.scanCache,
 	}
 	backupCtx.fileidx, err = btree.New(&filestore, vfs.PathCmp, 50)
 	if err != nil {
@@ -236,7 +235,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 
 	errstore := caching.DBStore[string, ErrorItem]{
 		Prefix: "__error__",
-		Cache:  sc2,
+		Cache:  snap.scanCache,
 	}
 	backupCtx.erridx, err = btree.New(&errstore, strings.Compare, 50)
 	if err != nil {
@@ -412,7 +411,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			}
 
 			// Record the checksum of the FileEntry in the cache
-			err = sc2.PutChecksum(record.Pathname, fileEntryChecksum)
+			err = snap.scanCache.PutChecksum(record.Pathname, fileEntryChecksum)
 			if err != nil {
 				backupCtx.recordError(record.Pathname, err)
 				return
@@ -467,7 +466,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			}
 
 			if childEntry.Stat().Mode().IsDir() {
-				data, err := sc2.GetSummary(childPath)
+				data, err := snap.scanCache.GetSummary(childPath)
 				if err != nil {
 					continue
 				}
@@ -530,7 +529,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			return err
 		}
 
-		err = sc2.PutSummary(dirPath, serializedSummary)
+		err = snap.scanCache.PutSummary(dirPath, serializedSummary)
 		if err != nil {
 			backupCtx.recordError(dirPath, err)
 			return err
