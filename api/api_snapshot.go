@@ -143,14 +143,15 @@ type SnapshotSignedURLClaims struct {
 }
 
 func (signer SnapshotReaderURLSigner) Sign(w http.ResponseWriter, r *http.Request) error {
-	_, path, err := SnapshotPathParam(r, lrepository, "snapshot_path")
+	snapshotID32, path, err := SnapshotPathParam(r, lrepository, "snapshot_path")
 	if err != nil {
 		return err
 	}
+	snapshotId := fmt.Sprintf("%0x", snapshotID32[:])
 
 	now := time.Now()
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, SnapshotSignedURLClaims{
-		SnapshotID: r.PathValue("snapshot"),
+		SnapshotID: snapshotId,
 		Path:       path,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(2 * time.Hour)),

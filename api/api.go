@@ -54,24 +54,11 @@ func handleError(w http.ResponseWriter, err error) {
 	_ = json.NewEncoder(w).Encode(&ApiErrorRes{apierr})
 }
 
-type APIView struct {
-	fn     func(w http.ResponseWriter, r *http.Request) error
-	method string
-}
+type APIView func(w http.ResponseWriter, r *http.Request) error
 
 func (view APIView) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	expectedMethod := view.method
-	if expectedMethod == "" {
-		expectedMethod = http.MethodGet
-	}
-
-	if r.Method != expectedMethod {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	if err := view.fn(w, r); err != nil {
+	if err := view(w, r); err != nil {
 		handleError(w, err)
 	}
 }
@@ -105,25 +92,25 @@ func SetupRoutes(server *http.ServeMux, repo *repository.Repository, token strin
 	authToken := TokenAuthMiddleware(token)
 	urlSigner := NewSnapshotReaderURLSigner(token)
 
-	server.Handle("/api/storage/configuration", authToken(APIView{fn: storageConfiguration}))
-	server.Handle("/api/storage/states", authToken(APIView{fn: storageStates}))
-	server.Handle("/api/storage/state/{state}", authToken(APIView{fn: storageState}))
-	server.Handle("/api/storage/packfiles", authToken(APIView{fn: storagePackfiles}))
-	server.Handle("/api/storage/packfile/{packfile}", authToken(APIView{fn: storagePackfile}))
+	server.Handle("GET /api/storage/configuration", authToken(APIView(storageConfiguration)))
+	server.Handle("GET /api/storage/states", authToken(APIView(storageStates)))
+	server.Handle("GET /api/storage/state/{state}", authToken(APIView(storageState)))
+	server.Handle("GET /api/storage/packfiles", authToken(APIView(storagePackfiles)))
+	server.Handle("GET /api/storage/packfile/{packfile}", authToken(APIView(storagePackfile)))
 
-	server.Handle("/api/repository/configuration", authToken(APIView{fn: repositoryConfiguration}))
-	server.Handle("/api/repository/snapshots", authToken(APIView{fn: repositorySnapshots}))
-	server.Handle("/api/repository/states", authToken(APIView{fn: repositoryStates}))
-	server.Handle("/api/repository/state/{state}", authToken(APIView{fn: repositoryState}))
-	server.Handle("/api/repository/packfiles", authToken(APIView{fn: repositoryPackfiles}))
-	server.Handle("/api/repository/packfile/{packfile}", authToken(APIView{fn: repositoryPackfile}))
+	server.Handle("GET /api/repository/configuration", authToken(APIView(repositoryConfiguration)))
+	server.Handle("GET /api/repository/snapshots", authToken(APIView(repositorySnapshots)))
+	server.Handle("GET /api/repository/states", authToken(APIView(repositoryStates)))
+	server.Handle("GET /api/repository/state/{state}", authToken(APIView(repositoryState)))
+	server.Handle("GET /api/repository/packfiles", authToken(APIView(repositoryPackfiles)))
+	server.Handle("GET /api/repository/packfile/{packfile}", authToken(APIView(repositoryPackfile)))
 
-	server.Handle("/api/snapshot/{snapshot}", authToken(APIView{fn: snapshotHeader}))
-	server.Handle("/api/snapshot/reader/{snapshot_path...}", urlSigner.VerifyMiddleware(APIView{fn: snapshotReader}))
-	server.Handle("/api/snapshot/reader-sign-url/{snapshot_path...}", authToken(APIView{fn: urlSigner.Sign, method: http.MethodPost}))
+	server.Handle("GET /api/snapshot/{snapshot}", authToken(APIView(snapshotHeader)))
+	server.Handle("GET /api/snapshot/reader/{snapshot_path...}", urlSigner.VerifyMiddleware(APIView(snapshotReader)))
+	server.Handle("POST /api/snapshot/reader-sign-url/{snapshot_path...}", authToken(APIView(urlSigner.Sign)))
 
-	server.Handle("/api/snapshot/search/{snapshot_path...}", authToken(APIView{fn: snapshotSearch}))
-	server.Handle("/api/snapshot/vfs/{snapshot_path...}", authToken(APIView{fn: snapshotVFSBrowse}))
-	server.Handle("/api/snapshot/vfs/children/{snapshot_path...}", authToken(APIView{fn: snapshotVFSChildren}))
-	server.Handle("/api/snapshot/vfs/errors/{snapshot_path...}", authToken(APIView{fn: snapshotVFSErrors}))
+	server.Handle("GET /api/snapshot/search/{snapshot_path...}", authToken(APIView(snapshotSearch)))
+	server.Handle("GET /api/snapshot/vfs/{snapshot_path...}", authToken(APIView(snapshotVFSBrowse)))
+	server.Handle("GET /api/snapshot/vfs/children/{snapshot_path...}", authToken(APIView(snapshotVFSChildren)))
+	server.Handle("GET /api/snapshot/vfs/errors/{snapshot_path...}", authToken(APIView(snapshotVFSErrors)))
 }
