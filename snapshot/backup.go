@@ -642,7 +642,6 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 		if len(data) > 0 {
 			for i := 0; i < 256; i++ {
 				totalFreq[i] += freq[i]
-				//freq[i] /= float64(len(data))
 			}
 		}
 		chunk := objects.Chunk{Checksum: chunk_t32, Length: uint32(len(data)), Entropy: entropyScore, Distribution: distribution(freq, uint64(len(data)))}
@@ -697,9 +696,6 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 
 	if totalDataSize > 0 {
 		object.Entropy = totalEntropy / float64(totalDataSize)
-		//for i := 0; i < 256; i++ {
-		//	totalFreq[i] /= float64(totalDataSize)
-		//}
 		object.Distribution = distribution(totalFreq, totalDataSize)
 	} else {
 		object.Entropy = 0.0
