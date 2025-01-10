@@ -28,9 +28,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
@@ -40,7 +40,7 @@ func init() {
 	subcommands.Register("archive", cmd_archive)
 }
 
-func cmd_archive(ctx *context.Context, repo *repository.Repository, args []string) int {
+func cmd_archive(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
 	var opt_rebase bool
 	var opt_output string
 	var opt_format string

@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/PlakarKorp/plakar/context"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/network"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/storage"
@@ -24,7 +24,7 @@ type ServerOptions struct {
 	NoDelete bool
 }
 
-func Server(ctx *context.Context, repo *repository.Repository, addr string, options *ServerOptions) {
+func Server(ctx *appcontext.AppContext, repo *repository.Repository, addr string, options *ServerOptions) {
 
 	network.ProtocolRegister()
 
@@ -43,14 +43,14 @@ func Server(ctx *context.Context, repo *repository.Repository, addr string, opti
 	}
 }
 
-func Stdio(ctx *context.Context, options *ServerOptions) error {
+func Stdio(ctx *appcontext.AppContext, options *ServerOptions) error {
 	network.ProtocolRegister()
 
 	handleConnection(ctx, nil, os.Stdin, os.Stdout, options)
 	return nil
 }
 
-func handleConnection(ctx *context.Context, repo *repository.Repository, rd io.Reader, wr io.Writer, options *ServerOptions) {
+func handleConnection(ctx *appcontext.AppContext, repo *repository.Repository, rd io.Reader, wr io.Writer, options *ServerOptions) {
 	var lrepository *repository.Repository
 
 	lrepository = repo

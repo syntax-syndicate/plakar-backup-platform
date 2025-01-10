@@ -19,11 +19,11 @@ package stdio
 import (
 	"flag"
 
-	"github.com/PlakarKorp/plakar/context"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/server/plakard"
 )
 
-func cmd_stdio(ctx *context.Context, args []string) int {
+func cmd_stdio(ctx *appcontext.AppContext, args []string) int {
 	_ = ctx
 
 	var noDelete bool

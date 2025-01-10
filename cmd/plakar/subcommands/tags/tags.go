@@ -23,8 +23,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 )
@@ -33,7 +33,7 @@ func init() {
 	subcommands.Register("tags", cmd_tags)
 }
 
-func cmd_tags(ctx *context.Context, repo *repository.Repository, args []string) int {
+func cmd_tags(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
 	var opt_display string
 	flags := flag.NewFlagSet("tags", flag.ExitOnError)
 	flags.StringVar(&opt_display, "display", "tags", "display tags")
