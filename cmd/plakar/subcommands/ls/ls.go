@@ -147,8 +147,8 @@ func list_snapshot(repo *repository.Repository, snapshotPath string, recursive b
 			humanize.Bytes(uint64(sb.Size())),
 			path)
 
-		if !recursive {
-			return fs.SkipAll
+		if !recursive && pathname != path && sb.IsDir() {
+			return fs.SkipDir
 		}
 		return nil
 	})
