@@ -26,9 +26,9 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/encryption/keypair"
 	"github.com/PlakarKorp/plakar/identity"
 	"github.com/PlakarKorp/plakar/repository"
@@ -39,7 +39,7 @@ func init() {
 	subcommands.Register("id", cmd_id)
 }
 
-func cmd_id(ctx *context.Context, _ *repository.Repository, args []string) int {
+func cmd_id(ctx *appcontext.AppContext, _ *repository.Repository, args []string) int {
 	flags := flag.NewFlagSet("id", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Println("usage: plakar id [create|info|list]")
@@ -75,7 +75,7 @@ func cmd_id(ctx *context.Context, _ *repository.Repository, args []string) int {
 	return 0
 }
 
-func identity_create(ctx *context.Context, args []string) int {
+func identity_create(ctx *appcontext.AppContext, args []string) int {
 	reader := bufio.NewReader(os.Stdin)
 
 	var email string
@@ -146,7 +146,7 @@ func identity_create(ctx *context.Context, args []string) int {
 	return 0
 }
 
-func identity_info(ctx *context.Context, args []string) int {
+func identity_info(ctx *appcontext.AppContext, args []string) int {
 	var passphrase []byte
 	attempts := 0
 	maxAttempts := 3
@@ -181,7 +181,7 @@ func identity_info(ctx *context.Context, args []string) int {
 	return 0
 }
 
-func identity_list(ctx *context.Context) int {
+func identity_list(ctx *appcontext.AppContext) int {
 	files, err := os.ReadDir(ctx.GetKeyringDir())
 	if err != nil {
 		fmt.Println("Error reading keyring directory:", err)

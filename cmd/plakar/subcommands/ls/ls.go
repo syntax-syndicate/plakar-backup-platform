@@ -26,9 +26,9 @@ import (
 	"os/user"
 	"time"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/dustin/go-humanize"
@@ -38,7 +38,7 @@ func init() {
 	subcommands.Register("ls", cmd_ls)
 }
 
-func cmd_ls(ctx *context.Context, repo *repository.Repository, args []string) int {
+func cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
 	var opt_recursive bool
 	var opt_tag string
 	var opt_uuid bool
@@ -147,8 +147,8 @@ func list_snapshot(repo *repository.Repository, snapshotPath string, recursive b
 			humanize.Bytes(uint64(sb.Size())),
 			path)
 
-		if !recursive {
-			return fs.SkipAll
+		if !recursive && pathname != path && sb.IsDir() {
+			return fs.SkipDir
 		}
 		return nil
 	})

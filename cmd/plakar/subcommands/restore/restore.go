@@ -22,9 +22,9 @@ import (
 	"log"
 	"strings"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/snapshot/exporter"
@@ -34,7 +34,7 @@ func init() {
 	subcommands.Register("restore", cmd_restore)
 }
 
-func cmd_restore(ctx *context.Context, repo *repository.Repository, args []string) int {
+func cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
 	var pullPath string
 	var pullRebase bool
 	var exporterInstance exporter.Exporter

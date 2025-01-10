@@ -5,9 +5,7 @@ import (
 	"strings"
 
 	"github.com/PlakarKorp/plakar/btree"
-	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
-	"github.com/vmihailenco/msgpack/v5"
 )
 
 type ErrorItem struct {
@@ -20,13 +18,8 @@ func (snapshot *Snapshot) Errors(beneath string) (iter.Seq2[ErrorItem, error], e
 		beneath += "/"
 	}
 
-	bytes, err := snapshot.GetBlob(packfile.TYPE_ERROR, snapshot.Header.Errors)
+	rd, err := snapshot.repository.GetBlob(packfile.TYPE_ERROR, snapshot.Header.Errors)
 	if err != nil {
-		return nil, err
-	}
-
-	var root btree.BTree[string, objects.Checksum, ErrorItem]
-	if err := msgpack.Unmarshal(bytes, &root); err != nil {
 		return nil, err
 	}
 
@@ -34,7 +27,10 @@ func (snapshot *Snapshot) Errors(beneath string) (iter.Seq2[ErrorItem, error], e
 		blobtype: packfile.TYPE_ERROR,
 		snap:     snapshot,
 	}
-	tree := btree.FromStorage(root.Root, &storage, strings.Compare, root.Order)
+	tree, err := btree.Deserialize(rd, &storage, strings.Compare)
+	if err != nil {
+		return nil, err
+	}
 
 	return func(yield func(ErrorItem, error) bool) {
 		iter, err := tree.ScanFrom(beneath)

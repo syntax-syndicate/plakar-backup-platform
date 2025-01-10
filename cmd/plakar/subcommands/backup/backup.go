@@ -26,8 +26,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/identity"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
@@ -52,7 +52,7 @@ func (e *excludeFlags) Set(value string) error {
 	return nil
 }
 
-func cmd_backup(ctx *context.Context, repo *repository.Repository, args []string) int {
+func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
 	var opt_tags string
 	var opt_excludes string
 	var opt_exclude excludeFlags

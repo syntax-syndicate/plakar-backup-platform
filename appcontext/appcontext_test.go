@@ -1,11 +1,11 @@
-package context
+package appcontext
 
 import (
 	"testing"
 )
 
 func TestContext_SettersAndGetters(t *testing.T) {
-	ctx := NewContext()
+	ctx := NewAppContext()
 
 	tests := []struct {
 		name     string

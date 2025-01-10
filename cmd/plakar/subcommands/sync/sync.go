@@ -23,10 +23,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/btree"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
@@ -41,7 +41,7 @@ func init() {
 	subcommands.Register("sync", cmd_sync)
 }
 
-func cmd_sync(ctx *context.Context, repo *repository.Repository, args []string) int {
+func cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
 	flags := flag.NewFlagSet("sync", flag.ExitOnError)
 	flags.Parse(args)
 

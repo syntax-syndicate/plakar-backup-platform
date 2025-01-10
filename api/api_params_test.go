@@ -10,14 +10,13 @@ import (
 
 func TestPathParamToID(t *testing.T) {
 	req, err := http.NewRequest("GET", "/path/{id}", nil)
+	req.Pattern = "/path/{id}"
+
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	vars := map[string]string{
-		"id": "7e0e6e24a6e29faf11d022dca77826fe8b8a000aff5ea27e16650d03acefc93c",
-	}
-	req = mux.SetURLVars(req, vars)
+	req.SetPathValue("id", "7e0e6e24a6e29faf11d022dca77826fe8b8a000aff5ea27e16650d03acefc93c")
 
 	id, err := PathParamToID(req, "id")
 	if err != nil {

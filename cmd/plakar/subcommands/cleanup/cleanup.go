@@ -19,8 +19,8 @@ package cleanup
 import (
 	"flag"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/repository"
 )
 
@@ -28,7 +28,7 @@ func init() {
 	subcommands.Register("cleanup", cmd_cleanup)
 }
 
-func cmd_cleanup(ctx *context.Context, repo *repository.Repository, args []string) int {
+func cmd_cleanup(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
 	flags := flag.NewFlagSet("cleanup", flag.ExitOnError)
 	flags.Parse(args)
 
