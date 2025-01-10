@@ -60,21 +60,21 @@ func New(repo *repository.Repository) (*Snapshot, error) {
 		packerChanDone: make(chan bool),
 	}
 
-	if snap.Context().GetIdentity() != uuid.Nil {
-		snap.Header.Identity.Identifier = snap.Context().GetIdentity()
-		snap.Header.Identity.PublicKey = snap.Context().GetKeypair().PublicKey
+	if snap.AppContext().GetIdentity() != uuid.Nil {
+		snap.Header.Identity.Identifier = snap.AppContext().GetIdentity()
+		snap.Header.Identity.PublicKey = snap.AppContext().GetKeypair().PublicKey
 	}
 
-	snap.Header.SetContext("Hostname", snap.Context().GetHostname())
-	snap.Header.SetContext("Username", snap.Context().GetUsername())
-	snap.Header.SetContext("OperatingSystem", snap.Context().GetOperatingSystem())
-	snap.Header.SetContext("MachineID", snap.Context().GetMachineID())
-	snap.Header.SetContext("CommandLine", snap.Context().GetCommandLine())
-	snap.Header.SetContext("ProcessID", fmt.Sprintf("%d", snap.Context().GetProcessID()))
-	snap.Header.SetContext("Architecture", snap.Context().GetArchitecture())
+	snap.Header.SetContext("Hostname", snap.AppContext().GetHostname())
+	snap.Header.SetContext("Username", snap.AppContext().GetUsername())
+	snap.Header.SetContext("OperatingSystem", snap.AppContext().GetOperatingSystem())
+	snap.Header.SetContext("MachineID", snap.AppContext().GetMachineID())
+	snap.Header.SetContext("CommandLine", snap.AppContext().GetCommandLine())
+	snap.Header.SetContext("ProcessID", fmt.Sprintf("%d", snap.AppContext().GetProcessID()))
+	snap.Header.SetContext("Architecture", snap.AppContext().GetArchitecture())
 	snap.Header.SetContext("NumCPU", fmt.Sprintf("%d", runtime.NumCPU()))
 	snap.Header.SetContext("GOMAXPROCS", fmt.Sprintf("%d", runtime.GOMAXPROCS(0)))
-	snap.Header.SetContext("Client", snap.Context().GetPlakarClient())
+	snap.Header.SetContext("Client", snap.AppContext().GetPlakarClient())
 
 	go packerJob(snap)
 
@@ -146,12 +146,12 @@ func (snap *Snapshot) Close() error {
 	return nil
 }
 
-func (snap *Snapshot) Context() *appcontext.AppContext {
-	return snap.Repository().Context()
+func (snap *Snapshot) AppContext() *appcontext.AppContext {
+	return snap.Repository().AppContext()
 }
 
 func (snap *Snapshot) Event(evt events.Event) {
-	snap.Context().Events().Send(evt)
+	snap.AppContext().Events().Send(evt)
 }
 
 func GetSnapshot(repo *repository.Repository, Identifier objects.Checksum) (*header.Header, bool, error) {
@@ -251,5 +251,5 @@ func (snap *Snapshot) ListDatas() iter.Seq2[objects.Checksum, error] {
 }
 
 func (snap *Snapshot) Logger() *logging.Logger {
-	return snap.Context().GetLogger()
+	return snap.AppContext().GetLogger()
 }

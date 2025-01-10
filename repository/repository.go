@@ -33,7 +33,7 @@ type Repository struct {
 	state         *state.State
 	configuration storage.Configuration
 
-	context *appcontext.AppContext
+	appContext *appcontext.AppContext
 
 	secret []byte
 }
@@ -47,7 +47,7 @@ func New(ctx *appcontext.AppContext, store storage.Store, secret []byte) (*Repos
 	r := &Repository{
 		store:         store,
 		configuration: store.Configuration(),
-		context:       ctx,
+		appContext:    ctx,
 		secret:        secret,
 	}
 	if err := r.RebuildState(); err != nil {
@@ -57,7 +57,7 @@ func New(ctx *appcontext.AppContext, store storage.Store, secret []byte) (*Repos
 }
 
 func (r *Repository) RebuildState() error {
-	cacheInstance, err := r.Context().GetCache().Repository(r.Configuration().RepositoryID)
+	cacheInstance, err := r.AppContext().GetCache().Repository(r.Configuration().RepositoryID)
 	if err != nil {
 		return err
 	}
@@ -163,8 +163,8 @@ func (r *Repository) RebuildState() error {
 	return nil
 }
 
-func (r *Repository) Context() *appcontext.AppContext {
-	return r.context
+func (r *Repository) AppContext() *appcontext.AppContext {
+	return r.appContext
 }
 
 func (r *Repository) Store() storage.Store {
@@ -488,5 +488,5 @@ func (r *Repository) SetPackfileForBlob(Type packfile.Type, packfileChecksum obj
 }
 
 func (r *Repository) Logger() *logging.Logger {
-	return r.Context().GetLogger()
+	return r.AppContext().GetLogger()
 }
