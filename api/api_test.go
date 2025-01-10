@@ -6,8 +6,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/caching"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/storage"
@@ -28,7 +28,7 @@ func TestAuthMiddleware(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	ctx := context.NewContext()
+	ctx := appcontext.NewAppContext()
 	ctx.SetCache(caching.NewManager("/tmp/test_plakar"))
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
 	repo, err := repository.New(ctx, lstore, []byte("secret"))

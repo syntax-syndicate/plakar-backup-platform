@@ -14,10 +14,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
@@ -110,7 +110,7 @@ func entryPoint() int {
 	flag.StringVar(&opt_keyring, "keyring", "", "path to directory holding the keyring")
 	flag.Parse()
 
-	ctx := context.NewContext()
+	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
 
 	ctx.SetPlakarClient("plakar/" + utils.GetVersion())

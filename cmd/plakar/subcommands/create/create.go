@@ -23,10 +23,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/compression"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/repository"
@@ -37,7 +37,7 @@ func init() {
 	subcommands.Register("create", cmd_create)
 }
 
-func cmd_create(ctx *context.Context, _ *repository.Repository, args []string) int {
+func cmd_create(ctx *appcontext.AppContext, _ *repository.Repository, args []string) int {
 	var opt_noencryption bool
 	var opt_nocompression bool
 	var opt_hashing string

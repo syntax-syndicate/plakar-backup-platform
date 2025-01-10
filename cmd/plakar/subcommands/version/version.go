@@ -20,8 +20,8 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/repository"
 	"golang.org/x/mod/semver"
 )
@@ -32,7 +32,7 @@ func init() {
 	subcommands.Register("version", cmd_version)
 }
 
-func cmd_version(ctx *context.Context, _ *repository.Repository, args []string) int {
+func cmd_version(ctx *appcontext.AppContext, _ *repository.Repository, args []string) int {
 	flags := flag.NewFlagSet("version", flag.ExitOnError)
 	flags.Parse(args)
 

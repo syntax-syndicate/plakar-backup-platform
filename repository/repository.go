@@ -12,8 +12,8 @@ import (
 	chunkers "github.com/PlakarKorp/go-cdc-chunkers"
 	_ "github.com/PlakarKorp/go-cdc-chunkers/chunkers/fastcdc"
 	_ "github.com/PlakarKorp/go-cdc-chunkers/chunkers/ultracdc"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/compression"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/logging"
@@ -33,12 +33,12 @@ type Repository struct {
 	state         *state.State
 	configuration storage.Configuration
 
-	context *context.Context
+	context *appcontext.AppContext
 
 	secret []byte
 }
 
-func New(ctx *context.Context, store storage.Store, secret []byte) (*Repository, error) {
+func New(ctx *appcontext.AppContext, store storage.Store, secret []byte) (*Repository, error) {
 	t0 := time.Now()
 	defer func() {
 		ctx.GetLogger().Trace("repository", "New(store=%p): %s", store, time.Since(t0))
@@ -163,7 +163,7 @@ func (r *Repository) RebuildState() error {
 	return nil
 }
 
-func (r *Repository) Context() *context.Context {
+func (r *Repository) Context() *appcontext.AppContext {
 	return r.context
 }
 

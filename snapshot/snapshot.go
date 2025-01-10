@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/PlakarKorp/plakar/context"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/objects"
@@ -146,7 +146,7 @@ func (snap *Snapshot) Close() error {
 	return nil
 }
 
-func (snap *Snapshot) Context() *context.Context {
+func (snap *Snapshot) Context() *appcontext.AppContext {
 	return snap.Repository().Context()
 }
 

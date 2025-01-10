@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/charmbracelet/glamour"
 	"github.com/muesli/termenv"
@@ -36,7 +36,7 @@ func init() {
 	subcommands.Register("help", cmd_help)
 }
 
-func cmd_help(ctx *context.Context, _ *repository.Repository, args []string) int {
+func cmd_help(ctx *appcontext.AppContext, _ *repository.Repository, args []string) int {
 	var opt_style string
 	flags := flag.NewFlagSet("help", flag.ExitOnError)
 	flags.StringVar(&opt_style, "style", "dracula", "style to use")

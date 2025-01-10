@@ -19,8 +19,8 @@ package server
 import (
 	"flag"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/context"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/server/httpd"
 	"github.com/PlakarKorp/plakar/server/plakard"
@@ -30,7 +30,7 @@ func init() {
 	subcommands.Register("server", cmd_server)
 }
 
-func cmd_server(ctx *context.Context, repo *repository.Repository, args []string) int {
+func cmd_server(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
 	var opt_protocol string
 	var opt_allowdelete bool
 
