@@ -32,6 +32,7 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/dustin/go-humanize"
 )
 
@@ -115,7 +116,7 @@ func list_snapshot(repo *repository.Repository, snapshotPath string, recursive b
 		log.Fatal(err)
 	}
 
-	return fs.WalkDir(pvfs, pathname, func(path string, d fs.DirEntry, err error) error {
+	return pvfs.WalkDir(pathname, func(path string, d *vfs.Entry, err error) error {
 		if err != nil {
 			log.Println("error at", path, ":", err)
 			return err
