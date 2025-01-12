@@ -1,0 +1,57 @@
+.Dd January 13, 2025
+.Dt PLAKAR AGENT 1
+.Os
+.Sh NAME
+.Nm plakar_agent
+.Nd Start the Plakar agent service
+.Sh SYNOPSIS
+.Nm
+.Op Fl h
+.Op Ar socket_path
+.Sh DESCRIPTION
+The
+.Nm
+command is used to launch the Plakar agent as a background service that listens for incoming requests over a Unix domain socket.
+This command facilitates communication between Plakar components.
+
+.Bl -tag -width Ds
+.It Fl h
+Displays help information and exits.
+
+.El
+
+.Sh ARGUMENTS
+.Bl -tag -width Ds
+.It Ar socket_path
+Specifies the location of the Unix domain socket file.
+If not provided, the default path is set to the cache directory under
+.Pa agent.sock .
+
+.El
+
+.Sh EXAMPLES
+To illustrate usage:
+
+.Bl -tag -width Ds
+.It Basic example:
+.Bd -literal -offset indent
+plakar agent
+.Ed
+
+.It Example with custom socket path:
+.Bd -literal -offset indent
+plakar agent /tmp/custom_agent.sock
+.Ed
+.El
+
+.Sh DIAGNOSTICS
+.Ex -std
+.Bl -tag -width Ds
+.It 0
+Command completed successfully.
+.It >0
+General failure occurred.
+.El
+
+.Sh SEE ALSO
+.Xr plakar 1
