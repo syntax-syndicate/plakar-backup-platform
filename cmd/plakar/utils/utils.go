@@ -43,13 +43,14 @@ import (
 	"golang.org/x/tools/blog/atom"
 )
 
+// ParseSnapshotID parses a string in the form checksum[:pattern] and
+// returns the two strings.
 func ParseSnapshotID(id string) (string, string) {
-	tmp := strings.Split(id, ":")
+	tmp := strings.SplitN(id, ":", 2)
 	prefix := id
 	pattern := ""
-	if len(tmp) != 0 {
-		prefix = tmp[0]
-		pattern = strings.Join(tmp[1:], ":")
+	if len(tmp) == 2 {
+		prefix, pattern = tmp[0], tmp[1]
 		if runtime.GOOS != "windows" {
 			if !strings.HasPrefix(pattern, "/") {
 				pattern = "/" + pattern
