@@ -24,6 +24,7 @@ import (
 	"log"
 	"os"
 	"os/user"
+	"path"
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -101,6 +102,7 @@ func list_snapshots(repo *repository.Repository, useUuid bool, tag string) {
 
 func list_snapshot(repo *repository.Repository, snapshotPath string, recursive bool) error {
 	prefix, pathname := utils.ParseSnapshotID(snapshotPath)
+	pathname = path.Clean(pathname)
 
 	snap, err := utils.OpenSnapshotByPrefix(repo, prefix)
 	if err != nil {
@@ -117,6 +119,9 @@ func list_snapshot(repo *repository.Repository, snapshotPath string, recursive b
 		if err != nil {
 			log.Println("error at", path, ":", err)
 			return err
+		}
+		if path == pathname {
+			return nil
 		}
 
 		sb, err := d.Info()
@@ -139,13 +144,18 @@ func list_snapshot(repo *repository.Repository, snapshotPath string, recursive b
 			}
 		}
 
+		entryname := path
+		if !recursive {
+			entryname = d.Name()
+		}
+
 		fmt.Fprintf(os.Stdout, "%s %s % 8s % 8s % 8s %s\n",
 			sb.ModTime().UTC().Format(time.RFC3339),
 			sb.Mode(),
 			username,
 			groupname,
 			humanize.Bytes(uint64(sb.Size())),
-			path)
+			entryname)
 
 		if !recursive && pathname != path && sb.IsDir() {
 			return fs.SkipDir
