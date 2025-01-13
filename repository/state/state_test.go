@@ -2,7 +2,6 @@ package state
 
 import (
 	"bytes"
-	"reflect"
 	"testing"
 	"time"
 
@@ -124,17 +123,13 @@ func TestSerializeDeserialize(t *testing.T) {
 			Aggregate: true,
 			Extends:   []objects.Checksum{{0x01}, {0x02}, {0x03}},
 		},
-		DeletedSnapshots: map[uint64]time.Time{
-			123: time.Unix(1697045400, 0), // Example timestamp
-			456: time.Unix(1697046000, 0),
+		DeletedSnapshots: map[objects.Checksum]time.Time{
+			{0x12}: time.Unix(1697045400, 0), // Example timestamp
+			{0x45}: time.Unix(1697046000, 0),
 		},
-		IdToChecksum: map[uint64]objects.Checksum{
-			1: {0x10},
-			2: {0x20},
-		},
-		Chunks: map[uint64]Location{
-			1: {Packfile: 100, Offset: 10, Length: 500},
-			2: {Packfile: 200, Offset: 20, Length: 600},
+		Chunks: map[objects.Checksum]Location{
+			{0x1}: {Packfile: objects.Checksum{0x10}, Offset: 10, Length: 500},
+			{0x2}: {Packfile: objects.Checksum{0x20}, Offset: 20, Length: 600},
 		},
 	}
 
@@ -180,15 +175,6 @@ func compareStates(a, b *State) bool {
 		}
 	}
 
-	if len(a.IdToChecksum) != len(b.IdToChecksum) {
-		return false
-	}
-	for k, v := range a.IdToChecksum {
-		if bv, ok := b.IdToChecksum[k]; !ok || bv != v {
-			return false
-		}
-	}
-
 	if len(a.Chunks) != len(b.Chunks) {
 		return false
 	}
@@ -199,28 +185,4 @@ func compareStates(a, b *State) bool {
 	}
 
 	return true
-}
-
-func TestIdToChecksumSerialization(t *testing.T) {
-	originalState := &State{
-		IdToChecksum: map[uint64]objects.Checksum{
-			1: {0x10, 0x11, 0x12, 0x13},
-			2: {0x20, 0x21, 0x22, 0x23},
-		},
-	}
-
-	var buffer bytes.Buffer
-	if err := originalState.SerializeStream(&buffer); err != nil {
-		t.Fatalf("Failed to serialize state: %v", err)
-	}
-
-	deserializedState, err := DeserializeStream(&buffer)
-	if err != nil {
-		t.Fatalf("Failed to deserialize state: %v", err)
-	}
-
-	if !reflect.DeepEqual(originalState.IdToChecksum, deserializedState.IdToChecksum) {
-		t.Fatalf("IdToChecksum mismatch.\nOriginal: %+v\nDeserialized: %+v",
-			originalState.IdToChecksum, deserializedState.IdToChecksum)
-	}
 }
