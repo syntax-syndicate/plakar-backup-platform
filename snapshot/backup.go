@@ -148,7 +148,7 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 	return filesChannel, nil
 }
 
-func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
+func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *BackupOptions) error {
 	snap.Event(events.StartEvent())
 	defer snap.Event(events.DoneEvent())
 
@@ -157,12 +157,6 @@ func (snap *Snapshot) Backup(scanDir string, options *BackupOptions) error {
 		return err
 	}
 	defer sc2.Close()
-
-	imp, err := importer.NewImporter(scanDir)
-	if err != nil {
-		return err
-	}
-	defer imp.Close()
 
 	vfsCache, err := snap.AppContext().GetCache().VFS(imp.Type(), imp.Origin())
 	if err != nil {
