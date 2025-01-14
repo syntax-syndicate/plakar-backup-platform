@@ -55,7 +55,7 @@ func NewEntry(parentPath string, record *importer.ScanRecord) *Entry {
 		target = record.Target
 	}
 
-	ExtendedAttributes := make([]ExtendedAttribute, len(record.ExtendedAttributes))
+	ExtendedAttributes := make([]ExtendedAttribute, 0, len(record.ExtendedAttributes))
 	for name, value := range record.ExtendedAttributes {
 		ExtendedAttributes = append(ExtendedAttributes, ExtendedAttribute{
 			Name:  name,
