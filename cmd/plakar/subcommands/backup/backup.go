@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -144,27 +144,25 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 		Excludes:       excludes,
 	}
 
-	if flags.NArg() == 0 {
-		err = snap.Backup(ctx.GetCWD(), opts)
-	} else if flags.NArg() == 1 {
-		var cleanPath string
-
-		if !strings.HasPrefix(flags.Arg(0), "/") {
-			_, err := importer.NewImporter(flags.Arg(0))
-			if err != nil {
-				cleanPath = path.Clean(ctx.GetCWD() + "/" + flags.Arg(0))
-			} else {
-				cleanPath = flags.Arg(0)
-			}
-		} else {
-			cleanPath = path.Clean(flags.Arg(0))
-		}
-		err = snap.Backup(cleanPath, opts)
-	} else {
+	scanDir := ctx.GetCWD()
+	if flags.NArg() == 1 {
+		scanDir = flags.Arg(0)
+	} else if flags.NArg() > 1 {
 		log.Fatal("only one directory pushable")
 	}
 
+	imp, err := importer.NewImporter(scanDir)
 	if err != nil {
+		if !filepath.IsAbs(scanDir) {
+			scanDir = filepath.Join(ctx.GetCWD(), scanDir)
+		}
+		imp, err = importer.NewImporter("fs://" + scanDir)
+		if err != nil {
+			log.Fatalf("failed to create an import for %s: %s", scanDir, err)
+		}
+	}
+
+	if err := snap.Backup(scanDir, imp, opts); err != nil {
 		ctx.GetLogger().Error("failed to create snapshot: %s", err)
 		return 1
 	}
