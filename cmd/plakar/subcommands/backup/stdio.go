@@ -3,16 +3,16 @@ package backup
 import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/events"
-	"github.com/charmbracelet/lipgloss"
 )
 
-var (
-	checkMark = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00")).SetString("✓")
-	crossMark = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).SetString("✘")
-)
+type eventsProcessorStdio struct {
+	done chan struct{}
+}
 
-func eventsProcessorStdio(ctx *appcontext.AppContext, quiet bool) chan struct{} {
+func startEventsProcessorStdio(ctx *appcontext.AppContext, quiet bool) eventsProcessorStdio {
 	done := make(chan struct{})
+	ep := eventsProcessorStdio{done: done}
+
 	go func() {
 		for event := range ctx.Events().Listen() {
 			switch event := event.(type) {
@@ -26,11 +26,17 @@ func eventsProcessorStdio(ctx *appcontext.AppContext, quiet bool) chan struct{} 
 				if !quiet {
 					ctx.GetLogger().Info("%x: OK %s %s", event.SnapshotID[:4], checkMark, event.Pathname)
 				}
+			case events.Done:
+				done <- struct{}{}
 			default:
 				//ctx.GetLogger().Warn("unknown event: %T", event)
 			}
 		}
-		done <- struct{}{}
 	}()
-	return done
+
+	return ep
+}
+
+func (ep eventsProcessorStdio) Close() {
+	<-ep.done
 }

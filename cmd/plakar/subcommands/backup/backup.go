@@ -59,6 +59,7 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 	var opt_concurrency uint64
 	var opt_quiet bool
 	var opt_identity string
+	var opt_stdio bool
 
 	excludes := []glob.Glob{}
 	flags := flag.NewFlagSet("backup", flag.ExitOnError)
@@ -68,9 +69,8 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 	flags.StringVar(&opt_excludes, "excludes", "", "file containing a list of exclusions")
 	flags.Var(&opt_exclude, "exclude", "file containing a list of exclusions")
 	flags.BoolVar(&opt_quiet, "quiet", false, "suppress output")
+	flags.BoolVar(&opt_stdio, "stdio", false, "output one line per file to stdout instead of the default interactive output")
 	flags.Parse(args)
-
-	go eventsProcessorStdio(ctx, opt_quiet)
 
 	for _, item := range opt_exclude {
 		excludes = append(excludes, glob.MustCompile(item))
@@ -162,10 +162,13 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 		}
 	}
 
+	ep := startEventsProcessor(ctx, imp.Root(), opt_stdio, opt_quiet)
 	if err := snap.Backup(scanDir, imp, opts); err != nil {
+		ep.Close()
 		ctx.GetLogger().Error("failed to create snapshot: %s", err)
 		return 1
 	}
+	ep.Close()
 
 	signedStr := "unsigned"
 	if ctx.GetIdentity() != uuid.Nil {
