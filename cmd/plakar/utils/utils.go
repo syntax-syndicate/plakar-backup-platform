@@ -435,17 +435,6 @@ func CheckUpdate(cachedir string) (update ReleaseUpdateSummary, err error) {
 	return
 }
 
-func PathIsWithin(pathname string, within string) bool {
-	cleanPath := filepath.Clean(pathname)
-	cleanWithin := filepath.Clean(within)
-
-	if cleanWithin == "/" {
-		return true
-	}
-
-	return strings.HasPrefix(cleanPath, cleanWithin+"/")
-}
-
 func GetPassphrase(prefix string) ([]byte, error) {
 	fmt.Fprintf(os.Stderr, "%s passphrase: ", prefix)
 	passphrase, err := term.ReadPassword(int(syscall.Stdin))
