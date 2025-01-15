@@ -24,7 +24,6 @@ import (
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/gobwas/glob"
-	"github.com/vmihailenco/msgpack/v5"
 )
 
 type BackupContext struct {
@@ -824,11 +823,7 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 						},
 					}
 
-					if serializedDelta, err := delta.ToBytes(); err != nil {
-						return err
-					} else {
-						return snap.scanCache.PutDelta(delta.Type, delta.Blob, serializedDelta)
-					}
+					return snap.deltaState.PutDelta(delta)
 				}
 			}
 		}
@@ -860,21 +855,15 @@ func (snap *Snapshot) Commit() error {
 	close(snap.packerChan)
 	<-snap.packerChanDone
 
-	/* This is temporary, the state is still built fully in memory at this point, we do this to keep the diff simpler. */
 	stateDelta, err := snap.buildSerializedDeltaState()
-	if err != nil {
-		snap.Logger().Warn("Broken delta state %s", err)
-		return err
-	}
-
-	var serializedRepositoryIndex bytes.Buffer
-	err = stateDelta.SerializeStream(&serializedRepositoryIndex)
 	if err != nil {
 		snap.Logger().Warn("could not serialize repository index: %s", err)
 		return err
 	}
-	err = repo.PutState(snap.Header.Identifier, &serializedRepositoryIndex)
+
+	err = repo.PutState(snap.Header.Identifier, stateDelta)
 	if err != nil {
+		snap.Logger().Warn("Failed to push the state to the repository %s", err)
 		return err
 	}
 
@@ -882,39 +871,14 @@ func (snap *Snapshot) Commit() error {
 	return nil
 }
 
-func (snap *Snapshot) buildSerializedDeltaState() (*state.State, error) {
-	deltaState := state.New()
-	var mapPtr *map[objects.Checksum]state.Location
+func (snap *Snapshot) buildSerializedDeltaState() (io.Reader, error) {
+	pr, pw := io.Pipe()
 
-	for de := range snap.scanCache.GetDeltas() {
-		var delta state.DeltaEntry
-		err := msgpack.Unmarshal(de, &delta)
-		if err != nil {
-			return nil, err
-		}
+	/* By using a pipe and a goroutine we bound the max size in memory. */
+	go func() {
+		defer pw.Close()
+		snap.deltaState.SerializeToStream(pw)
+	}()
 
-		switch delta.Type {
-		case packfile.TYPE_SNAPSHOT:
-			mapPtr = &deltaState.Snapshots
-		case packfile.TYPE_CHUNK:
-			mapPtr = &deltaState.Chunks
-		case packfile.TYPE_OBJECT:
-			mapPtr = &deltaState.Objects
-		case packfile.TYPE_VFS:
-			mapPtr = &deltaState.VFS
-		case packfile.TYPE_CHILD:
-			mapPtr = &deltaState.Children
-		case packfile.TYPE_DATA:
-			mapPtr = &deltaState.Datas
-		case packfile.TYPE_SIGNATURE:
-			mapPtr = &deltaState.Signatures
-		case packfile.TYPE_ERROR:
-			mapPtr = &deltaState.Errors
-		default:
-			panic("invalid blob type")
-		}
-		(*mapPtr)[delta.Blob] = delta.Location
-	}
-
-	return deltaState, nil
+	return pr, nil
 }

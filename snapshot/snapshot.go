@@ -16,6 +16,7 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/repository/state"
 	"github.com/PlakarKorp/plakar/snapshot/header"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/google/uuid"
@@ -28,6 +29,8 @@ var (
 type Snapshot struct {
 	repository *repository.Repository
 	scanCache  *caching.ScanCache
+
+	deltaState *state.LocalState
 
 	filesystem *vfs.Filesystem
 
@@ -64,6 +67,8 @@ func New(repo *repository.Repository) (*Snapshot, error) {
 		packerChan:     make(chan interface{}, runtime.NumCPU()*2+1),
 		packerChanDone: make(chan bool),
 	}
+
+	snap.deltaState = state.NewLocalState(scanCache)
 
 	if snap.AppContext().Identity != uuid.Nil {
 		snap.Header.Identity.Identifier = snap.AppContext().Identity

@@ -30,7 +30,7 @@ var (
 
 type Repository struct {
 	store         storage.Store
-	state         *state.State
+	state         *state.LocalState
 	configuration storage.Configuration
 
 	appContext *appcontext.AppContext
@@ -84,13 +84,14 @@ func (r *Repository) RebuildState() error {
 		r.Logger().Trace("repository", "rebuildState(): %s", time.Since(t0))
 	}()
 
+	/* Use on-disk local state, and merge it with repository's own state */
+	aggregatedState := state.NewLocalState(cacheInstance)
+
 	// identify local states
 	localStates, err := cacheInstance.GetStates()
 	if err != nil {
 		return err
 	}
-
-	desynchronized := false
 
 	// identify remote states
 	remoteStates, err := r.GetStates()
@@ -111,7 +112,6 @@ func (r *Repository) RebuildState() error {
 
 		if _, exists := remoteStatesMap[stateID]; !exists {
 			outdatedStates = append(outdatedStates, stateID)
-			desynchronized = true
 		}
 	}
 
@@ -119,63 +119,28 @@ func (r *Repository) RebuildState() error {
 	for _, stateID := range remoteStates {
 		if _, exists := localStatesMap[stateID]; !exists {
 			missingStates = append(missingStates, stateID)
-			desynchronized = true
 		}
 	}
 
-	if desynchronized {
-		// synchronize local state with unknown remote states
-		for _, stateID := range missingStates {
-			remoteStateRd, err := r.GetState(stateID)
-			if err != nil {
-				return err
-			}
-			remoteState, err := io.ReadAll(remoteStateRd)
-			if err != nil {
-				return err
-			}
-
-			if exists, err := cacheInstance.HasState(stateID); err != nil {
-				return err
-			} else if !exists {
-				if err := cacheInstance.PutState(stateID, remoteState); err != nil {
-					return err
-				}
-			}
-			localStatesMap[stateID] = struct{}{}
-		}
-
-		// delete local states that are not present in remote
-		for _, stateID := range outdatedStates {
-			delete(localStatesMap, stateID)
-			if err := cacheInstance.DelState(stateID); err != nil {
-				return err
-			}
-		}
-	}
-
-	// merge all local states into a new aggregate state
-	aggregateState := state.New()
-
-	for stateID := range localStatesMap {
-		idxRd, err := r.GetState(stateID)
+	for _, stateID := range missingStates {
+		remoteStateRd, err := r.GetState(stateID)
 		if err != nil {
 			return err
 		}
 
-		idx, err := io.ReadAll(idxRd)
-		if err != nil {
+		if err := aggregatedState.InsertState(stateID, remoteStateRd); err != nil {
 			return err
 		}
-
-		tmp, err := state.DeserializeStream(bytes.NewReader(idx))
-		if err != nil {
-			return err
-		}
-		aggregateState.Merge(stateID, tmp)
-		aggregateState.Extends(stateID)
 	}
-	r.state = aggregateState
+
+	// delete local states that are not present in remote
+	for _, stateID := range outdatedStates {
+		if err := aggregatedState.DelState(stateID); err != nil {
+			return err
+		}
+	}
+
+	r.state = aggregatedState
 	return nil
 }
 
@@ -305,10 +270,6 @@ func (r *Repository) Chunker(rd io.ReadCloser) (*chunkers.Chunker, error) {
 	})
 }
 
-func (r *Repository) NewStateDelta() *state.State {
-	return r.state.Derive()
-}
-
 func (r *Repository) Location() string {
 	return r.store.Location()
 }
@@ -336,21 +297,22 @@ func (r *Repository) DeleteSnapshot(snapshotID objects.Checksum) error {
 		r.Logger().Trace("repository", "DeleteSnapshot(%x): %s", snapshotID, time.Since(t0))
 	}()
 
-	ret := r.state.DeleteSnapshot(snapshotID)
-	if ret != nil {
-		return ret
-	}
+	/*	ret := r.state.DeleteSnapshot(snapshotID)
+			if ret != nil {
+				return ret
+			}
 
-	var buffer bytes.Buffer
-	err := r.state.SerializeStream(&buffer)
-	if err != nil {
-		return err
-	}
+			var buffer bytes.Buffer
+			err := r.state.SerializeStream(&buffer)
+			if err != nil {
+				return err
+			}
 
-	checksum := r.Checksum(buffer.Bytes())
-	if err := r.PutState(checksum, &buffer); err != nil {
-		return err
-	}
+		checksum := r.Checksum(buffer.Bytes())
+		if err := r.PutState(checksum, &buffer); err != nil {
+			return err
+		}
+	*/
 	return nil
 }
 
