@@ -255,7 +255,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 					snap.Logger().Warn("VFS CACHE: Error unmarshaling filename: %v", err)
 				} else {
 					cachedFileEntryChecksum = snap.repository.Checksum(data)
-					if cachedFileEntry.Stat().ModTime().Equal(record.FileInfo.ModTime()) && cachedFileEntry.Stat().Size() == record.FileInfo.Size() {
+					if cachedFileEntry.Stat().Equal(&record.FileInfo) {
 						fileEntry = cachedFileEntry
 						if fileEntry.RecordType == importer.RecordTypeFile {
 							data, err := vfsCache.GetObject(cachedFileEntry.Object.Checksum)
