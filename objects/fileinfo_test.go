@@ -198,7 +198,7 @@ func TestFileInfoFromStat(t *testing.T) {
 		t.Errorf("expected mod time %v, got %v", stat.ModTime(), fileInfo.LmodTime)
 	}
 
-	if fileInfo.Dev() != stat.Sys().(*syscall.Stat_t).Dev {
+	if fileInfo.Dev() != uint64(stat.Sys().(*syscall.Stat_t).Dev) {
 		t.Errorf("expected dev %d, got %d", stat.Sys().(*syscall.Stat_t).Dev, fileInfo.Ldev)
 	}
 
