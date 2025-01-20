@@ -36,11 +36,11 @@ type Object struct {
 }
 
 // Return empty lists for nil slices.
-func (o Object) MarshalJSON() ([]byte, error) {
+func (o *Object) MarshalJSON() ([]byte, error) {
 	// Create an alias to avoid recursive MarshalJSON calls
 	type Alias Object
 
-	ret := Alias(o)
+	ret := (*Alias)(o)
 
 	if ret.Chunks == nil {
 		ret.Chunks = []Chunk{}

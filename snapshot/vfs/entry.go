@@ -51,11 +51,11 @@ type Entry struct {
 }
 
 // Return empty lists for nil slices.
-func (e Entry) MarshalJSON() ([]byte, error) {
+func (e *Entry) MarshalJSON() ([]byte, error) {
 	// Create an alias to avoid recursive MarshalJSON calls
 	type Alias Entry
 
-	ret := Alias(e)
+	ret := (*Alias)(e)
 
 	if ret.AlternateDataStreams == nil {
 		ret.AlternateDataStreams = []AlternateDataStream{}
