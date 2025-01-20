@@ -20,7 +20,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/minio/minio-go/v7 v7.0.61
 	github.com/muesli/termenv v0.15.3-0.20240618155329-98d742f6907a
-	github.com/pierrec/lz4/v4 v4.1.18
+	github.com/pierrec/lz4/v4 v4.1.22
 	github.com/pkg/xattr v0.4.10
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/secsy/goftp v0.0.0-20200609142545-aa2de14babf4
