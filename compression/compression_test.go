@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"testing"
+
+	"github.com/pierrec/lz4/v4"
 )
 
 // Helper function to compress and then decompress data and verify correctness
@@ -140,5 +142,38 @@ func TestLargeDataCompression(t *testing.T) {
 
 	if !bytes.Equal(largeData, decompressedData.Bytes()) {
 		t.Errorf("Decompressed large data does not match original. Lengths differ")
+	}
+}
+
+func TestLookupDefaultConfigurationLZ4(t *testing.T) {
+	config, err := LookupDefaultConfiguration("LZ4")
+	if err != nil {
+		t.Errorf("LookupDefaultConfiguration(LZ4) returned an error: %v", err)
+	}
+	if config.Algorithm != "LZ4" {
+		t.Errorf("LookupDefaultConfiguration(LZ4) returned incorrect algorithm: %s", config.Algorithm)
+	}
+	if config.Level != int(lz4.Level9) {
+		t.Errorf("LookupDefaultConfiguration(LZ4) returned incorrect level: %d", config.Level)
+	}
+}
+
+func TestLookupDefaultConfigurationGZIP(t *testing.T) {
+	config, err := LookupDefaultConfiguration("GZIP")
+	if err != nil {
+		t.Errorf("LookupDefaultConfiguration(GZIP) returned an error: %v", err)
+	}
+	if config.Algorithm != "GZIP" {
+		t.Errorf("LookupDefaultConfiguration(GZIP) returned incorrect algorithm: %s", config.Algorithm)
+	}
+	if config.Level != -1 {
+		t.Errorf("LookupDefaultConfiguration(GZIP) returned incorrect level: %d", config.Level)
+	}
+}
+
+func TestLookupDefaultConfigurationUnknown(t *testing.T) {
+	_, err := LookupDefaultConfiguration("unknown")
+	if err == nil {
+		t.Errorf("LookupDefaultConfiguration(unknown) did not return an error")
 	}
 }
