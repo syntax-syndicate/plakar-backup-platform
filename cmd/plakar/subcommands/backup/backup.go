@@ -20,7 +20,6 @@ import (
 	"bufio"
 	"encoding/base64"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -28,7 +27,6 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/identity"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
@@ -106,29 +104,6 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 		return 1
 	}
 	defer snap.Close()
-
-	identityID := os.Getenv("PLAKAR_IDENTITY")
-	if opt_identity != "" {
-		identityID = opt_identity
-	}
-	if identityID != "" {
-		parsedID, err := uuid.Parse(identityID)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: invalid identity: %s\n", flag.CommandLine.Name(), err)
-			return 1
-		}
-
-		id, err := identity.UnsealIdentity(ctx.GetKeyringDir(), parsedID)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: could not unseal identity: %s\n", flag.CommandLine.Name(), err)
-			return 1
-		}
-		ctx.SetIdentity(id.Identifier)
-		ctx.SetKeypair(&id.KeyPair)
-	} else {
-		ctx.GetLogger().Warn("no identity set, snapshot will not be signed")
-		ctx.GetLogger().Warn("consider using 'plakar id' to create an identity")
-	}
 
 	var tags []string
 	if opt_tags == "" {
