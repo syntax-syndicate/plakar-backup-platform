@@ -18,6 +18,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func init() {
+	os.Setenv("TZ", "UTC")
+}
+
 func Test_RepositoryConfiguration(t *testing.T) {
 	config := ptesting.NewConfiguration()
 	lstore, err := storage.Create("/test/location", *config)
@@ -77,7 +81,6 @@ func Test_RepositoryConfiguration(t *testing.T) {
 }
 
 func Test_RepositorySnapshots(t *testing.T) {
-
 	testCases := []struct {
 		name     string
 		config   *storage.Configuration
