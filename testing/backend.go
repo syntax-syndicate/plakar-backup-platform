@@ -58,8 +58,12 @@ var behaviors = map[string]mockedBackendBehavior{
 				{0x03}: {Packfile: objects.Checksum{0x03}, Offset: 0, Length: 3},
 				{0x04}: {Packfile: objects.Checksum{0x04}, Offset: 0, Length: 2},
 			},
+			VFS: map[objects.Checksum]state.Location{
+				{0x00}: {Packfile: objects.Checksum{0x00}, Offset: 0, Length: 9},
+				{0x01}: {Packfile: objects.Checksum{0x01}, Offset: 0, Length: 9},
+			},
 		},
-		header:             header.Header{Timestamp: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC), Identifier: [32]byte{0x1}},
+		header:             header.Header{Timestamp: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC), Identifier: [32]byte{0x1}, Root: objects.Checksum{0x01}},
 		packfilesChecksums: []objects.Checksum{{0x04}, {0x05}, {0x06}},
 	},
 	"oneSnapshot": {
@@ -84,7 +88,7 @@ var behaviors = map[string]mockedBackendBehavior{
 			},
 		},
 		header:             header.Header{Timestamp: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC), Identifier: [32]byte{0x1}},
-		packfilesChecksums: []objects.Checksum{{0x04}, {0x05}, {0x06}},
+		packfilesChecksums: []objects.Checksum{{0x01}, {0x04}, {0x05}, {0x06}},
 	},
 	"brokenState": {
 		statesChecksums:    nil,
