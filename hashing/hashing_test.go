@@ -25,3 +25,23 @@ func TestGetHasher(t *testing.T) {
 		t.Error("Expected nil for unknown algorithm, but got non-nil")
 	}
 }
+
+func TestLookupDefaultConfiguration(t *testing.T) {
+	// Test for SHA256 algorithm
+	config, err := LookupDefaultConfiguration("SHA256")
+	if err != nil {
+		t.Errorf("Expected no error for SHA256, but got %v", err)
+	}
+	if config == nil || config.Algorithm != "SHA256" || config.Bits != 256 {
+		t.Errorf("Expected SHA256 configuration, but got %v", config)
+	}
+
+	// Test for unknown algorithm
+	config, err = LookupDefaultConfiguration("unknown")
+	if err == nil {
+		t.Error("Expected error for unknown algorithm, but got nil")
+	}
+	if config != nil {
+		t.Errorf("Expected nil configuration for unknown algorithm, but got %v", config)
+	}
+}
