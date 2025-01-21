@@ -253,7 +253,7 @@ type FileMissing struct {
 	Pathname   string
 }
 
-func FileMissingdEvent(snapshotID [32]byte, pathname string) FileMissing {
+func FileMissingEvent(snapshotID [32]byte, pathname string) FileMissing {
 	return FileMissing{ts: time.Now(), SnapshotID: snapshotID, Pathname: pathname}
 }
 func (e FileMissing) Timestamp() time.Time {
