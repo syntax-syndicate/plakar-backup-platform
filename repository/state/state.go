@@ -28,6 +28,7 @@ import (
 	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 const VERSION = 100
@@ -41,22 +42,22 @@ const (
 )
 
 type Metadata struct {
-	Version   uint32
-	Timestamp time.Time
-	Aggregate bool
-	Extends   []objects.Checksum
+	Version   uint32             `msgpack:"version"`
+	Timestamp time.Time          `msgpack:"timestamp"`
+	Aggregate bool               `msgpack:"aggregate"`
+	Extends   []objects.Checksum `msgpack:"extends"`
 }
 
 type Location struct {
-	Packfile objects.Checksum `msgpack:"packfile"`
-	Offset   uint32           `msgpack:"offset"`
-	Length   uint32           `msgpack:"length"`
+	Packfile objects.Checksum
+	Offset   uint32
+	Length   uint32
 }
 
 type DeltaEntry struct {
-	Type     packfile.Type    `msgpack:"type"`
-	Blob     objects.Checksum `msgpack:"blob"`
-	Location Location         `msgpack:"location"`
+	Type     packfile.Type
+	Blob     objects.Checksum
+	Location Location
 }
 
 /* /!\ Always keep those in sync with the serialized format on disk.
@@ -75,6 +76,15 @@ const DeltaEntrySerializedSize = 1 + 32 + LocationSerializedSize
 type LocalState struct {
 	Metadata Metadata
 
+	// DeltaEntries are keyed by <EntryType>:<EntryCsum>:<StateID> in the cache.
+	// This allows:
+	//  - Grouping and iterating on them by Type.
+	//  - Finding a particular Csum efficiently if you know the type.
+	//  - Somewhat fast key retrieval if you only know the Csum (something we
+	//    don't need right now).
+	//  - StateID is there at the end because we don't need to query by it but
+	//    we need it to avoid concurrent insert of the same entry by two
+	//    different backup processes.
 	cache caching.StateCache
 }
 
@@ -107,7 +117,12 @@ func (ls *LocalState) InsertState(stateID objects.Checksum, rd io.Reader) error 
 	}
 
 	/* We merged the state deltas, we can now publish it */
-	err = ls.cache.PutState(stateID, nil)
+	mt, err := ls.Metadata.ToBytes()
+	if err != nil {
+		return err
+	}
+
+	err = ls.cache.PutState(stateID, mt)
 	if err != nil {
 		return err
 	}
@@ -357,6 +372,18 @@ func (ls *LocalState) ListSnapshots() iter.Seq[objects.Checksum] {
 			//}
 		}
 	}
+}
+
+func (mt *Metadata) ToBytes() ([]byte, error) {
+	return msgpack.Marshal(mt)
+}
+
+func MetadataFromBytes(data []byte) (*Metadata, error) {
+	var mt Metadata
+	if err := msgpack.Unmarshal(data, &mt); err != nil {
+		return nil, err
+	}
+	return &mt, nil
 }
 
 type State struct {
