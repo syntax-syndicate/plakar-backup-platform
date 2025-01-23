@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/PlakarKorp/plakar/compression"
@@ -137,7 +138,14 @@ type MockBackend struct {
 	behavior string
 }
 
+func NewMockBackend(location string) *MockBackend {
+	return &MockBackend{location: location}
+}
+
 func (mb *MockBackend) Create(repository string, configuration storage.Configuration) error {
+	if strings.Contains(repository, "musterror") {
+		return errors.New("creating error")
+	}
 	mb.configuration = configuration
 
 	mb.behavior = "default"
@@ -157,6 +165,9 @@ func (mb *MockBackend) Create(repository string, configuration storage.Configura
 }
 
 func (mb *MockBackend) Open(repository string) error {
+	if strings.Contains(repository, "musterror") {
+		return errors.New("opening error")
+	}
 	return nil
 }
 
