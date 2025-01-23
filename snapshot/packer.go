@@ -117,16 +117,29 @@ func (snap *Snapshot) PutBlob(Type packfile.Type, checksum [32]byte, data []byte
 func (snap *Snapshot) GetBlob(Type packfile.Type, checksum [32]byte) ([]byte, error) {
 	snap.Logger().Trace("snapshot", "%x: GetBlob(%x)", snap.Header.GetIndexShortID(), checksum)
 
-	rd, err := snap.repository.GetBlob(Type, checksum)
-	if err != nil {
-		return nil, err
-	}
+	// XXX: Temporary workaround, once the state API changes to get from both sources (delta+aggregated state)
+	// we can remove this hack.
+	packfileChecksum, offset, length, exists := snap.deltaState.GetSubpartForBlob(Type, checksum)
+	if exists {
+		rd, err := snap.repository.GetPackfileBlob(packfileChecksum, offset, length)
+		if err != nil {
+			return nil, err
+		}
 
-	return io.ReadAll(rd)
+		return io.ReadAll(rd)
+	} else {
+		rd, err := snap.repository.GetBlob(Type, checksum)
+		if err != nil {
+			return nil, err
+		}
+
+		return io.ReadAll(rd)
+	}
 }
 
 func (snap *Snapshot) BlobExists(Type packfile.Type, checksum [32]byte) bool {
 	snap.Logger().Trace("snapshot", "%x: CheckBlob(%064x)", snap.Header.GetIndexShortID(), checksum)
 
-	return snap.repository.BlobExists(Type, checksum)
+	// XXX: Same here, remove this workaround when state API changes.
+	return snap.deltaState.BlobExists(Type, checksum) || snap.repository.BlobExists(Type, checksum)
 }
