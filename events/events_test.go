@@ -120,7 +120,7 @@ func TestDirectoryMissing(t *testing.T) {
 
 func TestFileOK(t *testing.T) {
 	snapshotId := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
-	fileOK := FileOKEvent(snapshotId, "Test pathname")
+	fileOK := FileOKEvent(snapshotId, "Test pathname", 42)
 	if fileOK.Timestamp().IsZero() {
 		t.Errorf("FileOKEvent().Timestamp() returned a zero timestamp")
 	}
@@ -129,6 +129,9 @@ func TestFileOK(t *testing.T) {
 	}
 	if fileOK.Pathname == "" {
 		t.Errorf("FileOKEvent pathname is empty")
+	}
+	if fileOK.Size != 42 {
+		t.Errorf("FileOKEvent size is not 42")
 	}
 }
 
