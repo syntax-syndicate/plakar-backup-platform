@@ -43,7 +43,7 @@ func cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, args [
 
 	flags := flag.NewFlagSet("restore", flag.ExitOnError)
 	flags.Uint64Var(&opt_concurrency, "concurrency", uint64(ctx.GetMaxConcurrency()), "maximum number of parallel tasks")
-	flags.StringVar(&pullPath, "to", "", "base directory where pull will restore")
+	flags.StringVar(&pullPath, "to", ctx.GetCWD(), "base directory where pull will restore")
 	flags.BoolVar(&pullRebase, "rebase", false, "strip pathname when pulling")
 	flags.BoolVar(&opt_quiet, "quiet", false, "do not print progress")
 	flags.Parse(args)
@@ -51,16 +51,9 @@ func cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, args [
 	go eventsProcessorStdio(ctx, opt_quiet)
 
 	var err error
-	if pullPath == "" {
-		exporterInstance, err = exporter.NewExporter(ctx.GetCWD())
-		if err != nil {
-			log.Fatal(err)
-		}
-	} else {
-		exporterInstance, err = exporter.NewExporter(pullPath)
-		if err != nil {
-			log.Fatal(err)
-		}
+	exporterInstance, err = exporter.NewExporter(pullPath)
+	if err != nil {
+		log.Fatal(err)
 	}
 	defer exporterInstance.Close()
 
@@ -98,7 +91,7 @@ func cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, args [
 
 	for offset, snap := range snapshots {
 		_, pattern := utils.ParseSnapshotID(flags.Args()[offset])
-		snap.Restore(exporterInstance, ctx.GetCWD(), pattern, opts)
+		snap.Restore(exporterInstance, exporterInstance.Root(), pattern, opts)
 		snap.Close()
 	}
 
