@@ -172,23 +172,6 @@ func (repo *Repository) Close() error {
 	return nil
 }
 
-func (repo *Repository) Commit(snapshotID objects.Checksum, data []byte) error {
-	statement, err := repo.conn.Prepare(`INSERT INTO snapshots (snapshotID, data) VALUES(?, ?)`)
-	if err != nil {
-		return err
-	}
-	defer statement.Close()
-
-	repo.wrMutex.Lock()
-	_, err = statement.Exec(snapshotID, data)
-	repo.wrMutex.Unlock()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (repo *Repository) Configuration() storage.Configuration {
 	return repo.config
 }

@@ -117,7 +117,3 @@ func (repository *Repository) GetPackfileBlob(checksum objects.Checksum, offset 
 func (repository *Repository) DeletePackfile(checksum objects.Checksum) error {
 	return nil
 }
-
-func (repository *Repository) Commit(snapshotID objects.Checksum, data []byte) error {
-	return nil
-}
