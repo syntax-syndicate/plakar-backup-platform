@@ -34,7 +34,7 @@ jobs:
       
       # Step 3: Upload the binaries as artifacts
       - name: Upload binaries
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: plakar-${{ matrix.arch }}
           path: ./dist/plakar-linux-${{ matrix.arch }}
