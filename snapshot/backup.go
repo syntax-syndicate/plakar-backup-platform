@@ -808,11 +808,6 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 		for blobChecksum := range packer.Blobs[Type] {
 			for idx, blob := range packer.Packfile.Index {
 				if blob.Checksum == blobChecksum && blob.Type == Type {
-					snap.Repository().SetPackfileForBlob(Type, checksum,
-						blobChecksum,
-						packer.Packfile.Index[idx].Offset,
-						packer.Packfile.Index[idx].Length)
-
 					delta := state.DeltaEntry{
 						Type: blob.Type,
 						Blob: blobChecksum,
@@ -823,7 +818,11 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 						},
 					}
 
-					return snap.deltaState.PutDelta(delta)
+					if err := snap.deltaState.PutDelta(delta); err != nil {
+						return err
+					}
+
+					break
 				}
 			}
 		}
