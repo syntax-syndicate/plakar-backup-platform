@@ -39,7 +39,7 @@ func cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, args []s
 
 	daemon, err := agent.NewDaemon(ctx, "unix", opt_socketPath)
 	if err != nil {
-		ctx.GetLogger().Error("%s", err)
+		ctx.GetLogger().Error("failed to create agent daemon: %s", err)
 		return 1
 	}
 	defer daemon.Close()
