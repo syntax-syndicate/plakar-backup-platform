@@ -73,7 +73,7 @@ func cmd_create(ctx *appcontext.AppContext, _ *repository.Repository, args []str
 		var passphrase []byte
 
 		envPassphrase := os.Getenv("PLAKAR_PASSPHRASE")
-		if ctx.GetKeyFromFile() == "" {
+		if ctx.KeyFromFile == "" {
 			if envPassphrase != "" {
 				passphrase = []byte(envPassphrase)
 			} else {
@@ -88,7 +88,7 @@ func cmd_create(ctx *appcontext.AppContext, _ *repository.Repository, args []str
 				}
 			}
 		} else {
-			passphrase = []byte(ctx.GetKeyFromFile())
+			passphrase = []byte(ctx.KeyFromFile)
 		}
 
 		encryptionKey, err := encryption.BuildSecretFromPassphrase(passphrase)
@@ -105,7 +105,7 @@ func cmd_create(ctx *appcontext.AppContext, _ *repository.Repository, args []str
 
 	switch flags.NArg() {
 	case 0:
-		repo, err := storage.Create(filepath.Join(ctx.GetHomeDir(), ".plakar"), *storageConfiguration)
+		repo, err := storage.Create(filepath.Join(ctx.HomeDir, ".plakar"), *storageConfiguration)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s: %s\n", flag.CommandLine.Name(), flags.Name(), err)
 			return 1

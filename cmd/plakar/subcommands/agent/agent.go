@@ -37,7 +37,7 @@ func cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, args []s
 
 	flags := flag.NewFlagSet("agent", flag.ExitOnError)
 	flags.StringVar(&opt_configFile, "config", "/tmp/plakar.cfg", "path to configuration file")
-	flags.StringVar(&opt_socketPath, "socket", filepath.Join(ctx.GetCacheDir(), "agent.sock"), "path to socket file")
+	flags.StringVar(&opt_socketPath, "socket", filepath.Join(ctx.CacheDir, "agent.sock"), "path to socket file")
 	flags.Parse(args)
 
 	cfg, err := config.ParseConfigFile(opt_configFile)

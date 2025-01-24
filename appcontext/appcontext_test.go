@@ -27,129 +27,129 @@ func TestContext_SettersAndGetters(t *testing.T) {
 		{
 			name: "SetNumCPU",
 			setter: func() {
-				ctx.SetNumCPU(4)
+				ctx.NumCPU = 4
 			},
-			getter:   func() interface{} { return ctx.GetNumCPU() },
+			getter:   func() interface{} { return ctx.NumCPU },
 			expected: 4,
 		},
 		{
 			name: "SetUsername",
 			setter: func() {
-				ctx.SetUsername("testuser")
+				ctx.Username = "testuser"
 			},
-			getter:   func() interface{} { return ctx.GetUsername() },
+			getter:   func() interface{} { return ctx.Username },
 			expected: "testuser",
 		},
 		{
 			name: "SetHostname",
 			setter: func() {
-				ctx.SetHostname("testhost")
+				ctx.Hostname = "testhost"
 			},
-			getter:   func() interface{} { return ctx.GetHostname() },
+			getter:   func() interface{} { return ctx.Hostname },
 			expected: "testhost",
 		},
 		{
 			name: "SetCommandLine",
 			setter: func() {
-				ctx.SetCommandLine("test command line")
+				ctx.CommandLine = "test command line"
 			},
-			getter:   func() interface{} { return ctx.GetCommandLine() },
+			getter:   func() interface{} { return ctx.CommandLine },
 			expected: "test command line",
 		},
 		{
 			name: "SetMachineID",
 			setter: func() {
-				ctx.SetMachineID("machine-123")
+				ctx.MachineID = "machine-123"
 			},
-			getter:   func() interface{} { return ctx.GetMachineID() },
+			getter:   func() interface{} { return ctx.MachineID },
 			expected: "machine-123",
 		},
 		{
 			name: "SetKeyFromFile",
 			setter: func() {
-				ctx.SetKeyFromFile("key123")
+				ctx.KeyFromFile = "key123"
 			},
-			getter:   func() interface{} { return ctx.GetKeyFromFile() },
+			getter:   func() interface{} { return ctx.KeyFromFile },
 			expected: "key123",
 		},
 		{
 			name: "SetHomeDir",
 			setter: func() {
-				ctx.SetHomeDir("/home/testuser")
+				ctx.HomeDir = "/home/testuser"
 			},
-			getter:   func() interface{} { return ctx.GetHomeDir() },
+			getter:   func() interface{} { return ctx.HomeDir },
 			expected: "/home/testuser",
 		},
 		{
 			name: "SetCacheDir",
 			setter: func() {
-				ctx.SetCacheDir("/cache/testuser")
+				ctx.CacheDir = "/cache/testuser"
 			},
-			getter:   func() interface{} { return ctx.GetCacheDir() },
+			getter:   func() interface{} { return ctx.CacheDir },
 			expected: "/cache/testuser",
 		},
 		{
 			name: "SetOperatingSystem",
 			setter: func() {
-				ctx.SetOperatingSystem("linux")
+				ctx.OperatingSystem = "linux"
 			},
-			getter:   func() interface{} { return ctx.GetOperatingSystem() },
+			getter:   func() interface{} { return ctx.OperatingSystem },
 			expected: "linux",
 		},
 		{
 			name: "SetArchitecture",
 			setter: func() {
-				ctx.SetArchitecture("amd64")
+				ctx.Architecture = "amd64"
 			},
-			getter:   func() interface{} { return ctx.GetArchitecture() },
+			getter:   func() interface{} { return ctx.Architecture },
 			expected: "amd64",
 		},
 		{
 			name: "SetProcessID",
 			setter: func() {
-				ctx.SetProcessID(12345)
+				ctx.ProcessID = 12345
 			},
-			getter:   func() interface{} { return ctx.GetProcessID() },
+			getter:   func() interface{} { return ctx.ProcessID },
 			expected: 12345,
 		},
 		{
 			name: "SetKeyringDir",
 			setter: func() {
-				ctx.SetKeyringDir("/keyring/dir")
+				ctx.KeyringDir = "/keyring/dir"
 			},
-			getter:   func() interface{} { return ctx.GetKeyringDir() },
+			getter:   func() interface{} { return ctx.KeyringDir },
 			expected: "/keyring/dir",
 		},
 		{
 			name: "SetIdentity",
 			setter: func() {
-				ctx.SetIdentity(uuid.MustParse("123e4567-e89b-12d3-a456-426614174000"))
+				ctx.Identity = uuid.MustParse("123e4567-e89b-12d3-a456-426614174000")
 			},
-			getter:   func() interface{} { return ctx.GetIdentity() },
+			getter:   func() interface{} { return ctx.Identity },
 			expected: uuid.MustParse("123e4567-e89b-12d3-a456-426614174000"),
 		},
 		{
 			name: "SetKeypair",
 			setter: func() {
-				ctx.SetKeypair(defaultKeyPair)
+				ctx.Keypair = defaultKeyPair
 			},
-			getter:   func() interface{} { return ctx.GetKeypair() },
+			getter:   func() interface{} { return ctx.Keypair },
 			expected: defaultKeyPair,
 		},
 		{
 			name: "SetPlakarClient",
 			setter: func() {
-				ctx.SetPlakarClient("plakar-client")
+				ctx.Client = "plakar-client"
 			},
-			getter:   func() interface{} { return ctx.GetPlakarClient() },
+			getter:   func() interface{} { return ctx.Client },
 			expected: "plakar-client",
 		},
 		{
 			name: "SetMaxConcurrency",
 			setter: func() {
-				ctx.SetMaxConcurrency(10)
+				ctx.MaxConcurrency = 10
 			},
-			getter:   func() interface{} { return ctx.GetMaxConcurrency() },
+			getter:   func() interface{} { return ctx.MaxConcurrency },
 			expected: 10,
 		},
 		{
@@ -171,9 +171,9 @@ func TestContext_SettersAndGetters(t *testing.T) {
 		{
 			name: "SetCWD",
 			setter: func() {
-				ctx.SetCWD("/current/working/dir")
+				ctx.CWD = "/current/working/dir"
 			},
-			getter:   func() interface{} { return ctx.GetCWD() },
+			getter:   func() interface{} { return ctx.CWD },
 			expected: "/current/working/dir",
 		},
 	}
