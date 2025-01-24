@@ -1,0 +1,53 @@
+agent:
+    tasks:
+    - name: foobar
+      repository: my-workstation
+      check:
+        - description: fast-check
+          type: fast
+          interval: 1h
+
+    - name: system
+      #repository: my-workstation
+      repository:
+        url: /var/backups
+      sync:
+        - description: sync-to-nas
+          repository:
+            url: /var/backups
+          target:
+            url: ssh://nas.example.com/var/backups
+          interval: 1d
+      backup:
+        - description: daily-backups
+          tags:
+            - www
+          path: /etc
+          interval: 1d
+          retention: 7d
+      check:
+        - description: fast-check
+          type: fast
+          interval: 1h
+          path: /etc/apache2
+        - description: ssl-check
+          interval: 1h
+          path: /etc/ssl
+        - description: full-check
+          interval: 1d
+          path: /etc
+      restore:
+        - description: system-restore
+          interval: 1d
+          path: /etc
+          target: /var/backups
+        - description: system-restore
+          interval: 1d
+          path: /etc/apache2
+          target: /var/www/apache2/copy
+      archive:
+        - description: generate-tarball
+          interval: 1d
+          format: tarnall
+          target: /var/tarballs/blabla.tar.gz
+
