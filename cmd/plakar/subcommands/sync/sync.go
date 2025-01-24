@@ -243,12 +243,12 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 		if err != nil {
 			return err
 		}
-		if !dstRepository.BlobExists(packfile.TYPE_INODE, entryID) {
-			entryData, err := srcSnapshot.GetBlob(packfile.TYPE_INODE, entryID)
+		if !dstRepository.BlobExists(packfile.TYPE_VFS_ENTRY, entryID) {
+			entryData, err := srcSnapshot.GetBlob(packfile.TYPE_VFS_ENTRY, entryID)
 			if err != nil {
 				return err
 			}
-			dstSnapshot.PutBlob(packfile.TYPE_INODE, entryID, entryData)
+			dstSnapshot.PutBlob(packfile.TYPE_VFS_ENTRY, entryID, entryData)
 		}
 	}
 

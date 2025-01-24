@@ -189,7 +189,7 @@ func TestTypes(t *testing.T) {
 	list := Types()
 
 	require.Equal(t, 9, len(list))
-	require.Equal(t, []Type{TYPE_SNAPSHOT, TYPE_CHUNK, TYPE_OBJECT, TYPE_VFS, TYPE_INODE, TYPE_CHILD, TYPE_DATA, TYPE_SIGNATURE, TYPE_ERROR}, list)
+	require.Equal(t, []Type{TYPE_SNAPSHOT, TYPE_CHUNK, TYPE_OBJECT, TYPE_VFS, TYPE_VFS_ENTRY, TYPE_CHILD, TYPE_DATA, TYPE_SIGNATURE, TYPE_ERROR}, list)
 }
 
 func TestBlobTypeName(t *testing.T) {
@@ -201,7 +201,7 @@ func TestBlobTypeName(t *testing.T) {
 		{TYPE_CHUNK, "chunk"},
 		{TYPE_OBJECT, "object"},
 		{TYPE_VFS, "vfs"},
-		{TYPE_INODE, "inode"},
+		{TYPE_VFS_ENTRY, "vfs_entry"},
 		{TYPE_CHILD, "directory"},
 		{TYPE_DATA, "data"},
 		{TYPE_SIGNATURE, "signature"},

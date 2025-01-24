@@ -538,8 +538,8 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			return
 		}
 		csum = snap.repository.Checksum(serialized)
-		if !snap.BlobExists(packfile.TYPE_INODE, csum) {
-			err = snap.PutBlob(packfile.TYPE_INODE, csum, serialized)
+		if !snap.BlobExists(packfile.TYPE_VFS_ENTRY, csum) {
+			err = snap.PutBlob(packfile.TYPE_VFS_ENTRY, csum, serialized)
 		}
 		return
 	})

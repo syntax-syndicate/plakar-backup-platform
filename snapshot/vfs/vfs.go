@@ -105,7 +105,7 @@ func (fsc *Filesystem) lookup(entrypath string) (*Entry, error) {
 }
 
 func (fsc *Filesystem) resolveEntry(csum objects.Checksum) (*Entry, error) {
-	rd, err := fsc.repo.GetBlob(packfile.TYPE_INODE, csum)
+	rd, err := fsc.repo.GetBlob(packfile.TYPE_VFS_ENTRY, csum)
 	if err != nil {
 		return nil, err
 	}
