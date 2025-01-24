@@ -18,11 +18,12 @@ package agent
 
 import (
 	"flag"
+	"fmt"
 	"path/filepath"
 
-	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/config"
 	"github.com/PlakarKorp/plakar/repository"
 )
 
@@ -32,21 +33,32 @@ func init() {
 
 func cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
 	var opt_socketPath string
+	var opt_configFile string
 
 	flags := flag.NewFlagSet("agent", flag.ExitOnError)
+	flags.StringVar(&opt_configFile, "config", "/tmp/plakar.cfg", "path to configuration file")
 	flags.StringVar(&opt_socketPath, "socket", filepath.Join(ctx.GetCacheDir(), "agent.sock"), "path to socket file")
 	flags.Parse(args)
 
-	daemon, err := agent.NewDaemon(ctx, "unix", opt_socketPath)
+	cfg, err := config.ParseConfigFile(opt_configFile)
 	if err != nil {
-		ctx.GetLogger().Error("failed to create agent daemon: %s", err)
+		ctx.GetLogger().Error("failed to parse configuration file: %s", err)
 		return 1
 	}
-	defer daemon.Close()
+	fmt.Println(cfg)
 
-	if err := daemon.ListenAndServe(); err != nil {
-		ctx.GetLogger().Error("%s", err)
-		return 1
-	}
+	/*
+		daemon, err := agent.NewDaemon(ctx, "unix", opt_socketPath)
+		if err != nil {
+			ctx.GetLogger().Error("failed to create agent daemon: %s", err)
+			return 1
+		}
+		defer daemon.Close()
+
+		if err := daemon.ListenAndServe(); err != nil {
+			ctx.GetLogger().Error("%s", err)
+			return 1
+		}
+	*/
 	return 0
 }
