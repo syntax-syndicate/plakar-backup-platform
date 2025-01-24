@@ -113,25 +113,22 @@ func entryPoint() int {
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
 
-	ctx.SetPlakarClient("plakar/" + utils.GetVersion())
-
-	ctx.SetCWD(cwd)
-
-	keyringDir := filepath.Join(opt_userDefault.HomeDir, ".plakar-keyring")
-	ctx.SetKeyringDir(keyringDir)
+	ctx.Client = "plakar/" + utils.GetVersion()
+	ctx.CWD = cwd
+	ctx.KeyringDir = filepath.Join(opt_userDefault.HomeDir, ".plakar-keyring")
 
 	cacheDir, err := utils.GetCacheDir("plakar")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not get cache directory: %s\n", flag.CommandLine.Name(), err)
 		return 1
 	}
-	ctx.SetCacheDir(cacheDir)
+	ctx.CacheDir = cacheDir
 
 	ctx.SetCache(caching.NewManager(cacheDir))
 	defer ctx.GetCache().Close()
 
 	// best effort check if security or reliability fix have been issued
-	if rus, err := utils.CheckUpdate(ctx.GetCacheDir()); err == nil {
+	if rus, err := utils.CheckUpdate(ctx.CacheDir); err == nil {
 		if rus.SecurityFix || rus.ReliabilityFix {
 			concerns := ""
 			if rus.SecurityFix {
@@ -178,17 +175,17 @@ func entryPoint() int {
 		secretFromKeyfile = strings.TrimSuffix(string(data), "\n")
 	}
 
-	ctx.SetOperatingSystem(runtime.GOOS)
-	ctx.SetArchitecture(runtime.GOARCH)
-	ctx.SetNumCPU(opt_cpuCount)
-	ctx.SetUsername(opt_username)
-	ctx.SetHostname(opt_hostname)
-	ctx.SetCommandLine(strings.Join(os.Args, " "))
-	ctx.SetMachineID(opt_machineIdDefault)
-	ctx.SetKeyFromFile(secretFromKeyfile)
-	ctx.SetHomeDir(opt_userDefault.HomeDir)
-	ctx.SetProcessID(os.Getpid())
-	ctx.SetMaxConcurrency(ctx.GetNumCPU()*8 + 1)
+	ctx.OperatingSystem = runtime.GOOS
+	ctx.Architecture = runtime.GOARCH
+	ctx.NumCPU = opt_cpuCount
+	ctx.Username = opt_username
+	ctx.Hostname = opt_hostname
+	ctx.CommandLine = strings.Join(os.Args, " ")
+	ctx.MachineID = opt_machineIdDefault
+	ctx.KeyFromFile = secretFromKeyfile
+	ctx.HomeDir = opt_userDefault.HomeDir
+	ctx.ProcessID = os.Getpid()
+	ctx.MaxConcurrency = ctx.NumCPU*8 + 1
 
 	if flag.NArg() == 0 {
 		fmt.Fprintf(os.Stderr, "%s: a subcommand must be provided\n", filepath.Base(flag.CommandLine.Name()))
@@ -228,7 +225,7 @@ func entryPoint() int {
 	} else {
 		repositoryPath = os.Getenv("PLAKAR_REPOSITORY")
 		if repositoryPath == "" {
-			repositoryPath = filepath.Join(ctx.GetHomeDir(), ".plakar")
+			repositoryPath = filepath.Join(ctx.HomeDir, ".plakar")
 		}
 	}
 
@@ -264,7 +261,7 @@ func entryPoint() int {
 	if !skipPassphrase {
 		if store.Configuration().Encryption != nil {
 			envPassphrase := os.Getenv("PLAKAR_PASSPHRASE")
-			if ctx.GetKeyFromFile() == "" {
+			if ctx.KeyFromFile == "" {
 				attempts := 0
 				for {
 					var passphrase []byte
@@ -291,7 +288,7 @@ func entryPoint() int {
 					break
 				}
 			} else {
-				secret, err = encryption.DeriveSecret([]byte(ctx.GetKeyFromFile()), store.Configuration().Encryption.Key)
+				secret, err = encryption.DeriveSecret([]byte(ctx.KeyFromFile), store.Configuration().Encryption.Key)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "%s\n", err)
 					os.Exit(1)

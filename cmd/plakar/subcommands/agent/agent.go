@@ -34,7 +34,7 @@ func cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, args []s
 	var opt_socketPath string
 
 	flags := flag.NewFlagSet("agent", flag.ExitOnError)
-	flags.StringVar(&opt_socketPath, "socket", filepath.Join(ctx.GetCacheDir(), "agent.sock"), "path to socket file")
+	flags.StringVar(&opt_socketPath, "socket", filepath.Join(ctx.CacheDir, "agent.sock"), "path to socket file")
 	flags.Parse(args)
 
 	daemon, err := agent.NewDaemon(ctx, "unix", opt_socketPath)
