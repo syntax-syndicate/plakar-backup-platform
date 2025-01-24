@@ -1,6 +1,7 @@
 package objects
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 
@@ -11,6 +12,20 @@ type Checksum [32]byte
 
 func (m Checksum) MarshalJSON() ([]byte, error) {
 	return json.Marshal(fmt.Sprintf("%0x", m[:]))
+}
+
+func (m *Checksum) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+
+	decoded, err := hex.DecodeString(s)
+	if err != nil {
+		return err
+	}
+	copy(m[:], decoded)
+	return nil
 }
 
 type Classification struct {
