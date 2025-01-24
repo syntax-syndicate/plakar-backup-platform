@@ -24,6 +24,11 @@ func (m *Checksum) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
+
+	if len(decoded) != 32 {
+		return fmt.Errorf("invalid checksum length: %d", len(decoded))
+	}
+
 	copy(m[:], decoded)
 	return nil
 }

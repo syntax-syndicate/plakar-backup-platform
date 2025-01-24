@@ -19,11 +19,18 @@ func TestChecksumMarshalJSON(t *testing.T) {
 }
 
 func TestChecksumUnMarshalJSON(t *testing.T) {
+	brokenValue := `"010203"`
+
+	var c Checksum
+	err := json.Unmarshal([]byte(brokenValue), &c)
+	require.Error(t, err)
+
+	// working
 	expected := Checksum{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 	marshalled := `"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"`
 
 	var checksum Checksum
-	err := json.Unmarshal([]byte(marshalled), &checksum)
+	err = json.Unmarshal([]byte(marshalled), &checksum)
 	require.NoError(t, err)
 
 	require.Equal(t, expected, checksum)
