@@ -53,6 +53,9 @@ type State struct {
 	muVFS sync.Mutex
 	VFS   map[objects.Checksum]Location
 
+	muInode sync.Mutex
+	Inode map[objects.Checksum]Location
+
 	muChildren sync.Mutex
 	Children   map[objects.Checksum]Location
 
@@ -79,6 +82,7 @@ func New() *State {
 		Chunks:           make(map[objects.Checksum]Location),
 		Objects:          make(map[objects.Checksum]Location),
 		VFS:              make(map[objects.Checksum]Location),
+		Inode:            make(map[objects.Checksum]Location),
 		Children:         make(map[objects.Checksum]Location),
 		Datas:            make(map[objects.Checksum]Location),
 		Snapshots:        make(map[objects.Checksum]Location),
@@ -169,6 +173,7 @@ func (st *State) SerializeStream(w io.Writer) error {
 		{"Chunks", st.Chunks},
 		{"Objects", st.Objects},
 		{"VFS", st.VFS},
+		{"Inode", st.Inode},
 		{"Children", st.Children},
 		{"Datas", st.Datas},
 		{"Snapshots", st.Snapshots},
@@ -296,6 +301,7 @@ func DeserializeStream(r io.Reader) (*State, error) {
 		{"Chunks", &st.Chunks},
 		{"Objects", &st.Objects},
 		{"VFS", &st.VFS},
+		{"Inode", &st.Inode},
 		{"Children", &st.Children},
 		{"Datas", &st.Datas},
 		{"Snapshots", &st.Snapshots},
@@ -366,6 +372,10 @@ func (st *State) mergeLocationMaps(Type packfile.Type, deltaState *State) {
 		deltaState.muVFS.Lock()
 		defer deltaState.muVFS.Unlock()
 		mapPtr = &deltaState.VFS
+	case packfile.TYPE_INODE:
+		deltaState.muInode.Lock()
+		defer deltaState.muInode.Unlock()
+		mapPtr = &deltaState.Inode
 	case packfile.TYPE_CHILD:
 		deltaState.muChildren.Lock()
 		defer deltaState.muChildren.Unlock()
@@ -398,6 +408,7 @@ func (st *State) Merge(stateID objects.Checksum, deltaState *State) {
 	st.mergeLocationMaps(packfile.TYPE_CHUNK, deltaState)
 	st.mergeLocationMaps(packfile.TYPE_OBJECT, deltaState)
 	st.mergeLocationMaps(packfile.TYPE_VFS, deltaState)
+	st.mergeLocationMaps(packfile.TYPE_INODE, deltaState)
 	st.mergeLocationMaps(packfile.TYPE_CHILD, deltaState)
 	st.mergeLocationMaps(packfile.TYPE_DATA, deltaState)
 	st.mergeLocationMaps(packfile.TYPE_SNAPSHOT, deltaState)
@@ -430,6 +441,10 @@ func (st *State) GetSubpartForBlob(Type packfile.Type, blobChecksum objects.Chec
 		st.muVFS.Lock()
 		defer st.muVFS.Unlock()
 		mapPtr = &st.VFS
+	case packfile.TYPE_INODE:
+		st.muInode.Lock()
+		defer st.muInode.Unlock()
+		mapPtr = &st.Inode
 	case packfile.TYPE_CHILD:
 		st.muChildren.Lock()
 		defer st.muChildren.Unlock()
@@ -476,6 +491,10 @@ func (st *State) BlobExists(Type packfile.Type, blobChecksum objects.Checksum) b
 		st.muVFS.Lock()
 		defer st.muVFS.Unlock()
 		mapPtr = &st.VFS
+	case packfile.TYPE_INODE:
+		st.muInode.Lock()
+		defer st.muInode.Unlock()
+		mapPtr = &st.Inode
 	case packfile.TYPE_CHILD:
 		st.muChildren.Lock()
 		defer st.muChildren.Unlock()
@@ -522,6 +541,10 @@ func (st *State) SetPackfileForBlob(Type packfile.Type, packfileChecksum objects
 		st.muVFS.Lock()
 		defer st.muVFS.Unlock()
 		mapPtr = &st.VFS
+	case packfile.TYPE_INODE:
+		st.muInode.Lock()
+		defer st.muInode.Unlock()
+		mapPtr = &st.Inode
 	case packfile.TYPE_CHILD:
 		st.muChildren.Lock()
 		defer st.muChildren.Unlock()
@@ -583,6 +606,9 @@ func (st *State) ListBlobs(Type packfile.Type) iter.Seq[objects.Checksum] {
 		case packfile.TYPE_VFS:
 			mtx = &st.muVFS
 			mapPtr = &st.VFS
+		case packfile.TYPE_INODE:
+			mtx = &st.muInode
+			mapPtr = &st.Inode
 		case packfile.TYPE_CHILD:
 			mtx = &st.muChildren
 			mapPtr = &st.Children

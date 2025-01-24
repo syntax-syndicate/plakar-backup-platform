@@ -18,10 +18,11 @@ const (
 	TYPE_CHUNK     Type = 1
 	TYPE_OBJECT    Type = 2
 	TYPE_VFS       Type = 3
-	TYPE_CHILD     Type = 4
-	TYPE_DATA      Type = 5
-	TYPE_SIGNATURE Type = 6
-	TYPE_ERROR     Type = 7
+	TYPE_INODE     Type = 4
+	TYPE_CHILD     Type = 5
+	TYPE_DATA      Type = 6
+	TYPE_SIGNATURE Type = 7
+	TYPE_ERROR     Type = 8
 )
 
 type Blob struct {
@@ -32,7 +33,7 @@ type Blob struct {
 }
 
 func Types() []Type {
-	return []Type{TYPE_SNAPSHOT, TYPE_CHUNK, TYPE_OBJECT, TYPE_VFS, TYPE_CHILD, TYPE_DATA, TYPE_SIGNATURE, TYPE_ERROR}
+	return []Type{TYPE_SNAPSHOT, TYPE_CHUNK, TYPE_OBJECT, TYPE_VFS, TYPE_INODE, TYPE_CHILD, TYPE_DATA, TYPE_SIGNATURE, TYPE_ERROR}
 }
 
 func (b Blob) TypeName() string {
@@ -45,6 +46,8 @@ func (b Blob) TypeName() string {
 		return "object"
 	case TYPE_VFS:
 		return "vfs"
+	case TYPE_INODE:
+		return "inode"
 	case TYPE_CHILD:
 		return "directory"
 	case TYPE_DATA:
