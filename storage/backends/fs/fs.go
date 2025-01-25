@@ -18,14 +18,11 @@ package fs
 
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/PlakarKorp/plakar/compression"
@@ -36,28 +33,10 @@ import (
 )
 
 type Repository struct {
-	config storage.Configuration
-
-	Repository string
-	root       string
+	config     storage.Configuration
 	location   string
-}
-
-type LimitedReaderWithClose struct {
-	*io.LimitedReader
-	file *os.File
-}
-
-func (l *LimitedReaderWithClose) Read(p []byte) (int, error) {
-	n, err := l.LimitedReader.Read(p)
-	if err == io.EOF {
-		// Close the file when EOF is reached
-		closeErr := l.file.Close()
-		if closeErr != nil {
-			return n, fmt.Errorf("error closing file: %w", closeErr)
-		}
-	}
-	return n, err
+	packfiles  Buckets
+	states     Buckets
 }
 
 func init() {
@@ -74,75 +53,56 @@ func (repo *Repository) Location() string {
 	return repo.location
 }
 
+
+func (repo *Repository) Path(args ...string) string {
+	root := repo.Location()
+	if strings.HasPrefix(root, "fs://") {
+		root = root[4:]
+	}
+
+	args = append(args, "")
+	copy(args[1:], args)
+	args[0] = root
+
+	return filepath.Join(args...)
+}
+
 func (repo *Repository) Create(location string, config storage.Configuration) error {
-	if strings.HasPrefix(location, "fs://") {
-		location = location[4:]
-	}
 
-	repo.root = location
-
-	err := os.Mkdir(repo.root, 0700)
+	err := os.Mkdir(repo.Path(), 0700)
 	if err != nil {
 		return err
 	}
 
-	os.MkdirAll(filepath.Join(repo.root, "states"), 0700)
-	os.MkdirAll(filepath.Join(repo.root, "packfiles"), 0700)
-	os.MkdirAll(filepath.Join(repo.root, "tmp"), 0700)
-
-	for i := 0; i < 256; i++ {
-		os.MkdirAll(filepath.Join(repo.root, "states", fmt.Sprintf("%02x", i)), 0700)
-		os.MkdirAll(filepath.Join(repo.root, "packfiles", fmt.Sprintf("%02x", i)), 0700)
+	repo.packfiles = NewBuckets(repo.Path("packfiles"))
+	if err := repo.packfiles.Create(); err != nil {
+		return err;
 	}
 
-	configPath := filepath.Join(repo.root, "CONFIG")
-	tmpfile := filepath.Join(repo.PathTmp(), "CONFIG")
-
-	f, err := os.Create(tmpfile)
-	if err != nil {
-		return err
+	repo.states = NewBuckets(repo.Path("states"))
+	if err := repo.states.Create(); err != nil {
+		return err;
 	}
 
 	jconfig, err := msgpack.Marshal(config)
 	if err != nil {
-		f.Close()
 		return err
 	}
-
 	compressedConfig, err := compression.DeflateStream("GZIP", bytes.NewReader(jconfig))
 	if err != nil {
-		f.Close()
 		return err
 	}
 
-	_, err = io.Copy(f, compressedConfig)
-	if err != nil {
-		f.Close()
-		return err
-	}
-
-	if runtime.GOOS == "windows" {
-		if closeErr := f.Close(); closeErr != nil {
-			return closeErr
-		}
-	} else {
-		defer f.Close()
-	}
-
-	repo.config = config
-
-	return os.Rename(tmpfile, configPath)
+	return WriteToFileAtomic(repo.Path("CONFIG"), compressedConfig)
 }
 
+
 func (repo *Repository) Open(location string) error {
-	if strings.HasPrefix(location, "fs://") {
-		location = location[4:]
-	}
 
-	repo.root = location
+	repo.packfiles = NewBuckets(repo.Path("packfiles"))
+	repo.states = NewBuckets(repo.Path("states"))
 
-	configPath := filepath.Join(repo.root, "CONFIG")
-	rd, err := os.Open(configPath)
+	rd, err := os.Open(repo.Path("CONFIG"))
 	if err != nil {
 		return err
 	}
@@ -173,54 +133,11 @@ func (repo *Repository) Configuration() storage.Configuration {
 }
 
 func (repo *Repository) GetPackfiles() ([]objects.Checksum, error) {
-	ret := make([]objects.Checksum, 0)
-
-	buckets, err := os.ReadDir(repo.PathPackfiles())
-	if err != nil {
-		return ret, err
-	}
-
-	for _, bucket := range buckets {
-		if bucket.Name() == "." || bucket.Name() == ".." {
-			continue
-		}
-		if !bucket.IsDir() {
-			continue
-		}
-		pathBuckets := filepath.Join(repo.PathPackfiles(), bucket.Name())
-		packfiles, err := os.ReadDir(pathBuckets)
-		if err != nil {
-			return ret, err
-		}
-		for _, packfile := range packfiles {
-			if packfile.Name() == "." || packfile.Name() == ".." {
-				continue
-			}
-			if packfile.IsDir() {
-				continue
-			}
-			t, err := hex.DecodeString(packfile.Name())
-			if err != nil {
-				return nil, err
-			}
-			if len(t) != 32 {
-				continue
-			}
-			var t32 objects.Checksum
-			copy(t32[:], t)
-			ret = append(ret, t32)
-		}
-	}
-	return ret, nil
+	return repo.packfiles.List()
 }
 
 func (repo *Repository) GetPackfile(checksum objects.Checksum) (io.Reader, error) {
-	pathname := repo.PathPackfile(checksum)
-	if !strings.HasPrefix(pathname, repo.PathPackfiles()) {
-		return nil, fmt.Errorf("invalid path generated from checksum")
-	}
-
-	fp, err := os.Open(pathname)
+	fp, err := repo.packfiles.Open(checksum)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			err = repository.ErrPackfileNotFound
@@ -232,88 +149,22 @@ func (repo *Repository) GetPackfile(checksum objects.Checksum) (io.Reader, error
 }
 
 func (repo *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint32, length uint32) (io.Reader, error) {
-	pathname := repo.PathPackfile(checksum)
-	if !strings.HasPrefix(pathname, repo.PathPackfiles()) {
-		return nil, fmt.Errorf("invalid path generated from checksum")
-	}
-
-	fp, err := os.Open(pathname)
+	res, err := repo.packfiles.Slice(checksum, offset, length)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			err = repository.ErrBlobNotFound
+			err = repository.ErrPackfileNotFound
 		}
 		return nil, err
 	}
-
-	if _, err := fp.Seek(int64(offset), io.SeekStart); err != nil {
-		return nil, err
-	}
-
-	st, err := fp.Stat()
-	if err != nil {
-		return nil, err
-	}
-
-	if st.Size() == 0 {
-		return bytes.NewBuffer([]byte{}), nil
-	}
-
-	if length > (uint32(st.Size()) - offset) {
-		return nil, fmt.Errorf("invalid length")
-	}
-
-	return &LimitedReaderWithClose{
-		LimitedReader: &io.LimitedReader{
-			R: fp,
-			N: int64(length),
-		},
-		file: fp,
-	}, nil
+	return res, nil
 }
 
 func (repo *Repository) DeletePackfile(checksum objects.Checksum) error {
-	pathname := repo.PathPackfile(checksum)
-	if !strings.HasPrefix(pathname, repo.PathPackfiles()) {
-		return fmt.Errorf("invalid path generated from checksum")
-	}
-
-	err := os.Remove(pathname)
-	if err != nil {
-		return err
-	}
-	return nil
+	return repo.packfiles.Remove(checksum)
 }
 
 func (repo *Repository) PutPackfile(checksum objects.Checksum, rd io.Reader) error {
-	tmpfile := filepath.Join(repo.PathTmp(), hex.EncodeToString(checksum[:]))
-	if !strings.HasPrefix(tmpfile, repo.PathTmp()) {
-		return fmt.Errorf("invalid path generated from checksum")
-	}
-
-	pathname := repo.PathPackfile(checksum)
-	if !strings.HasPrefix(pathname, repo.PathPackfiles()) {
-		return fmt.Errorf("invalid path generated from checksum")
-	}
-
-	f, err := os.Create(tmpfile)
-	if err != nil {
-		return err
-	}
-
-	if _, err := io.Copy(f, rd); err != nil {
-		f.Close()
-		return err
-	}
-
-	if runtime.GOOS == "windows" {
-		if closeErr := f.Close(); closeErr != nil {
-			return closeErr
-		}
-	} else {
-		defer f.Close()
-	}
-
-	return os.Rename(tmpfile, pathname)
+	return repo.packfiles.Put(checksum, rd)
 }
 
 func (repo *Repository) Close() error {
@@ -322,98 +173,17 @@ func (repo *Repository) Close() error {
 
 /* Indexes */
 func (repo *Repository) GetStates() ([]objects.Checksum, error) {
-	ret := make([]objects.Checksum, 0)
-
-	buckets, err := os.ReadDir(repo.PathStates())
-	if err != nil {
-		return ret, err
-	}
-
-	for _, bucket := range buckets {
-		if bucket.Name() == "." || bucket.Name() == ".." {
-			continue
-		}
-		if !bucket.IsDir() {
-			continue
-		}
-		pathBuckets := filepath.Join(repo.PathStates(), bucket.Name())
-		blobs, err := os.ReadDir(pathBuckets)
-		if err != nil {
-			return ret, err
-		}
-		for _, blob := range blobs {
-			if blob.Name() == "." || blob.Name() == ".." {
-				continue
-			}
-			if blob.IsDir() {
-				continue
-			}
-			t, err := hex.DecodeString(blob.Name())
-			if err != nil {
-				return nil, err
-			}
-			if len(t) != 32 {
-				continue
-			}
-			var t32 objects.Checksum
-			copy(t32[:], t)
-			ret = append(ret, t32)
-		}
-	}
-	return ret, nil
+	return repo.states.List()
 }
 
 func (repo *Repository) PutState(checksum objects.Checksum, rd io.Reader) error {
-	tmpfile := filepath.Join(repo.PathTmp(), hex.EncodeToString(checksum[:]))
-	if !strings.HasPrefix(tmpfile, repo.PathTmp()) {
-		return fmt.Errorf("invalid path generated from checksum")
-	}
-
-	pathname := repo.PathState(checksum)
-	if !strings.HasPrefix(pathname, repo.PathStates()) {
-		return fmt.Errorf("invalid path generated from checksum")
-	}
-
-	f, err := os.Create(tmpfile)
-	if err != nil {
-		return err
-	}
-
-	_, err = io.Copy(f, rd)
-	if err != nil {
-		f.Close()
-		return err
-	}
-
-	if runtime.GOOS == "windows" {
-		if closeErr := f.Close(); closeErr != nil {
-			return closeErr
-		}
-	} else {
-		defer f.Close()
-	}
-
-	return os.Rename(tmpfile, pathname)
+	return repo.states.Put(checksum, rd)
 }
 
 func (repo *Repository) GetState(checksum objects.Checksum) (io.Reader, error) {
-	pathname := repo.PathState(checksum)
-	if !strings.HasPrefix(pathname, repo.PathStates()) {
-		return nil, fmt.Errorf("invalid path generated from checksum")
-	}
-
-	return os.Open(pathname)
+	return repo.states.Open(checksum)
 }
 
 func (repo *Repository) DeleteState(checksum objects.Checksum) error {
-	pathname := repo.PathState(checksum)
-	if !strings.HasPrefix(pathname, repo.PathStates()) {
-		return fmt.Errorf("invalid path generated from checksum")
-	}
-
-	err := os.Remove(pathname)
-	if err != nil {
-		return err
-	}
-	return nil
+	return repo.states.Remove(checksum)
 }
