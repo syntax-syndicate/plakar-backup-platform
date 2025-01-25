@@ -6,22 +6,26 @@ import (
 	"os"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/config"
+	"github.com/PlakarKorp/plakar/scheduler"
 )
 
 type Daemon struct {
-	socketPath string
-	listener   net.Listener
-	ctx        *appcontext.AppContext
+	socketPath    string
+	listener      net.Listener
+	ctx           *appcontext.AppContext
+	configuration *config.AgentConfig
 }
 
-func NewDaemon(ctx *appcontext.AppContext, network string, address string) (*Daemon, error) {
+func NewDaemon(ctx *appcontext.AppContext, network string, address string, configuration *config.AgentConfig) (*Daemon, error) {
 	if network != "unix" {
 		return nil, fmt.Errorf("unsupported network: %s", network)
 	}
 
 	d := &Daemon{
-		socketPath: address,
-		ctx:        ctx,
+		socketPath:    address,
+		ctx:           ctx,
+		configuration: configuration,
 	}
 
 	if _, err := os.Stat(d.socketPath); err == nil {
@@ -65,12 +69,19 @@ func (d *Daemon) Close() error {
 }
 
 func (d *Daemon) ListenAndServe() error {
-	for {
-		conn, err := d.listener.Accept()
-		if err != nil {
-			return err
+	sched := scheduler.NewScheduler(d.ctx, d.configuration.Tasks)
+	sched.Run()
+
+	// for now, we only use the scheduling subsystem, no proxying CLI requests
+	/*
+		for {
+			conn, err := d.listener.Accept()
+			if err != nil {
+				return err
+			}
+			// for now, just close the connection
+			conn.Close()
 		}
-		// for now, just close the connection
-		conn.Close()
-	}
+	*/
+	return nil
 }

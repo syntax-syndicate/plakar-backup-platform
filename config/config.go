@@ -22,7 +22,7 @@ type AgentConfig struct {
 
 type Task struct {
 	Name       string          `yaml:"name"`
-	Repository interface{}     `yaml:"repository"` // Can be a string or RepositoryConfig
+	Repository Repository      `yaml:"repository"`
 	Check      []CheckConfig   `yaml:"check,omitempty"`
 	Sync       []SyncConfig    `yaml:"sync,omitempty"`
 	Backup     []BackupConfig  `yaml:"backup,omitempty"`
