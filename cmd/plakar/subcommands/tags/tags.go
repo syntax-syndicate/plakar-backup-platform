@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
@@ -73,7 +72,9 @@ func list_tags(repo *repository.Repository, display string) {
 	})
 
 	if display == "tags" {
-		fmt.Println(strings.Join(tagsList, "\n"))
+		for _, tag := range tagsList {
+			fmt.Printf("%s\n", tag)
+		}
 	} else if display == "count" {
 		for _, tag := range tagsList {
 			fmt.Printf("%s: %d\n", tag, len(tags[tag]))
