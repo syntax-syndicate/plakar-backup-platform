@@ -21,7 +21,8 @@ func tick() tea.Cmd {
 }
 
 type Model struct {
-	basepath string
+	appContext *appcontext.AppContext
+	basepath   string
 
 	startTime time.Time
 	elapsed   time.Duration
@@ -138,9 +139,10 @@ type eventsProcessorInteractive struct {
 func startEventsProcessorInteractive(ctx *appcontext.AppContext, basepath string) eventsProcessorInteractive {
 	ep := eventsProcessorInteractive{
 		program: tea.NewProgram(Model{
-			basepath:  basepath,
-			startTime: time.Now(),
-		}),
+			appContext: ctx,
+			basepath:   basepath,
+			startTime:  time.Now(),
+		}, tea.WithOutput(ctx.Stdout())),
 		done: make(chan struct{}),
 	}
 

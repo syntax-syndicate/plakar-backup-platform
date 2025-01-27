@@ -1,6 +1,9 @@
 package appcontext
 
 import (
+	"io"
+	"os"
+
 	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/encryption/keypair"
 	"github.com/PlakarKorp/plakar/events"
@@ -12,6 +15,9 @@ type AppContext struct {
 	events *events.Receiver
 	cache  *caching.Manager
 	logger *logging.Logger
+
+	stdout io.Writer
+	stderr io.Writer
 
 	NumCPU      int
 	Username    string
@@ -39,7 +45,19 @@ type AppContext struct {
 func NewAppContext() *AppContext {
 	return &AppContext{
 		events: events.New(),
+		stdout: os.Stdout,
+		stderr: os.Stderr,
 	}
+}
+
+func NewAppContextFrom(template *AppContext) *AppContext {
+	ctx := NewAppContext()
+	events := ctx.events
+	*ctx = *template
+	ctx.SetCache(template.GetCache())
+	ctx.SetLogger(template.GetLogger())
+	ctx.events = events
+	return ctx
 }
 
 func (c *AppContext) Close() {
@@ -64,4 +82,20 @@ func (c *AppContext) SetLogger(logger *logging.Logger) {
 
 func (c *AppContext) GetLogger() *logging.Logger {
 	return c.logger
+}
+
+func (c *AppContext) SetStdout(stdout io.Writer) {
+	c.stdout = stdout
+}
+
+func (c *AppContext) Stdout() io.Writer {
+	return c.stdout
+}
+
+func (c *AppContext) SetStderr(stderr io.Writer) {
+	c.stderr = stderr
+}
+
+func (c *AppContext) Stderr() io.Writer {
+	return c.stderr
 }

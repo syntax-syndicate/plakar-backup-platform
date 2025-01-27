@@ -56,6 +56,21 @@ func New(ctx *appcontext.AppContext, store storage.Store, secret []byte) (*Repos
 	return r, nil
 }
 
+func NewNoRebuild(ctx *appcontext.AppContext, store storage.Store, secret []byte) (*Repository, error) {
+	t0 := time.Now()
+	defer func() {
+		ctx.GetLogger().Trace("repository", "New(store=%p): %s", store, time.Since(t0))
+	}()
+
+	r := &Repository{
+		store:         store,
+		configuration: store.Configuration(),
+		appContext:    ctx,
+		secret:        secret,
+	}
+	return r, nil
+}
+
 func (r *Repository) RebuildState() error {
 	cacheInstance, err := r.AppContext().GetCache().Repository(r.Configuration().RepositoryID)
 	if err != nil {

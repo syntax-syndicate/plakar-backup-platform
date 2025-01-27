@@ -172,6 +172,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	defer snap.Event(events.DoneEvent())
 
 	sc2, err := snap.AppContext().GetCache().Scan(snap.Header.Identifier)
+
 	if err != nil {
 		return err
 	}

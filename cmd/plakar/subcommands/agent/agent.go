@@ -17,13 +17,22 @@
 package agent
 
 import (
+	"context"
 	"flag"
+	"fmt"
+	"log"
+	"net"
+	"os"
+	"os/signal"
 	"path/filepath"
+	"time"
 
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/storage"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 func init() {
@@ -37,16 +46,61 @@ func cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, args []s
 	flags.StringVar(&opt_socketPath, "socket", filepath.Join(ctx.CacheDir, "agent.sock"), "path to socket file")
 	flags.Parse(args)
 
-	daemon, err := agent.NewDaemon(ctx, "unix", opt_socketPath)
+	daemon, err := agent.NewAgent(ctx, "unix", opt_socketPath)
 	if err != nil {
 		ctx.GetLogger().Error("failed to create agent daemon: %s", err)
 		return 1
 	}
 	defer daemon.Close()
 
-	if err := daemon.ListenAndServe(); err != nil {
-		ctx.GetLogger().Error("%s", err)
-		return 1
+	go func() {
+		if err := daemon.ListenAndServe(handleClientRequest); err != nil {
+			ctx.GetLogger().Error("%s", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+
+	<-quit
+	fmt.Println("Shutting down server...")
+
+	sigctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Shutdown the server gracefully
+	if err := daemon.Shutdown(sigctx); err != nil {
+		log.Fatalf("Server shutdown failed: %s", err)
 	}
+
+	log.Println("Server gracefully stopped")
+
 	return 0
+}
+
+func handleClientRequest(serverContext *appcontext.AppContext, conn net.Conn) (int, error) {
+	decoder := msgpack.NewDecoder(conn)
+
+	var request agent.CommandRequest
+	if err := decoder.Decode(&request); err != nil {
+		fmt.Println("Failed to decode client request:", err)
+		return 1, err
+	}
+
+	clientContext := appcontext.NewAppContextFrom(serverContext)
+
+	store, err := storage.Open(request.Repository)
+	if err != nil {
+		fmt.Println("Failed to open storage:", err)
+		return 1, err
+	}
+
+	repo, err := repository.New(clientContext, store, nil)
+	if err != nil {
+		fmt.Println("Failed to open repository:", err)
+		return 1, err
+	}
+	defer repo.Close()
+
+	return subcommands.Execute(clientContext, repo, request.Cmd, request.Argv, true)
 }
