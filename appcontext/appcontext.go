@@ -17,6 +17,7 @@ type AppContext struct {
 	cache   *caching.Manager
 	logger  *logging.Logger
 	context context.Context
+	secret  []byte
 
 	stdout io.Writer
 	stderr io.Writer
@@ -46,9 +47,10 @@ type AppContext struct {
 
 func NewAppContext() *AppContext {
 	return &AppContext{
-		events: events.New(),
-		stdout: os.Stdout,
-		stderr: os.Stderr,
+		events:  events.New(),
+		stdout:  os.Stdout,
+		stderr:  os.Stderr,
+		context: context.Background(),
 	}
 }
 
@@ -108,4 +110,12 @@ func (c *AppContext) SetContext(ctx context.Context) {
 
 func (c *AppContext) GetContext() context.Context {
 	return c.context
+}
+
+func (c *AppContext) SetSecret(secret []byte) {
+	c.secret = secret
+}
+
+func (c *AppContext) GetSecret() []byte {
+	return c.secret
 }

@@ -118,7 +118,7 @@ func (cw *CustomWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, net.Conn) (int, error)) error {
+func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, context.CancelFunc, net.Conn) (int, error)) error {
 	for {
 		select {
 		case <-d.cancelCtx.Done():
@@ -147,49 +147,70 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, net.Conn) (i
 			encoder := msgpack.NewEncoder(_conn)
 			var encodingErrorOccurred bool
 
-			processStdout := func(line string) {
+			// Create a context tied to the connection
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			clientContext := appcontext.NewAppContextFrom(d.ctx)
+			clientContext.SetContext(ctx)
+
+			processStdout := func(data string) {
 				if encodingErrorOccurred {
 					return
 				}
-				response := Packet{
-					Type:   "stdout",
-					Output: line,
-				}
-				if err := encoder.Encode(&response); err != nil {
-					fmt.Println("failed to encode response:", err)
-					encodingErrorOccurred = true
+				select {
+				case <-clientContext.GetContext().Done():
+					return
+				default:
+					response := Packet{
+						Type:   "stdout",
+						Output: data,
+					}
+					if err := encoder.Encode(&response); err != nil {
+						encodingErrorOccurred = true
+					}
 				}
 			}
 
-			processStderr := func(line string) {
+			processStderr := func(data string) {
 				if encodingErrorOccurred {
 					return
 				}
-				response := Packet{
-					Type:   "stderr",
-					Output: line,
-				}
-				if err := encoder.Encode(&response); err != nil {
-					fmt.Println("failed to encode response:", err)
-					encodingErrorOccurred = true
+
+				select {
+				case <-clientContext.GetContext().Done():
+					return
+				default:
+					response := Packet{
+						Type:   "stderr",
+						Output: data,
+					}
+					if err := encoder.Encode(&response); err != nil {
+						encodingErrorOccurred = true
+					}
 				}
 			}
 
-			d.ctx.SetStdout(&CustomWriter{processFunc: processStdout})
-			d.ctx.SetStderr(&CustomWriter{processFunc: processStderr})
+			clientContext.SetStdout(&CustomWriter{processFunc: processStdout})
+			clientContext.SetStderr(&CustomWriter{processFunc: processStderr})
 
-			logger := logging.NewLogger(d.ctx.Stdout(), d.ctx.Stdout())
+			logger := logging.NewLogger(clientContext.Stdout(), clientContext.Stderr())
 			logger.EnableInfo()
-			d.ctx.SetLogger(logger)
+			clientContext.SetLogger(logger)
 
-			status, err := handler(d.ctx, _conn)
-			response := Packet{
-				Type:     "exit",
-				ExitCode: status,
-				Err:      fmt.Sprintf("%v", err),
-			}
-			if err := encoder.Encode(&response); err != nil {
-				fmt.Println("failed to encode response:", err)
+			status, err := handler(clientContext, cancel, _conn)
+			fmt.Println("status:", status, "err:", err)
+			select {
+			case <-clientContext.GetContext().Done():
+				return
+			default:
+				response := Packet{
+					Type:     "exit",
+					ExitCode: status,
+					Err:      fmt.Sprintf("%v", err),
+				}
+				if err := encoder.Encode(&response); err != nil {
+					fmt.Println("failed to encode response:", err)
+				}
 			}
 		}(conn)
 	}
@@ -198,10 +219,11 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, net.Conn) (i
 // Client structure and other code remain unchanged
 
 type CommandRequest struct {
-	AppContext *appcontext.AppContext
-	Repository string
-	Cmd        string
-	Argv       []string
+	AppContext       *appcontext.AppContext
+	Repository       string
+	RepositorySecret []byte
+	Cmd              string
+	Argv             []string
 }
 
 type Packet struct {
@@ -233,6 +255,9 @@ func (c *Client) SendCommand(ctx *appcontext.AppContext, repo string, cmd string
 		Repository: repo,
 		Cmd:        cmd,
 		Argv:       argv,
+	}
+	if ctx.GetSecret() != nil {
+		request.RepositorySecret = ctx.GetSecret()
 	}
 
 	if err := encoder.Encode(&request); err != nil {

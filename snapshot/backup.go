@@ -3,6 +3,7 @@ package snapshot
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math"
 	"mime"
@@ -108,7 +109,6 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 		nDirectories := uint64(0)
 		size := uint64(0)
 		for _record := range scanner {
-
 			if backupCtx.aborted.Load() {
 				break
 			}
@@ -250,6 +250,12 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	/* scanner */
 	scannerWg := sync.WaitGroup{}
 	for _record := range filesChannel {
+		select {
+		case <-snap.AppContext().GetContext().Done():
+			return snap.AppContext().GetContext().Err()
+		default:
+		}
+
 		backupCtx.maxConcurrency <- true
 		scannerWg.Add(1)
 		go func(record importer.ScanRecord) {
@@ -426,6 +432,13 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	}
 
 	for fileiter.Next() {
+		select {
+		case <-snap.AppContext().GetContext().Done():
+			// Context canceled (e.g., due to client disconnect)
+			fmt.Println("Context canceled: client disconnected")
+			return snap.AppContext().GetContext().Err()
+		default:
+		}
 		dirPath, dirEntry := fileiter.Current()
 		if !dirEntry.Stat().IsDir() {
 			continue

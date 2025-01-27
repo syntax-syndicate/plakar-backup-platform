@@ -295,11 +295,11 @@ func entryPoint() int {
 					os.Exit(1)
 				}
 			}
+			ctx.SetSecret(secret)
 		}
 	}
 
 	var repo *repository.Repository
-
 	if opt_agentless {
 		repo, err = repository.New(ctx, store, secret)
 		if err != nil {
