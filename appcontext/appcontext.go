@@ -1,6 +1,8 @@
 package appcontext
 
 import (
+	"context"
+
 	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/encryption/keypair"
 	"github.com/PlakarKorp/plakar/events"
@@ -9,9 +11,10 @@ import (
 )
 
 type AppContext struct {
-	events *events.Receiver
-	cache  *caching.Manager
-	logger *logging.Logger
+	events  *events.Receiver
+	cache   *caching.Manager
+	logger  *logging.Logger
+	context context.Context
 
 	NumCPU      int
 	Username    string
@@ -64,4 +67,12 @@ func (c *AppContext) SetLogger(logger *logging.Logger) {
 
 func (c *AppContext) GetLogger() *logging.Logger {
 	return c.logger
+}
+
+func (c *AppContext) SetContext(ctx context.Context) {
+	c.context = ctx
+}
+
+func (c *AppContext) GetContext() context.Context {
+	return c.context
 }
