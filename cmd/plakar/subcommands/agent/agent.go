@@ -18,12 +18,9 @@ package agent
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"log"
-	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -80,13 +77,4 @@ func cmd_agent(ctx *appcontext.AppContext, _ *repository.Repository, args []stri
 
 func handleRPC(clientContext *appcontext.AppContext, repo *repository.Repository, command string, args []string) (int, error) {
 	return subcommands.Execute(clientContext, repo, command, args, true)
-}
-
-// Helper function to determine if the error indicates a disconnect
-func isDisconnectError(err error) bool {
-	if err == io.EOF || err == io.ErrUnexpectedEOF {
-		return true
-	}
-	var netErr net.Error
-	return errors.As(err, &netErr) && !netErr.Temporary()
 }
