@@ -34,7 +34,7 @@ func init() {
 	subcommands.Register("find", cmd_find)
 }
 
-func cmd_find(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_find(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	flags := flag.NewFlagSet("find", flag.ExitOnError)
 	flags.Parse(args)
 
@@ -68,5 +68,5 @@ func cmd_find(ctx *appcontext.AppContext, repo *repository.Repository, args []st
 		}
 	}
 
-	return 0
+	return 0, nil
 }
