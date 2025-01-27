@@ -34,7 +34,7 @@ func init() {
 	subcommands.Register("checksum", cmd_checksum)
 }
 
-func cmd_checksum(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_checksum(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	var enableFastChecksum bool
 
 	flags := flag.NewFlagSet("checksum", flag.ExitOnError)
@@ -44,13 +44,13 @@ func cmd_checksum(ctx *appcontext.AppContext, repo *repository.Repository, args 
 
 	if flags.NArg() == 0 {
 		ctx.GetLogger().Error("%s: at least one parameter is required", flags.Name())
-		return 1
+		return 1, fmt.Errorf("at least one parameter is required")
 	}
 
 	snapshots, err := utils.GetSnapshots(repo, flags.Args())
 	if err != nil {
 		ctx.GetLogger().Error("%s: could not obtain snapshots list: %s", flags.Name(), err)
-		return 1
+		return 1, err
 	}
 
 	errors := 0
@@ -73,7 +73,7 @@ func cmd_checksum(ctx *appcontext.AppContext, repo *repository.Repository, args 
 
 	}
 
-	return 0
+	return 0, nil
 }
 
 func displayChecksums(fs *vfs.Filesystem, repo *repository.Repository, snap *snapshot.Snapshot, pathname string, fastcheck bool) error {
