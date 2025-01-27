@@ -106,6 +106,7 @@ func (repo *Repository) Open(location string) error {
 	if err != nil {
 		return err
 	}
+	defer rd.Close() // do we care about err?
 
 	jconfig, err := compression.InflateStream("GZIP", rd)
 	if err != nil {
