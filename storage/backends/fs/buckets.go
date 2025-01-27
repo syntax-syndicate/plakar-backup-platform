@@ -93,7 +93,7 @@ func (buckets *Buckets) List() ([]objects.Checksum, error) {
 }
 
 
-func (buckets *Buckets) Path(checksum [32]byte) string {
+func (buckets *Buckets) Path(checksum objects.Checksum) string {
 	return filepath.Join(buckets.path,
 		fmt.Sprintf("%02x", checksum[0]),
 		fmt.Sprintf("%064x", checksum))
