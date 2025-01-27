@@ -231,12 +231,8 @@ func entryPoint() int {
 	}
 
 	// these commands need to be ran before the repository is opened
-	if command == "agent" {
-		opt_agentless = true
-	}
-
 	if command == "agent" || command == "create" || command == "version" || command == "stdio" || command == "help" || command == "id" {
-		retval, err := subcommands.Execute(ctx, nil, command, args, opt_agentless)
+		retval, err := subcommands.Execute(ctx, nil, command, args, true)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return retval
