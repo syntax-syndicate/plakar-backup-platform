@@ -61,7 +61,7 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 
 	excludes := []glob.Glob{}
 	flags := flag.NewFlagSet("backup", flag.ExitOnError)
-	flags.Uint64Var(&opt_concurrency, "concurrency", uint64(ctx.GetMaxConcurrency()), "maximum number of parallel tasks")
+	flags.Uint64Var(&opt_concurrency, "concurrency", uint64(ctx.MaxConcurrency), "maximum number of parallel tasks")
 	flags.StringVar(&opt_identity, "identity", "", "use identity from keyring")
 	flags.StringVar(&opt_tags, "tag", "", "tag to assign to this snapshot")
 	flags.StringVar(&opt_excludes, "excludes", "", "file containing a list of exclusions")
@@ -119,7 +119,7 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 		Excludes:       excludes,
 	}
 
-	scanDir := ctx.GetCWD()
+	scanDir := ctx.CWD
 	if flags.NArg() == 1 {
 		scanDir = flags.Arg(0)
 	} else if flags.NArg() > 1 {
@@ -129,7 +129,7 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 	imp, err := importer.NewImporter(scanDir)
 	if err != nil {
 		if !filepath.IsAbs(scanDir) {
-			scanDir = filepath.Join(ctx.GetCWD(), scanDir)
+			scanDir = filepath.Join(ctx.CWD, scanDir)
 		}
 		imp, err = importer.NewImporter("fs://" + scanDir)
 		if err != nil {
@@ -146,7 +146,7 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 	ep.Close()
 
 	signedStr := "unsigned"
-	if ctx.GetIdentity() != uuid.Nil {
+	if ctx.Identity != uuid.Nil {
 		signedStr = "signed"
 	}
 	ctx.GetLogger().Info("created %s snapshot %x with root %s of size %s in %s",

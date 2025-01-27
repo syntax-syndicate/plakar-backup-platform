@@ -136,7 +136,7 @@ func (snap *Snapshot) Restore(exp exporter.Exporter, base string, pathname strin
 
 	maxConcurrency := opts.MaxConcurrency
 	if maxConcurrency == 0 {
-		maxConcurrency = uint64(snap.AppContext().GetMaxConcurrency())
+		maxConcurrency = uint64(snap.AppContext().MaxConcurrency)
 	}
 
 	restoreContext := &restoreContext{
