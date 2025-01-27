@@ -211,7 +211,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 
 	maxConcurrency := options.MaxConcurrency
 	if maxConcurrency == 0 {
-		maxConcurrency = uint64(snap.AppContext().GetMaxConcurrency())
+		maxConcurrency = uint64(snap.AppContext().MaxConcurrency)
 	}
 
 	backupCtx := &BackupContext{
@@ -410,7 +410,9 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	}
 	scannerWg.Wait()
 
-	errcsum, err := persistIndex(snap, backupCtx.erridx, packfile.TYPE_ERROR)
+	errcsum, err := persistIndex(snap, backupCtx.erridx, packfile.TYPE_ERROR, func(e ErrorItem) (ErrorItem, error) {
+		return e, nil
+	})
 	if err != nil {
 		return err
 	}
@@ -530,7 +532,17 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		}
 	}
 
-	rootcsum, err := persistIndex(snap, backupCtx.fileidx, packfile.TYPE_VFS)
+	rootcsum, err := persistIndex(snap, backupCtx.fileidx, packfile.TYPE_VFS, func(entry vfs.Entry) (csum objects.Checksum, err error) {
+		serialized, err := entry.ToBytes()
+		if err != nil {
+			return
+		}
+		csum = snap.repository.Checksum(serialized)
+		if !snap.BlobExists(packfile.TYPE_VFS_ENTRY, csum) {
+			err = snap.PutBlob(packfile.TYPE_VFS_ENTRY, csum, serialized)
+		}
+		return
+	})
 	if err != nil {
 		return err
 	}
@@ -808,7 +820,7 @@ func (snap *Snapshot) Commit() error {
 		return err
 	}
 
-	if kp := snap.AppContext().GetKeypair(); kp != nil {
+	if kp := snap.AppContext().Keypair; kp != nil {
 		serializedHdrChecksum := snap.repository.Checksum(serializedHdr)
 		signature := kp.Sign(serializedHdrChecksum[:])
 		if err := snap.PutBlob(packfile.TYPE_SIGNATURE, snap.Header.Identifier, signature); err != nil {
