@@ -176,14 +176,14 @@ func (e *Entry) Getdents(fsc *Filesystem) (iter.Seq2[*Entry, error], error) {
 
 	return func(yield func(*Entry, error) bool) {
 		for iter.Next() {
-			path, entry := iter.Current()
+			path, csum := iter.Current()
 			if prefix == path {
 				continue
 			}
 			if !isEntryBelow(prefix, path) {
 				break
 			}
-			if !yield(&entry, nil) {
+			if !yield(fsc.resolveEntry(csum)) {
 				return
 			}
 		}
@@ -391,7 +391,7 @@ type vdir struct {
 	path   string
 	entry  *Entry
 	fs     *Filesystem
-	iter   btree.Iterator[string, Entry]
+	iter   btree.Iterator[string, objects.Checksum]
 	closed bool
 }
 
@@ -448,7 +448,12 @@ func (vf *vdir) ReadDir(n int) (entries []fs.DirEntry, err error) {
 		if n > 0 {
 			n--
 		}
-		path, dirent := vf.iter.Current()
+		path, csum := vf.iter.Current()
+
+		dirent, err := vf.fs.resolveEntry(csum)
+		if err != nil {
+			return nil, err
+		}
 
 		if path == prefix {
 			continue
@@ -470,7 +475,7 @@ func (vf *vdir) ReadDir(n int) (entries []fs.DirEntry, err error) {
 }
 
 type vdirent struct {
-	Entry
+	*Entry
 }
 
 func (dirent *vdirent) Name() string {

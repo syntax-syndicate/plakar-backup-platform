@@ -1,8 +1,9 @@
 package btree
 
-func persist[K any, PA any, PB any, V any](b *BTree[K, PA, V], store Storer[K, PB, V], node *Node[K, PA, V], lastptr **PB) (PB, error) {
+func persist[K, PA, PB, VA, VB any](b *BTree[K, PA, VA], store Storer[K, PB, VB], conv func(VA) (VB, error), node *Node[K, PA, VA], lastptr **PB) (PB, error) {
 	var ptrs []PB
 	var zero PB
+	var vals []VB
 
 	for i := len(node.Pointers) - 1; i >= 0; i-- {
 		child, err := b.store.Get(node.Pointers[i])
@@ -10,7 +11,7 @@ func persist[K any, PA any, PB any, V any](b *BTree[K, PA, V], store Storer[K, P
 			return zero, err
 		}
 
-		ptr, err := persist(b, store, child, lastptr)
+		ptr, err := persist(b, store, conv, child, lastptr)
 		if err != nil {
 			return zero, err
 		}
@@ -21,15 +22,23 @@ func persist[K any, PA any, PB any, V any](b *BTree[K, PA, V], store Storer[K, P
 		ptrs = append(ptrs, ptr)
 	}
 
+	for i := range node.Values {
+		val, err := conv(node.Values[i])
+		if err != nil {
+			return zero, err
+		}
+		vals = append(vals, val)
+	}
+
 	// reverse pointers
 	for i := len(ptrs)/2 - 1; i >= 0; i-- {
 		opp := len(ptrs) - 1 - i
 		ptrs[i], ptrs[opp] = ptrs[opp], ptrs[i]
 	}
 
-	newnode := &Node[K, PB, V]{
+	newnode := &Node[K, PB, VB]{
 		Keys:     node.Keys,
-		Values:   node.Values,
+		Values:   vals,
 		Pointers: ptrs,
 	}
 	if node.isleaf() && *lastptr != nil {
@@ -43,12 +52,12 @@ func persist[K any, PA any, PB any, V any](b *BTree[K, PA, V], store Storer[K, P
 // design Persist inserts the nodes in post-order from the right-most
 // leaf, in a way that's suitable for a content-addressed store, and
 // never updates existing nodes nor retrieves inserted ones.
-func Persist[K any, PA any, PB any, V any](b *BTree[K, PA, V], store Storer[K, PB, V]) (ptr PB, err error) {
+func Persist[K, PA, PB, VA, VB any](b *BTree[K, PA, VA], store Storer[K, PB, VB], conv func(VA) (VB, error)) (ptr PB, err error) {
 	root, err := b.store.Get(b.Root)
 	if err != nil {
 		return
 	}
 
 	var lastptr *PB
-	return persist(b, store, root, &lastptr)
+	return persist(b, store, conv, root, &lastptr)
 }
