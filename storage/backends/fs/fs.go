@@ -137,7 +137,7 @@ func (repo *Repository) GetPackfiles() ([]objects.Checksum, error) {
 }
 
 func (repo *Repository) GetPackfile(checksum objects.Checksum) (io.Reader, error) {
-	fp, err := repo.packfiles.Open(checksum)
+	fp, err := repo.packfiles.Get(checksum)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			err = repository.ErrPackfileNotFound
@@ -149,7 +149,7 @@ func (repo *Repository) GetPackfile(checksum objects.Checksum) (io.Reader, error
 }
 
 func (repo *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint32, length uint32) (io.Reader, error) {
-	res, err := repo.packfiles.Slice(checksum, offset, length)
+	res, err := repo.packfiles.GetBlob(checksum, offset, length)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			err = repository.ErrPackfileNotFound
@@ -181,7 +181,7 @@ func (repo *Repository) PutState(checksum objects.Checksum, rd io.Reader) error 
 }
 
 func (repo *Repository) GetState(checksum objects.Checksum) (io.Reader, error) {
-	return repo.states.Open(checksum)
+	return repo.states.Get(checksum)
 }
 
 func (repo *Repository) DeleteState(checksum objects.Checksum) error {

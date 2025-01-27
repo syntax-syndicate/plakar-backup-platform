@@ -100,13 +100,16 @@ func (buckets *Buckets) Path(checksum objects.Checksum) string {
 }
 
 
-func (buckets *Buckets) Open(checksum objects.Checksum) (*os.File, error) {
-	return os.Open(buckets.Path(checksum))
+func (buckets *Buckets) Get(checksum objects.Checksum) (io.Reader, error) {
+	fp, err := os.Open(buckets.Path(checksum))
+	if err != nil {
+		return nil, err
+	}
+	return ClosingReader(fp)
 }
 
-
-func (buckets *Buckets) Slice(checksum objects.Checksum, offset uint32, length uint32) (io.Reader, error) {
-	fp, err := buckets.Open(checksum)
+func (buckets *Buckets) GetBlob(checksum objects.Checksum, offset, length uint32) (io.Reader, error) {
+	fp, err := os.Open(buckets.Path(checksum))
 	if err != nil {
 		return nil, err
 	}
