@@ -40,7 +40,7 @@ func init() {
 	subcommands.Register("sync", cmd_sync)
 }
 
-func cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	flags := flag.NewFlagSet("sync", flag.ExitOnError)
 	flags.Parse(args)
 
@@ -59,13 +59,13 @@ func cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, args []st
 
 	default:
 		ctx.GetLogger().Error("usage: %s [snapshotID] to|from repository", flags.Name())
-		return 1
+		return 1, fmt.Errorf("usage: %s [snapshotID] to|from repository", flags.Name())
 	}
 
 	peerStore, err := storage.Open(peerRepositoryPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not open repository: %s\n", peerRepositoryPath, err)
-		return 1
+		return 1, err
 	}
 
 	var peerSecret []byte
@@ -89,7 +89,7 @@ func cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, args []st
 	peerRepository, err := repository.New(ctx, peerStore, peerSecret)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not open repository: %s\n", peerStore.Location(), err)
-		return 1
+		return 1, err
 	}
 
 	var srcRepository *repository.Repository
@@ -106,19 +106,19 @@ func cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, args []st
 		dstRepository = peerRepository
 	} else {
 		fmt.Fprintf(os.Stderr, "%s: invalid direction, must be to, from or with\n", peerStore.Location())
-		return 1
+		return 1, err
 	}
 
 	srcSnapshots, err := srcRepository.GetSnapshots()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not get snapshots from repository: %s\n", srcRepository.Location(), err)
-		return 1
+		return 1, err
 	}
 
 	dstSnapshots, err := dstRepository.GetSnapshots()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not get snapshots list from repository: %s\n", dstRepository.Location(), err)
-		return 1
+		return 1, err
 	}
 
 	_ = syncSnapshotID
@@ -178,7 +178,7 @@ func cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, args []st
 		}
 	}
 
-	return 0
+	return 0, nil
 }
 
 func synchronize(srcRepository *repository.Repository, dstRepository *repository.Repository, snapshotID objects.Checksum) error {
