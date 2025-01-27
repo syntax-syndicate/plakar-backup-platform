@@ -33,8 +33,6 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/storage"
-	"github.com/vmihailenco/msgpack/v5"
 )
 
 func init() {
@@ -56,7 +54,7 @@ func cmd_agent(ctx *appcontext.AppContext, _ *repository.Repository, args []stri
 	defer daemon.Close()
 
 	go func() {
-		if err := daemon.ListenAndServe(handleClientRequest); err != nil {
+		if err := daemon.ListenAndServe(handleRPC); err != nil {
 			ctx.GetLogger().Error("%s", err)
 		}
 	}()
@@ -80,48 +78,8 @@ func cmd_agent(ctx *appcontext.AppContext, _ *repository.Repository, args []stri
 	return 0
 }
 
-func handleClientRequest(clientContext *appcontext.AppContext, cancel context.CancelFunc, conn net.Conn) (int, error) {
-	decoder := msgpack.NewDecoder(conn)
-
-	// Decode the client request
-	var request agent.CommandRequest
-	if err := decoder.Decode(&request); err != nil {
-		if isDisconnectError(err) {
-			fmt.Println("Client disconnected during initial request")
-			cancel() // Cancel the context on disconnect
-			return 1, err
-		}
-		fmt.Println("Failed to decode client request:", err)
-		return 1, err
-	}
-	clientContext.SetSecret(request.RepositorySecret)
-
-	// Monitor the connection for subsequent disconnection
-	go func() {
-		// Attempt another decode to detect client disconnection during processing
-		var tmp interface{}
-		if err := decoder.Decode(&tmp); err != nil {
-			if isDisconnectError(err) {
-				cancel()
-			}
-		}
-	}()
-
-	store, err := storage.Open(request.Repository)
-	if err != nil {
-		fmt.Println("Failed to open storage:", err)
-		return 1, err
-	}
-	defer store.Close()
-
-	repo, err := repository.New(clientContext, store, clientContext.GetSecret())
-	if err != nil {
-		fmt.Println("Failed to open repository:", err)
-		return 1, err
-	}
-	defer repo.Close()
-
-	return subcommands.Execute(clientContext, repo, request.Cmd, request.Argv, true)
+func handleRPC(clientContext *appcontext.AppContext, repo *repository.Repository, command string, args []string) (int, error) {
+	return subcommands.Execute(clientContext, repo, command, args, true)
 }
 
 // Helper function to determine if the error indicates a disconnect

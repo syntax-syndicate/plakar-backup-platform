@@ -2,13 +2,17 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"sync"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/logging"
+	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/storage"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -118,7 +122,15 @@ func (cw *CustomWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, context.CancelFunc, net.Conn) (int, error)) error {
+func isDisconnectError(err error) bool {
+	if err == io.EOF || err == io.ErrUnexpectedEOF {
+		return true
+	}
+	var netErr net.Error
+	return errors.As(err, &netErr) && !netErr.Temporary()
+}
+
+func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.Repository, string, []string) (int, error)) error {
 	for {
 		select {
 		case <-d.cancelCtx.Done():
@@ -197,7 +209,47 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, context.Canc
 			logger.EnableInfo()
 			clientContext.SetLogger(logger)
 
-			status, err := handler(clientContext, cancel, _conn)
+			decoder := msgpack.NewDecoder(conn)
+
+			// Decode the client request
+			var request CommandRequest
+			if err := decoder.Decode(&request); err != nil {
+				if isDisconnectError(err) {
+					fmt.Println("Client disconnected during initial request")
+					cancel() // Cancel the context on disconnect
+					return
+				}
+				fmt.Println("Failed to decode client request:", err)
+				return
+			}
+			clientContext.SetSecret(request.RepositorySecret)
+
+			// Monitor the connection for subsequent disconnection
+			go func() {
+				// Attempt another decode to detect client disconnection during processing
+				var tmp interface{}
+				if err := decoder.Decode(&tmp); err != nil {
+					if isDisconnectError(err) {
+						cancel()
+					}
+				}
+			}()
+
+			store, err := storage.Open(request.Repository)
+			if err != nil {
+				fmt.Println("Failed to open storage:", err)
+				return
+			}
+			defer store.Close()
+
+			repo, err := repository.New(clientContext, store, clientContext.GetSecret())
+			if err != nil {
+				fmt.Println("Failed to open repository:", err)
+				return
+			}
+			defer repo.Close()
+
+			status, err := handler(clientContext, repo, request.Cmd, request.Argv)
 			fmt.Println("status:", status, "err:", err)
 			select {
 			case <-clientContext.GetContext().Done():
