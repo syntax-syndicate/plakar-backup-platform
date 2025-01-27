@@ -110,7 +110,7 @@ func (buckets *Buckets) Slice(checksum objects.Checksum, offset uint32, length u
 	if err != nil {
 		return nil, err
 	}
-	return SliceReader(fp, offset, length)
+	return ClosingLimitedReaderFromOffset(fp, int64(offset), int64(length))
 }
 
 

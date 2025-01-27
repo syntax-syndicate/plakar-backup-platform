@@ -25,16 +25,16 @@ import (
 )
 
 
-type LimitedReaderWithClose struct {
-	*io.LimitedReader
+type ClosingFileReader struct {
+	reader io.Reader
 	file *os.File
 }
 
-func (l *LimitedReaderWithClose) Read(p []byte) (int, error) {
-	n, err := l.LimitedReader.Read(p)
+func (cr *ClosingFileReader) Read(p []byte) (int, error) {
+	n, err := cr.reader.Read(p)
 	if err == io.EOF {
 		// Close the file when EOF is reached
-		closeErr := l.file.Close()
+		closeErr := cr.file.Close()
 		if closeErr != nil {
 			return n, fmt.Errorf("error closing file: %w", closeErr)
 		}
@@ -43,8 +43,15 @@ func (l *LimitedReaderWithClose) Read(p []byte) (int, error) {
 }
 
 
-func SliceReader(file *os.File, offset uint32, length uint32) (io.Reader, error) {
-	if _, err := file.Seek(int64(offset), io.SeekStart); err != nil {
+func ClosingReader(file *os.File) (io.Reader, error) {
+	return &ClosingFileReader{
+		reader: file,
+		file: file,
+	}, nil
+}
+
+func ClosingLimitedReaderFromOffset(file *os.File, offset, length int64) (io.Reader, error) {
+	if _, err := file.Seek(offset, io.SeekStart); err != nil {
 		return nil, err
 	}
 
@@ -57,14 +64,14 @@ func SliceReader(file *os.File, offset uint32, length uint32) (io.Reader, error)
 		return bytes.NewBuffer([]byte{}), nil
 	}
 
-	if length > (uint32(st.Size()) - offset) {
+	if length > (st.Size() - offset) {
 		return nil, fmt.Errorf("invalid length")
 	}
 
-	return &LimitedReaderWithClose{
-		LimitedReader: &io.LimitedReader{
+	return &ClosingFileReader{
+		reader: &io.LimitedReader{
 			R: file,
-			N: int64(length),
+			N: length,
 		},
 		file: file,
 	}, nil
