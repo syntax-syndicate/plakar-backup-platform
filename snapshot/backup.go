@@ -411,7 +411,9 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	}
 	scannerWg.Wait()
 
-	errcsum, err := persistIndex(snap, backupCtx.erridx, packfile.TYPE_ERROR)
+	errcsum, err := persistIndex(snap, backupCtx.erridx, packfile.TYPE_ERROR, func(e ErrorItem) (ErrorItem, error) {
+		return e, nil
+	})
 	if err != nil {
 		return err
 	}
@@ -531,7 +533,17 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		}
 	}
 
-	rootcsum, err := persistIndex(snap, backupCtx.fileidx, packfile.TYPE_VFS)
+	rootcsum, err := persistIndex(snap, backupCtx.fileidx, packfile.TYPE_VFS, func(entry vfs.Entry) (csum objects.Checksum, err error) {
+		serialized, err := entry.ToBytes()
+		if err != nil {
+			return
+		}
+		csum = snap.repository.Checksum(serialized)
+		if !snap.BlobExists(packfile.TYPE_VFS_ENTRY, csum) {
+			err = snap.PutBlob(packfile.TYPE_VFS_ENTRY, csum, serialized)
+		}
+		return
+	})
 	if err != nil {
 		return err
 	}
