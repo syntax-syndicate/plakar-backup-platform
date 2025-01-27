@@ -3,6 +3,7 @@ package subcommands
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -38,5 +39,6 @@ func List() []string {
 	for command := range subcommands {
 		list = append(list, command)
 	}
+	sort.Strings(list)
 	return list
 }

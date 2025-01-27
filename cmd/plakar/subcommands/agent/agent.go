@@ -39,7 +39,7 @@ func init() {
 	subcommands.Register("agent", cmd_agent)
 }
 
-func cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_agent(ctx *appcontext.AppContext, _ *repository.Repository, args []string) int {
 	var opt_socketPath string
 
 	flags := flag.NewFlagSet("agent", flag.ExitOnError)

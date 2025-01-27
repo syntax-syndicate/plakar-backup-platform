@@ -1,6 +1,7 @@
 package appcontext
 
 import (
+	"context"
 	"io"
 	"os"
 
@@ -12,9 +13,10 @@ import (
 )
 
 type AppContext struct {
-	events *events.Receiver
-	cache  *caching.Manager
-	logger *logging.Logger
+	events  *events.Receiver
+	cache   *caching.Manager
+	logger  *logging.Logger
+	context context.Context
 
 	stdout io.Writer
 	stderr io.Writer
@@ -98,4 +100,12 @@ func (c *AppContext) SetStderr(stderr io.Writer) {
 
 func (c *AppContext) Stderr() io.Writer {
 	return c.stderr
+}
+
+func (c *AppContext) SetContext(ctx context.Context) {
+	c.context = ctx
+}
+
+func (c *AppContext) GetContext() context.Context {
+	return c.context
 }
