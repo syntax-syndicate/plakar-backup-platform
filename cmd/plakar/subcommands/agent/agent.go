@@ -89,11 +89,17 @@ func handleClientRequest(serverContext *appcontext.AppContext, conn net.Conn) (i
 
 	clientContext := appcontext.NewAppContextFrom(serverContext)
 
+	// Create a context tied to the connection
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	clientContext.SetContext(ctx)
+
 	store, err := storage.Open(request.Repository)
 	if err != nil {
 		fmt.Println("Failed to open storage:", err)
 		return 1, err
 	}
+	defer store.Close()
 
 	repo, err := repository.New(clientContext, store, nil)
 	if err != nil {

@@ -145,24 +145,33 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, net.Conn) (i
 			defer d.wg.Done()
 
 			encoder := msgpack.NewEncoder(_conn)
+			var encodingErrorOccurred bool
 
 			processStdout := func(line string) {
+				if encodingErrorOccurred {
+					return
+				}
 				response := Packet{
 					Type:   "stdout",
 					Output: line,
 				}
 				if err := encoder.Encode(&response); err != nil {
 					fmt.Println("failed to encode response:", err)
+					encodingErrorOccurred = true
 				}
 			}
 
 			processStderr := func(line string) {
+				if encodingErrorOccurred {
+					return
+				}
 				response := Packet{
 					Type:   "stderr",
 					Output: line,
 				}
 				if err := encoder.Encode(&response); err != nil {
 					fmt.Println("failed to encode response:", err)
+					encodingErrorOccurred = true
 				}
 			}
 
