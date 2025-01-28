@@ -31,7 +31,9 @@ func Execute(ctx *appcontext.AppContext, repo *repository.Repository, command st
 	}
 	defer client.Close()
 
-	return client.SendCommand(ctx, repo.Location(), command, args)
+	retval, err := client.SendCommand(ctx, repo.Location(), command, args)
+	fmt.Println("retval:", retval, "err:", err)
+	return retval, err
 }
 
 func List() []string {

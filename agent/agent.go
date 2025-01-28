@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/storage"
@@ -156,14 +157,18 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 			defer _conn.Close()
 			defer d.wg.Done()
 
+			mu := sync.Mutex{}
+
 			encoder := msgpack.NewEncoder(_conn)
 			var encodingErrorOccurred bool
 
 			// Create a context tied to the connection
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
+
 			clientContext := appcontext.NewAppContextFrom(d.ctx)
 			clientContext.SetContext(ctx)
+			defer clientContext.Close()
 
 			processStdout := func(data string) {
 				if encodingErrorOccurred {
@@ -177,9 +182,11 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 						Type:   "stdout",
 						Output: data,
 					}
+					mu.Lock()
 					if err := encoder.Encode(&response); err != nil {
 						encodingErrorOccurred = true
 					}
+					mu.Unlock()
 				}
 			}
 
@@ -196,9 +203,12 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 						Type:   "stderr",
 						Output: data,
 					}
+					mu.Lock()
 					if err := encoder.Encode(&response); err != nil {
 						encodingErrorOccurred = true
 					}
+					mu.Unlock()
+
 				}
 			}
 
@@ -249,8 +259,39 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 			}
 			defer repo.Close()
 
+			eventsDone := make(chan struct{})
+			go func() {
+				for evt := range clientContext.Events().Listen() {
+					serialized, err := events.Serialize(evt)
+					if err != nil {
+						fmt.Println("failed to serialize event:", err)
+						return
+					}
+					// Send the event to the client
+					response := Packet{
+						Type: "event",
+						Data: serialized,
+					}
+					select {
+					case <-clientContext.GetContext().Done():
+						return
+					default:
+
+						mu.Lock()
+						err = encoder.Encode(&response)
+						mu.Unlock()
+						if err != nil {
+							fmt.Println("failed to encode event:", err)
+							return
+						}
+					}
+				}
+				eventsDone <- struct{}{}
+			}()
+
 			status, err := handler(clientContext, repo, request.Cmd, request.Argv)
-			fmt.Println("status:", status, "err:", err)
+			clientContext.Close()
+			<-eventsDone
 			select {
 			case <-clientContext.GetContext().Done():
 				return
@@ -260,9 +301,11 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 					ExitCode: status,
 					Err:      fmt.Sprintf("%v", err),
 				}
+				mu.Lock()
 				if err := encoder.Encode(&response); err != nil {
 					fmt.Println("failed to encode response:", err)
 				}
+				mu.Unlock()
 			}
 		}(conn)
 	}
@@ -283,6 +326,7 @@ type Packet struct {
 	Output   string
 	ExitCode int
 	Err      string
+	Data     []byte
 }
 
 type Client struct {
@@ -326,6 +370,12 @@ func (c *Client) SendCommand(ctx *appcontext.AppContext, repo string, cmd string
 			fmt.Printf("%s", response.Output)
 		case "stderr":
 			fmt.Fprintf(os.Stderr, "%s", response.Output)
+		case "event":
+			evt, err := events.Deserialize(response.Data)
+			if err != nil {
+				return 1, fmt.Errorf("failed to deserialize event: %w", err)
+			}
+			ctx.Events().Send(evt)
 		case "exit":
 			return response.ExitCode, fmt.Errorf("%s", response.Err)
 		}

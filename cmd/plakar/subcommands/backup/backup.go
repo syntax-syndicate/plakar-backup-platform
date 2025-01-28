@@ -67,7 +67,8 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 	flags.StringVar(&opt_excludes, "excludes", "", "file containing a list of exclusions")
 	flags.Var(&opt_exclude, "exclude", "file containing a list of exclusions")
 	flags.BoolVar(&opt_quiet, "quiet", false, "suppress output")
-	flags.BoolVar(&opt_stdio, "stdio", false, "output one line per file to stdout instead of the default interactive output")
+	opt_stdio = true
+	//flags.BoolVar(&opt_stdio, "stdio", false, "output one line per file to stdout instead of the default interactive output")
 	flags.Parse(args)
 
 	for _, item := range opt_exclude {

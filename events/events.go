@@ -1,85 +1,337 @@
 package events
 
 import (
+	"fmt"
 	"time"
+
+	"github.com/vmihailenco/msgpack/v5"
 )
 
+type SerializedEvent struct {
+	Type string
+	Data []byte
+}
+
+func Serialize(event Event) ([]byte, error) {
+
+	fmt.Printf("event: %T\n", event)
+	var serialized SerializedEvent
+	var err error
+	switch e := event.(type) {
+	case Start:
+		serialized.Type = "Start"
+		serialized.Data, err = msgpack.Marshal(e)
+	case Done:
+		serialized.Type = "Done"
+		serialized.Data, err = msgpack.Marshal(e)
+	case Warning:
+		serialized.Type = "Warning"
+		serialized.Data, err = msgpack.Marshal(e)
+	case Error:
+		serialized.Type = "Error"
+		serialized.Data, err = msgpack.Marshal(e)
+	case Path:
+		serialized.Type = "Path"
+		serialized.Data, err = msgpack.Marshal(e)
+	case PathError:
+		serialized.Type = "PathError"
+		serialized.Data, err = msgpack.Marshal(e)
+	case Directory:
+		serialized.Type = "Directory"
+		serialized.Data, err = msgpack.Marshal(e)
+	case File:
+		serialized.Type = "File"
+		serialized.Data, err = msgpack.Marshal(e)
+	case Object:
+		serialized.Type = "Object"
+		serialized.Data, err = msgpack.Marshal(e)
+	case Chunk:
+		serialized.Type = "Chunk"
+		serialized.Data, err = msgpack.Marshal(e)
+	case DirectoryOK:
+		serialized.Type = "DirectoryOK"
+		serialized.Data, err = msgpack.Marshal(e)
+	case DirectoryError:
+		serialized.Type = "DirectoryError"
+		serialized.Data, err = msgpack.Marshal(e)
+	case DirectoryMissing:
+		serialized.Type = "DirectoryMissing"
+		serialized.Data, err = msgpack.Marshal(e)
+	case DirectoryCorrupted:
+		serialized.Type = "DirectoryCorrupted"
+		serialized.Data, err = msgpack.Marshal(e)
+	case FileOK:
+		serialized.Type = "FileOK"
+		serialized.Data, err = msgpack.Marshal(e)
+	case FileError:
+		serialized.Type = "FileError"
+		serialized.Data, err = msgpack.Marshal(e)
+	case FileMissing:
+		serialized.Type = "FileMissing"
+		serialized.Data, err = msgpack.Marshal(e)
+	case FileCorrupted:
+		serialized.Type = "FileCorrupted"
+		serialized.Data, err = msgpack.Marshal(e)
+	case ObjectOK:
+		serialized.Type = "ObjectOK"
+		serialized.Data, err = msgpack.Marshal(e)
+	case ObjectMissing:
+		serialized.Type = "ObjectMissing"
+		serialized.Data, err = msgpack.Marshal(e)
+	case ObjectCorrupted:
+		serialized.Type = "ObjectCorrupted"
+		serialized.Data, err = msgpack.Marshal(e)
+	case ChunkOK:
+		serialized.Type = "ChunkOK"
+		serialized.Data, err = msgpack.Marshal(e)
+	case ChunkMissing:
+		serialized.Type = "ChunkMissing"
+		serialized.Data, err = msgpack.Marshal(e)
+	case ChunkCorrupted:
+		serialized.Type = "ChunkCorrupted"
+		serialized.Data, err = msgpack.Marshal(e)
+	case StartImporter:
+		serialized.Type = "StartImporter"
+		serialized.Data, err = msgpack.Marshal(e)
+	case DoneImporter:
+		serialized.Type = "DoneImporter"
+		serialized.Data, err = msgpack.Marshal(e)
+	default:
+		return nil, fmt.Errorf("unknown event type")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return msgpack.Marshal(serialized)
+}
+
+func Deserialize(data []byte) (Event, error) {
+	var serialized SerializedEvent
+	if err := msgpack.Unmarshal(data, &serialized); err != nil {
+		return nil, err
+	}
+	switch serialized.Type {
+	case "Start":
+		var e Start
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "Done":
+		var e Done
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "Warning":
+		var e Warning
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "Error":
+		var e Error
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "Path":
+		var e Path
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "PathError":
+		var e PathError
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "Directory":
+		var e Directory
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "File":
+		var e File
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "Object":
+		var e Object
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "Chunk":
+		var e Chunk
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "DirectoryOK":
+		var e DirectoryOK
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "DirectoryError":
+		var e DirectoryError
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "DirectoryMissing":
+		var e DirectoryMissing
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "DirectoryCorrupted":
+		var e DirectoryCorrupted
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "FileOK":
+		var e FileOK
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "FileError":
+		var e FileError
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "FileMissing":
+		var e FileMissing
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "FileCorrupted":
+		var e FileCorrupted
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "ObjectOK":
+		var e ObjectOK
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "ObjectMissing":
+		var e ObjectMissing
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "ObjectCorrupted":
+		var e ObjectCorrupted
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "ChunkOK":
+		var e ChunkOK
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "ChunkMissing":
+		var e ChunkMissing
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "ChunkCorrupted":
+		var e ChunkCorrupted
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "StartImporter":
+		var e StartImporter
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	case "DoneImporter":
+		var e DoneImporter
+		if err := msgpack.Unmarshal(serialized.Data, &e); err != nil {
+			return nil, err
+		}
+		return e, nil
+	default:
+		return nil, fmt.Errorf("unknown event type")
+	}
+}
+
 type Event interface {
-	Timestamp() time.Time
 }
 
 /**/
 type Start struct {
-	ts time.Time
+	Timestamp time.Time
 }
 
 func StartEvent() Start {
-	return Start{ts: time.Now()}
-}
-func (e Start) Timestamp() time.Time {
-	return e.ts
+	return Start{Timestamp: time.Now()}
 }
 
 /**/
 type Done struct {
-	ts time.Time
+	Timestamp time.Time
 }
 
 func DoneEvent() Done {
-	return Done{ts: time.Now()}
-}
-func (e Done) Timestamp() time.Time {
-	return e.ts
+	return Done{Timestamp: time.Now()}
 }
 
 /**/
 type Warning struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Message    string
 }
 
 func WarningEvent(snapshotID [32]byte, message string) Warning {
-	return Warning{ts: time.Now(), SnapshotID: snapshotID, Message: message}
-}
-func (e Warning) Timestamp() time.Time {
-	return e.ts
+	return Warning{Timestamp: time.Now(), SnapshotID: snapshotID, Message: message}
 }
 
 /**/
 type Error struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Message    string
 }
 
 func ErrorEvent(snapshotID [32]byte, message string) Error {
-	return Error{ts: time.Now(), SnapshotID: snapshotID, Message: message}
-}
-func (e Error) Timestamp() time.Time {
-	return e.ts
+	return Error{Timestamp: time.Now(), SnapshotID: snapshotID, Message: message}
 }
 
 /**/
 type Path struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Pathname   string
 }
 
 func PathEvent(snapshotID [32]byte, pathname string) Path {
-	return Path{ts: time.Now(), SnapshotID: snapshotID, Pathname: pathname}
-}
-func (e Path) Timestamp() time.Time {
-	return e.ts
+	return Path{Timestamp: time.Now(), SnapshotID: snapshotID, Pathname: pathname}
 }
 
 /**/
 type PathError struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Pathname   string
@@ -87,90 +339,72 @@ type PathError struct {
 }
 
 func PathErrorEvent(snapshotID [32]byte, pathname string, message string) PathError {
-	return PathError{ts: time.Now(), SnapshotID: snapshotID, Pathname: pathname, Message: message}
-}
-func (e PathError) Timestamp() time.Time {
-	return e.ts
+	return PathError{Timestamp: time.Now(), SnapshotID: snapshotID, Pathname: pathname, Message: message}
 }
 
 /**/
 type Directory struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Pathname   string
 }
 
 func DirectoryEvent(snapshotID [32]byte, pathname string) Directory {
-	return Directory{ts: time.Now(), SnapshotID: snapshotID, Pathname: pathname}
-}
-func (e Directory) Timestamp() time.Time {
-	return e.ts
+	return Directory{Timestamp: time.Now(), SnapshotID: snapshotID, Pathname: pathname}
 }
 
 /**/
 type File struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Pathname   string
 }
 
 func FileEvent(snapshotID [32]byte, pathname string) File {
-	return File{ts: time.Now(), SnapshotID: snapshotID, Pathname: pathname}
-}
-func (e File) Timestamp() time.Time {
-	return e.ts
+	return File{Timestamp: time.Now(), SnapshotID: snapshotID, Pathname: pathname}
 }
 
 /**/
 type Object struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Checksum   [32]byte
 }
 
 func ObjectEvent(snapshotID [32]byte, checksum [32]byte) Object {
-	return Object{ts: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
-}
-func (e Object) Timestamp() time.Time {
-	return e.ts
+	return Object{Timestamp: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
 }
 
 /**/
 type Chunk struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Checksum   [32]byte
 }
 
 func ChunkEvent(snapshotID [32]byte, checksum [32]byte) Chunk {
-	return Chunk{ts: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
-}
-func (e Chunk) Timestamp() time.Time {
-	return e.ts
+	return Chunk{Timestamp: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
 }
 
 /**/
 type DirectoryOK struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Pathname   string
 }
 
 func DirectoryOKEvent(snapshotID [32]byte, pathname string) DirectoryOK {
-	return DirectoryOK{ts: time.Now(), SnapshotID: snapshotID, Pathname: pathname}
-}
-func (e DirectoryOK) Timestamp() time.Time {
-	return e.ts
+	return DirectoryOK{Timestamp: time.Now(), SnapshotID: snapshotID, Pathname: pathname}
 }
 
 /**/
 type DirectoryError struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Pathname   string
@@ -178,45 +412,36 @@ type DirectoryError struct {
 }
 
 func DirectoryErrorEvent(snapshotID [32]byte, pathname string, message string) DirectoryError {
-	return DirectoryError{ts: time.Now(), SnapshotID: snapshotID, Pathname: pathname, Message: message}
-}
-func (e DirectoryError) Timestamp() time.Time {
-	return e.ts
+	return DirectoryError{Timestamp: time.Now(), SnapshotID: snapshotID, Pathname: pathname, Message: message}
 }
 
 /**/
 type DirectoryMissing struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Pathname   string
 }
 
 func DirectoryMissingEvent(snapshotID [32]byte, pathname string) DirectoryMissing {
-	return DirectoryMissing{ts: time.Now(), SnapshotID: snapshotID, Pathname: pathname}
-}
-func (e DirectoryMissing) Timestamp() time.Time {
-	return e.ts
+	return DirectoryMissing{Timestamp: time.Now(), SnapshotID: snapshotID, Pathname: pathname}
 }
 
 /**/
 type DirectoryCorrupted struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Pathname   string
 }
 
 func DirectoryCorruptedEvent(snapshotID [32]byte, pathname string) DirectoryCorrupted {
-	return DirectoryCorrupted{ts: time.Now(), SnapshotID: snapshotID, Pathname: pathname}
-}
-func (e DirectoryCorrupted) Timestamp() time.Time {
-	return e.ts
+	return DirectoryCorrupted{Timestamp: time.Now(), SnapshotID: snapshotID, Pathname: pathname}
 }
 
 /**/
 type FileOK struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Pathname   string
@@ -224,15 +449,12 @@ type FileOK struct {
 }
 
 func FileOKEvent(snapshotID [32]byte, pathname string, size int64) FileOK {
-	return FileOK{ts: time.Now(), SnapshotID: snapshotID, Pathname: pathname, Size: size}
-}
-func (e FileOK) Timestamp() time.Time {
-	return e.ts
+	return FileOK{Timestamp: time.Now(), SnapshotID: snapshotID, Pathname: pathname, Size: size}
 }
 
 /**/
 type FileError struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Pathname   string
@@ -240,149 +462,119 @@ type FileError struct {
 }
 
 func FileErrorEvent(snapshotID [32]byte, pathname string, message string) FileError {
-	return FileError{ts: time.Now(), SnapshotID: snapshotID, Pathname: pathname, Message: message}
-}
-func (e FileError) Timestamp() time.Time {
-	return e.ts
+	return FileError{Timestamp: time.Now(), SnapshotID: snapshotID, Pathname: pathname, Message: message}
 }
 
 /**/
 type FileMissing struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Pathname   string
 }
 
 func FileMissingEvent(snapshotID [32]byte, pathname string) FileMissing {
-	return FileMissing{ts: time.Now(), SnapshotID: snapshotID, Pathname: pathname}
-}
-func (e FileMissing) Timestamp() time.Time {
-	return e.ts
+	return FileMissing{Timestamp: time.Now(), SnapshotID: snapshotID, Pathname: pathname}
 }
 
 /**/
 type FileCorrupted struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Pathname   string
 }
 
 func FileCorruptedEvent(snapshotID [32]byte, pathname string) FileCorrupted {
-	return FileCorrupted{ts: time.Now(), SnapshotID: snapshotID, Pathname: pathname}
-}
-func (e FileCorrupted) Timestamp() time.Time {
-	return e.ts
+	return FileCorrupted{Timestamp: time.Now(), SnapshotID: snapshotID, Pathname: pathname}
 }
 
 /**/
 type ObjectOK struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Checksum   [32]byte
 }
 
 func ObjectOKEvent(snapshotID [32]byte, checksum [32]byte) ObjectOK {
-	return ObjectOK{ts: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
-}
-func (e ObjectOK) Timestamp() time.Time {
-	return e.ts
+	return ObjectOK{Timestamp: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
 }
 
 /**/
 type ObjectMissing struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Checksum   [32]byte
 }
 
 func ObjectMissingEvent(snapshotID [32]byte, checksum [32]byte) ObjectMissing {
-	return ObjectMissing{ts: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
-}
-func (e ObjectMissing) Timestamp() time.Time {
-	return e.ts
+	return ObjectMissing{Timestamp: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
 }
 
 /**/
 type ObjectCorrupted struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Checksum   [32]byte
 }
 
 func ObjectCorruptedEvent(snapshotID [32]byte, checksum [32]byte) ObjectCorrupted {
-	return ObjectCorrupted{ts: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
-}
-func (e ObjectCorrupted) Timestamp() time.Time {
-	return e.ts
+	return ObjectCorrupted{Timestamp: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
 }
 
 /**/
 type ChunkOK struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Checksum   [32]byte
 }
 
 func ChunkOKEvent(snapshotID [32]byte, checksum [32]byte) ChunkOK {
-	return ChunkOK{ts: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
-}
-func (e ChunkOK) Timestamp() time.Time {
-	return e.ts
+	return ChunkOK{Timestamp: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
 }
 
 /**/
 type ChunkMissing struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Checksum   [32]byte
 }
 
 func ChunkMissingEvent(snapshotID [32]byte, checksum [32]byte) ChunkMissing {
-	return ChunkMissing{ts: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
-}
-func (e ChunkMissing) Timestamp() time.Time {
-	return e.ts
+	return ChunkMissing{Timestamp: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
 }
 
 /**/
 type ChunkCorrupted struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 	Checksum   [32]byte
 }
 
 func ChunkCorruptedEvent(snapshotID [32]byte, checksum [32]byte) ChunkCorrupted {
-	return ChunkCorrupted{ts: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
-}
-func (e ChunkCorrupted) Timestamp() time.Time {
-	return e.ts
+	return ChunkCorrupted{Timestamp: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
 }
 
 /**/
 type StartImporter struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID [32]byte
 }
 
 func StartImporterEvent() StartImporter {
-	return StartImporter{ts: time.Now()}
-}
-func (e StartImporter) Timestamp() time.Time {
-	return e.ts
+	return StartImporter{Timestamp: time.Now()}
 }
 
 /**/
 type DoneImporter struct {
-	ts time.Time
+	Timestamp time.Time
 
 	SnapshotID     [32]byte
 	NumFiles       uint64
@@ -391,8 +583,5 @@ type DoneImporter struct {
 }
 
 func DoneImporterEvent() DoneImporter {
-	return DoneImporter{ts: time.Now()}
-}
-func (e DoneImporter) Timestamp() time.Time {
-	return e.ts
+	return DoneImporter{Timestamp: time.Now()}
 }
