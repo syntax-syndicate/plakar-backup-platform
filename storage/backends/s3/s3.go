@@ -187,67 +187,6 @@ func (repository *Repository) Configuration() storage.Configuration {
 	return repository.config
 }
 
-// snapshots
-func (repository *Repository) GetSnapshots() ([]objects.Checksum, error) {
-	ret := make([]objects.Checksum, 0)
-	for object := range repository.minioClient.ListObjects(context.Background(), repository.bucketName, minio.ListObjectsOptions{
-		Prefix:    "snapshots/",
-		Recursive: true,
-	}) {
-		if strings.HasPrefix(object.Key, "snapshots/") && len(object.Key) == 13 {
-			snapshotIDhex, err := hex.DecodeString(object.Key[13:])
-			if err != nil {
-				continue
-			}
-			if len(snapshotIDhex) != 64 {
-				continue
-			}
-			var snapshotID objects.Checksum
-			copy(snapshotID[:], snapshotIDhex)
-			ret = append(ret, snapshotID)
-		}
-	}
-	return ret, nil
-}
-
-func (repository *Repository) PutSnapshot(snapshotID objects.Checksum, data []byte) error {
-	_, err := repository.minioClient.PutObject(context.Background(), repository.bucketName, fmt.Sprintf("snapshots/%x/%s", snapshotID[0], hex.EncodeToString(snapshotID[:])), bytes.NewReader(data), int64(len(data)), minio.PutObjectOptions{})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (repository *Repository) GetSnapshot(snapshotID objects.Checksum) ([]byte, error) {
-	object, err := repository.minioClient.GetObject(context.Background(), repository.bucketName, fmt.Sprintf("snapshots/%x/%s", snapshotID[0], hex.EncodeToString(snapshotID[:])), minio.GetObjectOptions{})
-	if err != nil {
-		return nil, err
-	}
-	stat, err := object.Stat()
-	if err != nil {
-		return nil, err
-	}
-
-	dataBytes := make([]byte, stat.Size)
-	_, err = object.Read(dataBytes)
-	if err != nil {
-		if err != io.EOF {
-			return nil, err
-		}
-	}
-	object.Close()
-
-	return dataBytes, nil
-}
-
-func (repository *Repository) DeleteSnapshot(snapshotID objects.Checksum) error {
-	err := repository.minioClient.RemoveObject(context.Background(), repository.bucketName, fmt.Sprintf("snapshots/%x/%s", snapshotID[0], hex.EncodeToString(snapshotID[:])), minio.RemoveObjectOptions{})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // states
 func (repository *Repository) GetStates() ([]objects.Checksum, error) {
 	ret := make([]objects.Checksum, 0)
