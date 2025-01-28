@@ -32,14 +32,14 @@ func init() {
 	subcommands.Register("version", cmd_version)
 }
 
-func cmd_version(ctx *appcontext.AppContext, _ *repository.Repository, args []string) int {
+func cmd_version(ctx *appcontext.AppContext, _ *repository.Repository, args []string) (int, error) {
 	flags := flag.NewFlagSet("version", flag.ExitOnError)
 	flags.Parse(args)
 
 	if !semver.IsValid(VERSION) {
-		panic("invalid version string: " + VERSION)
+		return 1, fmt.Errorf("invalid version string: %s", VERSION)
 	}
 	fmt.Println(VERSION)
 
-	return 0
+	return 0, nil
 }

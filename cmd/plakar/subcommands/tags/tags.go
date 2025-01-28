@@ -32,7 +32,7 @@ func init() {
 	subcommands.Register("tags", cmd_tags)
 }
 
-func cmd_tags(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_tags(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	var opt_display string
 	flags := flag.NewFlagSet("tags", flag.ExitOnError)
 	flags.StringVar(&opt_display, "display", "tags", "display tags")
@@ -40,11 +40,11 @@ func cmd_tags(ctx *appcontext.AppContext, repo *repository.Repository, args []st
 
 	if opt_display != "tags" && opt_display != "count" && opt_display != "snapshots" {
 		fmt.Fprintf(os.Stderr, "unsupported display option: %s\n", opt_display)
-		return 1
+		return 1, fmt.Errorf("unsupported display option: %s", opt_display)
 	}
 
 	list_tags(repo, opt_display)
-	return 0
+	return 0, nil
 }
 
 func list_tags(repo *repository.Repository, display string) {
