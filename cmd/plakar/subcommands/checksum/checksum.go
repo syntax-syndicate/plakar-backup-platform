@@ -69,14 +69,14 @@ func cmd_checksum(ctx *appcontext.AppContext, repo *repository.Repository, args 
 			continue
 		}
 
-		displayChecksums(fs, repo, snap, pathname, enableFastChecksum)
+		displayChecksums(ctx, fs, repo, snap, pathname, enableFastChecksum)
 
 	}
 
 	return 0, nil
 }
 
-func displayChecksums(fs *vfs.Filesystem, repo *repository.Repository, snap *snapshot.Snapshot, pathname string, fastcheck bool) error {
+func displayChecksums(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repository.Repository, snap *snapshot.Snapshot, pathname string, fastcheck bool) error {
 	fsinfo, err := fs.GetEntry(pathname)
 	if err != nil {
 		return err
@@ -88,7 +88,7 @@ func displayChecksums(fs *vfs.Filesystem, repo *repository.Repository, snap *sna
 			return err
 		}
 		for child := range iter {
-			if err := displayChecksums(fs, repo, snap, path.Join(pathname, child.Stat().Name()), fastcheck); err != nil {
+			if err := displayChecksums(ctx, fs, repo, snap, path.Join(pathname, child.Stat().Name()), fastcheck); err != nil {
 				return err
 			}
 		}
@@ -116,6 +116,6 @@ func displayChecksums(fs *vfs.Filesystem, repo *repository.Repository, snap *sna
 			return err
 		}
 	}
-	fmt.Printf("SHA256 (%s) = %x\n", pathname, checksum)
+	fmt.Fprintf(ctx.Stdout(), "SHA256 (%s) = %x\n", pathname, checksum)
 	return nil
 }
