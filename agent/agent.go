@@ -179,8 +179,8 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 					return
 				default:
 					response := Packet{
-						Type:   "stdout",
-						Output: data,
+						Type: "stdout",
+						Data: []byte(data),
 					}
 					mu.Lock()
 					if err := encoder.Encode(&response); err != nil {
@@ -200,8 +200,8 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 					return
 				default:
 					response := Packet{
-						Type:   "stderr",
-						Output: data,
+						Type: "stderr",
+						Data: []byte(data),
 					}
 					mu.Lock()
 					if err := encoder.Encode(&response); err != nil {
@@ -276,7 +276,6 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 					case <-clientContext.GetContext().Done():
 						return
 					default:
-
 						mu.Lock()
 						err = encoder.Encode(&response)
 						mu.Unlock()
@@ -323,10 +322,9 @@ type CommandRequest struct {
 
 type Packet struct {
 	Type     string
-	Output   string
+	Data     []byte
 	ExitCode int
 	Err      string
-	Data     []byte
 }
 
 type Client struct {
@@ -367,9 +365,9 @@ func (c *Client) SendCommand(ctx *appcontext.AppContext, repo string, cmd string
 		}
 		switch response.Type {
 		case "stdout":
-			fmt.Printf("%s", response.Output)
+			fmt.Printf("%s", string(response.Data))
 		case "stderr":
-			fmt.Fprintf(os.Stderr, "%s", response.Output)
+			fmt.Fprintf(os.Stderr, "%s", string(response.Data))
 		case "event":
 			evt, err := events.Deserialize(response.Data)
 			if err != nil {

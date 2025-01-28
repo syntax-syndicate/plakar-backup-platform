@@ -13,8 +13,6 @@ type SerializedEvent struct {
 }
 
 func Serialize(event Event) ([]byte, error) {
-
-	fmt.Printf("event: %T\n", event)
 	var serialized SerializedEvent
 	var err error
 	switch e := event.(type) {
