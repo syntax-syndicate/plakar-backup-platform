@@ -15,6 +15,7 @@ import (
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/find"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/help"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/info"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/locate"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ls"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/mount"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
