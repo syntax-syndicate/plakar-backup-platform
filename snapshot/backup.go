@@ -854,12 +854,7 @@ func (snap *Snapshot) Commit() error {
 	close(snap.packerChan)
 	<-snap.packerChanDone
 
-	stateDelta, err := snap.buildSerializedDeltaState()
-	if err != nil {
-		snap.Logger().Warn("could not serialize repository index: %s", err)
-		return err
-	}
-
+	stateDelta := snap.buildSerializedDeltaState()
 	err = repo.PutState(snap.Header.Identifier, stateDelta)
 	if err != nil {
 		snap.Logger().Warn("Failed to push the state to the repository %s", err)
@@ -870,14 +865,16 @@ func (snap *Snapshot) Commit() error {
 	return nil
 }
 
-func (snap *Snapshot) buildSerializedDeltaState() (io.Reader, error) {
+func (snap *Snapshot) buildSerializedDeltaState() io.Reader {
 	pr, pw := io.Pipe()
 
 	/* By using a pipe and a goroutine we bound the max size in memory. */
 	go func() {
 		defer pw.Close()
-		snap.deltaState.SerializeToStream(pw)
+		if err := snap.deltaState.SerializeToStream(pw); err != nil {
+			pw.CloseWithError(err)
+		}
 	}()
 
-	return pr, nil
+	return pr
 }
