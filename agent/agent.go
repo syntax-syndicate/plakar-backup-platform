@@ -295,10 +295,14 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 			case <-clientContext.GetContext().Done():
 				return
 			default:
+				errStr := ""
+				if err != nil {
+					errStr = err.Error()
+				}
 				response := Packet{
 					Type:     "exit",
 					ExitCode: status,
-					Err:      fmt.Sprintf("%v", err),
+					Err:      errStr,
 				}
 				mu.Lock()
 				if err := encoder.Encode(&response); err != nil {
@@ -375,7 +379,11 @@ func (c *Client) SendCommand(ctx *appcontext.AppContext, repo string, cmd string
 			}
 			ctx.Events().Send(evt)
 		case "exit":
-			return response.ExitCode, fmt.Errorf("%s", response.Err)
+			var err error
+			if response.Err != "" {
+				err = fmt.Errorf("%s", response.Err)
+			}
+			return response.ExitCode, err
 		}
 	}
 }
