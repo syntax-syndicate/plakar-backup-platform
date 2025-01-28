@@ -1,6 +1,7 @@
 package vfs
 
 import (
+	"io"
 	"io/fs"
 	"iter"
 	"path"
@@ -35,7 +36,7 @@ type AlternateDataStream struct {
 }
 
 type Filesystem struct {
-	tree *btree.BTree[string, objects.Checksum, Entry]
+	tree *btree.BTree[string, objects.Checksum, objects.Checksum]
 	repo *repository.Repository
 }
 
@@ -68,7 +69,7 @@ func NewFilesystem(repo *repository.Repository, root objects.Checksum) (*Filesys
 		return nil, err
 	}
 
-	storage := repository.NewRepositoryStore[string, Entry](repo, packfile.TYPE_VFS)
+	storage := repository.NewRepositoryStore[string, objects.Checksum](repo, packfile.TYPE_VFS)
 	tree, err := btree.Deserialize(rd, storage, PathCmp)
 	if err != nil {
 		return nil, err
@@ -92,14 +93,29 @@ func (fsc *Filesystem) lookup(entrypath string) (*Entry, error) {
 		entrypath = "/"
 	}
 
-	entry, found, err := fsc.tree.Find(entrypath)
+	csum, found, err := fsc.tree.Find(entrypath)
 	if err != nil {
 		return nil, err
 	}
 	if !found {
 		return nil, fs.ErrNotExist
 	}
-	return &entry, nil
+
+	return fsc.resolveEntry(csum)
+}
+
+func (fsc *Filesystem) resolveEntry(csum objects.Checksum) (*Entry, error) {
+	rd, err := fsc.repo.GetBlob(packfile.TYPE_VFS_ENTRY, csum)
+	if err != nil {
+		return nil, err
+	}
+
+	bytes, err := io.ReadAll(rd)
+	if err != nil {
+		return nil, err
+	}
+
+	return EntryFromBytes(bytes)	
 }
 
 func (fsc *Filesystem) Open(path string) (fs.File, error) {
@@ -133,7 +149,14 @@ func (fsc *Filesystem) Files() iter.Seq2[string, error] {
 		}
 
 		for iter.Next() {
-			path, entry := iter.Current()
+			path, csum := iter.Current()
+			entry, err := fsc.resolveEntry(csum)
+			if err != nil {
+				if !yield(path, err) {
+					return
+				}
+				continue
+			}
 			if entry.FileInfo.Lmode.IsRegular() {
 				if !yield(path, nil) {
 					return
@@ -201,6 +224,30 @@ func (fsc *Filesystem) Children(path string) (iter.Seq2[string, error], error) {
 	}, nil
 }
 
-func (fsc *Filesystem) VisitNodes(cb func(objects.Checksum, *btree.Node[string, objects.Checksum, Entry]) error) error {
+func (fsc *Filesystem) VisitNodes(cb func(objects.Checksum, *btree.Node[string, objects.Checksum, objects.Checksum]) error) error {
 	return fsc.tree.VisitDFS(cb)
+}
+
+func (fsc *Filesystem) FileChecksums() (iter.Seq2[objects.Checksum, error], error) {
+	iter, err := fsc.tree.ScanAll()
+	if err != nil {
+		return nil, err
+	}
+
+	return func(yield func(objects.Checksum, error) bool) {
+		for iter.Next() {
+			_, csum := iter.Current()
+			if err != nil {
+				yield(objects.Checksum{}, err)
+				return
+			}
+			if !yield(csum, nil) {
+				return
+			}
+		}
+		if err := iter.Err(); err != nil {
+			yield(objects.Checksum{}, err)
+			return
+		}
+	}, nil
 }

@@ -32,7 +32,6 @@ import (
 	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
-	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -235,7 +234,25 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 	if err != nil {
 		return err
 	}
-	fs.VisitNodes(func(csum objects.Checksum, node *btree.Node[string, objects.Checksum, vfs.Entry]) error {
+
+	iter, err = fs.FileChecksums()
+	if err != nil {
+		return err
+	}
+	for entryID, err := range iter {
+		if err != nil {
+			return err
+		}
+		if !dstRepository.BlobExists(packfile.TYPE_VFS_ENTRY, entryID) {
+			entryData, err := srcSnapshot.GetBlob(packfile.TYPE_VFS_ENTRY, entryID)
+			if err != nil {
+				return err
+			}
+			dstSnapshot.PutBlob(packfile.TYPE_VFS_ENTRY, entryID, entryData)
+		}
+	}
+
+	fs.VisitNodes(func(csum objects.Checksum, node *btree.Node[string, objects.Checksum, objects.Checksum]) error {
 		if !dstRepository.BlobExists(packfile.TYPE_VFS, csum) {
 			bytes, err := msgpack.Marshal(node)
 			if err != nil {

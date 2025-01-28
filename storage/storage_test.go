@@ -14,7 +14,7 @@ import (
 func TestNewStore(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-	ctx.SetMaxConcurrency(runtime.NumCPU()*8 + 1)
+	ctx.MaxConcurrency = runtime.NumCPU()*8 + 1
 
 	store, err := storage.NewStore("fs", "/test/location")
 	if err != nil {
@@ -35,7 +35,7 @@ func TestNewStore(t *testing.T) {
 func TestCreateStore(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-	ctx.SetMaxConcurrency(runtime.NumCPU()*8 + 1)
+	ctx.MaxConcurrency = runtime.NumCPU()*8 + 1
 
 	config := storage.NewConfiguration()
 	store, err := storage.Create("/test/location", *config)
@@ -63,7 +63,7 @@ func TestCreateStore(t *testing.T) {
 func TestOpenStore(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-	ctx.SetMaxConcurrency(runtime.NumCPU()*8 + 1)
+	ctx.MaxConcurrency = runtime.NumCPU()*8 + 1
 
 	store, err := storage.Open("/test/location")
 	if err != nil {
@@ -90,7 +90,7 @@ func TestOpenStore(t *testing.T) {
 func TestBackends(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-	ctx.SetMaxConcurrency(runtime.NumCPU()*8 + 1)
+	ctx.MaxConcurrency = runtime.NumCPU()*8 + 1
 
 	storage.Register("test", func(location string) storage.Store { return &ptesting.MockBackend{} })
 
@@ -118,7 +118,7 @@ func TestNew(t *testing.T) {
 		t.Run(l.name, func(t *testing.T) {
 			ctx := appcontext.NewAppContext()
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-			ctx.SetMaxConcurrency(runtime.NumCPU()*8 + 1)
+			ctx.MaxConcurrency = runtime.NumCPU()*8 + 1
 
 			storage.Register(l.name, func(location string) storage.Store { return ptesting.NewMockBackend(location) })
 
@@ -136,7 +136,7 @@ func TestNew(t *testing.T) {
 	t.Run("unknown backend", func(t *testing.T) {
 		ctx := appcontext.NewAppContext()
 		ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-		ctx.SetMaxConcurrency(runtime.NumCPU()*8 + 1)
+		ctx.MaxConcurrency = runtime.NumCPU()*8 + 1
 
 		// storage.Register("unknown", func(location string) storage.Store { return ptesting.NewMockBackend(location) })
 		_, err := storage.New("unknown://dummy")
@@ -148,7 +148,7 @@ func TestNew(t *testing.T) {
 	t.Run("absolute fs path", func(t *testing.T) {
 		ctx := appcontext.NewAppContext()
 		ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-		ctx.SetMaxConcurrency(runtime.NumCPU()*8 + 1)
+		ctx.MaxConcurrency = runtime.NumCPU()*8 + 1
 
 		// storage.Register("unknown", func(location string) storage.Store { return ptesting.NewMockBackend(location) })
 		store, err := storage.New("dummy")
