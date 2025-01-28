@@ -36,7 +36,7 @@ func init() {
 	subcommands.Register("agent", cmd_agent)
 }
 
-func cmd_agent(ctx *appcontext.AppContext, _ *repository.Repository, args []string) int {
+func cmd_agent(ctx *appcontext.AppContext, _ *repository.Repository, args []string) (int, error) {
 	var opt_socketPath string
 
 	flags := flag.NewFlagSet("agent", flag.ExitOnError)
@@ -46,7 +46,7 @@ func cmd_agent(ctx *appcontext.AppContext, _ *repository.Repository, args []stri
 	daemon, err := agent.NewAgent(ctx, "unix", opt_socketPath)
 	if err != nil {
 		ctx.GetLogger().Error("failed to create agent daemon: %s", err)
-		return 1
+		return 1, err
 	}
 	defer daemon.Close()
 
@@ -72,7 +72,7 @@ func cmd_agent(ctx *appcontext.AppContext, _ *repository.Repository, args []stri
 
 	log.Println("Server gracefully stopped")
 
-	return 0
+	return 0, nil
 }
 
 func handleRPC(clientContext *appcontext.AppContext, repo *repository.Repository, command string, args []string) (int, error) {

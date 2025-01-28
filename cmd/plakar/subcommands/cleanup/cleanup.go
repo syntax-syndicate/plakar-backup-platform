@@ -28,7 +28,7 @@ func init() {
 	subcommands.Register("cleanup", cmd_cleanup)
 }
 
-func cmd_cleanup(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_cleanup(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	flags := flag.NewFlagSet("cleanup", flag.ExitOnError)
 	flags.Parse(args)
 
@@ -43,5 +43,5 @@ func cmd_cleanup(ctx *appcontext.AppContext, repo *repository.Repository, args [
 	// 6. update indexes to reflect the new packfile
 	// 7. save the new index
 
-	return 0
+	return 0, nil
 }

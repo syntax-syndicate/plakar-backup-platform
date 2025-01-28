@@ -34,13 +34,13 @@ func init() {
 	subcommands.Register("clone", cmd_clone)
 }
 
-func cmd_clone(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_clone(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	flags := flag.NewFlagSet("clone", flag.ExitOnError)
 	flags.Parse(args)
 
 	if flags.NArg() != 2 || flags.Arg(0) != "to" {
 		ctx.GetLogger().Error("usage: %s to repository", flags.Name())
-		return 1
+		return 1, fmt.Errorf("usage: %s to repository", flags.Name())
 	}
 
 	sourceStore := repo.Store()
@@ -51,13 +51,13 @@ func cmd_clone(ctx *appcontext.AppContext, repo *repository.Repository, args []s
 	cloneStore, err := storage.Create(flags.Arg(1), configuration)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not create repository: %s\n", flags.Arg(1), err)
-		return 1
+		return 1, err
 	}
 
 	packfileChecksums, err := sourceStore.GetPackfiles()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not get packfiles list from repository: %s\n", sourceStore.Location(), err)
-		return 1
+		return 1, err
 	}
 
 	wg := sync.WaitGroup{}
@@ -84,7 +84,7 @@ func cmd_clone(ctx *appcontext.AppContext, repo *repository.Repository, args []s
 	indexesChecksums, err := sourceStore.GetStates()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not get paclfiles list from repository: %s\n", sourceStore.Location(), err)
-		return 1
+		return 1, err
 	}
 
 	wg = sync.WaitGroup{}
@@ -108,5 +108,5 @@ func cmd_clone(ctx *appcontext.AppContext, repo *repository.Repository, args []s
 	}
 	wg.Wait()
 
-	return 0
+	return 0, nil
 }

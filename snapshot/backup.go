@@ -148,6 +148,12 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 						if record.FileInfo.Mode().IsRegular() {
 							atomic.AddUint64(&size, uint64(record.FileInfo.Size()))
 						}
+
+						// if snapshot root is a file, then reset to the parent directory
+						if snap.Header.Importer.Directory == record.Pathname {
+							snap.Header.Importer.Directory = filepath.Dir(record.Pathname)
+						}
+
 					} else {
 						atomic.AddUint64(&nDirectories, +1)
 					}

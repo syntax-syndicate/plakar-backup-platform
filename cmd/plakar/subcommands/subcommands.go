@@ -10,9 +10,9 @@ import (
 	"github.com/PlakarKorp/plakar/repository"
 )
 
-var subcommands map[string]func(*appcontext.AppContext, *repository.Repository, []string) int = make(map[string]func(*appcontext.AppContext, *repository.Repository, []string) int)
+var subcommands map[string]func(*appcontext.AppContext, *repository.Repository, []string) (int, error) = make(map[string]func(*appcontext.AppContext, *repository.Repository, []string) (int, error))
 
-func Register(command string, fn func(*appcontext.AppContext, *repository.Repository, []string) int) {
+func Register(command string, fn func(*appcontext.AppContext, *repository.Repository, []string) (int, error)) {
 	subcommands[command] = fn
 }
 
@@ -22,7 +22,7 @@ func Execute(ctx *appcontext.AppContext, repo *repository.Repository, command st
 		if !exists {
 			return 1, fmt.Errorf("unknown command: %s", command)
 		}
-		return fn(ctx, repo, args), nil
+		return fn(ctx, repo, args)
 	}
 
 	client, err := agent.NewClient(filepath.Join(ctx.CacheDir, "agent.sock"))

@@ -33,7 +33,7 @@ func init() {
 	subcommands.Register("check", cmd_check)
 }
 
-func cmd_check(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_check(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	var opt_concurrency uint64
 	var opt_fastCheck bool
 	var opt_noVerify bool
@@ -91,7 +91,7 @@ func cmd_check(ctx *appcontext.AppContext, repo *repository.Repository, args []s
 	}
 
 	if failures {
-		return 1
+		return 1, fmt.Errorf("check failed")
 	}
-	return 0
+	return 0, nil
 }
