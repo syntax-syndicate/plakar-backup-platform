@@ -32,8 +32,15 @@ import (
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 )
 
+type namecache struct {
+	uidToName map[uint64]string
+	gidToName map[uint64]string
+
+	mu sync.RWMutex
+}
+
 // Worker pool to handle file scanning in parallel
-func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *sync.WaitGroup) {
+func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *sync.WaitGroup, namecache *namecache) {
 	defer wg.Done()
 
 	for path := range jobs {
@@ -70,12 +77,35 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 
 		fileinfo := objects.FileInfoFromStat(info)
 
-		if u, err := user.LookupId(fmt.Sprintf("%d", fileinfo.Uid())); err == nil {
-			fileinfo.Lusername = u.Username
+		namecache.mu.RLock()
+		if uname, ok := namecache.uidToName[fileinfo.Uid()]; !ok {
+			if u, err := user.LookupId(fmt.Sprintf("%d", fileinfo.Uid())); err == nil {
+				fileinfo.Lusername = u.Username
+
+				namecache.mu.RUnlock()
+				namecache.mu.Lock()
+				namecache.uidToName[fileinfo.Uid()] = u.Username
+				namecache.mu.Unlock()
+				namecache.mu.RLock()
+			}
+		} else {
+			fileinfo.Lusername = uname
 		}
-		if g, err := user.LookupGroupId(fmt.Sprintf("%d", fileinfo.Gid())); err == nil {
-			fileinfo.Lgroupname = g.Name
+
+		if gname, ok := namecache.gidToName[fileinfo.Uid()]; !ok {
+			if g, err := user.LookupGroupId(fmt.Sprintf("%d", fileinfo.Gid())); err == nil {
+				fileinfo.Lgroupname = g.Name
+
+				namecache.mu.RUnlock()
+				namecache.mu.Lock()
+				namecache.gidToName[fileinfo.Gid()] = g.Name
+				namecache.mu.Unlock()
+				namecache.mu.RLock()
+			}
+		} else {
+			fileinfo.Lgroupname = gname
 		}
+		namecache.mu.RUnlock()
 
 		results <- importer.ScanRecord{Type: recordType, Pathname: filepath.ToSlash(path), FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
 
@@ -114,12 +144,17 @@ func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results ch
 func walkDir_walker(rootDir string, numWorkers int) (<-chan importer.ScanResult, error) {
 	results := make(chan importer.ScanResult, 1000) // Larger buffer for results
 	jobs := make(chan string, 1000)                 // Buffered channel to feed paths to workers
+	namecache := &namecache{
+		uidToName: make(map[uint64]string),
+		gidToName: make(map[uint64]string),
+	}
+
 	var wg sync.WaitGroup
 
 	// Launch worker pool
 	for w := 1; w <= numWorkers; w++ {
 		wg.Add(1)
-		go walkDir_worker(jobs, results, &wg)
+		go walkDir_worker(jobs, results, &wg, namecache)
 	}
 
 	// Start walking the directory and sending file paths to workers
