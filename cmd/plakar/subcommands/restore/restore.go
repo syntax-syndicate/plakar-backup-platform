@@ -34,7 +34,7 @@ func init() {
 	subcommands.Register("restore", cmd_restore)
 }
 
-func cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	var pullPath string
 	var pullRebase bool
 	var exporterInstance exporter.Exporter
@@ -73,20 +73,19 @@ func cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, args [
 			if ctx.CWD == metadata.Importer.Directory || strings.HasPrefix(ctx.CWD, fmt.Sprintf("%s/", metadata.Importer.Directory)) {
 				snap, err := snapshot.Load(repo, metadata.GetIndexID())
 				if err != nil {
-					return 1
+					return 1, err
 				}
 				snap.Restore(exporterInstance, ctx.CWD, ctx.CWD, opts)
 				snap.Close()
-				return 0
+				return 0, nil
 			}
 		}
-		log.Fatalf("%s: could not find a snapshot to restore this path from", flag.CommandLine.Name())
-		return 1
+		return 1, fmt.Errorf("could not find a snapshot to restore this path from")
 	}
 
 	snapshots, err := utils.GetSnapshots(repo, flags.Args())
 	if err != nil {
-		log.Fatal(err)
+		return 1, err
 	}
 
 	for offset, snap := range snapshots {
@@ -95,5 +94,5 @@ func cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, args [
 		snap.Close()
 	}
 
-	return 0
+	return 0, nil
 }

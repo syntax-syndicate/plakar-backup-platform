@@ -34,7 +34,7 @@ func init() {
 	subcommands.Register("archive", cmd_archive)
 }
 
-func cmd_archive(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_archive(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	var opt_rebase bool
 	var opt_output string
 	var opt_format string
@@ -86,13 +86,13 @@ func cmd_archive(ctx *appcontext.AppContext, repo *repository.Repository, args [
 	}
 
 	if err := out.Close(); err != nil {
-		return 1
+		return 1, err
 	}
 	if out, isFile := out.(*os.File); isFile {
 		if err := os.Rename(out.Name(), opt_output); err != nil {
-			return 1
+			return 1, err
 		}
 	}
 
-	return 0
+	return 0, nil
 }

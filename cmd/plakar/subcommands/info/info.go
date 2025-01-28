@@ -45,7 +45,7 @@ func init() {
 	subcommands.Register("info", cmd_info)
 }
 
-func cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	if len(args) == 0 {
 		return info_repository(repo)
 	}
@@ -58,68 +58,68 @@ func cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, args []st
 	case "snapshot":
 		if len(flags.Args()) < 2 {
 			ctx.GetLogger().Error("usage: %s snapshot snapshotID", flags.Name())
-			return 1
+			return 1, fmt.Errorf("usage: %s snapshot snapshotID", flags.Name())
 		}
 		if err := info_snapshot(repo, flags.Args()[1]); err != nil {
 			ctx.GetLogger().Error("error: %s", err)
-			return 1
+			return 1, err
 		}
 
 	case "errors":
 		if len(flags.Args()) < 2 {
 			ctx.GetLogger().Error("usage: %s errors snapshotID", flags.Name())
-			return 1
+			return 1, fmt.Errorf("usage: %s errors snapshotID", flags.Name())
 		}
 		if err := info_errors(repo, flags.Args()[1]); err != nil {
 			ctx.GetLogger().Error("error: %s", err)
-			return 1
+			return 1, err
 		}
 
 	case "state":
 		if err := info_state(repo, flags.Args()[1:]); err != nil {
 			ctx.GetLogger().Error("error: %s", err)
-			return 1
+			return 1, err
 		}
 
 	case "packfile":
 		if err := info_packfile(repo, flags.Args()[1:]); err != nil {
 			ctx.GetLogger().Error("error: %s", err)
-			return 1
+			return 1, err
 		}
 
 	case "object":
 		if len(flags.Args()) < 2 {
 			ctx.GetLogger().Error("usage: %s object objectID", flags.Name())
-			return 1
+			return 1, fmt.Errorf("usage: %s object objectID", flags.Name())
 		}
 		if err := info_object(repo, flags.Args()[1]); err != nil {
 			ctx.GetLogger().Error("error: %s", err)
-			return 1
+			return 1, err
 		}
 
 	case "vfs":
 		if len(flags.Args()) < 2 {
 			ctx.GetLogger().Error("usage: %s vfs snapshotPathname", flags.Name())
-			return 1
+			return 1, fmt.Errorf("usage: %s vfs snapshotPathname", flags.Name())
 		}
 		if err := info_vfs(repo, flags.Args()[1]); err != nil {
 			ctx.GetLogger().Error("error: %s", err)
-			return 1
+			return 1, err
 		}
 
 	default:
 		fmt.Println("Invalid parameter. usage: info [snapshot|object|chunk|state|packfile|vfs]")
-		return 1
+		return 1, fmt.Errorf("Invalid parameter. usage: info [snapshot|object|chunk|state|packfile|vfs]")
 	}
 
-	return 0
+	return 0, nil
 }
 
-func info_repository(repo *repository.Repository) int {
+func info_repository(repo *repository.Repository) (int, error) {
 	metadatas, err := utils.GetHeaders(repo, nil)
 	if err != nil {
 		repo.Logger().Warn("%s", err)
-		return 1
+		return 1, err
 	}
 
 	fmt.Println("Version:", repo.Configuration().Version)
@@ -163,7 +163,7 @@ func info_repository(repo *repository.Repository) int {
 	}
 	fmt.Printf("Size: %s (%d bytes)\n", humanize.Bytes(totalSize), totalSize)
 
-	return 0
+	return 0, nil
 }
 
 func info_snapshot(repo *repository.Repository, snapshotID string) error {

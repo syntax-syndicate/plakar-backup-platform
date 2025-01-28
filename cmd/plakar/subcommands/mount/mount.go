@@ -21,6 +21,7 @@ package mount
 
 import (
 	"flag"
+	"fmt"
 	"log"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -35,13 +36,13 @@ func init() {
 	subcommands.Register("mount", cmd_mount)
 }
 
-func cmd_mount(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_mount(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	flags := flag.NewFlagSet("mount", flag.ExitOnError)
 	flags.Parse(args)
 
 	if flags.NArg() != 1 {
 		ctx.GetLogger().Error("need mountpoint")
-		return 1
+		return 1, fmt.Errorf("need mountpoint")
 	}
 
 	mountpoint := flags.Arg(0)
@@ -60,11 +61,11 @@ func cmd_mount(ctx *appcontext.AppContext, repo *repository.Repository, args []s
 
 	err = fs.Serve(c, plakarfs.NewFS(repo, mountpoint))
 	if err != nil {
-		log.Fatalf("Serve: %v", err)
+		return 1, err
 	}
 	<-c.Ready
 	if err := c.MountError; err != nil {
-		log.Fatalf("Mount: %v", err)
+		return 1, err
 	}
-	return 0
+	return 0, nil
 }
