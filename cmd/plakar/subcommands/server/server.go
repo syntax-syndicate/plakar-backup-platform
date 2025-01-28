@@ -30,7 +30,7 @@ func init() {
 	subcommands.Register("server", cmd_server)
 }
 
-func cmd_server(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_server(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	var opt_protocol string
 	var opt_allowdelete bool
 
@@ -62,5 +62,5 @@ func cmd_server(ctx *appcontext.AppContext, repo *repository.Repository, args []
 	default:
 		ctx.GetLogger().Error("unsupported protocol: %s", opt_protocol)
 	}
-	return 0
+	return 0, nil
 }

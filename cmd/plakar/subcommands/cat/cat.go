@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"compress/gzip"
 	"flag"
+	"fmt"
 	"io"
 	"os"
 
@@ -36,7 +37,7 @@ func init() {
 	subcommands.Register("cat", cmd_cat)
 }
 
-func cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	var opt_nodecompress bool
 	var opt_highlight bool
 
@@ -47,13 +48,13 @@ func cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args []str
 
 	if flags.NArg() == 0 {
 		ctx.GetLogger().Error("%s: at least one parameter is required", flags.Name())
-		return 1
+		return 1, fmt.Errorf("missing filename")
 	}
 
 	snapshots, err := utils.GetSnapshots(repo, flags.Args())
 	if err != nil {
 		ctx.GetLogger().Error("%s: could not obtain snapshots list: %s", flags.Name(), err)
-		return 1
+		return 1, err
 	}
 
 	errors := 0
@@ -159,7 +160,7 @@ func cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args []str
 	}
 
 	if errors != 0 {
-		return 1
+		return 1, fmt.Errorf("errors occurred")
 	}
-	return 0
+	return 0, nil
 }

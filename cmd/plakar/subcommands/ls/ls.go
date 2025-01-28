@@ -40,7 +40,7 @@ func init() {
 	subcommands.Register("ls", cmd_ls)
 }
 
-func cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	var opt_recursive bool
 	var opt_tag string
 	var opt_uuid bool
@@ -53,14 +53,14 @@ func cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args []stri
 
 	if flags.NArg() == 0 {
 		list_snapshots(repo, opt_uuid, opt_tag)
-		return 0
+		return 0, nil
 	}
 
 	if err := list_snapshot(repo, flags.Arg(0), opt_recursive); err != nil {
 		log.Println("error:", err)
-		return 1
+		return 1, err
 	}
-	return 0
+	return 0, nil
 }
 
 func list_snapshots(repo *repository.Repository, useUuid bool, tag string) {

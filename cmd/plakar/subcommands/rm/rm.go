@@ -18,6 +18,7 @@ package rm
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"regexp"
 	"strconv"
@@ -37,7 +38,7 @@ func init() {
 	subcommands.Register("rm", cmd_rm)
 }
 
-func cmd_rm(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_rm(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	var opt_older string
 	var opt_tag string
 	flags := flag.NewFlagSet("rm", flag.ExitOnError)
@@ -171,7 +172,7 @@ func cmd_rm(ctx *appcontext.AppContext, repo *repository.Repository, args []stri
 	wg.Wait()
 
 	if errors != 0 {
-		return 1
+		return 1, fmt.Errorf("failed to remove %d snapshots", errors)
 	}
-	return 0
+	return 0, nil
 }

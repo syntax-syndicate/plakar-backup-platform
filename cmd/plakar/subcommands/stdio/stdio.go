@@ -23,7 +23,7 @@ import (
 	"github.com/PlakarKorp/plakar/server/plakard"
 )
 
-func cmd_stdio(ctx *appcontext.AppContext, args []string) int {
+func cmd_stdio(ctx *appcontext.AppContext, args []string) (int, error) {
 	_ = ctx
 
 	var noDelete bool
@@ -36,7 +36,7 @@ func cmd_stdio(ctx *appcontext.AppContext, args []string) int {
 		NoDelete: noDelete,
 	}
 	if err := plakard.Stdio(ctx, options); err != nil {
-		return 1
+		return 1, err
 	}
-	return 0
+	return 0, nil
 }

@@ -30,7 +30,7 @@ func init() {
 	subcommands.Register("agent", cmd_agent)
 }
 
-func cmd_agent(ctx *appcontext.AppContext, _ *repository.Repository, args []string) int {
+func cmd_agent(ctx *appcontext.AppContext, _ *repository.Repository, args []string) (int, error) {
 	var opt_socketPath string
 
 	flags := flag.NewFlagSet("agent", flag.ExitOnError)
@@ -40,13 +40,13 @@ func cmd_agent(ctx *appcontext.AppContext, _ *repository.Repository, args []stri
 	daemon, err := agent.NewDaemon(ctx, "unix", opt_socketPath)
 	if err != nil {
 		ctx.GetLogger().Error("failed to create agent daemon: %s", err)
-		return 1
+		return 1, err
 	}
 	defer daemon.Close()
 
 	if err := daemon.ListenAndServe(); err != nil {
 		ctx.GetLogger().Error("%s", err)
-		return 1
+		return 1, err
 	}
-	return 0
+	return 0, nil
 }
