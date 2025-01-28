@@ -12,7 +12,6 @@ import (
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/create"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/diff"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/exec"
-	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/find"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/help"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/info"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ls"
