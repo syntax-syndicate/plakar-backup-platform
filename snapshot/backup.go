@@ -787,11 +787,8 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 
 	checksum := snap.repository.Checksum(serializedPackfile)
 
-	var checksum32 objects.Checksum
-	copy(checksum32[:], checksum[:])
-
-	repo.Logger().Trace("snapshot", "%x: PutPackfile(%x, ...)", snap.Header.GetIndexShortID(), checksum32)
-	err = snap.repository.PutPackfile(checksum32, bytes.NewBuffer(serializedPackfile))
+	repo.Logger().Trace("snapshot", "%x: PutPackfile(%x, ...)", snap.Header.GetIndexShortID(), checksum)
+	err = snap.repository.PutPackfile(checksum, bytes.NewBuffer(serializedPackfile))
 	if err != nil {
 		panic("could not write pack file")
 	}
@@ -800,11 +797,11 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 		for blobChecksum := range packer.Blobs[Type] {
 			for idx, blob := range packer.Packfile.Index {
 				if blob.Checksum == blobChecksum && blob.Type == Type {
-					snap.Repository().SetPackfileForBlob(Type, checksum32,
+					snap.Repository().SetPackfileForBlob(Type, checksum,
 						blobChecksum,
 						packer.Packfile.Index[idx].Offset,
 						packer.Packfile.Index[idx].Length)
-					snap.stateDelta.SetPackfileForBlob(Type, checksum32,
+					snap.stateDelta.SetPackfileForBlob(Type, checksum,
 						blobChecksum,
 						packer.Packfile.Index[idx].Offset,
 						packer.Packfile.Index[idx].Length)
