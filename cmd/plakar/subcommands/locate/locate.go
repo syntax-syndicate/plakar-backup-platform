@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Gilles Chehade <gilles@poolp.org>
+ * Copyright (c) 2025 Gilles Chehade <gilles@poolp.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-package ls
+package locate
 
 import (
 	"flag"
