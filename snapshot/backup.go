@@ -3,7 +3,6 @@ package snapshot
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"math"
 	"mime"
@@ -440,8 +439,6 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	for fileiter.Next() {
 		select {
 		case <-snap.AppContext().GetContext().Done():
-			// Context canceled (e.g., due to client disconnect)
-			fmt.Println("Context canceled: client disconnected")
 			return snap.AppContext().GetContext().Err()
 		default:
 		}

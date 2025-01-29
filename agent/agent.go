@@ -225,11 +225,11 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 			var request CommandRequest
 			if err := decoder.Decode(&request); err != nil {
 				if isDisconnectError(err) {
-					fmt.Println("Client disconnected during initial request")
+					fmt.Fprintf(os.Stderr, "Client disconnected during initial request\n")
 					cancel() // Cancel the context on disconnect
 					return
 				}
-				fmt.Println("Failed to decode client request:", err)
+				fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 				return
 			}
 			clientContext.SetSecret(request.RepositorySecret)
@@ -247,14 +247,14 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 
 			store, err := storage.Open(request.Repository)
 			if err != nil {
-				fmt.Println("Failed to open storage:", err)
+				fmt.Fprintf(os.Stderr, "Failed to open storage: %s\n", err)
 				return
 			}
 			defer store.Close()
 
 			repo, err := repository.New(clientContext, store, clientContext.GetSecret())
 			if err != nil {
-				fmt.Println("Failed to open repository:", err)
+				fmt.Fprintf(os.Stderr, "Failed to open repository: %s\n", err)
 				return
 			}
 			defer repo.Close()
@@ -264,7 +264,7 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 				for evt := range clientContext.Events().Listen() {
 					serialized, err := events.Serialize(evt)
 					if err != nil {
-						fmt.Println("failed to serialize event:", err)
+						fmt.Fprintf(os.Stderr, "Failed to serialize event: %s\n", err)
 						return
 					}
 					// Send the event to the client
@@ -280,7 +280,7 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 						err = encoder.Encode(&response)
 						mu.Unlock()
 						if err != nil {
-							fmt.Println("failed to encode event:", err)
+							fmt.Fprintf(os.Stderr, "Failed to encode event: %s\n", err)
 							return
 						}
 					}
@@ -306,7 +306,7 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 				}
 				mu.Lock()
 				if err := encoder.Encode(&response); err != nil {
-					fmt.Println("failed to encode response:", err)
+					fmt.Fprintf(os.Stderr, "Failed to encode response: %s\n", err)
 				}
 				mu.Unlock()
 			}
