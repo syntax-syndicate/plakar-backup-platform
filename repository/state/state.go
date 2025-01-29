@@ -26,6 +26,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 const VERSION = 100
@@ -38,9 +39,15 @@ type Metadata struct {
 }
 
 type Location struct {
-	Packfile objects.Checksum
-	Offset   uint32
-	Length   uint32
+	Packfile objects.Checksum `msgpack:"packfile"`
+	Offset   uint32           `msgpack:"offset"`
+	Length   uint32           `msgpack:"length"`
+}
+
+type DeltaEntry struct {
+	Type     packfile.Type    `msgpack:"type"`
+	Blob     objects.Checksum `msgpack:"blob"`
+	Location Location         `msgpack:"location"`
 }
 
 type State struct {
@@ -75,6 +82,10 @@ type State struct {
 	DeletedSnapshots   map[objects.Checksum]time.Time
 
 	Metadata Metadata
+}
+
+func (de *DeltaEntry) ToBytes() ([]byte, error) {
+	return msgpack.Marshal(de)
 }
 
 func New() *State {

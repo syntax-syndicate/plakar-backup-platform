@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/vmihailenco/msgpack/v5"
@@ -106,6 +107,32 @@ func (c *ScanCache) GetSummary(pathname string) ([]byte, error) {
 	}
 
 	return c.get("__summary__", pathname)
+}
+
+func (c *ScanCache) GetDelta(blobType packfile.Type, blobCsum objects.Checksum, data []byte) ([]byte, error) {
+	return c.get("__delta__", fmt.Sprintf("%d:%x", blobType, blobCsum))
+}
+
+func (c *ScanCache) PutDelta(blobType packfile.Type, blobCsum objects.Checksum, data []byte) error {
+	return c.put("__delta__", fmt.Sprintf("%d:%x", blobType, blobCsum), data)
+}
+
+func (c *ScanCache) GetDeltas() iter.Seq[[]byte] {
+	return func(yield func([]byte) bool) {
+		iter := c.db.NewIterator(nil, nil)
+		defer iter.Release()
+
+		keyPrefix := "__delta__:"
+		for iter.Seek([]byte(keyPrefix)); iter.Valid(); iter.Next() {
+			if !strings.HasPrefix(string(iter.Key()), keyPrefix) {
+				break
+			}
+
+			if !yield(iter.Value()) {
+				return
+			}
+		}
+	}
 }
 
 // / BELOW IS THE OLD CODE FROM BACKUP LAYER, NEEDS TO BE CLEANED UP

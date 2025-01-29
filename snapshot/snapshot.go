@@ -16,7 +16,6 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/repository/state"
 	"github.com/PlakarKorp/plakar/snapshot/header"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/google/uuid"
@@ -28,7 +27,6 @@ var (
 
 type Snapshot struct {
 	repository *repository.Repository
-	stateDelta *state.State
 	scanCache  *caching.ScanCache
 
 	filesystem *vfs.Filesystem
@@ -59,7 +57,6 @@ func New(repo *repository.Repository) (*Snapshot, error) {
 
 	snap := &Snapshot{
 		repository: repo,
-		stateDelta: repo.NewStateDelta(),
 		scanCache:  scanCache,
 
 		Header: header.NewHeader("default", identifier),
@@ -115,8 +112,6 @@ func Clone(repo *repository.Repository, Identifier objects.Checksum) (*Snapshot,
 	if err != nil {
 		return nil, err
 	}
-
-	snap.stateDelta = state.New()
 
 	snap.Header.Identifier = repo.Checksum(uuidBytes[:])
 	snap.packerChan = make(chan interface{}, runtime.NumCPU()*2+1)
