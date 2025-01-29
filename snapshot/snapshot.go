@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/objects"
@@ -27,7 +28,9 @@ var (
 
 type Snapshot struct {
 	repository *repository.Repository
-	stateDelta *state.State
+	scanCache  *caching.ScanCache
+
+	deltaState *state.LocalState
 
 	filesystem *vfs.Filesystem
 
@@ -50,15 +53,22 @@ func New(repo *repository.Repository) (*Snapshot, error) {
 		return nil, io.ErrShortWrite
 	}
 
+	scanCache, err := repo.AppContext().GetCache().Scan(identifier)
+	if err != nil {
+		return nil, err
+	}
+
 	snap := &Snapshot{
 		repository: repo,
-		stateDelta: repo.NewStateDelta(),
+		scanCache:  scanCache,
 
 		Header: header.NewHeader("default", identifier),
 
 		packerChan:     make(chan interface{}, runtime.NumCPU()*2+1),
 		packerChanDone: make(chan bool),
 	}
+
+	snap.deltaState = state.NewLocalState(scanCache)
 
 	if snap.AppContext().Identity != uuid.Nil {
 		snap.Header.Identity.Identifier = snap.AppContext().Identity
@@ -108,8 +118,6 @@ func Clone(repo *repository.Repository, Identifier objects.Checksum) (*Snapshot,
 		return nil, err
 	}
 
-	snap.stateDelta = state.New()
-
 	snap.Header.Identifier = repo.Checksum(uuidBytes[:])
 	snap.packerChan = make(chan interface{}, runtime.NumCPU()*2+1)
 	snap.packerChanDone = make(chan bool)
@@ -143,6 +151,11 @@ func Fork(repo *repository.Repository, Identifier objects.Checksum) (*Snapshot, 
 
 func (snap *Snapshot) Close() error {
 	snap.Logger().Trace("snapshot", "%x: Close(): %s", snap.Header.Identifier, snap.Header.GetIndexShortID())
+
+	if snap.scanCache != nil {
+		return snap.scanCache.Close()
+	}
+
 	return nil
 }
 

@@ -1,6 +1,8 @@
 package caching
 
 import (
+	"bytes"
+	"encoding/hex"
 	"fmt"
 	"iter"
 	"os"
@@ -8,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/vmihailenco/msgpack/v5"
@@ -52,6 +55,14 @@ func (c *ScanCache) get(prefix, key string) ([]byte, error) {
 		return nil, err
 	}
 	return data, nil
+}
+
+func (c *ScanCache) has(prefix, key string) (bool, error) {
+	return c.db.Has([]byte(fmt.Sprintf("%s:%s", prefix, key)), nil)
+}
+
+func (c *ScanCache) delete(prefix, key string) error {
+	return c.db.Delete([]byte(fmt.Sprintf("%s:%s", prefix, key)), nil)
 }
 
 // XXX - beware that pathname should be constructed to end with / for directories
@@ -106,6 +117,102 @@ func (c *ScanCache) GetSummary(pathname string) ([]byte, error) {
 	}
 
 	return c.get("__summary__", pathname)
+}
+
+func (c *ScanCache) PutState(stateID objects.Checksum, data []byte) error {
+	return c.put("__state__", fmt.Sprintf("%x", stateID), data)
+}
+
+func (c *ScanCache) HasState(stateID objects.Checksum) (bool, error) {
+	panic("HasState should never be used on the ScanCache backend")
+}
+
+func (c *ScanCache) GetState(stateID objects.Checksum) ([]byte, error) {
+	panic("GetState should never be used on the ScanCache backend")
+}
+
+func (c *ScanCache) GetStates() ([]objects.Checksum, error) {
+	panic("GetStates should never be used on the ScanCache backend")
+}
+
+func (c *ScanCache) DelState(stateID objects.Checksum) error {
+	panic("DelStates should never be used on the ScanCache backend")
+}
+
+func (c *ScanCache) GetDelta(blobType packfile.Type, blobCsum objects.Checksum) ([]byte, error) {
+	return c.get("__delta__", fmt.Sprintf("%d:%x", blobType, blobCsum))
+}
+
+func (c *ScanCache) HasDelta(blobType packfile.Type, blobCsum objects.Checksum) (bool, error) {
+	return c.has("__delta__", fmt.Sprintf("%d:%x", blobType, blobCsum))
+}
+
+func (c *ScanCache) GetDeltaByCsum(blobCsum objects.Checksum) ([]byte, error) {
+	for typ := packfile.TYPE_SNAPSHOT; typ <= packfile.TYPE_ERROR; typ++ {
+		ret, err := c.GetDelta(typ, blobCsum)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if ret != nil {
+			return ret, nil
+		}
+	}
+
+	return nil, nil
+}
+
+func (c *ScanCache) PutDelta(blobType packfile.Type, blobCsum objects.Checksum, data []byte) error {
+	return c.put("__delta__", fmt.Sprintf("%d:%x", blobType, blobCsum), data)
+}
+
+func (c *ScanCache) GetDeltasByType(blobType packfile.Type) iter.Seq2[objects.Checksum, []byte] {
+	return func(yield func(objects.Checksum, []byte) bool) {
+		iter := c.db.NewIterator(nil, nil)
+		defer iter.Release()
+
+		keyPrefix := fmt.Sprintf("__delta__:%d", blobType)
+		for iter.Seek([]byte(keyPrefix)); iter.Valid(); iter.Next() {
+			if !strings.HasPrefix(string(iter.Key()), keyPrefix) {
+				break
+			}
+
+			/* Extract the csum part of the key, this avoids decoding the full
+			 * entry later on if that's the only thing we need */
+			key := iter.Key()
+			hex_csum := string(key[bytes.LastIndexByte(key, byte(':'))+1:])
+			csum, _ := hex.DecodeString(hex_csum)
+
+			if !yield(objects.Checksum(csum), iter.Value()) {
+				return
+			}
+		}
+	}
+}
+
+func (c *ScanCache) GetDeltas() iter.Seq2[objects.Checksum, []byte] {
+	return func(yield func(objects.Checksum, []byte) bool) {
+		iter := c.db.NewIterator(nil, nil)
+		defer iter.Release()
+
+		keyPrefix := "__delta__:"
+		for iter.Seek([]byte(keyPrefix)); iter.Valid(); iter.Next() {
+			if !strings.HasPrefix(string(iter.Key()), keyPrefix) {
+				break
+			}
+
+			/* Extract the csum part of the key, this avoids decoding the full
+			 * entry later on if that's the only thing we need */
+			key := iter.Key()
+			hex_csum := string(key[bytes.LastIndexByte(key, byte(':'))+1:])
+			csum, _ := hex.DecodeString(hex_csum)
+
+			if !yield(objects.Checksum(csum), iter.Value()) {
+				return
+			}
+		}
+	}
 }
 
 // / BELOW IS THE OLD CODE FROM BACKUP LAYER, NEEDS TO BE CLEANED UP
