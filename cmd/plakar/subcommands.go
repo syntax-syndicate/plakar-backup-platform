@@ -12,9 +12,9 @@ import (
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/create"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/diff"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/exec"
-	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/find"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/help"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/info"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/locate"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ls"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/mount"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
@@ -22,7 +22,6 @@ import (
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/server"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/stdio"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
-	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/tags"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ui"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/version"
 )
