@@ -41,17 +41,16 @@ func cmd_locate(ctx *appcontext.AppContext, repo *repository.Repository, args []
 	flags.StringVar(&opt_snapshot, "snapshot", "", "snapshot to locate in")
 	flags.Parse(args)
 
-	snapshotIDs := make([]objects.Checksum, 0)
+	var snapshotIDs []objects.Checksum
 	if opt_snapshot != "" {
-		tmp := utils.LookupSnapshotByPrefix(repo, opt_snapshot)
-		snapshotIDs = append(snapshotIDs, tmp...)
+		snapshotIDs = utils.LookupSnapshotByPrefix(repo, opt_snapshot)
 	} else {
-		tmp, err := repo.GetSnapshots()
+		var err error
+		snapshotIDs, err = repo.GetSnapshots()
 		if err != nil {
-			ctx.GetLogger().Error("%s: could not list snapshots: %s", flags.Name(), err)
+			ctx.GetLogger().Error("...")
 			return 1, err
 		}
-		snapshotIDs = append(snapshotIDs, tmp...)
 	}
 
 	for _, snapshotID := range snapshotIDs {
