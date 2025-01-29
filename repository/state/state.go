@@ -36,9 +36,9 @@ const VERSION = 100
 type EntryType uint8
 
 const (
-	ET_METADATA EntryType = iota
-	ET_LOCATIONS
-	ET_TIMESTAMP
+	ET_METADATA  EntryType = 1
+	ET_LOCATIONS           = 2
+	ET_TIMESTAMP           = 3
 )
 
 type Metadata struct {
