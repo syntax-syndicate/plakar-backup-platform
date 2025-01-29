@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/events"
@@ -38,33 +37,13 @@ func NewAgent(ctx *appcontext.AppContext, network string, address string, promet
 
 	cancelCtx, cancelFunc := context.WithCancel(context.Background())
 
+	// Create the Agent without binding the socket
 	d := &Agent{
 		socketPath: address,
 		ctx:        ctx,
 		cancelCtx:  cancelCtx,
 		cancelFunc: cancelFunc,
 		prometheus: prometheus,
-	}
-
-	if _, err := os.Stat(d.socketPath); err == nil {
-		if !d.checkSocket() {
-			d.Close()
-		} else {
-			return nil, fmt.Errorf("already running")
-		}
-	} else if !os.IsNotExist(err) {
-		return nil, err
-	}
-
-	listener, err := net.Listen("unix", d.socketPath)
-	if err != nil {
-		return nil, err
-	}
-	d.listener = listener
-
-	if err := os.Chmod(d.socketPath, 0600); err != nil {
-		d.Close()
-		return nil, err
 	}
 
 	return d, nil
@@ -89,35 +68,6 @@ func (d *Agent) Close() error {
 	return nil
 }
 
-func (d *Agent) Shutdown(ctx context.Context) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if d.listener != nil {
-		if err := d.listener.Close(); err != nil {
-			return fmt.Errorf("failed to close listener: %w", err)
-		}
-		d.listener = nil
-	}
-
-	// Wait for all active connections or until the context is done
-	done := make(chan struct{})
-	go func() {
-		d.wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		// All connections gracefully closed
-	case <-ctx.Done():
-		// Context canceled or timed out
-		return ctx.Err()
-	}
-
-	return d.Close()
-}
-
 type CustomWriter struct {
 	processFunc func(string) // Function to handle the log lines
 }
@@ -137,30 +87,55 @@ func isDisconnectError(err error) bool {
 }
 
 func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.Repository, string, []string) (int, error)) error {
+	var promServerStarted sync.WaitGroup
+	var promErr error
+
+	if _, err := os.Stat(d.socketPath); err == nil {
+		if !d.checkSocket() {
+			d.Close()
+		} else {
+			return fmt.Errorf("already running")
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	// Bind socket
+	listener, err := net.Listen("unix", d.socketPath)
+	if err != nil {
+		return fmt.Errorf("failed to bind socket: %w", err)
+	}
+	defer os.Remove(d.socketPath)
+	d.listener = listener
+
+	// Set socket permissions
+	if err := os.Chmod(d.socketPath, 0600); err != nil {
+		d.Close()
+		return fmt.Errorf("failed to set socket permissions: %w", err)
+	}
+
 	if d.prometheus != "" {
+		// We want to ensure Prometheus server is started before moving forward
+		promServerStarted.Add(1)
+
 		go func() {
-			// Register metrics with Prometheus
+			defer promServerStarted.Done()
+
+			// Register Prometheus metrics handler
 			http.Handle("/metrics", promhttp.Handler())
 
-			go func() {
-				if err := http.ListenAndServe(d.prometheus, nil); err != nil && err != http.ErrServerClosed {
-					fmt.Printf("Prometheus server failed: %v\n", err)
-				}
-			}()
-
-			// Periodically update metrics (use a ticker instead of nested goroutines)
-			ticker := time.NewTicker(30 * time.Second) // Adjust the period as needed
-			defer ticker.Stop()
-			for {
-				select {
-				case <-d.cancelCtx.Done():
-					return
-				case <-ticker.C:
-					setUpGauge(1) // Update your metrics periodically
-					trackRequest("GET", "200")
-				}
+			// Start the Prometheus HTTP server and capture any error
+			if err := http.ListenAndServe(d.prometheus, nil); err != nil {
+				promErr = fmt.Errorf("failed to start Prometheus server: %w", err)
 			}
 		}()
+		// Wait for the Prometheus server to be successfully started
+		promServerStarted.Wait()
+
+		// If there was an error starting the Prometheus server, return it and stop execution
+		if promErr != nil {
+			return promErr
+		}
 	}
 
 	for {

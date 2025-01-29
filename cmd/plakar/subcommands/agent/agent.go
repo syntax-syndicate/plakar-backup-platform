@@ -17,14 +17,9 @@
 package agent
 
 import (
-	"context"
 	"flag"
-	"fmt"
 	"log"
-	"os"
-	"os/signal"
 	"path/filepath"
-	"time"
 
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -52,24 +47,8 @@ func cmd_agent(ctx *appcontext.AppContext, _ *repository.Repository, args []stri
 	}
 	defer daemon.Close()
 
-	go func() {
-		if err := daemon.ListenAndServe(handleRPC); err != nil {
-			ctx.GetLogger().Error("%s", err)
-		}
-	}()
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
-
-	<-quit
-	fmt.Println("Shutting down server...")
-
-	sigctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// Shutdown the server gracefully
-	if err := daemon.Shutdown(sigctx); err != nil {
-		log.Fatalf("Server shutdown failed: %s", err)
+	if err := daemon.ListenAndServe(handleRPC); err != nil {
+		return 1, err
 	}
 
 	log.Println("Server gracefully stopped")
