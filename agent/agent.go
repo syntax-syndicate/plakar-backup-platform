@@ -128,7 +128,7 @@ func isDisconnectError(err error) bool {
 		return true
 	}
 	var netErr net.Error
-	return errors.As(err, &netErr) && !netErr.Temporary()
+	return errors.As(err, &netErr) && netErr.Timeout()
 }
 
 func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.Repository, string, []string) (int, error)) error {
