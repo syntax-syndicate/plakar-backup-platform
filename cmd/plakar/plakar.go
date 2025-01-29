@@ -119,7 +119,11 @@ func entryPoint() int {
 	ctx.CWD = cwd
 	ctx.KeyringDir = filepath.Join(opt_userDefault.HomeDir, ".plakar-keyring")
 
-	cacheDir, err := utils.GetCacheDir("plakar")
+	cacheSubDir := "plakar"
+	if opt_agentless {
+		cacheSubDir = "plakar-agentless"
+	}
+	cacheDir, err := utils.GetCacheDir(cacheSubDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not get cache directory: %s\n", flag.CommandLine.Name(), err)
 		return 1
