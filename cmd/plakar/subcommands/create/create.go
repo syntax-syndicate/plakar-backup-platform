@@ -80,7 +80,6 @@ func cmd_create(ctx *appcontext.AppContext, _ *repository.Repository, args []str
 
 		encryptionKey, err := encryption.BuildSecretFromPassphrase(passphrase)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s: %s\n", flag.CommandLine.Name(), flags.Name(), err)
 			return 1, err
 		}
 
@@ -94,19 +93,16 @@ func cmd_create(ctx *appcontext.AppContext, _ *repository.Repository, args []str
 	case 0:
 		repo, err := storage.Create(filepath.Join(ctx.HomeDir, ".plakar"), *storageConfiguration)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s: %s\n", flag.CommandLine.Name(), flags.Name(), err)
 			return 1, err
 		}
 		repo.Close()
 	case 1:
 		repo, err := storage.Create(flags.Arg(0), *storageConfiguration)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s: %s\n", flag.CommandLine.Name(), flags.Name(), err)
 			return 1, err
 		}
 		repo.Close()
 	default:
-		fmt.Fprintf(os.Stderr, "%s: too many parameters\n", flag.CommandLine.Name())
 		return 1, fmt.Errorf("%s: too many parameters", flag.CommandLine.Name())
 	}
 
