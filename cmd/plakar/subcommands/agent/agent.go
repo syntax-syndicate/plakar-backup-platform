@@ -17,8 +17,14 @@
 package agent
 
 import (
+	"context"
 	"flag"
+	"fmt"
+	"log"
+	"os"
+	"os/signal"
 	"path/filepath"
+	"time"
 
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -37,16 +43,38 @@ func cmd_agent(ctx *appcontext.AppContext, _ *repository.Repository, args []stri
 	flags.StringVar(&opt_socketPath, "socket", filepath.Join(ctx.CacheDir, "agent.sock"), "path to socket file")
 	flags.Parse(args)
 
-	daemon, err := agent.NewDaemon(ctx, "unix", opt_socketPath)
+	daemon, err := agent.NewAgent(ctx, "unix", opt_socketPath)
 	if err != nil {
 		ctx.GetLogger().Error("failed to create agent daemon: %s", err)
 		return 1, err
 	}
 	defer daemon.Close()
 
-	if err := daemon.ListenAndServe(); err != nil {
-		ctx.GetLogger().Error("%s", err)
-		return 1, err
+	go func() {
+		if err := daemon.ListenAndServe(handleRPC); err != nil {
+			ctx.GetLogger().Error("%s", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+
+	<-quit
+	fmt.Println("Shutting down server...")
+
+	sigctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Shutdown the server gracefully
+	if err := daemon.Shutdown(sigctx); err != nil {
+		log.Fatalf("Server shutdown failed: %s", err)
 	}
+
+	log.Println("Server gracefully stopped")
+
 	return 0, nil
+}
+
+func handleRPC(clientContext *appcontext.AppContext, repo *repository.Repository, command string, args []string) (int, error) {
+	return subcommands.Execute(clientContext, repo, command, args, true)
 }

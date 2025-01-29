@@ -2,6 +2,8 @@ package appcontext
 
 import (
 	"context"
+	"io"
+	"os"
 
 	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/encryption/keypair"
@@ -11,10 +13,14 @@ import (
 )
 
 type AppContext struct {
-	events  *events.Receiver
-	cache   *caching.Manager
-	logger  *logging.Logger
-	context context.Context
+	events  *events.Receiver `msgpack:"-"`
+	cache   *caching.Manager `msgpack:"-"`
+	logger  *logging.Logger  `msgpack:"-"`
+	context context.Context  `msgpack:"-"`
+	secret  []byte           `msgpack:"-"`
+
+	Stdout io.Writer `msgpack:"-"`
+	Stderr io.Writer `msgpack:"-"`
 
 	NumCPU      int
 	Username    string
@@ -41,8 +47,21 @@ type AppContext struct {
 
 func NewAppContext() *AppContext {
 	return &AppContext{
-		events: events.New(),
+		events:  events.New(),
+		Stdout:  os.Stdout,
+		Stderr:  os.Stderr,
+		context: context.Background(),
 	}
+}
+
+func NewAppContextFrom(template *AppContext) *AppContext {
+	ctx := NewAppContext()
+	events := ctx.events
+	*ctx = *template
+	ctx.SetCache(template.GetCache())
+	ctx.SetLogger(template.GetLogger())
+	ctx.events = events
+	return ctx
 }
 
 func (c *AppContext) Close() {
@@ -75,4 +94,12 @@ func (c *AppContext) SetContext(ctx context.Context) {
 
 func (c *AppContext) GetContext() context.Context {
 	return c.context
+}
+
+func (c *AppContext) SetSecret(secret []byte) {
+	c.secret = secret
+}
+
+func (c *AppContext) GetSecret() []byte {
+	return c.secret
 }

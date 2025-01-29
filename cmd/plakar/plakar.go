@@ -96,6 +96,7 @@ func entryPoint() int {
 	var opt_quiet bool
 	var opt_keyfile string
 	var opt_keyring string
+	var opt_agentless bool
 
 	flag.StringVar(&opt_configfile, "config", opt_configDefault, "configuration file")
 	flag.IntVar(&opt_cpuCount, "cpu", opt_cpuDefault, "limit the number of usable cores")
@@ -108,6 +109,7 @@ func entryPoint() int {
 	flag.BoolVar(&opt_quiet, "quiet", false, "no output except errors")
 	flag.StringVar(&opt_keyfile, "keyfile", "", "use passphrase from key file when prompted")
 	flag.StringVar(&opt_keyring, "keyring", "", "path to directory holding the keyring")
+	flag.BoolVar(&opt_agentless, "no-agent", false, "run without agent")
 	flag.Parse()
 
 	ctx := appcontext.NewAppContext()
@@ -123,7 +125,6 @@ func entryPoint() int {
 		return 1
 	}
 	ctx.CacheDir = cacheDir
-
 	ctx.SetCache(caching.NewManager(cacheDir))
 	defer ctx.GetCache().Close()
 
@@ -231,7 +232,7 @@ func entryPoint() int {
 
 	// these commands need to be ran before the repository is opened
 	if command == "agent" || command == "create" || command == "version" || command == "stdio" || command == "help" || command == "id" {
-		retval, err := subcommands.Execute(ctx, nil, command, args)
+		retval, err := subcommands.Execute(ctx, nil, command, args, true)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return retval
@@ -294,18 +295,28 @@ func entryPoint() int {
 					os.Exit(1)
 				}
 			}
+			ctx.SetSecret(secret)
 		}
 	}
 
-	repo, err := repository.New(ctx, store, secret)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-		return 1
+	var repo *repository.Repository
+	if opt_agentless {
+		repo, err = repository.New(ctx, store, secret)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+			return 1
+		}
+	} else {
+		repo, err = repository.NewNoRebuild(ctx, store, secret)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+			return 1
+		}
 	}
 
 	// commands below all operate on an open repository
 	t0 := time.Now()
-	status, err := subcommands.Execute(ctx, repo, command, args)
+	status, err := subcommands.Execute(ctx, repo, command, args, opt_agentless)
 	t1 := time.Since(t0)
 
 	if err != nil {
