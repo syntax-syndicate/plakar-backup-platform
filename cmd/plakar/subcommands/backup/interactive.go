@@ -142,7 +142,7 @@ func startEventsProcessorInteractive(ctx *appcontext.AppContext, basepath string
 			appContext: ctx,
 			basepath:   basepath,
 			startTime:  time.Now(),
-		}, tea.WithOutput(ctx.Stdout())),
+		}, tea.WithOutput(ctx.Stdout)),
 		done: make(chan struct{}),
 	}
 

@@ -116,6 +116,6 @@ func displayChecksums(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repo
 			return err
 		}
 	}
-	fmt.Fprintf(ctx.Stdout(), "SHA256 (%s) = %x\n", pathname, checksum)
+	fmt.Fprintf(ctx.Stdout, "SHA256 (%s) = %x\n", pathname, checksum)
 	return nil
 }

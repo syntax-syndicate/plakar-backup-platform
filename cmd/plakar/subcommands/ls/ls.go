@@ -82,7 +82,7 @@ func list_snapshots(ctx *appcontext.AppContext, repo *repository.Repository, use
 			}
 		}
 		if !useUuid {
-			fmt.Fprintf(ctx.Stdout(), "%s %10s%10s%10s %s\n",
+			fmt.Fprintf(ctx.Stdout, "%s %10s%10s%10s %s\n",
 				metadata.Timestamp.UTC().Format(time.RFC3339),
 				hex.EncodeToString(metadata.GetIndexShortID()),
 				humanize.Bytes(metadata.Summary.Directory.Size+metadata.Summary.Below.Size),
@@ -90,7 +90,7 @@ func list_snapshots(ctx *appcontext.AppContext, repo *repository.Repository, use
 				metadata.Importer.Directory)
 		} else {
 			indexID := metadata.GetIndexID()
-			fmt.Fprintf(ctx.Stdout(), "%s %3s%10s%10s %s\n",
+			fmt.Fprintf(ctx.Stdout, "%s %3s%10s%10s %s\n",
 				metadata.Timestamp.UTC().Format(time.RFC3339),
 				hex.EncodeToString(indexID[:]),
 				humanize.Bytes(metadata.Summary.Directory.Size+metadata.Summary.Below.Size),
@@ -149,7 +149,7 @@ func list_snapshot(ctx *appcontext.AppContext, repo *repository.Repository, snap
 			entryname = d.Name()
 		}
 
-		fmt.Fprintf(ctx.Stdout(), "%s %s % 8s % 8s % 8s %s\n",
+		fmt.Fprintf(ctx.Stdout, "%s %s % 8s % 8s % 8s %s\n",
 			sb.ModTime().UTC().Format(time.RFC3339),
 			sb.Mode(),
 			username,

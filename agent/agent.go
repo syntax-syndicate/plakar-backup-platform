@@ -212,10 +212,10 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 				}
 			}
 
-			clientContext.SetStdout(&CustomWriter{processFunc: processStdout})
-			clientContext.SetStderr(&CustomWriter{processFunc: processStderr})
+			clientContext.Stdout = &CustomWriter{processFunc: processStdout}
+			clientContext.Stderr = &CustomWriter{processFunc: processStderr}
 
-			logger := logging.NewLogger(clientContext.Stdout(), clientContext.Stderr())
+			logger := logging.NewLogger(clientContext.Stdout, clientContext.Stderr)
 			logger.EnableInfo()
 			clientContext.SetLogger(logger)
 

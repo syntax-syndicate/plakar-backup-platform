@@ -13,14 +13,14 @@ import (
 )
 
 type AppContext struct {
-	events  *events.Receiver
-	cache   *caching.Manager
-	logger  *logging.Logger
-	context context.Context
-	secret  []byte
+	events  *events.Receiver `msgpack:"-"`
+	cache   *caching.Manager `msgpack:"-"`
+	logger  *logging.Logger  `msgpack:"-"`
+	context context.Context  `msgpack:"-"`
+	secret  []byte           `msgpack:"-"`
 
-	stdout io.Writer
-	stderr io.Writer
+	Stdout io.Writer `msgpack:"-"`
+	Stderr io.Writer `msgpack:"-"`
 
 	NumCPU      int
 	Username    string
@@ -48,8 +48,8 @@ type AppContext struct {
 func NewAppContext() *AppContext {
 	return &AppContext{
 		events:  events.New(),
-		stdout:  os.Stdout,
-		stderr:  os.Stderr,
+		Stdout:  os.Stdout,
+		Stderr:  os.Stderr,
 		context: context.Background(),
 	}
 }
@@ -86,22 +86,6 @@ func (c *AppContext) SetLogger(logger *logging.Logger) {
 
 func (c *AppContext) GetLogger() *logging.Logger {
 	return c.logger
-}
-
-func (c *AppContext) SetStdout(stdout io.Writer) {
-	c.stdout = stdout
-}
-
-func (c *AppContext) Stdout() io.Writer {
-	return c.stdout
-}
-
-func (c *AppContext) SetStderr(stderr io.Writer) {
-	c.stderr = stderr
-}
-
-func (c *AppContext) Stderr() io.Writer {
-	return c.stderr
 }
 
 func (c *AppContext) SetContext(ctx context.Context) {

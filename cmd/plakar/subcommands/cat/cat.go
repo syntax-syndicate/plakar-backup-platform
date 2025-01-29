@@ -130,7 +130,7 @@ func cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args []str
 						break
 					}
 
-					errFormat := formatter.Format(ctx.Stdout(), style, iterator)
+					errFormat := formatter.Format(ctx.Stdout, style, iterator)
 					if errFormat != nil {
 						ctx.GetLogger().Error("%s: %s: %s", flags.Name(), pathname, errFormat)
 						errors++
@@ -148,7 +148,7 @@ func cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args []str
 				}
 			}
 		} else {
-			_, err = io.Copy(ctx.Stdout(), rd)
+			_, err = io.Copy(ctx.Stdout, rd)
 		}
 		file.Close()
 		if err != nil {
