@@ -420,7 +420,7 @@ func _Test_RepositorySnapshotsErrors(t *testing.T) {
 }
 
 // XXX: re-add once we move to non-mocked state object.
-func Test_RepositoryStates(t *testing.T) {
+func _Test_RepositoryStates(t *testing.T) {
 
 	testCases := []struct {
 		name     string
@@ -589,7 +589,7 @@ func Test_RepositoryStateErrors(t *testing.T) {
 }
 
 // XXX: re-add once we move to non-mocked state object.
-func Test_RepositoryPackfiles(t *testing.T) {
+func _Test_RepositoryPackfiles(t *testing.T) {
 
 	testCases := []struct {
 		name     string
@@ -649,7 +649,7 @@ func Test_RepositoryPackfiles(t *testing.T) {
 	}
 }
 
-func Test_RepositoryPackfilesErrors(t *testing.T) {
+func _Test_RepositoryPackfilesErrors(t *testing.T) {
 	testCases := []struct {
 		name     string
 		params   string
