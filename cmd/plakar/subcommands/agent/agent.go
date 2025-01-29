@@ -17,14 +17,9 @@
 package agent
 
 import (
-	"context"
 	"flag"
-	"fmt"
 	"log"
-	"os"
-	"os/signal"
 	"path/filepath"
-	"time"
 
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -37,37 +32,23 @@ func init() {
 }
 
 func cmd_agent(ctx *appcontext.AppContext, _ *repository.Repository, args []string) (int, error) {
+	var opt_prometheus string
 	var opt_socketPath string
 
 	flags := flag.NewFlagSet("agent", flag.ExitOnError)
+	flags.StringVar(&opt_prometheus, "prometheus", "", "prometheus exporter interface")
 	flags.StringVar(&opt_socketPath, "socket", filepath.Join(ctx.CacheDir, "agent.sock"), "path to socket file")
 	flags.Parse(args)
 
-	daemon, err := agent.NewAgent(ctx, "unix", opt_socketPath)
+	daemon, err := agent.NewAgent(ctx, "unix", opt_socketPath, opt_prometheus)
 	if err != nil {
 		ctx.GetLogger().Error("failed to create agent daemon: %s", err)
 		return 1, err
 	}
 	defer daemon.Close()
 
-	go func() {
-		if err := daemon.ListenAndServe(handleRPC); err != nil {
-			ctx.GetLogger().Error("%s", err)
-		}
-	}()
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
-
-	<-quit
-	fmt.Println("Shutting down server...")
-
-	sigctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// Shutdown the server gracefully
-	if err := daemon.Shutdown(sigctx); err != nil {
-		log.Fatalf("Server shutdown failed: %s", err)
+	if err := daemon.ListenAndServe(handleRPC); err != nil {
+		return 1, err
 	}
 
 	log.Println("Server gracefully stopped")

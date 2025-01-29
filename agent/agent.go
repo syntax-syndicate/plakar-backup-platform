@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"os"
 	"sync"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/storage"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -25,41 +27,23 @@ type Agent struct {
 	cancelFunc context.CancelFunc
 	wg         sync.WaitGroup
 	mu         sync.Mutex
+	prometheus string
 }
 
-func NewAgent(ctx *appcontext.AppContext, network string, address string) (*Agent, error) {
+func NewAgent(ctx *appcontext.AppContext, network string, address string, prometheus string) (*Agent, error) {
 	if network != "unix" {
 		return nil, fmt.Errorf("unsupported network: %s", network)
 	}
 
 	cancelCtx, cancelFunc := context.WithCancel(context.Background())
 
+	// Create the Agent without binding the socket
 	d := &Agent{
 		socketPath: address,
 		ctx:        ctx,
 		cancelCtx:  cancelCtx,
 		cancelFunc: cancelFunc,
-	}
-
-	if _, err := os.Stat(d.socketPath); err == nil {
-		if !d.checkSocket() {
-			d.Close()
-		} else {
-			return nil, fmt.Errorf("already running")
-		}
-	} else if !os.IsNotExist(err) {
-		return nil, err
-	}
-
-	listener, err := net.Listen("unix", d.socketPath)
-	if err != nil {
-		return nil, err
-	}
-	d.listener = listener
-
-	if err := os.Chmod(d.socketPath, 0600); err != nil {
-		d.Close()
-		return nil, err
+		prometheus: prometheus,
 	}
 
 	return d, nil
@@ -84,35 +68,6 @@ func (d *Agent) Close() error {
 	return nil
 }
 
-func (d *Agent) Shutdown(ctx context.Context) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if d.listener != nil {
-		if err := d.listener.Close(); err != nil {
-			return fmt.Errorf("failed to close listener: %w", err)
-		}
-		d.listener = nil
-	}
-
-	// Wait for all active connections or until the context is done
-	done := make(chan struct{})
-	go func() {
-		d.wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		// All connections gracefully closed
-	case <-ctx.Done():
-		// Context canceled or timed out
-		return ctx.Err()
-	}
-
-	return d.Close()
-}
-
 type CustomWriter struct {
 	processFunc func(string) // Function to handle the log lines
 }
@@ -132,6 +87,57 @@ func isDisconnectError(err error) bool {
 }
 
 func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.Repository, string, []string) (int, error)) error {
+	var promServerStarted sync.WaitGroup
+	var promErr error
+
+	if _, err := os.Stat(d.socketPath); err == nil {
+		if !d.checkSocket() {
+			d.Close()
+		} else {
+			return fmt.Errorf("already running")
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	// Bind socket
+	listener, err := net.Listen("unix", d.socketPath)
+	if err != nil {
+		return fmt.Errorf("failed to bind socket: %w", err)
+	}
+	defer os.Remove(d.socketPath)
+	d.listener = listener
+
+	// Set socket permissions
+	if err := os.Chmod(d.socketPath, 0600); err != nil {
+		d.Close()
+		return fmt.Errorf("failed to set socket permissions: %w", err)
+	}
+
+	if d.prometheus != "" {
+		// We want to ensure Prometheus server is started before moving forward
+		promServerStarted.Add(1)
+
+		go func() {
+			defer promServerStarted.Done()
+
+			// Register Prometheus metrics handler
+			http.Handle("/metrics", promhttp.Handler())
+
+			// Start the Prometheus HTTP server and capture any error
+			if err := http.ListenAndServe(d.prometheus, nil); err != nil {
+				promErr = fmt.Errorf("failed to start Prometheus server: %w", err)
+			}
+		}()
+		// Wait for the Prometheus server to be successfully started
+		promServerStarted.Wait()
+
+		// If there was an error starting the Prometheus server, return it and stop execution
+		if promErr != nil {
+			return promErr
+		}
+	}
+
 	for {
 		select {
 		case <-d.cancelCtx.Done():
@@ -240,6 +246,7 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 				var tmp interface{}
 				if err := decoder.Decode(&tmp); err != nil {
 					if isDisconnectError(err) {
+						handleDisconnect()
 						cancel()
 					}
 				}
