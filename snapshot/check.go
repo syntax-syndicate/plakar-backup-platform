@@ -3,7 +3,6 @@ package snapshot
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"path"
@@ -24,7 +23,6 @@ func snapshotCheckPath(snap *Snapshot, fsc *vfs.Filesystem, pathname string, opt
 	file, err := fsc.GetEntry(pathname)
 	if err != nil {
 		snap.Event(events.DirectoryMissingEvent(snap.Header.Identifier, pathname))
-
 		return false, err
 	}
 
@@ -56,7 +54,7 @@ func snapshotCheckPath(snap *Snapshot, fsc *vfs.Filesystem, pathname string, opt
 	}
 
 	if !file.Stat().Mode().IsRegular() {
-		return false, fmt.Errorf("unexpected vfs entry type: %v", file)
+		return true, nil
 	}
 
 	snap.Event(events.FileEvent(snap.Header.Identifier, pathname))
