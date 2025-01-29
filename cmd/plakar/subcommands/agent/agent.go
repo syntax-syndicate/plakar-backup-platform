@@ -37,13 +37,15 @@ func init() {
 }
 
 func cmd_agent(ctx *appcontext.AppContext, _ *repository.Repository, args []string) (int, error) {
+	var opt_prometheus string
 	var opt_socketPath string
 
 	flags := flag.NewFlagSet("agent", flag.ExitOnError)
+	flags.StringVar(&opt_prometheus, "prometheus", "", "prometheus exporter interface")
 	flags.StringVar(&opt_socketPath, "socket", filepath.Join(ctx.CacheDir, "agent.sock"), "path to socket file")
 	flags.Parse(args)
 
-	daemon, err := agent.NewAgent(ctx, "unix", opt_socketPath)
+	daemon, err := agent.NewAgent(ctx, "unix", opt_socketPath, opt_prometheus)
 	if err != nil {
 		ctx.GetLogger().Error("failed to create agent daemon: %s", err)
 		return 1, err

@@ -6,14 +6,17 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/storage"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -25,9 +28,10 @@ type Agent struct {
 	cancelFunc context.CancelFunc
 	wg         sync.WaitGroup
 	mu         sync.Mutex
+	prometheus string
 }
 
-func NewAgent(ctx *appcontext.AppContext, network string, address string) (*Agent, error) {
+func NewAgent(ctx *appcontext.AppContext, network string, address string, prometheus string) (*Agent, error) {
 	if network != "unix" {
 		return nil, fmt.Errorf("unsupported network: %s", network)
 	}
@@ -39,6 +43,7 @@ func NewAgent(ctx *appcontext.AppContext, network string, address string) (*Agen
 		ctx:        ctx,
 		cancelCtx:  cancelCtx,
 		cancelFunc: cancelFunc,
+		prometheus: prometheus,
 	}
 
 	if _, err := os.Stat(d.socketPath); err == nil {
@@ -132,6 +137,32 @@ func isDisconnectError(err error) bool {
 }
 
 func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.Repository, string, []string) (int, error)) error {
+	if d.prometheus != "" {
+		go func() {
+			// Register metrics with Prometheus
+			http.Handle("/metrics", promhttp.Handler())
+
+			go func() {
+				if err := http.ListenAndServe(d.prometheus, nil); err != nil && err != http.ErrServerClosed {
+					fmt.Printf("Prometheus server failed: %v\n", err)
+				}
+			}()
+
+			// Periodically update metrics (use a ticker instead of nested goroutines)
+			ticker := time.NewTicker(30 * time.Second) // Adjust the period as needed
+			defer ticker.Stop()
+			for {
+				select {
+				case <-d.cancelCtx.Done():
+					return
+				case <-ticker.C:
+					setUpGauge(1) // Update your metrics periodically
+					trackRequest("GET", "200")
+				}
+			}
+		}()
+	}
+
 	for {
 		select {
 		case <-d.cancelCtx.Done():
@@ -240,6 +271,7 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 				var tmp interface{}
 				if err := decoder.Decode(&tmp); err != nil {
 					if isDisconnectError(err) {
+						handleDisconnect()
 						cancel()
 					}
 				}
