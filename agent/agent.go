@@ -267,8 +267,9 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 			defer repo.Close()
 
 			eventsDone := make(chan struct{})
+			eventsChan := clientContext.Events().Listen()
 			go func() {
-				for evt := range clientContext.Events().Listen() {
+				for evt := range eventsChan {
 					serialized, err := events.Serialize(evt)
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "Failed to serialize event: %s\n", err)
