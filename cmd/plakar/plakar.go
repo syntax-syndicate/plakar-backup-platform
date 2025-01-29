@@ -291,11 +291,11 @@ func entryPoint() int {
 					derived = true
 				}
 			}
+			if !derived {
+				fmt.Fprintf(os.Stderr, "%s: could not derive secret: %s\n", flag.CommandLine.Name(), err)
+				os.Exit(1)
+			}
 			ctx.SetSecret(secret)
-		}
-		if !derived {
-			fmt.Fprintf(os.Stderr, "%s: could not derive secret: %s\n", flag.CommandLine.Name(), err)
-			os.Exit(1)
 		}
 	}
 
