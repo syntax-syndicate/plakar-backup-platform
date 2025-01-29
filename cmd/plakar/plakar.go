@@ -260,8 +260,8 @@ func entryPoint() int {
 
 	var secret []byte
 	if !skipPassphrase {
-		derived := false
 		if store.Configuration().Encryption != nil {
+			derived := false
 			envPassphrase := os.Getenv("PLAKAR_PASSPHRASE")
 			if ctx.KeyFromFile == "" {
 				for attempts := 0; attempts < 3; attempts++ {
@@ -291,11 +291,11 @@ func entryPoint() int {
 					derived = true
 				}
 			}
+			if !derived {
+				fmt.Fprintf(os.Stderr, "%s: could not derive secret: %s\n", flag.CommandLine.Name(), err)
+				os.Exit(1)
+			}
 			ctx.SetSecret(secret)
-		}
-		if !derived {
-			fmt.Fprintf(os.Stderr, "%s: could not derive secret: %s\n", flag.CommandLine.Name(), err)
-			os.Exit(1)
 		}
 	}
 
