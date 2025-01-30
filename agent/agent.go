@@ -8,13 +8,14 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/events"
+	"github.com/PlakarKorp/plakar/handlers"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/storage"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -86,7 +87,10 @@ func isDisconnectError(err error) bool {
 	return errors.As(err, &netErr) && netErr.Timeout()
 }
 
-func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.Repository, string, []string) (int, error)) error {
+func (d *Agent) ListenAndServe(handler func(subcommand handlers.Subcommand) (int, error)) error {
+	// var promServerStarted sync.WaitGroup
+	// var promErr error
+
 	if _, err := os.Stat(d.socketPath); err == nil {
 		if !d.checkSocket() {
 			d.Close()
@@ -214,7 +218,7 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 			decoder := msgpack.NewDecoder(conn)
 
 			// Decode the client request
-			var request CommandRequest
+			var request handlers.Subcommand
 			if err := decoder.Decode(&request); err != nil {
 				if isDisconnectError(err) {
 					fmt.Fprintf(os.Stderr, "Client disconnected during initial request\n")
@@ -224,7 +228,7 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 				fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 				return
 			}
-			clientContext.SetSecret(request.RepositorySecret)
+			// clientContext.SetSecret(request.RepositorySecret)
 
 			// Monitor the connection for subsequent disconnection
 			go func() {
@@ -238,19 +242,19 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 				}
 			}()
 
-			store, err := storage.Open(request.Repository)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to open storage: %s\n", err)
-				return
-			}
-			defer store.Close()
+			// store, err := storage.Open(request.Repository)
+			// if err != nil {
+			// 	fmt.Fprintf(os.Stderr, "Failed to open storage: %s\n", err)
+			// 	return
+			// }
+			// defer store.Close()
 
-			repo, err := repository.New(clientContext, store, clientContext.GetSecret())
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to open repository: %s\n", err)
-				return
-			}
-			defer repo.Close()
+			// repo, err := repository.New(clientContext, store, clientContext.GetSecret())
+			// if err != nil {
+			// 	fmt.Fprintf(os.Stderr, "Failed to open repository: %s\n", err)
+			// 	return
+			// }
+			// defer repo.Close()
 
 			eventsDone := make(chan struct{})
 			eventsChan := clientContext.Events().Listen()
@@ -282,7 +286,9 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 				eventsDone <- struct{}{}
 			}()
 
-			status, err := handler(clientContext, repo, request.Cmd, request.Argv)
+			//status, err := handler(clientContext, repo, request.Cmd, request.Argv)
+			status, err := 1, fmt.Errorf("handler not implemented")
+
 			clientContext.Close()
 			<-eventsDone
 			select {
@@ -329,13 +335,69 @@ type Client struct {
 	conn net.Conn
 }
 
+func ExecuteRPC(ctx *appcontext.AppContext, repo *repository.Repository, cmd handlers.Subcommand) (int, error) {
+	client, err := NewClient(filepath.Join(ctx.CacheDir, "agent.sock"))
+	if err != nil {
+		return 1, err
+	}
+	defer client.Close()
+	if status, err := client.SendCommand2(ctx, cmd, repo); err != nil {
+		return status, err
+	}
+
+	// XXX: read packet
+
+	return 0, nil
+}
+
 func NewClient(socketPath string) (*Client, error) {
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to daemon: %w", err)
 	}
-
 	return &Client{conn: conn}, nil
+}
+
+func (c *Client) SendCommand2(ctx *appcontext.AppContext, cmd handlers.Subcommand, repo *repository.Repository) (int, error) {
+	v := struct {
+		Name       string
+		Subcommand handlers.Subcommand
+	}{
+		Name:       cmd.Name(),
+		Subcommand: cmd,
+	}
+
+	encoder := msgpack.NewEncoder(c.conn)
+	decoder := msgpack.NewDecoder(c.conn)
+
+	if err := encoder.Encode(v); err != nil {
+		return 1, err
+	}
+
+	var response Packet
+	for {
+		if err := decoder.Decode(&response); err != nil {
+			return 1, fmt.Errorf("failed to decode response: %w", err)
+		}
+		switch response.Type {
+		case "stdout":
+			fmt.Printf("%s", string(response.Data))
+		case "stderr":
+			fmt.Fprintf(os.Stderr, "%s", string(response.Data))
+		case "event":
+			evt, err := events.Deserialize(response.Data)
+			if err != nil {
+				return 1, fmt.Errorf("failed to deserialize event: %w", err)
+			}
+			ctx.Events().Send(evt)
+		case "exit":
+			var err error
+			if response.Err != "" {
+				err = fmt.Errorf("%s", response.Err)
+			}
+			return response.ExitCode, err
+		}
+	}
 }
 
 func (c *Client) SendCommand(ctx *appcontext.AppContext, repo string, cmd string, argv []string) (int, error) {
@@ -384,4 +446,44 @@ func (c *Client) SendCommand(ctx *appcontext.AppContext, repo string, cmd string
 
 func (c *Client) Close() error {
 	return c.conn.Close()
+}
+
+func (c *Client) ExecuteRPC(handler handlers.Subcommand) (int, error) {
+	encoder := msgpack.NewEncoder(c.conn)
+	decoder := msgpack.NewDecoder(c.conn)
+
+	request := handler
+
+	//if ctx.GetSecret() != nil {
+	//	request.RepositorySecret = ctx.GetSecret()
+	//}
+	if err := encoder.Encode(&request); err != nil {
+		return 1, fmt.Errorf("failed to encode command: %w", err)
+	}
+
+	var response Packet
+	for {
+		if err := decoder.Decode(&response); err != nil {
+			return 1, fmt.Errorf("failed to decode response: %w", err)
+		}
+		switch response.Type {
+		case "stdout":
+			fmt.Printf("%s", string(response.Data))
+		case "stderr":
+			fmt.Fprintf(os.Stderr, "%s", string(response.Data))
+		case "event":
+			// evt, err := events.Deserialize(response.Data)
+			// if err != nil {
+			// 	return 1, fmt.Errorf("failed to deserialize event: %w", err)
+			// }
+			// XXX: removed
+			// handler.GetAppContext().Events().Send(evt)
+		case "exit":
+			var err error
+			if response.Err != "" {
+				err = fmt.Errorf("%s", response.Err)
+			}
+			return response.ExitCode, err
+		}
+	}
 }

@@ -26,6 +26,7 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
+	"github.com/PlakarKorp/plakar/handlers"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/alecthomas/chroma/formatters"
 	"github.com/alecthomas/chroma/lexers"
@@ -34,6 +35,29 @@ import (
 
 func init() {
 	subcommands.Register("cat", cmd_cat)
+	subcommands.Register2("cat", parse_cmd_cat)
+}
+
+func parse_cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (handlers.Subcommand, error) {
+	var opt_nodecompress bool
+	var opt_highlight bool
+
+	flags := flag.NewFlagSet("cat", flag.ExitOnError)
+	flags.BoolVar(&opt_nodecompress, "no-decompress", false, "do not try to decompress output")
+	flags.BoolVar(&opt_highlight, "highlight", false, "highlight output")
+	flags.Parse(args)
+
+	if flags.NArg() == 0 {
+		return nil, fmt.Errorf("at least one parameter is required")
+	}
+
+	return &handlers.Cat{
+		RepositoryLocation: repo.Location(),
+		RepositorySecret:   ctx.GetSecret(),
+		NoDecompress:       opt_nodecompress,
+		Highlight:          opt_highlight,
+		Paths:              flags.Args(),
+	}, nil
 }
 
 func cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {

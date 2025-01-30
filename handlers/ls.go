@@ -1,20 +1,4 @@
-/*
- * Copyright (c) 2021 Gilles Chehade <gilles@poolp.org>
- *
- * Permission to use, copy, modify, and distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- */
-
-package ls
+package handlers
 
 import (
 	"encoding/hex"
@@ -27,58 +11,34 @@ import (
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/handlers"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/dustin/go-humanize"
 )
 
-func init() {
-	subcommands.Register("ls", cmd_ls)
-	subcommands.Register2("ls", parse_cmd_ls)
+type Ls struct {
+	RepositoryLocation string
+	RepositorySecret   []byte
+
+	Recursive   bool
+	Tag         string
+	DisplayUUID bool
+	Paths       []string
 }
 
-func parse_cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (handlers.Subcommand, error) {
-	var opt_recursive bool
-	var opt_tag string
-	var opt_uuid bool
-
-	flags := flag.NewFlagSet("ls", flag.ExitOnError)
-	flags.BoolVar(&opt_uuid, "uuid", false, "display uuid instead of short ID")
-	flags.StringVar(&opt_tag, "tag", "", "filter by tag")
-	flags.BoolVar(&opt_recursive, "recursive", false, "recursive listing")
-	flags.Parse(args)
-
-	return &handlers.Ls{
-		RepositoryLocation: repo.Location(),
-		RepositorySecret:   ctx.GetSecret(),
-		Recursive:          opt_recursive,
-		Tag:                opt_tag,
-		DisplayUUID:        opt_uuid,
-		Paths:              flags.Args(),
-	}, nil
+func (cmd *Ls) Name() string {
+	return "ls"
 }
 
-func cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
-	var opt_recursive bool
-	var opt_tag string
-	var opt_uuid bool
-
-	flags := flag.NewFlagSet("ls", flag.ExitOnError)
-	flags.BoolVar(&opt_uuid, "uuid", false, "display uuid instead of short ID")
-	flags.StringVar(&opt_tag, "tag", "", "filter by tag")
-	flags.BoolVar(&opt_recursive, "recursive", false, "recursive listing")
-	flags.Parse(args)
-
-	if flags.NArg() == 0 {
-		list_snapshots(ctx, repo, opt_uuid, opt_tag)
+func (cmd *Ls) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+	if len(cmd.Paths) == 0 {
+		list_snapshots(ctx, repo, cmd.DisplayUUID, cmd.Tag)
 		return 0, nil
 	}
 
-	if err := list_snapshot(ctx, repo, flags.Arg(0), opt_recursive); err != nil {
+	if err := list_snapshot(ctx, repo, cmd.Paths[0], cmd.Recursive); err != nil {
 		log.Println("error:", err)
 		return 1, err
 	}

@@ -30,9 +30,10 @@ var (
 
 func init() {
 	// Register metrics with Prometheus
-	prometheus.MustRegister(requestsTotal)
-	prometheus.MustRegister(upGauge)
-	prometheus.MustRegister(disconnectsTotal)
+	// XXX: Removed during mig
+	// prometheus.MustRegister(requestsTotal)
+	// prometheus.MustRegister(upGauge)
+	// prometheus.MustRegister(disconnectsTotal)
 }
 
 func trackRequest(method, status string) {

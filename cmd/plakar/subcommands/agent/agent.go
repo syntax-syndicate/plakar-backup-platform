@@ -24,11 +24,28 @@ import (
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/handlers"
 	"github.com/PlakarKorp/plakar/repository"
 )
 
 func init() {
 	subcommands.Register("agent", cmd_agent)
+	subcommands.Register2("agent", parse_cmd_agent)
+}
+
+func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (handlers.Subcommand, error) {
+	var opt_prometheus string
+	var opt_socketPath string
+
+	flags := flag.NewFlagSet("agent", flag.ExitOnError)
+	flags.StringVar(&opt_prometheus, "prometheus", "", "prometheus exporter interface")
+	flags.StringVar(&opt_socketPath, "socket", filepath.Join(ctx.CacheDir, "agent.sock"), "path to socket file")
+	flags.Parse(args)
+
+	return &handlers.Agent{
+		Prometheus: opt_prometheus,
+		SocketPath: opt_socketPath,
+	}, nil
 }
 
 func cmd_agent(ctx *appcontext.AppContext, _ *repository.Repository, args []string) (int, error) {
@@ -47,15 +64,15 @@ func cmd_agent(ctx *appcontext.AppContext, _ *repository.Repository, args []stri
 	}
 	defer daemon.Close()
 
-	if err := daemon.ListenAndServe(handleRPC); err != nil {
-		return 1, err
-	}
+	// if err := daemon.ListenAndServe(handleRPC); err != nil {
+	// 	return 1, err
+	// }
 
 	log.Println("Server gracefully stopped")
 
 	return 0, nil
 }
 
-func handleRPC(clientContext *appcontext.AppContext, repo *repository.Repository, command string, args []string) (int, error) {
-	return subcommands.Execute(clientContext, repo, command, args, true)
-}
+// func handleRPC(subcommand handlers.Subcommand) (int, error) {
+// 	return subcommands.Execute(subcommand)
+// }

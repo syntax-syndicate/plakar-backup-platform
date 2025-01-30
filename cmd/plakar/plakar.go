@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
@@ -234,10 +235,14 @@ func entryPoint() int {
 
 	// these commands need to be ran before the repository is opened
 	if command == "agent" || command == "create" || command == "version" || command == "stdio" || command == "help" || command == "id" {
-		retval, err := subcommands.Execute(ctx, nil, command, args, true)
+		cmd, err := subcommands.Parse(ctx, nil, command, args, opt_agentless)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-			return retval
+			return 1
+		}
+		retval, err := cmd.Execute(ctx, nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		}
 		return retval
 	}
@@ -318,7 +323,19 @@ func entryPoint() int {
 
 	// commands below all operate on an open repository
 	t0 := time.Now()
-	status, err := subcommands.Execute(ctx, repo, command, args, opt_agentless)
+	cmd, err := subcommands.Parse(ctx, repo, command, args, opt_agentless)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+		return 1
+	}
+
+	var status int
+	if opt_agentless {
+		status, err = cmd.Execute(ctx, repo)
+	} else {
+		status, err = agent.ExecuteRPC(ctx, repo, cmd)
+	}
+
 	t1 := time.Since(t0)
 
 	if err != nil {
