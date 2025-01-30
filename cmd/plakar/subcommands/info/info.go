@@ -18,6 +18,7 @@ package info
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
@@ -282,7 +283,20 @@ func info_state(repo *repository.Repository, args []string) error {
 				log.Fatal(err)
 			}
 
-			st, err := state.DeserializeStream(rawStateRd)
+			// Temporary scan cache to reconstruct that state.
+			var identifier objects.Checksum
+			n, err := rand.Read(identifier[:])
+			if err != nil {
+				return err
+			}
+			if n != len(identifier) {
+				return io.ErrShortWrite
+			}
+
+			scanCache, err := repo.AppContext().GetCache().Scan(identifier)
+			defer scanCache.Close()
+
+			st, err := state.FromStream(rawStateRd, scanCache)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -296,45 +310,26 @@ func info_state(repo *repository.Repository, args []string) error {
 				}
 			}
 
-			for snapshot, subpart := range st.Snapshots {
-				fmt.Printf("snapshot %x : packfile %x, offset %d, length %d\n",
-					snapshot,
-					subpart.Packfile,
-					subpart.Offset,
-					subpart.Length)
+			printBlobs := func(name string, Type packfile.Type) {
+				for snapshot, err := range st.ListObjectsOfType(Type) {
+					if err != nil {
+						fmt.Printf("Could not fetch blob entry for %s\n", name)
+					} else {
+						fmt.Printf("%s %x : packfile %x, offset %d, length %d\n",
+							name,
+							snapshot.Blob,
+							snapshot.Location.Packfile,
+							snapshot.Location.Offset,
+							snapshot.Location.Length)
+					}
+				}
 			}
 
-			for chunk, subpart := range st.Chunks {
-				fmt.Printf("chunk %x : packfile %x, offset %d, length %d\n",
-					chunk,
-					subpart.Packfile,
-					subpart.Offset,
-					subpart.Length)
-			}
-
-			for object, subpart := range st.Objects {
-				fmt.Printf("object %x : packfile %x, offset %d, length %d\n",
-					object,
-					subpart.Packfile,
-					subpart.Offset,
-					subpart.Length)
-			}
-
-			for file, subpart := range st.VFS {
-				fmt.Printf("vfs node %x : packfile %x, offset %d, length %d\n",
-					file,
-					subpart.Packfile,
-					subpart.Offset,
-					subpart.Length)
-			}
-
-			for data, subpart := range st.Datas {
-				fmt.Printf("data %x : packfile %x, offset %d, length %d\n",
-					data,
-					subpart.Packfile,
-					subpart.Offset,
-					subpart.Length)
-			}
+			printBlobs("snapshot", packfile.TYPE_SNAPSHOT)
+			printBlobs("chunk", packfile.TYPE_CHUNK)
+			printBlobs("object", packfile.TYPE_OBJECT)
+			printBlobs("file", packfile.TYPE_VFS)
+			printBlobs("data", packfile.TYPE_DATA)
 		}
 	}
 	return nil
