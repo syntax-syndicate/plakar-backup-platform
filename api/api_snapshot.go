@@ -205,7 +205,7 @@ func (signer SnapshotReaderURLSigner) VerifyMiddleware(next http.Handler) http.H
 
 		snapshotID32, path, err := SnapshotPathParam(r, lrepository, "snapshot_path")
 		if err != nil {
-			handleError(w, parameterError("snapshot_path", InvalidArgument, err))
+			handleError(w, r, parameterError("snapshot_path", InvalidArgument, err))
 			return
 		}
 		snapshotId := fmt.Sprintf("%0x", snapshotID32[:])
@@ -219,24 +219,24 @@ func (signer SnapshotReaderURLSigner) VerifyMiddleware(next http.Handler) http.H
 
 		if err != nil {
 			if errors.Is(err, jwt.ErrTokenExpired) {
-				handleError(w, authError("token expired"))
+				handleError(w, r, authError("token expired"))
 				return
 			}
-			handleError(w, authError(fmt.Sprintf("unable to parse JWT token: %v", err)))
+			handleError(w, r, authError(fmt.Sprintf("unable to parse JWT token: %v", err)))
 			return
 		}
 
 		if claims, ok := jwtToken.Claims.(*SnapshotSignedURLClaims); ok {
 			if claims.Path != path {
-				handleError(w, authError("invalid URL path"))
+				handleError(w, r, authError("invalid URL path"))
 				return
 			}
 			if claims.SnapshotID != snapshotId {
-				handleError(w, authError("invalid URL snapshot"))
+				handleError(w, r, authError("invalid URL snapshot"))
 				return
 			}
 		} else {
-			handleError(w, authError("invalid URL signature"))
+			handleError(w, r, authError("invalid URL signature"))
 			return
 		}
 
