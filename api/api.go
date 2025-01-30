@@ -125,4 +125,7 @@ func SetupRoutes(server *http.ServeMux, repo *repository.Repository, token strin
 	server.Handle("GET /api/snapshot/vfs/{snapshot_path...}", authToken(APIView(snapshotVFSBrowse)))
 	server.Handle("GET /api/snapshot/vfs/children/{snapshot_path...}", authToken(APIView(snapshotVFSChildren)))
 	server.Handle("GET /api/snapshot/vfs/errors/{snapshot_path...}", authToken(APIView(snapshotVFSErrors)))
+
+	server.Handle("POST /api/snapshot/vfs/downloader/{snapshot_path...}", authToken(APIView(snapshotVFSDownloader)))
+	server.Handle("GET /api/snapshot/vfs/downloader-sign-url/{id}", APIView(snapshotVFSDownloaderSigned))
 }

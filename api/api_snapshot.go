@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -20,7 +21,20 @@ import (
 	"github.com/alecthomas/chroma/lexers"
 	"github.com/alecthomas/chroma/styles"
 	"github.com/golang-jwt/jwt/v5"
+	"go.omarpolo.com/ttlmap"
 )
+
+type downloadSignedUrl struct {
+	snapshotID [32]byte
+	rebase     bool
+	files      []string
+}
+
+var downloadSignedUrls = ttlmap.New[string, downloadSignedUrl](1 * time.Hour)
+
+func init() {
+	downloadSignedUrls.AutoExpire()
+}
 
 func snapshotHeader(w http.ResponseWriter, r *http.Request) error {
 	snapshotID32, err := PathParamToID(r, "snapshot")
@@ -444,4 +458,89 @@ func snapshotSearch(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	return json.NewEncoder(w).Encode(items)
+}
+
+type DownloadItem struct {
+	Pathname string `json:"pathname"`
+}
+type DownloadQuery struct {
+	Name   string         `json:"name"`
+	Items  []DownloadItem `json:"items"`
+	Rebase bool           `json:"rebase,omitempty"`
+}
+
+func randomID(n int) string {
+	alphabet := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = alphabet[rand.Intn(len(alphabet))]
+	}
+	return string(b)
+}
+
+func snapshotVFSDownloader(w http.ResponseWriter, r *http.Request) error {
+	snapshotID32, _, err := SnapshotPathParam(r, lrepository, "snapshot_path")
+	if err != nil {
+		return err
+	}
+
+	var query DownloadQuery
+	if err := json.NewDecoder(r.Body).Decode(&query); err != nil {
+		return parameterError("BODY", InvalidArgument, err)
+	}
+
+	if _, err = snapshot.Load(lrepository, snapshotID32); err != nil {
+		return nil
+	}
+
+	for {
+		id := randomID(32)
+		if _, ok := downloadSignedUrls.Get(id); ok {
+			continue
+		}
+
+		url := downloadSignedUrl{
+			snapshotID: snapshotID32,
+			rebase:     query.Rebase,
+		}
+
+		for _, item := range query.Items {
+			url.files = append(url.files, item.Pathname)
+		}
+
+		downloadSignedUrls.Add(id, url)
+		res := struct {
+			Id string `json:"id"`
+		}{id}
+
+		json.NewEncoder(w).Encode(&res)
+		return nil
+	}
+}
+
+func snapshotVFSDownloaderSigned(w http.ResponseWriter, r *http.Request) error {
+	id := r.PathValue("id")
+
+	link, ok := downloadSignedUrls.Get(id)
+	if !ok {
+		return &ApiError{
+			HttpCode: 404,
+			ErrCode:  "signed-link-not-found",
+			Message:  "Signed Link Not Found",
+		}
+	}
+
+	snap, err := snapshot.Load(lrepository, link.snapshotID)
+	if err != nil {
+		return err
+	}
+
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		name = fmt.Sprintf("snapshot-%x-%s", link.snapshotID[:4], time.Now().Format("2006-01-02-15-04-05"))
+	}
+
+	format := r.URL.Query().Get("format")
+
+	return snap.Archive(w, format, link.files, link.rebase)
 }
