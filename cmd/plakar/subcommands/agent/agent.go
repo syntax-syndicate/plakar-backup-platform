@@ -18,6 +18,7 @@ package agent
 
 import (
 	"flag"
+	"log"
 	"path/filepath"
 
 	"github.com/PlakarKorp/plakar/agent"
@@ -31,22 +32,30 @@ func init() {
 }
 
 func cmd_agent(ctx *appcontext.AppContext, _ *repository.Repository, args []string) (int, error) {
-	var opt_socketPath string
+	var opt_prometheus string
+
+	opt_socketPath := filepath.Join(ctx.CacheDir, "agent.sock")
 
 	flags := flag.NewFlagSet("agent", flag.ExitOnError)
-	flags.StringVar(&opt_socketPath, "socket", filepath.Join(ctx.CacheDir, "agent.sock"), "path to socket file")
+	flags.StringVar(&opt_prometheus, "prometheus", "", "prometheus exporter interface")
 	flags.Parse(args)
 
-	daemon, err := agent.NewDaemon(ctx, "unix", opt_socketPath)
+	daemon, err := agent.NewAgent(ctx, "unix", opt_socketPath, opt_prometheus)
 	if err != nil {
 		ctx.GetLogger().Error("failed to create agent daemon: %s", err)
 		return 1, err
 	}
 	defer daemon.Close()
 
-	if err := daemon.ListenAndServe(); err != nil {
-		ctx.GetLogger().Error("%s", err)
+	if err := daemon.ListenAndServe(handleRPC); err != nil {
 		return 1, err
 	}
+
+	log.Println("Server gracefully stopped")
+
 	return 0, nil
+}
+
+func handleRPC(clientContext *appcontext.AppContext, repo *repository.Repository, command string, args []string) (int, error) {
+	return subcommands.Execute(clientContext, repo, command, args, true)
 }

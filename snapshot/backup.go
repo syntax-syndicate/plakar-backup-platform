@@ -19,6 +19,7 @@ import (
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
+	"github.com/PlakarKorp/plakar/repository/state"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/gabriel-vasile/mimetype"
@@ -108,7 +109,6 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 		nDirectories := uint64(0)
 		size := uint64(0)
 		for _record := range scanner {
-
 			if backupCtx.aborted.Load() {
 				break
 			}
@@ -177,11 +177,11 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	snap.Event(events.StartEvent())
 	defer snap.Event(events.DoneEvent())
 
-	sc2, err := snap.AppContext().GetCache().Scan(snap.Header.Identifier)
+	imp, err := importer.NewImporter(scanDir)
 	if err != nil {
 		return err
 	}
-	defer sc2.Close()
+	defer imp.Close()
 
 	vfsCache, err := snap.AppContext().GetCache().VFS(imp.Type(), imp.Origin())
 	if err != nil {
@@ -227,7 +227,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 
 	filestore := caching.DBStore[string, vfs.Entry]{
 		Prefix: "__path__",
-		Cache:  sc2,
+		Cache:  snap.scanCache,
 	}
 	backupCtx.fileidx, err = btree.New(&filestore, vfs.PathCmp, 50)
 	if err != nil {
@@ -236,7 +236,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 
 	errstore := caching.DBStore[string, ErrorItem]{
 		Prefix: "__error__",
-		Cache:  sc2,
+		Cache:  snap.scanCache,
 	}
 	backupCtx.erridx, err = btree.New(&errstore, strings.Compare, 50)
 	if err != nil {
@@ -255,6 +255,12 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	/* scanner */
 	scannerWg := sync.WaitGroup{}
 	for _record := range filesChannel {
+		select {
+		case <-snap.AppContext().GetContext().Done():
+			return snap.AppContext().GetContext().Err()
+		default:
+		}
+
 		backupCtx.maxConcurrency <- true
 		scannerWg.Add(1)
 		go func(record importer.ScanRecord) {
@@ -406,7 +412,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			}
 
 			// Record the checksum of the FileEntry in the cache
-			err = sc2.PutChecksum(record.Pathname, fileEntryChecksum)
+			err = snap.scanCache.PutChecksum(record.Pathname, fileEntryChecksum)
 			if err != nil {
 				backupCtx.recordError(record.Pathname, err)
 				return
@@ -431,6 +437,11 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	}
 
 	for fileiter.Next() {
+		select {
+		case <-snap.AppContext().GetContext().Done():
+			return snap.AppContext().GetContext().Err()
+		default:
+		}
 		dirPath, dirEntry := fileiter.Current()
 		if !dirEntry.Stat().IsDir() {
 			continue
@@ -456,7 +467,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			}
 
 			if childEntry.Stat().Mode().IsDir() {
-				data, err := sc2.GetSummary(childPath)
+				data, err := snap.scanCache.GetSummary(childPath)
 				if err != nil {
 					continue
 				}
@@ -519,7 +530,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			return err
 		}
 
-		err = sc2.PutSummary(dirPath, serializedSummary)
+		err = snap.scanCache.PutSummary(dirPath, serializedSummary)
 		if err != nil {
 			backupCtx.recordError(dirPath, err)
 			return err
@@ -797,14 +808,20 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 		for blobChecksum := range packer.Blobs[Type] {
 			for idx, blob := range packer.Packfile.Index {
 				if blob.Checksum == blobChecksum && blob.Type == Type {
-					snap.Repository().SetPackfileForBlob(Type, checksum,
-						blobChecksum,
-						packer.Packfile.Index[idx].Offset,
-						packer.Packfile.Index[idx].Length)
-					snap.stateDelta.SetPackfileForBlob(Type, checksum,
-						blobChecksum,
-						packer.Packfile.Index[idx].Offset,
-						packer.Packfile.Index[idx].Length)
+					delta := state.DeltaEntry{
+						Type: blob.Type,
+						Blob: blobChecksum,
+						Location: state.Location{
+							Packfile: checksum,
+							Offset:   packer.Packfile.Index[idx].Offset,
+							Length:   packer.Packfile.Index[idx].Length,
+						},
+					}
+
+					if err := snap.deltaState.PutDelta(delta); err != nil {
+						return err
+					}
+
 					break
 				}
 			}
@@ -815,7 +832,6 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 }
 
 func (snap *Snapshot) Commit() error {
-
 	repo := snap.repository
 
 	serializedHdr, err := snap.Header.Serialize()
@@ -838,17 +854,27 @@ func (snap *Snapshot) Commit() error {
 	close(snap.packerChan)
 	<-snap.packerChanDone
 
-	var serializedRepositoryIndex bytes.Buffer
-	err = snap.stateDelta.SerializeStream(&serializedRepositoryIndex)
+	stateDelta := snap.buildSerializedDeltaState()
+	err = repo.PutState(snap.Header.Identifier, stateDelta)
 	if err != nil {
-		snap.Logger().Warn("could not serialize repository index: %s", err)
-		return err
-	}
-	err = repo.PutState(snap.Header.Identifier, &serializedRepositoryIndex)
-	if err != nil {
+		snap.Logger().Warn("Failed to push the state to the repository %s", err)
 		return err
 	}
 
 	snap.Logger().Trace("snapshot", "%x: Commit()", snap.Header.GetIndexShortID())
 	return nil
+}
+
+func (snap *Snapshot) buildSerializedDeltaState() io.Reader {
+	pr, pw := io.Pipe()
+
+	/* By using a pipe and a goroutine we bound the max size in memory. */
+	go func() {
+		defer pw.Close()
+		if err := snap.deltaState.SerializeToStream(pw); err != nil {
+			pw.CloseWithError(err)
+		}
+	}()
+
+	return pr
 }

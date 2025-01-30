@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
@@ -40,33 +39,21 @@ func init() {
 func cmd_create(ctx *appcontext.AppContext, _ *repository.Repository, args []string) (int, error) {
 	var opt_noencryption bool
 	var opt_nocompression bool
-	var opt_hashing string
-	var opt_compression string
 
 	flags := flag.NewFlagSet("create", flag.ExitOnError)
 	flags.BoolVar(&opt_noencryption, "no-encryption", false, "disable transparent encryption")
 	flags.BoolVar(&opt_nocompression, "no-compression", false, "disable transparent compression")
-	flags.StringVar(&opt_hashing, "hashing", "SHA256", "swap the hashing function")
-	flags.StringVar(&opt_compression, "compression", "LZ4", "swap the compression function")
 	flags.Parse(args)
 
 	storageConfiguration := storage.NewConfiguration()
 	if opt_nocompression {
 		storageConfiguration.Compression = nil
 	} else {
-		compressionConfiguration, err := compression.LookupDefaultConfiguration(strings.ToUpper(opt_compression))
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s: %s\n", flag.CommandLine.Name(), flags.Name(), err)
-			return 1, err
-		}
+		compressionConfiguration := compression.DefaultConfiguration()
 		storageConfiguration.Compression = compressionConfiguration
 	}
 
-	hashingConfiguration, err := hashing.LookupDefaultConfiguration(strings.ToUpper(opt_hashing))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s: %s\n", flag.CommandLine.Name(), flags.Name(), err)
-		return 1, err
-	}
+	hashingConfiguration := hashing.DefaultConfiguration()
 	storageConfiguration.Hashing = *hashingConfiguration
 
 	if !opt_noencryption {
@@ -91,9 +78,12 @@ func cmd_create(ctx *appcontext.AppContext, _ *repository.Repository, args []str
 			passphrase = []byte(ctx.KeyFromFile)
 		}
 
+		if len(passphrase) == 0 {
+			return 1, fmt.Errorf("can't encrypt the repository with an empty passphrase")
+		}
+
 		encryptionKey, err := encryption.BuildSecretFromPassphrase(passphrase)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s: %s\n", flag.CommandLine.Name(), flags.Name(), err)
 			return 1, err
 		}
 
@@ -107,19 +97,16 @@ func cmd_create(ctx *appcontext.AppContext, _ *repository.Repository, args []str
 	case 0:
 		repo, err := storage.Create(filepath.Join(ctx.HomeDir, ".plakar"), *storageConfiguration)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s: %s\n", flag.CommandLine.Name(), flags.Name(), err)
 			return 1, err
 		}
 		repo.Close()
 	case 1:
 		repo, err := storage.Create(flags.Arg(0), *storageConfiguration)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s: %s\n", flag.CommandLine.Name(), flags.Name(), err)
 			return 1, err
 		}
 		repo.Close()
 	default:
-		fmt.Fprintf(os.Stderr, "%s: too many parameters\n", flag.CommandLine.Name())
 		return 1, fmt.Errorf("%s: too many parameters", flag.CommandLine.Name())
 	}
 

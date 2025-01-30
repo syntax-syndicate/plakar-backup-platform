@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"encoding/base64"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -65,7 +66,8 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 	flags.StringVar(&opt_excludes, "excludes", "", "file containing a list of exclusions")
 	flags.Var(&opt_exclude, "exclude", "file containing a list of exclusions")
 	flags.BoolVar(&opt_quiet, "quiet", false, "suppress output")
-	flags.BoolVar(&opt_stdio, "stdio", false, "output one line per file to stdout instead of the default interactive output")
+	opt_stdio = true
+	//flags.BoolVar(&opt_stdio, "stdio", false, "output one line per file to stdout instead of the default interactive output")
 	flags.Parse(args)
 
 	for _, item := range opt_exclude {
@@ -138,8 +140,7 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 	ep := startEventsProcessor(ctx, imp.Root(), opt_stdio, opt_quiet)
 	if err := snap.Backup(scanDir, imp, opts); err != nil {
 		ep.Close()
-		ctx.GetLogger().Error("failed to create snapshot: %s", err)
-		return 1, err
+		return 1, fmt.Errorf("failed to create snapshot: %w", err)
 	}
 	ep.Close()
 
