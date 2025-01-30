@@ -79,7 +79,7 @@ func cmd_create(ctx *appcontext.AppContext, _ *repository.Repository, args []str
 		}
 
 		if len(passphrase) == 0 {
-			return 1, fmt.Errorf("can't derive repository secret from empty passphrase")
+			return 1, fmt.Errorf("can't encrypt the repository with an empty passphrase")
 		}
 
 		encryptionKey, err := encryption.BuildSecretFromPassphrase(passphrase)
