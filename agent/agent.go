@@ -14,6 +14,7 @@ import (
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/scheduler"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vmihailenco/msgpack/v5"
@@ -28,6 +29,7 @@ type Agent struct {
 	wg         sync.WaitGroup
 	mu         sync.Mutex
 	prometheus string
+	sched      *scheduler.Scheduler
 }
 
 func NewAgent(ctx *appcontext.AppContext, network string, address string, prometheus string) (*Agent, error) {
@@ -36,6 +38,9 @@ func NewAgent(ctx *appcontext.AppContext, network string, address string, promet
 	}
 
 	cancelCtx, cancelFunc := context.WithCancel(context.Background())
+
+	sched := scheduler.NewScheduler(ctx, ctx.Configuration.Agent.Tasks)
+	go sched.Run()
 
 	// Create the Agent without binding the socket
 	d := &Agent{
