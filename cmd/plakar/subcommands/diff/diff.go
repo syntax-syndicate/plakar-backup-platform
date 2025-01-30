@@ -38,7 +38,7 @@ func init() {
 	subcommands.Register("diff", cmd_diff)
 }
 
-func cmd_diff(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_diff(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	var opt_highlight bool
 	flags := flag.NewFlagSet("diff", flag.ExitOnError)
 	flags.BoolVar(&opt_highlight, "highlight", false, "highlight output")
@@ -91,7 +91,7 @@ func cmd_diff(ctx *appcontext.AppContext, repo *repository.Repository, args []st
 	} else {
 		fmt.Printf("%s", diff)
 	}
-	return 0
+	return 0, nil
 }
 
 func diff_filesystems(snap1 *snapshot.Snapshot, snap2 *snapshot.Snapshot) (string, error) {

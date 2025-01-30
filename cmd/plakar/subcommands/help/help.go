@@ -36,7 +36,7 @@ func init() {
 	subcommands.Register("help", cmd_help)
 }
 
-func cmd_help(ctx *appcontext.AppContext, _ *repository.Repository, args []string) int {
+func cmd_help(ctx *appcontext.AppContext, _ *repository.Repository, args []string) (int, error) {
 	var opt_style string
 	flags := flag.NewFlagSet("help", flag.ExitOnError)
 	flags.StringVar(&opt_style, "style", "dracula", "style to use")
@@ -47,13 +47,13 @@ func cmd_help(ctx *appcontext.AppContext, _ *repository.Repository, args []strin
 		for _, command := range subcommands.List() {
 			fmt.Fprintf(os.Stderr, "  %s\n", command)
 		}
-		return 0
+		return 0, nil
 	}
 
 	content, err := docs.ReadFile(fmt.Sprintf("docs/%s.md", flags.Args()[0]))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", flags.Args()[0])
-		return 0
+		return 1, err
 	}
 
 	r, err := glamour.NewTermRenderer(
@@ -62,17 +62,17 @@ func cmd_help(ctx *appcontext.AppContext, _ *repository.Repository, args []strin
 	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create renderer: %s\n", err)
-		return 1
+		return 1, err
 	}
 
 	out, err := r.RenderBytes(content)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to render: %s\n", err)
-		return 1
+		return 1, err
 	}
 	fmt.Print(string(out))
 
-	return 1
+	return 1, err
 }
 
 // to rebuild documentation, run:

@@ -10,7 +10,6 @@ import (
 
 	"github.com/PlakarKorp/plakar/compression"
 	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/repository/state"
 	"github.com/PlakarKorp/plakar/snapshot/header"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/vmihailenco/msgpack/v5"
@@ -22,7 +21,6 @@ func init() {
 
 type mockedBackendBehavior struct {
 	statesChecksums    []objects.Checksum
-	state              *state.State
 	header             any
 	packfilesChecksums []objects.Checksum
 	packfile           string
@@ -31,99 +29,32 @@ type mockedBackendBehavior struct {
 var behaviors = map[string]mockedBackendBehavior{
 	"default": {
 		statesChecksums:    nil,
-		state:              nil,
 		header:             "blob data",
 		packfilesChecksums: nil,
 		packfile:           `{"test": "data"}`,
 	},
 	"oneState": {
-		statesChecksums: []objects.Checksum{{0x01}, {0x02}, {0x03}, {0x04}},
-		state: &state.State{
-			Metadata: state.Metadata{
-				Version:   1,
-				Timestamp: time.Date(2025, 1, 3, 0, 0, 0, 0, time.UTC),
-				Aggregate: true,
-				Extends:   []objects.Checksum{{0x01}, {0x02}, {0x03}},
-			},
-			DeletedSnapshots: map[objects.Checksum]time.Time{
-				{0x7b}: time.Unix(1697045400, 0), // Example timestamp
-				{0xc8}: time.Unix(1697046000, 0),
-			},
-			Chunks: map[objects.Checksum]state.Location{
-				{0x01}: {Packfile: objects.Checksum{0x01}, Offset: 10, Length: 500},
-				{0x02}: {Packfile: objects.Checksum{0x02}, Offset: 20, Length: 600},
-			},
-			Snapshots: map[objects.Checksum]state.Location{
-				{0x01}: {Packfile: objects.Checksum{0x01}, Offset: 0, Length: 9},
-				{0x02}: {Packfile: objects.Checksum{0x02}, Offset: 0, Length: 6},
-				{0x03}: {Packfile: objects.Checksum{0x03}, Offset: 0, Length: 3},
-				{0x04}: {Packfile: objects.Checksum{0x04}, Offset: 0, Length: 2},
-			},
-			VFS: map[objects.Checksum]state.Location{
-				{0x00}: {Packfile: objects.Checksum{0x00}, Offset: 0, Length: 9},
-				{0x01}: {Packfile: objects.Checksum{0x01}, Offset: 0, Length: 9},
-			},
-		},
+		statesChecksums:    []objects.Checksum{{0x01}, {0x02}, {0x03}, {0x04}},
 		header:             header.Header{Timestamp: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC), Identifier: [32]byte{0x1}, Root: objects.Checksum{0x01}},
 		packfilesChecksums: []objects.Checksum{{0x04}, {0x05}, {0x06}},
 	},
 	"oneSnapshot": {
-		statesChecksums: []objects.Checksum{{0x01}, {0x02}, {0x03}},
-		state: &state.State{
-			Metadata: state.Metadata{
-				Version:   1,
-				Timestamp: time.Date(2025, 1, 3, 0, 0, 0, 0, time.UTC),
-				Aggregate: true,
-				Extends:   []objects.Checksum{{0x01}, {0x02}, {0x03}},
-			},
-			DeletedSnapshots: map[objects.Checksum]time.Time{
-				{0x7b}: time.Unix(1697045400, 0), // Example timestamp
-				{0xc8}: time.Unix(1697046000, 0),
-			},
-			Chunks: map[objects.Checksum]state.Location{
-				{0x01}: {Packfile: objects.Checksum{0x01}, Offset: 10, Length: 500},
-				{0x02}: {Packfile: objects.Checksum{0x02}, Offset: 20, Length: 600},
-			},
-			Snapshots: map[objects.Checksum]state.Location{
-				{0x01}: {Packfile: objects.Checksum{0x01}, Offset: 0, Length: 9},
-			},
-		},
+		statesChecksums:    []objects.Checksum{{0x01}, {0x02}, {0x03}},
 		header:             header.Header{Timestamp: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC), Identifier: [32]byte{0x1}},
 		packfilesChecksums: []objects.Checksum{{0x01}, {0x04}, {0x05}, {0x06}},
 	},
 	"brokenState": {
 		statesChecksums:    nil,
-		state:              nil,
 		header:             nil,
 		packfilesChecksums: nil,
 	},
 	"brokenGetState": {
 		statesChecksums:    nil,
-		state:              nil,
 		header:             nil,
 		packfilesChecksums: nil,
 	},
 	"nopackfile": {
-		statesChecksums: []objects.Checksum{{0x01}, {0x02}, {0x03}},
-		state: &state.State{
-			Metadata: state.Metadata{
-				Version:   1,
-				Timestamp: time.Date(2025, 1, 3, 0, 0, 0, 0, time.UTC),
-				Aggregate: true,
-				Extends:   []objects.Checksum{{0x01}, {0x02}, {0x03}},
-			},
-			DeletedSnapshots: map[objects.Checksum]time.Time{
-				{0x7b}: time.Unix(1697045400, 0), // Example timestamp
-				{0xc8}: time.Unix(1697046000, 0),
-			},
-			Chunks: map[objects.Checksum]state.Location{
-				{0x01}: {Packfile: objects.Checksum{0x01}, Offset: 10, Length: 500},
-				{0x02}: {Packfile: objects.Checksum{0x02}, Offset: 20, Length: 600},
-			},
-			Snapshots: map[objects.Checksum]state.Location{
-				{0x01}: {Packfile: objects.Checksum{0x01}, Offset: 0, Length: 9},
-			},
-		},
+		statesChecksums:    []objects.Checksum{{0x01}, {0x02}, {0x03}},
 		header:             nil,
 		packfilesChecksums: nil,
 	},
@@ -197,16 +128,6 @@ func (mb *MockBackend) GetState(checksum objects.Checksum) (io.Reader, error) {
 	}
 
 	var buffer bytes.Buffer
-
-	if behaviors[mb.behavior].state == nil {
-		buffer.Write([]byte(`{"test": "data"}`))
-	} else {
-		originalState := behaviors[mb.behavior].state
-		err := originalState.SerializeStream(&buffer)
-		if err != nil {
-			panic(err)
-		}
-	}
 	if mb.configuration.Compression != nil {
 		return compression.DeflateStream(mb.configuration.Compression.Algorithm, &buffer)
 	}

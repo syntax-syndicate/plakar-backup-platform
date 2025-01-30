@@ -18,6 +18,7 @@ package exec
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -33,13 +34,13 @@ func init() {
 	subcommands.Register("exec", cmd_exec)
 }
 
-func cmd_exec(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_exec(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	flags := flag.NewFlagSet("exec", flag.ExitOnError)
 	flags.Parse(args)
 
 	if flags.NArg() == 0 {
 		ctx.GetLogger().Error("%s: at least one parameters is required", flags.Name())
-		return 1
+		return 1, fmt.Errorf("at least one parameters is required")
 	}
 
 	snapshots, err := utils.GetSnapshots(repo, []string{flags.Args()[0]})
@@ -47,7 +48,7 @@ func cmd_exec(ctx *appcontext.AppContext, repo *repository.Repository, args []st
 		log.Fatal(err)
 	}
 	if len(snapshots) != 1 {
-		return 0
+		return 0, nil
 	}
 	snap := snapshots[0]
 	defer snap.Close()
@@ -57,7 +58,7 @@ func cmd_exec(ctx *appcontext.AppContext, repo *repository.Repository, args []st
 	rd, err := snap.NewReader(pathname)
 	if err != nil {
 		ctx.GetLogger().Error("%s: %s: failed to open: %s", flags.Name(), pathname, err)
-		return 1
+		return 1, err
 	}
 	defer rd.Close()
 
@@ -103,7 +104,7 @@ func cmd_exec(ctx *appcontext.AppContext, repo *repository.Repository, args []st
 	}()
 	if cmd.Start() == nil {
 		cmd.Wait()
-		return cmd.ProcessState.ExitCode()
+		return cmd.ProcessState.ExitCode(), nil
 	}
-	return 1
+	return 1, err
 }

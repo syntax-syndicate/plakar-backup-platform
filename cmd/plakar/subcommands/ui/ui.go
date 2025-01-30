@@ -35,7 +35,7 @@ func init() {
 	subcommands.Register("ui", cmd_ui)
 }
 
-func cmd_ui(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_ui(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	var opt_addr string
 	var opt_cors bool
 	var opt_noauth bool
@@ -61,8 +61,8 @@ func cmd_ui(ctx *appcontext.AppContext, repo *repository.Repository, args []stri
 	err := v2.Ui(repo, opt_addr, &ui_opts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s: %s\n", flag.CommandLine.Name(), flags.Name(), err)
-		return 1
+		return 1, err
 	}
 
-	return 0
+	return 0, err
 }

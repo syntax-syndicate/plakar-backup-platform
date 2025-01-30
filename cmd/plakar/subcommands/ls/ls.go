@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
-	"os"
 	"os/user"
 	"path"
 	"time"
@@ -40,7 +39,7 @@ func init() {
 	subcommands.Register("ls", cmd_ls)
 }
 
-func cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	var opt_recursive bool
 	var opt_tag string
 	var opt_uuid bool
@@ -52,18 +51,18 @@ func cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args []stri
 	flags.Parse(args)
 
 	if flags.NArg() == 0 {
-		list_snapshots(repo, opt_uuid, opt_tag)
-		return 0
+		list_snapshots(ctx, repo, opt_uuid, opt_tag)
+		return 0, nil
 	}
 
-	if err := list_snapshot(repo, flags.Arg(0), opt_recursive); err != nil {
+	if err := list_snapshot(ctx, repo, flags.Arg(0), opt_recursive); err != nil {
 		log.Println("error:", err)
-		return 1
+		return 1, err
 	}
-	return 0
+	return 0, nil
 }
 
-func list_snapshots(repo *repository.Repository, useUuid bool, tag string) {
+func list_snapshots(ctx *appcontext.AppContext, repo *repository.Repository, useUuid bool, tag string) {
 	metadatas, err := utils.GetHeaders(repo, nil)
 	if err != nil {
 		log.Fatalf("%s: could not fetch snapshots list", flag.CommandLine.Name())
@@ -83,7 +82,7 @@ func list_snapshots(repo *repository.Repository, useUuid bool, tag string) {
 			}
 		}
 		if !useUuid {
-			fmt.Fprintf(os.Stdout, "%s %10s%10s%10s %s\n",
+			fmt.Fprintf(ctx.Stdout, "%s %10s%10s%10s %s\n",
 				metadata.Timestamp.UTC().Format(time.RFC3339),
 				hex.EncodeToString(metadata.GetIndexShortID()),
 				humanize.Bytes(metadata.Summary.Directory.Size+metadata.Summary.Below.Size),
@@ -91,7 +90,7 @@ func list_snapshots(repo *repository.Repository, useUuid bool, tag string) {
 				metadata.Importer.Directory)
 		} else {
 			indexID := metadata.GetIndexID()
-			fmt.Fprintf(os.Stdout, "%s %3s%10s%10s %s\n",
+			fmt.Fprintf(ctx.Stdout, "%s %3s%10s%10s %s\n",
 				metadata.Timestamp.UTC().Format(time.RFC3339),
 				hex.EncodeToString(indexID[:]),
 				humanize.Bytes(metadata.Summary.Directory.Size+metadata.Summary.Below.Size),
@@ -101,7 +100,7 @@ func list_snapshots(repo *repository.Repository, useUuid bool, tag string) {
 	}
 }
 
-func list_snapshot(repo *repository.Repository, snapshotPath string, recursive bool) error {
+func list_snapshot(ctx *appcontext.AppContext, repo *repository.Repository, snapshotPath string, recursive bool) error {
 	prefix, pathname := utils.ParseSnapshotID(snapshotPath)
 	pathname = path.Clean(pathname)
 
@@ -150,7 +149,7 @@ func list_snapshot(repo *repository.Repository, snapshotPath string, recursive b
 			entryname = d.Name()
 		}
 
-		fmt.Fprintf(os.Stdout, "%s %s % 8s % 8s % 8s %s\n",
+		fmt.Fprintf(ctx.Stdout, "%s %s % 8s % 8s % 8s %s\n",
 			sb.ModTime().UTC().Format(time.RFC3339),
 			sb.Mode(),
 			username,

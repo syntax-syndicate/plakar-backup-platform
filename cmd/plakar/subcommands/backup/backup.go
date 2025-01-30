@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"encoding/base64"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -50,7 +51,7 @@ func (e *excludeFlags) Set(value string) error {
 	return nil
 }
 
-func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	var opt_tags string
 	var opt_excludes string
 	var opt_exclude excludeFlags
@@ -67,7 +68,8 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 	flags.StringVar(&opt_excludes, "excludes", "", "file containing a list of exclusions")
 	flags.Var(&opt_exclude, "exclude", "file containing a list of exclusions")
 	flags.BoolVar(&opt_quiet, "quiet", false, "suppress output")
-	flags.BoolVar(&opt_stdio, "stdio", false, "output one line per file to stdout instead of the default interactive output")
+	opt_stdio = true
+	//flags.BoolVar(&opt_stdio, "stdio", false, "output one line per file to stdout instead of the default interactive output")
 	flags.Parse(args)
 
 	for _, item := range opt_exclude {
@@ -78,7 +80,7 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 		fp, err := os.Open(opt_excludes)
 		if err != nil {
 			ctx.GetLogger().Error("%s", err)
-			return 1
+			return 1, err
 		}
 		defer fp.Close()
 
@@ -87,13 +89,13 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 			pattern, err := glob.Compile(scanner.Text())
 			if err != nil {
 				ctx.GetLogger().Error("%s", err)
-				return 1
+				return 1, err
 			}
 			excludes = append(excludes, pattern)
 		}
 		if err := scanner.Err(); err != nil {
 			ctx.GetLogger().Error("%s", err)
-			return 1
+			return 1, err
 		}
 	}
 	_ = excludes
@@ -101,7 +103,7 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 	snap, err := snapshot.New(repo)
 	if err != nil {
 		ctx.GetLogger().Error("%s", err)
-		return 1
+		return 1, err
 	}
 	defer snap.Close()
 
@@ -140,8 +142,7 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 	ep := startEventsProcessor(ctx, imp.Root(), opt_stdio, opt_quiet)
 	if err := snap.Backup(scanDir, imp, opts); err != nil {
 		ep.Close()
-		ctx.GetLogger().Error("failed to create snapshot: %s", err)
-		return 1
+		return 1, fmt.Errorf("failed to create snapshot: %w", err)
 	}
 	ep.Close()
 
@@ -155,5 +156,5 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 		base64.RawStdEncoding.EncodeToString(snap.Header.Root[:]),
 		humanize.Bytes(snap.Header.Summary.Directory.Size+snap.Header.Summary.Below.Size),
 		snap.Header.Duration)
-	return 0
+	return 0, nil
 }

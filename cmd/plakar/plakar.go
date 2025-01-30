@@ -95,7 +95,7 @@ func entryPoint() int {
 	var opt_trace string
 	var opt_quiet bool
 	var opt_keyfile string
-	var opt_keyring string
+	var opt_agentless bool
 
 	flag.StringVar(&opt_configfile, "config", opt_configDefault, "configuration file")
 	flag.IntVar(&opt_cpuCount, "cpu", opt_cpuDefault, "limit the number of usable cores")
@@ -107,7 +107,7 @@ func entryPoint() int {
 	flag.StringVar(&opt_trace, "trace", "", "display trace logs")
 	flag.BoolVar(&opt_quiet, "quiet", false, "no output except errors")
 	flag.StringVar(&opt_keyfile, "keyfile", "", "use passphrase from key file when prompted")
-	flag.StringVar(&opt_keyring, "keyring", "", "path to directory holding the keyring")
+	flag.BoolVar(&opt_agentless, "no-agent", false, "run without agent")
 	flag.Parse()
 
 	ctx := appcontext.NewAppContext()
@@ -117,13 +117,16 @@ func entryPoint() int {
 	ctx.CWD = cwd
 	ctx.KeyringDir = filepath.Join(opt_userDefault.HomeDir, ".plakar-keyring")
 
-	cacheDir, err := utils.GetCacheDir("plakar")
+	cacheSubDir := "plakar"
+	if opt_agentless {
+		cacheSubDir = "plakar-agentless"
+	}
+	cacheDir, err := utils.GetCacheDir(cacheSubDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not get cache directory: %s\n", flag.CommandLine.Name(), err)
 		return 1
 	}
 	ctx.CacheDir = cacheDir
-
 	ctx.SetCache(caching.NewManager(cacheDir))
 	defer ctx.GetCache().Close()
 
@@ -231,7 +234,7 @@ func entryPoint() int {
 
 	// these commands need to be ran before the repository is opened
 	if command == "agent" || command == "create" || command == "version" || command == "stdio" || command == "help" || command == "id" {
-		retval, err := subcommands.Execute(ctx, nil, command, args)
+		retval, err := subcommands.Execute(ctx, nil, command, args, true)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return retval
@@ -260,16 +263,15 @@ func entryPoint() int {
 	var secret []byte
 	if !skipPassphrase {
 		if store.Configuration().Encryption != nil {
+			derived := false
 			envPassphrase := os.Getenv("PLAKAR_PASSPHRASE")
 			if ctx.KeyFromFile == "" {
-				attempts := 0
-				for {
+				for attempts := 0; attempts < 3; attempts++ {
 					var passphrase []byte
 					if envPassphrase == "" {
 						passphrase, err = utils.GetPassphrase("repository")
 						if err != nil {
-							fmt.Fprintf(os.Stderr, "%s\n", err)
-							continue
+							break
 						}
 					} else {
 						passphrase = []byte(envPassphrase)
@@ -277,35 +279,46 @@ func entryPoint() int {
 
 					secret, err = encryption.DeriveSecret(passphrase, store.Configuration().Encryption.Key)
 					if err != nil {
-						fmt.Fprintf(os.Stderr, "%s\n", err)
-						attempts++
-
 						if envPassphrase != "" {
-							os.Exit(1)
+							break
 						}
 						continue
 					}
+					derived = true
 					break
 				}
 			} else {
 				secret, err = encryption.DeriveSecret([]byte(ctx.KeyFromFile), store.Configuration().Encryption.Key)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s\n", err)
-					os.Exit(1)
+				if err == nil {
+					derived = true
 				}
 			}
+			if !derived {
+				fmt.Fprintf(os.Stderr, "%s: could not derive secret: %s\n", flag.CommandLine.Name(), err)
+				os.Exit(1)
+			}
+			ctx.SetSecret(secret)
 		}
 	}
 
-	repo, err := repository.New(ctx, store, secret)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-		return 1
+	var repo *repository.Repository
+	if opt_agentless {
+		repo, err = repository.New(ctx, store, secret)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+			return 1
+		}
+	} else {
+		repo, err = repository.NewNoRebuild(ctx, store, secret)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+			return 1
+		}
 	}
 
 	// commands below all operate on an open repository
 	t0 := time.Now()
-	status, err := subcommands.Execute(ctx, repo, command, args)
+	status, err := subcommands.Execute(ctx, repo, command, args, opt_agentless)
 	t1 := time.Since(t0)
 
 	if err != nil {

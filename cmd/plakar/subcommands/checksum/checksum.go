@@ -34,7 +34,7 @@ func init() {
 	subcommands.Register("checksum", cmd_checksum)
 }
 
-func cmd_checksum(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_checksum(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	var enableFastChecksum bool
 
 	flags := flag.NewFlagSet("checksum", flag.ExitOnError)
@@ -44,13 +44,13 @@ func cmd_checksum(ctx *appcontext.AppContext, repo *repository.Repository, args 
 
 	if flags.NArg() == 0 {
 		ctx.GetLogger().Error("%s: at least one parameter is required", flags.Name())
-		return 1
+		return 1, fmt.Errorf("at least one parameter is required")
 	}
 
 	snapshots, err := utils.GetSnapshots(repo, flags.Args())
 	if err != nil {
 		ctx.GetLogger().Error("%s: could not obtain snapshots list: %s", flags.Name(), err)
-		return 1
+		return 1, err
 	}
 
 	errors := 0
@@ -64,19 +64,19 @@ func cmd_checksum(ctx *appcontext.AppContext, repo *repository.Repository, args 
 
 		_, pathname := utils.ParseSnapshotID(flags.Args()[offset])
 		if pathname == "" {
-			ctx.GetLogger().Error("%s: missing filename for snapshot %s", flags.Name(), snap.Header.GetIndexShortID())
+			ctx.GetLogger().Error("%s: missing filename for snapshot %x", flags.Name(), snap.Header.GetIndexShortID())
 			errors++
 			continue
 		}
 
-		displayChecksums(fs, repo, snap, pathname, enableFastChecksum)
+		displayChecksums(ctx, fs, repo, snap, pathname, enableFastChecksum)
 
 	}
 
-	return 0
+	return 0, nil
 }
 
-func displayChecksums(fs *vfs.Filesystem, repo *repository.Repository, snap *snapshot.Snapshot, pathname string, fastcheck bool) error {
+func displayChecksums(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repository.Repository, snap *snapshot.Snapshot, pathname string, fastcheck bool) error {
 	fsinfo, err := fs.GetEntry(pathname)
 	if err != nil {
 		return err
@@ -88,7 +88,7 @@ func displayChecksums(fs *vfs.Filesystem, repo *repository.Repository, snap *sna
 			return err
 		}
 		for child := range iter {
-			if err := displayChecksums(fs, repo, snap, path.Join(pathname, child.Stat().Name()), fastcheck); err != nil {
+			if err := displayChecksums(ctx, fs, repo, snap, path.Join(pathname, child.Stat().Name()), fastcheck); err != nil {
 				return err
 			}
 		}
@@ -116,6 +116,6 @@ func displayChecksums(fs *vfs.Filesystem, repo *repository.Repository, snap *sna
 			return err
 		}
 	}
-	fmt.Printf("SHA256 (%s) = %x\n", pathname, checksum)
+	fmt.Fprintf(ctx.Stdout, "SHA256 (%s) = %x\n", pathname, checksum)
 	return nil
 }

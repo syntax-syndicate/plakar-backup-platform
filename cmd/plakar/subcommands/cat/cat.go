@@ -20,8 +20,8 @@ import (
 	"bufio"
 	"compress/gzip"
 	"flag"
+	"fmt"
 	"io"
-	"os"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
@@ -36,7 +36,7 @@ func init() {
 	subcommands.Register("cat", cmd_cat)
 }
 
-func cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args []string) int {
+func cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
 	var opt_nodecompress bool
 	var opt_highlight bool
 
@@ -47,13 +47,13 @@ func cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args []str
 
 	if flags.NArg() == 0 {
 		ctx.GetLogger().Error("%s: at least one parameter is required", flags.Name())
-		return 1
+		return 1, fmt.Errorf("missing filename")
 	}
 
 	snapshots, err := utils.GetSnapshots(repo, flags.Args())
 	if err != nil {
 		ctx.GetLogger().Error("%s: could not obtain snapshots list: %s", flags.Name(), err)
-		return 1
+		return 1, err
 	}
 
 	errors := 0
@@ -130,7 +130,7 @@ func cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args []str
 						break
 					}
 
-					errFormat := formatter.Format(os.Stdout, style, iterator)
+					errFormat := formatter.Format(ctx.Stdout, style, iterator)
 					if errFormat != nil {
 						ctx.GetLogger().Error("%s: %s: %s", flags.Name(), pathname, errFormat)
 						errors++
@@ -148,7 +148,7 @@ func cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args []str
 				}
 			}
 		} else {
-			_, err = io.Copy(os.Stdout, rd)
+			_, err = io.Copy(ctx.Stdout, rd)
 		}
 		file.Close()
 		if err != nil {
@@ -159,7 +159,7 @@ func cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args []str
 	}
 
 	if errors != 0 {
-		return 1
+		return 1, fmt.Errorf("errors occurred")
 	}
-	return 0
+	return 0, nil
 }
