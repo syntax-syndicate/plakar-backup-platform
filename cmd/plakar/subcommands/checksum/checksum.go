@@ -64,7 +64,7 @@ func cmd_checksum(ctx *appcontext.AppContext, repo *repository.Repository, args 
 
 		_, pathname := utils.ParseSnapshotID(flags.Args()[offset])
 		if pathname == "" {
-			ctx.GetLogger().Error("%s: missing filename for snapshot %s", flags.Name(), snap.Header.GetIndexShortID())
+			ctx.GetLogger().Error("%s: missing filename for snapshot %x", flags.Name(), snap.Header.GetIndexShortID())
 			errors++
 			continue
 		}

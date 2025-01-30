@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"encoding/base64"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -141,8 +142,7 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 	ep := startEventsProcessor(ctx, imp.Root(), opt_stdio, opt_quiet)
 	if err := snap.Backup(scanDir, imp, opts); err != nil {
 		ep.Close()
-		ctx.GetLogger().Error("failed to create snapshot: %s", err)
-		return 1, err
+		return 1, fmt.Errorf("failed to create snapshot: %w", err)
 	}
 	ep.Close()
 
