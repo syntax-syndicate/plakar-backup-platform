@@ -44,7 +44,7 @@ type BackupOptions struct {
 	Excludes       []glob.Glob
 }
 
-func (bc *BackupContext) recordFile(entry *vfs.Entry) error {
+func (bc *BackupContext) recordEntry(entry *vfs.Entry) error {
 	path := entry.Path()
 
 	bytes, err := entry.ToBytes()
@@ -147,7 +147,7 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 						atomic.AddUint64(&nDirectories, +1)
 
 						entry := vfs.NewEntry(path.Dir(record.Pathname), &record)
-						if err := backupCtx.recordFile(entry); err != nil {
+						if err := backupCtx.recordEntry(entry); err != nil {
 							backupCtx.recordError(record.Pathname, err)
 							return
 						}
@@ -389,7 +389,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 				}
 			}
 
-			if err := backupCtx.recordFile(fileEntry); err != nil {
+			if err := backupCtx.recordEntry(fileEntry); err != nil {
 				backupCtx.recordError(record.Pathname, err)
 				return
 			}
@@ -544,7 +544,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			return err
 		}
 
-		if err := backupCtx.recordFile(dirEntry); err != nil {
+		if err := backupCtx.recordEntry(dirEntry); err != nil {
 			return err
 		}
 	}
