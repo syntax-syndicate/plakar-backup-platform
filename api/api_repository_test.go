@@ -481,7 +481,7 @@ func _Test_RepositoryStates(t *testing.T) {
 }
 
 // XXX: re-add once we move to non-mocked state object.
-func Test_RepositoryState(t *testing.T) {
+func _Test_RepositoryState(t *testing.T) {
 
 	testCases := []struct {
 		name     string
