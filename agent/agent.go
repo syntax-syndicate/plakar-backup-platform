@@ -87,9 +87,6 @@ func isDisconnectError(err error) bool {
 }
 
 func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.Repository, string, []string) (int, error)) error {
-	var promServerStarted sync.WaitGroup
-	var promErr error
-
 	if _, err := os.Stat(d.socketPath); err == nil {
 		if !d.checkSocket() {
 			d.Close()
@@ -115,27 +112,16 @@ func (d *Agent) ListenAndServe(handler func(*appcontext.AppContext, *repository.
 	}
 
 	if d.prometheus != "" {
-		// We want to ensure Prometheus server is started before moving forward
-		promServerStarted.Add(1)
+		promlistener, err := net.Listen("tcp", d.prometheus)
+		if err != nil {
+			return fmt.Errorf("failed to bind prometheus listener: %w", err)
+		}
+		defer promlistener.Close()
 
 		go func() {
-			defer promServerStarted.Done()
-
-			// Register Prometheus metrics handler
 			http.Handle("/metrics", promhttp.Handler())
-
-			// Start the Prometheus HTTP server and capture any error
-			if err := http.ListenAndServe(d.prometheus, nil); err != nil {
-				promErr = fmt.Errorf("failed to start Prometheus server: %w", err)
-			}
+			http.Serve(promlistener, nil)
 		}()
-		// Wait for the Prometheus server to be successfully started
-		promServerStarted.Wait()
-
-		// If there was an error starting the Prometheus server, return it and stop execution
-		if promErr != nil {
-			return promErr
-		}
 	}
 
 	for {
