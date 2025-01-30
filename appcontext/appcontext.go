@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/PlakarKorp/plakar/caching"
+	"github.com/PlakarKorp/plakar/config"
 	"github.com/PlakarKorp/plakar/encryption/keypair"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
@@ -19,8 +20,9 @@ type AppContext struct {
 	context context.Context  `msgpack:"-"`
 	secret  []byte           `msgpack:"-"`
 
-	Stdout io.Writer `msgpack:"-"`
-	Stderr io.Writer `msgpack:"-"`
+	Configuration *config.Configuration `msgpack:"-"`
+	Stdout        io.Writer             `msgpack:"-"`
+	Stderr        io.Writer             `msgpack:"-"`
 
 	NumCPU      int
 	Username    string

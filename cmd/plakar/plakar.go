@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"os/user"
-	"path"
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
@@ -18,6 +17,7 @@ import (
 	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
+	"github.com/PlakarKorp/plakar/config"
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
@@ -82,11 +82,10 @@ func entryPoint() int {
 	opt_machineIdDefault = strings.ToLower(opt_machineIdDefault)
 
 	opt_usernameDefault := opt_userDefault.Username
-	opt_configDefault := path.Join(opt_userDefault.HomeDir, ".plakarconfig")
 
 	// command line overrides
 	var opt_cpuCount int
-	var opt_configfile string
+	var opt_configFile string
 	var opt_username string
 	var opt_hostname string
 	var opt_cpuProfile string
@@ -97,7 +96,7 @@ func entryPoint() int {
 	var opt_keyfile string
 	var opt_agentless bool
 
-	flag.StringVar(&opt_configfile, "config", opt_configDefault, "configuration file")
+	flag.StringVar(&opt_configFile, "config", "", "configuration file")
 	flag.IntVar(&opt_cpuCount, "cpu", opt_cpuDefault, "limit the number of usable cores")
 	flag.StringVar(&opt_username, "username", opt_usernameDefault, "default username")
 	flag.StringVar(&opt_hostname, "hostname", opt_hostnameDefault, "default hostname")
@@ -110,9 +109,20 @@ func entryPoint() int {
 	flag.BoolVar(&opt_agentless, "no-agent", false, "run without agent")
 	flag.Parse()
 
+	cfg := config.DefaultConfiguration()
+	if opt_configFile != "" {
+		tmp, err := config.ParseConfigFile(opt_configFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: could not parse configuration file: %s\n", flag.CommandLine.Name(), err)
+			return 1
+		}
+		cfg = tmp
+	}
+
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
 
+	ctx.Configuration = cfg
 	ctx.Client = "plakar/" + utils.GetVersion()
 	ctx.CWD = cwd
 	ctx.KeyringDir = filepath.Join(opt_userDefault.HomeDir, ".plakar-keyring")

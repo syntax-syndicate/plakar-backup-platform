@@ -24,7 +24,6 @@ import (
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/config"
 	"github.com/PlakarKorp/plakar/repository"
 )
 
@@ -34,20 +33,12 @@ func init() {
 
 func cmd_agent(ctx *appcontext.AppContext, _ *repository.Repository, args []string) (int, error) {
 	var opt_prometheus string
-	var opt_configFile string
 
 	opt_socketPath := filepath.Join(ctx.CacheDir, "agent.sock")
 
 	flags := flag.NewFlagSet("agent", flag.ExitOnError)
-	flags.StringVar(&opt_configFile, "config", "/tmp/plakar.cfg", "path to configuration file")
 	flags.StringVar(&opt_prometheus, "prometheus", "", "prometheus exporter interface")
 	flags.Parse(args)
-
-	cfg, err := config.ParseConfigFile(opt_configFile)
-	if err != nil {
-		return 1, err
-	}
-	_ = cfg
 
 	daemon, err := agent.NewAgent(ctx, "unix", opt_socketPath, opt_prometheus)
 	if err != nil {

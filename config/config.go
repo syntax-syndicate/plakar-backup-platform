@@ -70,6 +70,10 @@ func NewConfiguration() *Configuration {
 	return &Configuration{}
 }
 
+func DefaultConfiguration() *Configuration {
+	return &Configuration{}
+}
+
 // ParseConfig parses the YAML file into the Config struct.
 func ParseConfigFile(filename string) (*Configuration, error) {
 	file, err := os.Open(filename)
