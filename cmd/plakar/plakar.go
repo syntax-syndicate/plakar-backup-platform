@@ -95,7 +95,6 @@ func entryPoint() int {
 	var opt_trace string
 	var opt_quiet bool
 	var opt_keyfile string
-	var opt_keyring string
 	var opt_agentless bool
 
 	flag.StringVar(&opt_configfile, "config", opt_configDefault, "configuration file")
@@ -108,7 +107,6 @@ func entryPoint() int {
 	flag.StringVar(&opt_trace, "trace", "", "display trace logs")
 	flag.BoolVar(&opt_quiet, "quiet", false, "no output except errors")
 	flag.StringVar(&opt_keyfile, "keyfile", "", "use passphrase from key file when prompted")
-	flag.StringVar(&opt_keyring, "keyring", "", "path to directory holding the keyring")
 	flag.BoolVar(&opt_agentless, "no-agent", false, "run without agent")
 	flag.Parse()
 
