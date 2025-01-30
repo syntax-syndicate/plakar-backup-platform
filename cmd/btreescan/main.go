@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
+	"runtime/pprof"
 
 	"github.com/PlakarKorp/plakar/btree"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
@@ -57,19 +59,47 @@ func (l *leveldbstore) Put(node *Node) (int, error) {
 
 func main() {
 	var (
-		verify bool
-		dbpath string
-		order  int
-		dot    string
+		verify  bool
+		dbpath  string
+		order   int
+		dot     string
+		memprof string
+		cpuprof string
 	)
 	flag.BoolVar(&verify, "verify", false, `Whether to verify the tree at the end`)
 	flag.StringVar(&dbpath, "dbpath", "/tmp/leveldb", `Path to the leveldb; use "memory" for an in-memory btree`)
 	flag.IntVar(&order, "order", 50, `Order of the btree`)
 	flag.StringVar(&dot, "dot", "", `where to put the generated dot; empty for none`)
+	flag.StringVar(&cpuprof, "profile-cpu", "", "profile CPU usage")
+	flag.StringVar(&memprof, "profile-mem", "", "profile MEM usage")
 	flag.Parse()
 
 	if flag.NArg() != 1 {
 		log.Fatal("Missig directory to import")
+	}
+
+	if cpuprof != "" {
+		f, err := os.Create(cpuprof)
+		if err != nil {
+			log.Fatalf("%s: could not create CPU profile: %s\n", flag.CommandLine.Name(), err)
+		}
+		defer f.Close() // error handling omitted for example
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Fatalf("%s: could not start CPU profile: %s\n", flag.CommandLine.Name(), err)
+		}
+		defer pprof.StopCPUProfile()
+	}
+
+	if memprof != "" {
+		f, err := os.Create(memprof)
+		if err != nil {
+			log.Fatal("could not create memory profile: ", err)
+		}
+		defer f.Close() // error handling omitted for example
+		runtime.GC()    // get up-to-date statistics
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			log.Fatalf("%s: could not write MEM profile: %d\n", flag.CommandLine.Name(), err)
+		}
 	}
 
 	var store btree.Storer[string, int, empty]
