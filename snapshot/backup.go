@@ -132,12 +132,6 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 				case importer.ScanRecord:
 					snap.Event(events.PathEvent(snap.Header.Identifier, record.Pathname))
 
-					entry := vfs.NewEntry(path.Dir(record.Pathname), &record)
-					if err := backupCtx.recordFile(entry); err != nil {
-						backupCtx.recordError(record.Pathname, err)
-						return
-					}
-
 					if !record.FileInfo.Mode().IsDir() {
 						filesChannel <- record
 						atomic.AddUint64(&nFiles, +1)
@@ -149,9 +143,14 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 						if snap.Header.Importer.Directory == record.Pathname {
 							snap.Header.Importer.Directory = filepath.Dir(record.Pathname)
 						}
-
 					} else {
 						atomic.AddUint64(&nDirectories, +1)
+
+						entry := vfs.NewEntry(path.Dir(record.Pathname), &record)
+						if err := backupCtx.recordFile(entry); err != nil {
+							backupCtx.recordError(record.Pathname, err)
+							return
+						}
 					}
 				}
 			}(_record)
@@ -390,7 +389,6 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 				}
 			}
 
-			// Update the file since we may have set its Object field
 			if err := backupCtx.recordFile(fileEntry); err != nil {
 				backupCtx.recordError(record.Pathname, err)
 				return
