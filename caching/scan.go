@@ -12,6 +12,7 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
 type ScanCache struct {
@@ -224,7 +225,7 @@ func (c *ScanCache) EnumerateKeysWithPrefix(prefix string, reverse bool) iter.Se
 
 	return func(yield func(string, []byte) bool) {
 		// Use LevelDB's iterator
-		iter := c.db.NewIterator(nil, nil)
+		iter := c.db.NewIterator(util.BytesPrefix([]byte(prefix)), nil)
 		defer iter.Release()
 
 		if reverse {
