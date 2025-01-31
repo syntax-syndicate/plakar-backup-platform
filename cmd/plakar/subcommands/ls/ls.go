@@ -59,7 +59,7 @@ func parse_cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args 
 		Recursive:          opt_recursive,
 		Tag:                opt_tag,
 		DisplayUUID:        opt_uuid,
-		Paths:              flags.Args(),
+		Path:               flags.Arg(0),
 	}, nil
 }
 

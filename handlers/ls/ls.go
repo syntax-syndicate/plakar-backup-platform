@@ -25,7 +25,7 @@ type Ls struct {
 	Recursive   bool
 	Tag         string
 	DisplayUUID bool
-	Paths       []string
+	Path        string
 }
 
 func (cmd *Ls) Name() string {
@@ -33,12 +33,12 @@ func (cmd *Ls) Name() string {
 }
 
 func (cmd *Ls) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	if len(cmd.Paths) == 0 {
+	if cmd.Path == "" {
 		list_snapshots(ctx, repo, cmd.DisplayUUID, cmd.Tag)
 		return 0, nil
 	}
 
-	if err := list_snapshot(ctx, repo, cmd.Paths[0], cmd.Recursive); err != nil {
+	if err := list_snapshot(ctx, repo, cmd.Path, cmd.Recursive); err != nil {
 		log.Println("error:", err)
 		return 1, err
 	}
