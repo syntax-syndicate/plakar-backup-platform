@@ -68,7 +68,7 @@ func New(repo *repository.Repository) (*Snapshot, error) {
 		packerChanDone: make(chan bool),
 	}
 
-	snap.deltaState = state.NewLocalState(scanCache)
+	snap.deltaState = repo.NewStateDelta(scanCache)
 
 	if snap.AppContext().Identity != uuid.Nil {
 		snap.Header.Identity.Identifier = snap.AppContext().Identity
