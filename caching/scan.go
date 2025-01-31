@@ -5,26 +5,26 @@ import (
 	"encoding/hex"
 	"fmt"
 	"iter"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/util"
+	"github.com/cockroachdb/pebble"
 )
 
 type ScanCache struct {
 	snapshotID [32]byte
 	manager    *Manager
-	db         *leveldb.DB
+	db         *pebble.DB
 }
 
 func newScanCache(cacheManager *Manager, snapshotID [32]byte) (*ScanCache, error) {
 	cacheDir := filepath.Join(cacheManager.cacheDir, "scan", fmt.Sprintf("%x", snapshotID))
 
-	db, err := leveldb.OpenFile(cacheDir, nil)
+	db, err := pebble.Open(cacheDir, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -42,22 +42,32 @@ func (c *ScanCache) Close() error {
 }
 
 func (c *ScanCache) put(prefix string, key string, data []byte) error {
-	return c.db.Put([]byte(fmt.Sprintf("%s:%s", prefix, key)), data, nil)
+	return c.db.Set([]byte(fmt.Sprintf("%s:%s", prefix, key)), data, nil)
 }
 
 func (c *ScanCache) get(prefix, key string) ([]byte, error) {
-	data, err := c.db.Get([]byte(fmt.Sprintf("%s:%s", prefix, key)), nil)
+	val, closer, err := c.db.Get([]byte(fmt.Sprintf("%s:%s", prefix, key)))
 	if err != nil {
-		if err == leveldb.ErrNotFound {
+		if err == pebble.ErrNotFound {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return data, nil
+	ret := make([]byte, len(val))
+	copy(ret, val)
+	closer.Close()
+	return ret, nil
 }
 
 func (c *ScanCache) has(prefix, key string) (bool, error) {
-	return c.db.Has([]byte(fmt.Sprintf("%s:%s", prefix, key)), nil)
+	_, closer, err := c.db.Get([]byte(fmt.Sprintf("%s:%s", prefix, key)))
+	if err == pebble.ErrNotFound {
+		return false, nil
+	}
+	if closer != nil {
+		closer.Close()
+	}
+	return err == nil, err
 }
 
 func (c *ScanCache) delete(prefix, key string) error {
@@ -174,11 +184,14 @@ func (c *ScanCache) PutDelta(blobType packfile.Type, blobCsum objects.Checksum, 
 
 func (c *ScanCache) GetDeltasByType(blobType packfile.Type) iter.Seq2[objects.Checksum, []byte] {
 	return func(yield func(objects.Checksum, []byte) bool) {
-		iter := c.db.NewIterator(nil, nil)
-		defer iter.Release()
+		iter, err := c.db.NewIter(nil)
+		if err != nil {
+			panic(err)
+		}
+		defer iter.Close()
 
 		keyPrefix := fmt.Sprintf("__delta__:%d", blobType)
-		for iter.Seek([]byte(keyPrefix)); iter.Valid(); iter.Next() {
+		for iter.SeekGE([]byte(keyPrefix)); iter.Valid(); iter.Next() {
 			if !strings.HasPrefix(string(iter.Key()), keyPrefix) {
 				break
 			}
@@ -198,11 +211,14 @@ func (c *ScanCache) GetDeltasByType(blobType packfile.Type) iter.Seq2[objects.Ch
 
 func (c *ScanCache) GetDeltas() iter.Seq2[objects.Checksum, []byte] {
 	return func(yield func(objects.Checksum, []byte) bool) {
-		iter := c.db.NewIterator(nil, nil)
-		defer iter.Release()
+		iter, err := c.db.NewIter(nil)
+		if err != nil {
+			panic(err)
+		}
+		defer iter.Close()
 
 		keyPrefix := "__delta__:"
-		for iter.Seek([]byte(keyPrefix)); iter.Valid(); iter.Next() {
+		for iter.SeekGE([]byte(keyPrefix)); iter.Valid(); iter.Next() {
 			if !strings.HasPrefix(string(iter.Key()), keyPrefix) {
 				break
 			}
@@ -225,13 +241,23 @@ func (c *ScanCache) EnumerateKeysWithPrefix(prefix string, reverse bool) iter.Se
 
 	return func(yield func(string, []byte) bool) {
 		// Use LevelDB's iterator
-		iter := c.db.NewIterator(util.BytesPrefix([]byte(prefix)), nil)
-		defer iter.Release()
+		iter, err := c.db.NewIter(nil)
+		if err != nil {
+			panic(err)
+		}
+		defer iter.Close()
 
+		iter.SeekGE([]byte(prefix))
 		if reverse {
-			iter.Last()
-		} else {
-			iter.First()
+			log.Println("seeking to the end of", prefix)
+			for iter.Valid() {
+				if !strings.HasPrefix(string(iter.Key()), prefix) {
+					break
+				}
+				iter.Next()
+			}
+			iter.Prev()
+			log.Println("done")
 		}
 
 		for iter.Valid() {
@@ -239,12 +265,7 @@ func (c *ScanCache) EnumerateKeysWithPrefix(prefix string, reverse bool) iter.Se
 
 			// Check if the key starts with the given prefix
 			if !strings.HasPrefix(string(key), prefix) {
-				if reverse {
-					iter.Prev()
-				} else {
-					iter.Next()
-				}
-				continue
+				break
 			}
 
 			if !yield(string(key)[l:], iter.Value()) {
