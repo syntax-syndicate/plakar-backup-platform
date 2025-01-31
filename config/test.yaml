@@ -1,21 +1,36 @@
 agent:
-    tasks:
+  alerting:
+    email:
+      - name: plakar
+        sender: plakar@poolp.org
+        recipients:
+            - gilles@poolp.org
+            - founders@plakar.io
+        smtp:
+            host: mail.poolp.org
+            port: 587
+            username: gilles@poolp.org
+            password: XXX
+
+  tasks:
     - name: system
       repository:
         url: /Users/gilles/.plakar
       backup:
-        - description: daily-backups /etc
-          path: /etc
-          interval: 1m
+        - name: foobar
+          description: every minute plakar dir
+          path: /Users/gilles/Wip/github.com/PlakarKorp/plakar
+          interval: 10s
           retention: 48h
-        - description: daily-backups /private/etc
-          path: /private/etc
-          interval: 1m
+        - name: foobarbaz
+          description: every minute system config
+          path: /privae/etc
+          interval: 10s
           retention: 48h
-      check:
-        - description: daily-check /etc
-          path: /etc
-          interval: 1m
-        - description: daily-check /private/etc
-          path: /private/etc
-          interval: 1m
+#      check:
+#        - description: daily-check /etc
+#          path: /etc
+#          interval: 1m
+#        - description: daily-check /private/etc
+#          path: /private/etc
+#          interval: 1m

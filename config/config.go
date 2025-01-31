@@ -17,10 +17,29 @@ type Repository struct {
 }
 
 type AgentConfig struct {
-	Tasks []Task `yaml:"tasks"`
+	Alerting AlertingConfig `yaml:"alerting"`
+	Tasks    []TaskSet      `yaml:"tasks"`
 }
 
-type Task struct {
+type AlertingConfig struct {
+	Email []EmailConfig `yaml:"email"`
+}
+
+type EmailConfig struct {
+	Name       string     `yaml:"name"`
+	Sender     string     `yaml:"sender"`
+	Recipients []string   `yaml:"recipients"`
+	Smtp       SmtpConfig `yaml:"smtp"`
+}
+
+type SmtpConfig struct {
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+}
+
+type TaskSet struct {
 	Name       string          `yaml:"name"`
 	Repository Repository      `yaml:"repository"`
 	Check      []CheckConfig   `yaml:"check,omitempty"`
@@ -32,6 +51,7 @@ type Task struct {
 
 type CheckConfig struct {
 	Description string `yaml:"description"`
+	Name        string `yaml:"name"`
 	Type        string `yaml:"type,omitempty"`
 	Interval    string `yaml:"interval"`
 	Path        string `yaml:"path,omitempty"`
@@ -39,6 +59,7 @@ type CheckConfig struct {
 
 type SyncConfig struct {
 	Description string     `yaml:"description"`
+	Name        string     `yaml:"name"`
 	Repository  Repository `yaml:"repository"`
 	Target      Repository `yaml:"target"`
 	Interval    string     `yaml:"interval"`
@@ -46,6 +67,7 @@ type SyncConfig struct {
 
 type BackupConfig struct {
 	Description string   `yaml:"description"`
+	Name        string   `yaml:"name"`
 	Tags        []string `yaml:"tags,omitempty"`
 	Path        string   `yaml:"path"`
 	Interval    string   `yaml:"interval"`
@@ -54,6 +76,7 @@ type BackupConfig struct {
 
 type RestoreConfig struct {
 	Description string `yaml:"description"`
+	Name        string `yaml:"name"`
 	Interval    string `yaml:"interval"`
 	Path        string `yaml:"path"`
 	Target      string `yaml:"target"`
@@ -61,6 +84,7 @@ type RestoreConfig struct {
 
 type ArchiveConfig struct {
 	Description string `yaml:"description"`
+	Name        string `yaml:"name"`
 	Interval    string `yaml:"interval"`
 	Format      string `yaml:"format"`
 	Target      string `yaml:"target"`

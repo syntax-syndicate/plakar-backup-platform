@@ -39,7 +39,7 @@ func NewAgent(ctx *appcontext.AppContext, network string, address string, promet
 
 	cancelCtx, cancelFunc := context.WithCancel(context.Background())
 
-	sched := scheduler.NewScheduler(ctx, ctx.Configuration.Agent.Tasks)
+	sched := scheduler.NewScheduler(ctx)
 	go sched.Run()
 
 	// Create the Agent without binding the socket
