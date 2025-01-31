@@ -110,6 +110,7 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 		Excludes:           excludes,
 		Exclude:            opt_exclude,
 		Quiet:              opt_quiet,
+		Path:               flags.Arg(0),
 	}, nil
 }
 
