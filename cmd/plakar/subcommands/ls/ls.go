@@ -53,6 +53,10 @@ func parse_cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args 
 	flags.BoolVar(&opt_recursive, "recursive", false, "recursive listing")
 	flags.Parse(args)
 
+	if flags.NArg() > 1 {
+		return nil, fmt.Errorf("too many arguments")
+	}
+
 	return &ls.Ls{
 		RepositoryLocation: repo.Location(),
 		RepositorySecret:   ctx.GetSecret(),
