@@ -25,6 +25,7 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/handlers"
+	agent_handler "github.com/PlakarKorp/plakar/handlers/agent"
 	"github.com/PlakarKorp/plakar/repository"
 )
 
@@ -42,7 +43,7 @@ func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, ar
 	flags.StringVar(&opt_socketPath, "socket", filepath.Join(ctx.CacheDir, "agent.sock"), "path to socket file")
 	flags.Parse(args)
 
-	return &handlers.Agent{
+	return &agent_handler.Agent{
 		Prometheus: opt_prometheus,
 		SocketPath: opt_socketPath,
 	}, nil

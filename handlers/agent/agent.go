@@ -1,4 +1,4 @@
-package handlers
+package agent
 
 import (
 	"context"
@@ -12,6 +12,10 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/events"
+	"github.com/PlakarKorp/plakar/handlers"
+	"github.com/PlakarKorp/plakar/handlers/backup"
+	"github.com/PlakarKorp/plakar/handlers/cat"
+	"github.com/PlakarKorp/plakar/handlers/ls"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/storage"
@@ -220,7 +224,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				return
 			}
 
-			var subcommand Subcommand
+			var subcommand handlers.Subcommand
 			var repositoryLocation string
 			var repositorySecret []byte
 
@@ -228,7 +232,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			case "cat":
 				var cmd struct {
 					Name       string
-					Subcommand Cat
+					Subcommand cat.Cat
 				}
 				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
@@ -240,7 +244,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			case "ls":
 				var cmd struct {
 					Name       string
-					Subcommand Ls
+					Subcommand ls.Ls
 				}
 				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
@@ -252,7 +256,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			case "backup":
 				var cmd struct {
 					Name       string
-					Subcommand Backup
+					Subcommand backup.Backup
 				}
 				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)

@@ -30,6 +30,7 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/handlers"
+	"github.com/PlakarKorp/plakar/handlers/ls"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
@@ -52,7 +53,7 @@ func parse_cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args 
 	flags.BoolVar(&opt_recursive, "recursive", false, "recursive listing")
 	flags.Parse(args)
 
-	return &handlers.Ls{
+	return &ls.Ls{
 		RepositoryLocation: repo.Location(),
 		RepositorySecret:   ctx.GetSecret(),
 		Recursive:          opt_recursive,

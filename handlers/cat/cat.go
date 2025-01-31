@@ -1,4 +1,4 @@
-package handlers
+package cat
 
 import (
 	"bufio"

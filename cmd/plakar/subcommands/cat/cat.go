@@ -27,6 +27,7 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/handlers"
+	"github.com/PlakarKorp/plakar/handlers/cat"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/alecthomas/chroma/formatters"
 	"github.com/alecthomas/chroma/lexers"
@@ -51,7 +52,7 @@ func parse_cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args
 		return nil, fmt.Errorf("at least one parameter is required")
 	}
 
-	return &handlers.Cat{
+	return &cat.Cat{
 		RepositoryLocation: repo.Location(),
 		RepositorySecret:   ctx.GetSecret(),
 		NoDecompress:       opt_nodecompress,
