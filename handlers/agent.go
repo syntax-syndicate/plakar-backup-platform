@@ -249,6 +249,18 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
+			case "backup":
+				var cmd struct {
+					Name       string
+					Subcommand Backup
+				}
+				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
+					return
+				}
+				subcommand = &cmd.Subcommand
+				repositoryLocation = cmd.Subcommand.RepositoryLocation
+				repositorySecret = cmd.Subcommand.RepositorySecret
 			}
 
 			var repo *repository.Repository

@@ -28,6 +28,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/handlers"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
@@ -38,6 +39,7 @@ import (
 
 func init() {
 	subcommands.Register("backup", cmd_backup)
+	subcommands.Register2("backup", parse_cmd_backup)
 }
 
 type excludeFlags []string
@@ -49,6 +51,65 @@ func (e *excludeFlags) String() string {
 func (e *excludeFlags) Set(value string) error {
 	*e = append(*e, value)
 	return nil
+}
+
+func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (handlers.Subcommand, error) {
+	var opt_tags string
+	var opt_excludes string
+	var opt_exclude excludeFlags
+	var opt_concurrency uint64
+	var opt_quiet bool
+	var opt_identity string
+
+	excludes := []glob.Glob{}
+	flags := flag.NewFlagSet("backup", flag.ExitOnError)
+	flags.Uint64Var(&opt_concurrency, "concurrency", uint64(ctx.MaxConcurrency), "maximum number of parallel tasks")
+	flags.StringVar(&opt_identity, "identity", "", "use identity from keyring")
+	flags.StringVar(&opt_tags, "tag", "", "tag to assign to this snapshot")
+	flags.StringVar(&opt_excludes, "excludes", "", "file containing a list of exclusions")
+	flags.Var(&opt_exclude, "exclude", "file containing a list of exclusions")
+	flags.BoolVar(&opt_quiet, "quiet", false, "suppress output")
+	//flags.BoolVar(&opt_stdio, "stdio", false, "output one line per file to stdout instead of the default interactive output")
+	flags.Parse(args)
+
+	for _, item := range opt_exclude {
+		excludes = append(excludes, glob.MustCompile(item))
+	}
+
+	if opt_excludes != "" {
+		fp, err := os.Open(opt_excludes)
+		if err != nil {
+			ctx.GetLogger().Error("%s", err)
+			return nil, err
+		}
+		defer fp.Close()
+
+		scanner := bufio.NewScanner(fp)
+		for scanner.Scan() {
+			pattern, err := glob.Compile(scanner.Text())
+			if err != nil {
+				ctx.GetLogger().Error("%s", err)
+				return nil, err
+			}
+			excludes = append(excludes, pattern)
+		}
+		if err := scanner.Err(); err != nil {
+			ctx.GetLogger().Error("%s", err)
+			return nil, err
+		}
+	}
+	_ = excludes
+
+	return &handlers.Backup{
+		RepositoryLocation: repo.Location(),
+		RepositorySecret:   ctx.GetSecret(),
+		Concurrency:        opt_concurrency,
+		Identity:           opt_identity,
+		Tags:               opt_tags,
+		Excludes:           excludes,
+		Exclude:            opt_exclude,
+		Quiet:              opt_quiet,
+	}, nil
 }
 
 func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
@@ -71,6 +132,10 @@ func cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []
 	opt_stdio = true
 	//flags.BoolVar(&opt_stdio, "stdio", false, "output one line per file to stdout instead of the default interactive output")
 	flags.Parse(args)
+
+	if flags.NArg() > 1 {
+		log.Fatal("only one directory pushable")
+	}
 
 	for _, item := range opt_exclude {
 		excludes = append(excludes, glob.MustCompile(item))
