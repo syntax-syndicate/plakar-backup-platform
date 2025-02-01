@@ -18,22 +18,19 @@ package check
 
 import (
 	"flag"
-	"fmt"
-	"log"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/snapshot"
-	"github.com/google/uuid"
+	"github.com/PlakarKorp/plakar/rpc"
+	"github.com/PlakarKorp/plakar/rpc/check"
 )
 
 func init() {
-	subcommands.Register("check", cmd_check)
+	subcommands.Register2("check", parse_cmd_check)
 }
 
-func cmd_check(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
+func parse_cmd_check(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
 	var opt_concurrency uint64
 	var opt_fastCheck bool
 	var opt_noVerify bool
@@ -46,52 +43,13 @@ func cmd_check(ctx *appcontext.AppContext, repo *repository.Repository, args []s
 	flags.BoolVar(&opt_quiet, "quiet", false, "suppress output")
 	flags.Parse(args)
 
-	go eventsProcessorStdio(ctx, opt_quiet)
-
-	var snapshots []string
-	if flags.NArg() == 0 {
-		for snapshotID := range repo.ListSnapshots() {
-			snapshots = append(snapshots, fmt.Sprintf("%x", snapshotID))
-		}
-	} else {
-		snapshots = flags.Args()
-	}
-
-	opts := &snapshot.CheckOptions{
-		MaxConcurrency: opt_concurrency,
-		FastCheck:      opt_fastCheck,
-	}
-
-	failures := false
-	for _, arg := range snapshots {
-		snapshotPrefix, pathname := utils.ParseSnapshotID(arg)
-		snap, err := utils.OpenSnapshotByPrefix(repo, snapshotPrefix)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		if !opt_noVerify && snap.Header.Identity.Identifier != uuid.Nil {
-			if ok, err := snap.Verify(); err != nil {
-				ctx.GetLogger().Warn("%s", err)
-			} else if !ok {
-				ctx.GetLogger().Info("snapshot %x signature verification failed", snap.Header.Identifier)
-				failures = true
-			} else {
-				ctx.GetLogger().Info("snapshot %x signature verification succeeded", snap.Header.Identifier)
-			}
-		}
-
-		if ok, err := snap.Check(pathname, opts); err != nil {
-			ctx.GetLogger().Warn("%s", err)
-		} else if !ok {
-			failures = true
-		}
-
-		snap.Close()
-	}
-
-	if failures {
-		return 1, fmt.Errorf("check failed")
-	}
-	return 0, nil
+	return &check.Check{
+		RepositoryLocation: repo.Location(),
+		RepositorySecret:   ctx.GetSecret(),
+		Concurrency:        opt_concurrency,
+		FastCheck:          opt_fastCheck,
+		NoVerify:           opt_noVerify,
+		Quiet:              opt_quiet,
+		Snapshots:          flags.Args(),
+	}, nil
 }
