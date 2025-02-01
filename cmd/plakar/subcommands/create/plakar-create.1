@@ -1,4 +1,4 @@
-.Dd November 12, 2024
+.Dd January 28, 2025
 .Dt PLAKAR-CREATE 1
 .Os
 .Sh NAME
@@ -10,13 +10,16 @@
 .Op Fl no-compression
 .Op Fl hashing Ar algorithm
 .Op Fl compression Ar algorithm
-.Op Ar repository_path
+.Op Ar path
 .Sh DESCRIPTION
 The
 .Nm
-command creates a new Plakar repository at the specified path.
-Users can configure various options for encryption, compression, and
-hashing when creating the repository.
+command creates a new Plakar repository at the specified
+.Ar path ,
+which defaults to
+.Pa ~/.plakar .
+.Pp
+The options are as follows:
 .Bl -tag -width Ds
 .It Fl no-encryption
 Disable transparent encryption for the repository.
@@ -26,21 +29,21 @@ Disable transparent compression for the repository.
 If specified, the repository will not use compression.
 .It Fl hashing Ar algorithm
 Specify the hashing algorithm to use.
-The default is "sha256".
+The default is
+.Dq sha256 .
 Other supported algorithms may be available, depending on
 implementation.
 .It Fl compression Ar algorithm
 Specify the compression algorithm to use.
-The default is "lz4".
+The default is
+.Dq lz4 .
 Other supported algorithms may be available, depending on
 implementation.
 .El
-.Sh ARGUMENTS
-.Bl -tag -width Ds
-.It Ar repository_path
-(Optional) The path where the new repository will be created.
-If omitted, the repository will be created in the user's home
-directory at ".plakar".
+.Sh ENVIRONMENT
+.Bl -tag -width PLAKAR_PASSPHRASE
+.It Ev PLAKAR_PASSPHRASE
+Repository encryption password.
 .El
 .Sh EXAMPLES
 Create a new repository with default settings:
@@ -68,4 +71,4 @@ repository, or configuration issues.
 .El
 .Sh SEE ALSO
 .Xr plakar 1 ,
-.Xr plakar-repository 1
+.Xr plakar-backup 1

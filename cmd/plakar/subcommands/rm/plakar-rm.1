@@ -1,4 +1,4 @@
-.Dd November 12, 2024
+.Dd January 28, 2025
 .Dt PLAKAR-RM 1
 .Os
 .Sh NAME
@@ -8,35 +8,31 @@
 .Nm
 .Op Fl older Ar date
 .Op Fl tag Ar tag
-.Ar snapshotID ...
+.Op Ar snapshotID ...
 .Sh DESCRIPTION
 The
 .Nm
-command is used to delete snapshots from a Plakar repository.
-Snapshots can be filtered for deletion by age, using the
+command deletes snapshots from a Plakar repository.
+Snapshots can be filtered for deletion by age, by tag, or by
+specifying the snapshot IDs to remove.
+If no
+.Ar snapshotID
+are provided, either
 .Fl older
-option, by tag, using the
+or
 .Fl tag
-option, or by specifying specific snapshot IDs.
+must be specified to filter the snapshots to delete.
+.Pp
+The arguments are as follows:
 .Bl -tag -width Ds
 .It Fl older Ar date
 Remove snapshots older than the specified date.
 Accepted formats include relative durations
-.Pq e.g. "2d" for 2 days, "1w" for 1 week
+.Pq e.g. "2d" for two days, "1w" for one week
 or specific dates in various formats
 .Pq e.g. "2006-01-02 15:04:05" .
 .It Fl tag Ar tag
 Filter snapshots by tag, deleting only those that contain the specified tag.
-.El
-.Sh ARGUMENTS
-.Bl -tag -width Ds
-.It Ar snapshotID
-One or more snapshot IDs to delete.
-If no snapshot IDs are provided, either the
-.Fl older
-or
-.Fl tag
-option must be specified to filter snapshots for deletion.
 .El
 .Sh EXAMPLES
 Remove a specific snapshot by ID:
@@ -68,4 +64,5 @@ An error occurred, such as invalid date format or failure to delete a
 snapshot.
 .El
 .Sh SEE ALSO
-.Xr plakar 1
+.Xr plakar 1 ,
+.Xr plakar-backup 1

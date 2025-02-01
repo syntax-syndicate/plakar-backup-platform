@@ -1,4 +1,4 @@
-.Dd November 12, 2024
+.Dd January 28, 2025
 .Dt PLAKAR-CHECKSUM 1
 .Os
 .Sh NAME
@@ -7,40 +7,39 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl fast
-.Ar snapshotID filepath ...
+.Ar snapshotID Ns No : Ns Ar filepath Op ...
 .Sh DESCRIPTION
 The
 .Nm
-command calculates and displays checksums for specified files in a
-Plakar snapshot.
+command calculates and displays checksums for specified
+.Ar filepath
+in a the given
+.Ar snapshotID .
+Multiple
+.Ar snapshotID
+and
+.Ar filepath
+may be given.
 By default, the command computes the checksum by reading the file
 contents.
-The
-.Fl fast
-option enables the use of the pre-recorded checksum, which is faster
-but does not verify file integrity against current contents.
+.Pp
+The options are as follows:
 .Bl -tag -width Ds
 .It Fl fast
 Return the pre-recorded checksum for the file without re-computing it
 from the file contents.
-.El
-.Sh ARGUMENTS
-.Bl -tag -width Ds
-.It Ar snapshotID
-The ID of the snapshot to check.
-.It Ar filepath
-One or more paths within the snapshot for which to compute or retrieve
-checksums.
+It's faster, but it does not verify the integrity against the current
+contents.
 .El
 .Sh EXAMPLES
 Calculate the checksum of a file within a snapshot:
 .Bd -literal -offset indent
-plakar checksum abc123 /path/to/file.txt
+plakar checksum abc123:/path/to/file.txt
 .Ed
 .Pp
 Retrieve the pre-recorded checksum for faster output:
 .Bd -literal -offset indent
-plakar checksum -fast abc123 /path/to/file.txt
+plakar checksum -fast abc123:/path/to/file.txt
 .Ed
 .Sh DIAGNOSTICS
 .Ex -std
@@ -48,7 +47,7 @@ plakar checksum -fast abc123 /path/to/file.txt
 .It 0
 Command completed successfully.
 .It >0
-An error occurred, such as failure to retrieve a file's checksum or
+An error occurred, such as failure to retrieve a file checksum or
 invalid snapshot ID.
 .El
 .Sh SEE ALSO
