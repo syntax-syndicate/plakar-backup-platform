@@ -440,6 +440,9 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
+			default:
+				fmt.Fprintf(os.Stderr, "Unknown RPC: %s\n", request["Name"])
+				return
 			}
 
 			var repo *repository.Repository
