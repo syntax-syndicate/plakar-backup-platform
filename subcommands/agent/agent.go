@@ -20,6 +20,7 @@ import (
 	"github.com/PlakarKorp/plakar/subcommands/cat"
 	"github.com/PlakarKorp/plakar/subcommands/info"
 	"github.com/PlakarKorp/plakar/subcommands/ls"
+	"github.com/PlakarKorp/plakar/subcommands/rm"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -342,6 +343,18 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				var cmd struct {
 					Name       string
 					Subcommand info.InfoVFS
+				}
+				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
+					return
+				}
+				subcommand = &cmd.Subcommand
+				repositoryLocation = cmd.Subcommand.RepositoryLocation
+				repositorySecret = cmd.Subcommand.RepositorySecret
+			case "rm":
+				var cmd struct {
+					Name       string
+					Subcommand rm.Rm
 				}
 				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)

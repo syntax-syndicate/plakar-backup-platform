@@ -18,27 +18,24 @@ package rm
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/snapshot"
-	"github.com/dustin/go-humanize"
+	api_subcommands "github.com/PlakarKorp/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/subcommands/rm"
 )
 
 func init() {
-	subcommands.Register("rm", cmd_rm)
+	subcommands.Register2("rm", parse_cmd_rm)
 }
 
-func cmd_rm(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
+func parse_cmd_rm(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (api_subcommands.Subcommand, error) {
 	var opt_older string
 	var opt_tag string
 	flags := flag.NewFlagSet("rm", flag.ExitOnError)
@@ -110,69 +107,11 @@ func cmd_rm(ctx *appcontext.AppContext, repo *repository.Repository, args []stri
 		log.Fatalf("%s: need at least one snapshot ID to rm", flag.CommandLine.Name())
 	}
 
-	var snapshots []*snapshot.Snapshot
-	if opt_older != "" || opt_tag != "" {
-		if flags.NArg() != 0 {
-			tmp, err := utils.GetSnapshots(repo, flags.Args())
-			if err != nil {
-				log.Fatal(err)
-			}
-			snapshots = tmp
-		} else {
-			tmp, err := utils.GetSnapshots(repo, nil)
-			if err != nil {
-				log.Fatal(err)
-			}
-			snapshots = tmp
-		}
-	} else {
-		tmp, err := utils.GetSnapshots(repo, flags.Args())
-		if err != nil {
-			log.Fatal(err)
-		}
-		snapshots = tmp
-	}
-
-	errors := 0
-	wg := sync.WaitGroup{}
-	for _, snap := range snapshots {
-		if opt_older != "" && snap.Header.Timestamp.After(beforeDate) {
-			continue
-		}
-		if opt_tag != "" {
-			found := false
-			for _, t := range snap.Header.Tags {
-				if opt_tag == t {
-					found = true
-					break
-				}
-			}
-			if !found {
-				continue
-			}
-		}
-
-		wg.Add(1)
-		go func(snap *snapshot.Snapshot) {
-			defer snap.Close()
-
-			t0 := time.Now()
-			err := repo.DeleteSnapshot(snap.Header.GetIndexID())
-			if err != nil {
-				ctx.GetLogger().Error("%s", err)
-				errors++
-			}
-			wg.Done()
-			ctx.GetLogger().Info("removed snapshot %x of size %s in %s",
-				snap.Header.GetIndexShortID(),
-				humanize.Bytes(snap.Header.Summary.Directory.Size+snap.Header.Summary.Below.Size),
-				time.Since(t0))
-		}(snap)
-	}
-	wg.Wait()
-
-	if errors != 0 {
-		return 1, fmt.Errorf("failed to remove %d snapshots", errors)
-	}
-	return 0, nil
+	return &rm.Rm{
+		RepositoryLocation: repo.Location(),
+		RepositorySecret:   ctx.GetSecret(),
+		Tag:                opt_tag,
+		BeforeDate:         beforeDate,
+		Prefixes:           flags.Args(),
+	}, nil
 }
