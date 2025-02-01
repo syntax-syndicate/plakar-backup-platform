@@ -14,13 +14,13 @@ import (
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/rpc"
+	"github.com/PlakarKorp/plakar/rpc/backup"
+	"github.com/PlakarKorp/plakar/rpc/cat"
+	"github.com/PlakarKorp/plakar/rpc/info"
+	"github.com/PlakarKorp/plakar/rpc/ls"
+	"github.com/PlakarKorp/plakar/rpc/rm"
 	"github.com/PlakarKorp/plakar/storage"
-	api_subcommands "github.com/PlakarKorp/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/subcommands/backup"
-	"github.com/PlakarKorp/plakar/subcommands/cat"
-	"github.com/PlakarKorp/plakar/subcommands/info"
-	"github.com/PlakarKorp/plakar/subcommands/ls"
-	"github.com/PlakarKorp/plakar/subcommands/rm"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -226,7 +226,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				return
 			}
 
-			var subcommand api_subcommands.Subcommand
+			var subcommand rpc.RPC
 			var repositoryLocation string
 			var repositorySecret []byte
 

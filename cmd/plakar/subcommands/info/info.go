@@ -23,15 +23,15 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
-	api_subcommands "github.com/PlakarKorp/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/subcommands/info"
+	"github.com/PlakarKorp/plakar/rpc"
+	"github.com/PlakarKorp/plakar/rpc/info"
 )
 
 func init() {
 	subcommands.Register2("info", parse_cmd_info)
 }
 
-func parse_cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (api_subcommands.Subcommand, error) {
+func parse_cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
 
 	if len(args) == 0 {
 		return &info.InfoRepository{

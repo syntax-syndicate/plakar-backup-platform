@@ -23,15 +23,15 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
-	api_subcommands "github.com/PlakarKorp/plakar/subcommands"
-	agent_handler "github.com/PlakarKorp/plakar/subcommands/agent"
+	"github.com/PlakarKorp/plakar/rpc"
+	agent_handler "github.com/PlakarKorp/plakar/rpc/agent"
 )
 
 func init() {
 	subcommands.Register2("agent", parse_cmd_agent)
 }
 
-func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (api_subcommands.Subcommand, error) {
+func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
 	var opt_prometheus string
 	var opt_socketPath string
 

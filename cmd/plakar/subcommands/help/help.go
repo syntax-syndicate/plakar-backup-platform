@@ -25,7 +25,7 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
-	api_subcommands "github.com/PlakarKorp/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/rpc"
 	"github.com/charmbracelet/glamour"
 	"github.com/muesli/termenv"
 )
@@ -37,7 +37,7 @@ func init() {
 	subcommands.Register2("help", parse_cmd_help)
 }
 
-func parse_cmd_help(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (api_subcommands.Subcommand, error) {
+func parse_cmd_help(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
 	var opt_style string
 	flags := flag.NewFlagSet("help", flag.ExitOnError)
 	flags.StringVar(&opt_style, "style", "dracula", "style to use")

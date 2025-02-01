@@ -15,7 +15,7 @@ import (
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
-	api_subcommands "github.com/PlakarKorp/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/rpc"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -87,7 +87,7 @@ func isDisconnectError(err error) bool {
 	return errors.As(err, &netErr) && netErr.Timeout()
 }
 
-func (d *Agent) ListenAndServe(handler func(subcommand api_subcommands.Subcommand) (int, error)) error {
+func (d *Agent) ListenAndServe(handler func(subcommand rpc.RPC) (int, error)) error {
 	// var promServerStarted sync.WaitGroup
 	// var promErr error
 
@@ -218,7 +218,7 @@ func (d *Agent) ListenAndServe(handler func(subcommand api_subcommands.Subcomman
 			decoder := msgpack.NewDecoder(conn)
 
 			// Decode the client request
-			var request api_subcommands.Subcommand
+			var request rpc.RPC
 			if err := decoder.Decode(&request); err != nil {
 				if isDisconnectError(err) {
 					fmt.Fprintf(os.Stderr, "Client disconnected during initial request\n")
@@ -335,7 +335,7 @@ type Client struct {
 	conn net.Conn
 }
 
-func ExecuteRPC(ctx *appcontext.AppContext, repo *repository.Repository, cmd api_subcommands.Subcommand) (int, error) {
+func ExecuteRPC(ctx *appcontext.AppContext, repo *repository.Repository, cmd rpc.RPC) (int, error) {
 	client, err := NewClient(filepath.Join(ctx.CacheDir, "agent.sock"))
 	if err != nil {
 		return 1, err
@@ -358,10 +358,10 @@ func NewClient(socketPath string) (*Client, error) {
 	return &Client{conn: conn}, nil
 }
 
-func (c *Client) SendCommand2(ctx *appcontext.AppContext, cmd api_subcommands.Subcommand, repo *repository.Repository) (int, error) {
+func (c *Client) SendCommand2(ctx *appcontext.AppContext, cmd rpc.RPC, repo *repository.Repository) (int, error) {
 	v := struct {
 		Name       string
-		Subcommand api_subcommands.Subcommand
+		Subcommand rpc.RPC
 	}{
 		Name:       cmd.Name(),
 		Subcommand: cmd,
@@ -448,7 +448,7 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
-func (c *Client) ExecuteRPC(handler api_subcommands.Subcommand) (int, error) {
+func (c *Client) ExecuteRPC(handler rpc.RPC) (int, error) {
 	encoder := msgpack.NewEncoder(c.conn)
 	decoder := msgpack.NewDecoder(c.conn)
 
