@@ -1,4 +1,4 @@
-PLAKAR-locate(1) - General Commands Manual
+PLAKAR-LOCATE(1) - General Commands Manual
 
 # NAME
 
