@@ -17,25 +17,17 @@
 package cat
 
 import (
-	"bufio"
-	"compress/gzip"
 	"flag"
 	"fmt"
-	"io"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
 	api_subcommands "github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/subcommands/cat"
-	"github.com/alecthomas/chroma/formatters"
-	"github.com/alecthomas/chroma/lexers"
-	"github.com/alecthomas/chroma/styles"
 )
 
 func init() {
-	subcommands.Register("cat", cmd_cat)
 	subcommands.Register2("cat", parse_cmd_cat)
 }
 
@@ -59,132 +51,4 @@ func parse_cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args
 		Highlight:          opt_highlight,
 		Paths:              flags.Args(),
 	}, nil
-}
-
-func cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
-	var opt_nodecompress bool
-	var opt_highlight bool
-
-	flags := flag.NewFlagSet("cat", flag.ExitOnError)
-	flags.BoolVar(&opt_nodecompress, "no-decompress", false, "do not try to decompress output")
-	flags.BoolVar(&opt_highlight, "highlight", false, "highlight output")
-	flags.Parse(args)
-
-	if flags.NArg() == 0 {
-		ctx.GetLogger().Error("%s: at least one parameter is required", flags.Name())
-		return 1, fmt.Errorf("missing filename")
-	}
-
-	snapshots, err := utils.GetSnapshots(repo, flags.Args())
-	if err != nil {
-		ctx.GetLogger().Error("%s: could not obtain snapshots list: %s", flags.Name(), err)
-		return 1, err
-	}
-
-	errors := 0
-	for offset, snap := range snapshots {
-		defer snap.Close()
-
-		_, pathname := utils.ParseSnapshotID(flags.Args()[offset])
-
-		if pathname == "" {
-			ctx.GetLogger().Error("%s: missing filename for snapshot", flags.Name())
-			errors++
-			continue
-		}
-
-		fs, err := snap.Filesystem()
-		if err != nil {
-			ctx.GetLogger().Error("%s: %s: %s", flags.Name(), pathname, err)
-			errors++
-			continue
-		}
-
-		entry, err := fs.GetEntry(pathname)
-		if err != nil {
-			ctx.GetLogger().Error("%s: %s: no such file", flags.Name(), pathname)
-			errors++
-			continue
-		}
-
-		if !entry.Stat().Mode().IsRegular() {
-			ctx.GetLogger().Error("%s: %s: not a regular file", flags.Name(), pathname)
-			errors++
-			continue
-		}
-
-		file := entry.Open(fs, pathname)
-		var rd io.ReadCloser = file
-
-		if !opt_nodecompress {
-			if entry.Object.ContentType == "application/gzip" && !opt_nodecompress {
-				gzRd, err := gzip.NewReader(rd)
-				if err != nil {
-					ctx.GetLogger().Error("%s: %s: %s", flags.Name(), pathname, err)
-					errors++
-					file.Close()
-					continue
-				}
-				rd = gzRd
-			}
-		}
-
-		if opt_highlight {
-			lexer := lexers.Match(pathname)
-			if lexer == nil {
-				lexer = lexers.Get(entry.Object.ContentType)
-			}
-			if lexer == nil {
-				lexer = lexers.Fallback // Fallback if no lexer is found
-			}
-			formatter := formatters.Get("terminal")
-			style := styles.Get("dracula")
-
-			reader := bufio.NewReader(rd)
-			buffer := make([]byte, 4096) // Fixed-size buffer for chunked reading
-			for {
-				n, err := reader.Read(buffer) // Read up to the size of the buffer
-				if n > 0 {
-					chunk := string(buffer[:n])
-
-					// Tokenize the chunk and apply syntax highlighting
-					iterator, errTokenize := lexer.Tokenise(nil, chunk)
-					if errTokenize != nil {
-						ctx.GetLogger().Error("%s: %s: %s", flags.Name(), pathname, errTokenize)
-						errors++
-						break
-					}
-
-					errFormat := formatter.Format(ctx.Stdout, style, iterator)
-					if errFormat != nil {
-						ctx.GetLogger().Error("%s: %s: %s", flags.Name(), pathname, errFormat)
-						errors++
-						break
-					}
-				}
-
-				// Check for end of file (EOF)
-				if err == io.EOF {
-					break
-				} else if err != nil {
-					ctx.GetLogger().Error("%s: %s: %s", flags.Name(), pathname, err)
-					errors++
-					break
-				}
-			}
-		} else {
-			_, err = io.Copy(ctx.Stdout, rd)
-		}
-		file.Close()
-		if err != nil {
-			ctx.GetLogger().Error("%s: %s: %s", flags.Name(), pathname, err)
-			errors++
-			continue
-		}
-	}
-
-	if errors != 0 {
-		return 1, fmt.Errorf("errors occurred")
-	}
-	return 0, nil
 }
