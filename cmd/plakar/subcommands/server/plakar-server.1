@@ -1,4 +1,4 @@
-.Dd November 12, 2024
+.Dd January 29, 2025
 .Dt PLAKAR-SERVER 1
 .Os
 .Sh NAME
@@ -12,11 +12,14 @@
 .Sh DESCRIPTION
 The
 .Nm
-command starts a Plakar server instance, allowing remote interaction
-with a Plakar repository over a network.
-The server can operate with different protocols (`http` or `plakar`),
-and can be configured to restrict delete operations for data
-protection.
+command starts a Plakar server instance at the provided
+.Ar address ,
+allowing remote interaction with a Plakar repository over a network.
+If no
+.Ar address
+is given, the server listens on localhost at port 9876.
+.Pp
+The options are as follows:
 .Bl -tag -width Ds
 .It Fl protocol Ar protocol
 Specify the protocol for the server to use.
@@ -32,12 +35,6 @@ Start a Plakar-native server (default).
 Enable delete operations.
 By default, delete operations are disabled to prevent accidental data
 loss.
-.El
-.Sh ARGUMENTS
-.Bl -tag -width Ds
-.It Ar address
-(Optional) Specify the address and port for the server to listen on.
-If omitted, the server will default to ":9876".
 .El
 .Sh EXAMPLES
 Start server with default Plakar protocol:

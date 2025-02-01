@@ -1,4 +1,4 @@
-.Dd November 12, 2024
+.Dd January 29, 2025
 .Dt PLAKAR-CAT 1
 .Os
 .Sh NAME
@@ -8,14 +8,18 @@
 .Nm
 .Op Fl no-decompress
 .Op Fl highlight
-.Ar snapshotID filepath ...
+.Ar snapshotID : Ns Ar filepath ...
 .Sh DESCRIPTION
 The
 .Nm
-command outputs the contents of files within Plakar snapshots to the
+command outputs the contents of
+.Ar filepath
+within Plakar snapshots to the
 standard output.
 It can decompress compressed files and optionally apply syntax
 highlighting based on the file type.
+.Pp
+The options are as follows:
 .Bl -tag -width Ds
 .It Fl no-decompress
 Display the file content as-is, without attempting to decompress it,
@@ -23,27 +27,15 @@ even if it is compressed.
 .It Fl highlight
 Apply syntax highlighting to the output based on the file type.
 .El
-.Sh ARGUMENTS
-.Bl -tag -width Ds
-.It Ar snapshotID
-The ID of the snapshot containing the file to display.
-.It Ar filepath
-One or more file paths within the snapshot to display.
-.El
 .Sh EXAMPLES
 Display a file's contents from a snapshot:
 .Bd -literal -offset indent
-plakar cat abc123 /path/to/file.txt
-.Ed
-.Pp
-Display a compressed file without decompression:
-.Bd -literal -offset indent
-plakar cat -no-decompress abc123 /path/to/compressed.gz
+plakar cat abc123:/etc/passwd
 .Ed
 .Pp
 Display a file with syntax highlighting:
 .Bd -literal -offset indent
-plakar cat -highlight abc123 /path/to/script.sh
+plakar cat -highlight abc123:/path/to/script.sh
 .Ed
 .Sh DIAGNOSTICS
 .Ex -std
@@ -55,4 +47,5 @@ An error occurred, such as failure to retrieve a file or decompress
 content.
 .El
 .Sh SEE ALSO
-.Xr plakar 1
+.Xr plakar 1 ,
+.Xr plakar-backup 1
