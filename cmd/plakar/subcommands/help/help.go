@@ -74,13 +74,3 @@ func cmd_help(ctx *appcontext.AppContext, _ *repository.Repository, args []strin
 
 	return 1, err
 }
-
-// to rebuild documentation, run:
-/*
-find ../ -type f -name '*.1' -exec sh -c '
-  for file; do
-    base=$(basename "$file" .1)
-    mandoc -T markdown "$file" > "docs/$base.md"
-  done
-' sh {} +
-*/
