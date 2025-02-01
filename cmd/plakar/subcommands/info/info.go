@@ -34,12 +34,12 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/handlers"
-	"github.com/PlakarKorp/plakar/handlers/info"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/repository/state"
+	api_subcommands "github.com/PlakarKorp/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/subcommands/info"
 	"github.com/dustin/go-humanize"
 	"github.com/google/uuid"
 )
@@ -49,7 +49,7 @@ func init() {
 	subcommands.Register2("info", parse_cmd_info)
 }
 
-func parse_cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (handlers.Subcommand, error) {
+func parse_cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (api_subcommands.Subcommand, error) {
 
 	if len(args) == 0 {
 		return &info.InfoRepository{

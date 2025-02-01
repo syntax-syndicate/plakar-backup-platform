@@ -26,9 +26,9 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/handlers"
-	"github.com/PlakarKorp/plakar/handlers/cat"
 	"github.com/PlakarKorp/plakar/repository"
+	api_subcommands "github.com/PlakarKorp/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/subcommands/cat"
 	"github.com/alecthomas/chroma/formatters"
 	"github.com/alecthomas/chroma/lexers"
 	"github.com/alecthomas/chroma/styles"
@@ -39,7 +39,7 @@ func init() {
 	subcommands.Register2("cat", parse_cmd_cat)
 }
 
-func parse_cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (handlers.Subcommand, error) {
+func parse_cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (api_subcommands.Subcommand, error) {
 	var opt_nodecompress bool
 	var opt_highlight bool
 

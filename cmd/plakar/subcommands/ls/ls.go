@@ -29,11 +29,11 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/handlers"
-	"github.com/PlakarKorp/plakar/handlers/ls"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
+	api_subcommands "github.com/PlakarKorp/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/subcommands/ls"
 	"github.com/dustin/go-humanize"
 )
 
@@ -42,7 +42,7 @@ func init() {
 	subcommands.Register2("ls", parse_cmd_ls)
 }
 
-func parse_cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (handlers.Subcommand, error) {
+func parse_cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (api_subcommands.Subcommand, error) {
 	var opt_recursive bool
 	var opt_tag string
 	var opt_uuid bool

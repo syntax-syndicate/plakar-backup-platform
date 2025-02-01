@@ -28,11 +28,11 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/handlers"
-	"github.com/PlakarKorp/plakar/handlers/backup"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
+	api_subcommands "github.com/PlakarKorp/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/subcommands/backup"
 	"github.com/dustin/go-humanize"
 	"github.com/gobwas/glob"
 	"github.com/google/uuid"
@@ -54,7 +54,7 @@ func (e *excludeFlags) Set(value string) error {
 	return nil
 }
 
-func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (handlers.Subcommand, error) {
+func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (api_subcommands.Subcommand, error) {
 	var opt_tags string
 	var opt_excludes string
 	var opt_exclude excludeFlags

@@ -1,4 +1,4 @@
-package handlers
+package subcommands
 
 import (
 	"github.com/PlakarKorp/plakar/appcontext"
