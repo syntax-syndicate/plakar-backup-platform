@@ -1,4 +1,4 @@
-.Dd November 12, 2024
+.Dd February 1, 2025
 .Dt PLAKAR-CLEANUP 1
 .Os
 .Sh NAME
@@ -14,15 +14,6 @@ repository to reduce storage space.
 It identifies unreferenced data and reorganizes packfiles to ensure
 only active snapshots and their dependencies are retained.
 The cleanup process updates snapshot indexes to reflect these changes.
-.Sh OPTIONS
-No options are available for this command.
-.Sh ARGUMENTS
-None.
-.Sh EXAMPLES
-Run cleanup to reclaim storage space:
-.Bd -literal -offset indent
-plakar cleanup
-.Ed
 .Sh DIAGNOSTICS
 .Ex -std
 .Bl -tag -width Ds

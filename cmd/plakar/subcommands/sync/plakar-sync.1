@@ -1,4 +1,4 @@
-.Dd November 12, 2024
+.Dd February 1, 2025
 .Dt PLAKAR-SYNC 1
 .Os
 .Sh NAME
@@ -12,13 +12,11 @@
 .Sh DESCRIPTION
 The
 .Nm
-command is used to synchronize snapshots between two Plakar
-repositories.
-Users can specify a direction (to, from, or with) to control the
-direction of synchronization between the primary and peer
-repositories.
+command syncronize snapshots between two Plakar repositories.
 If a specific snapshot ID is provided, only snapshots with matching
 IDs will be synchronized.
+.Pp
+The arguments are as follows:
 .Bl -tag -width Ds
 .It Cm to | from | with
 Specifies the direction of synchronization:
@@ -35,14 +33,6 @@ are fully synchronized.
 .El
 .It Ar repository
 Path to the peer repository to synchronize with.
-.El
-.Sh OPTIONS
-No additional options are available for this command.
-.Sh ARGUMENTS
-.Bl -tag -width Ds
-.It Ar snapshotID
-(Optional) A partial or full snapshot ID to limit synchronization to
-specific snapshots that match this identifier.
 .El
 .Sh EXAMPLES
 Basic synchronization from local to peer repository:

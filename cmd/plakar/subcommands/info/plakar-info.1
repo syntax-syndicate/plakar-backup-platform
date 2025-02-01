@@ -1,4 +1,4 @@
-.Dd November 12, 2024
+.Dd February 1, 2025
 .Dt PLAKAR-INFO 1
 .Os
 .Sh NAME
@@ -6,45 +6,39 @@
 .Nd Display detailed information about a Plakar repository, snapshot, or other objects
 .Sh SYNOPSIS
 .Nm
-.Op Cm repository | snapshot | state | packfile | object | vfs
+.Op Cm errors | object | packfile | snapshot | state | vfs
 .Sh DESCRIPTION
 The
 .Nm
 command provides detailed information about a Plakar repository,
 snapshots, objects, and various internal data structures.
 The type of information displayed depends on the specified argument.
+Without any arguents, display information about the repository.
+.Pp
+The sub-commands are as follows:
 .Bl -tag -width Ds
-.It Cm repository
-Display high-level details of the Plakar repository, including
-configuration settings, encryption, compression, hashing, and snapshot
-statistics.
+.It Cm errors Ar snapshotID
+Display the list of errors in the given snapshot.
+.It Cm object Ar objectID
+Display information about a specific object, including its checksum,
+type, tags, and associated data chunks.
+.It Cm packfile Ar packfileID
+Show details of packfiles, including entries and checksums, which
+store object data within the repository.
 .It Cm snapshot Ar snapshotID
 Show detailed information about a specific snapshot, including its
 metadata, directory and file count, and size.
 .It Cm state
 List or describe the states in the repository.
-.It Cm packfile Ar packfileID
-Show details of packfiles, including entries and checksums, which
-store object data within the repository.
-.It Cm object Ar objectID
-Display information about a specific object, including its checksum,
-type, tags, and associated data chunks.
-.It Cm vfs Ar snapshotPathname
+.It Cm vfs Ar snapshotID : Ns Ar path
 Show filesystem (VFS) details for a specific path within a snapshot,
 listing directory or file attributes, including permissions,
 ownership, and custom metadata.
 .El
-.Sh ARGUMENTS
-.Bl -tag -width Ds
-.It Ar snapshotID
-(Optional) The ID of the snapshot to retrieve specific information from.
-.It Ar objectID
-(Optional) The ID of the object within a snapshot to inspect.
-.El
 .Sh EXAMPLES
 Show repository information:
 .Bd -literal -offset indent
-plakar info repository
+plakar info
 .Ed
 .Pp
 Show detailed information for a snapshot:
@@ -64,7 +58,7 @@ plakar info object 1234567890abcdef
 .Pp
 Display filesystem details for a path within a snapshot:
 .Bd -literal -offset indent
-plakar info vfs abc123/path/to/file
+plakar info vfs abc123:/etc/passwd
 .Ed
 .Sh DIAGNOSTICS
 .Ex -std

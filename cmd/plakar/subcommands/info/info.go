@@ -109,8 +109,7 @@ func cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, args []st
 		}
 
 	default:
-		fmt.Println("Invalid parameter. usage: info [snapshot|object|chunk|state|packfile|vfs]")
-		return 1, fmt.Errorf("Invalid parameter. usage: info [snapshot|object|chunk|state|packfile|vfs]")
+		return 1, fmt.Errorf("Invalid parameter. usage: info [errors|object|packfile|snapshot|state|vfs]")
 	}
 
 	return 0, nil
