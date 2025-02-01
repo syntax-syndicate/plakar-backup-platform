@@ -23,23 +23,33 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/rpc"
 	"golang.org/x/mod/semver"
 )
 
 const VERSION = "v0.4.22-alpha"
 
 func init() {
-	subcommands.Register("version", cmd_version)
+	subcommands.Register2("version", parse_cmd_version)
 }
 
-func cmd_version(ctx *appcontext.AppContext, _ *repository.Repository, args []string) (int, error) {
+func parse_cmd_version(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
 	flags := flag.NewFlagSet("version", flag.ExitOnError)
 	flags.Parse(args)
+	return &Version{}, nil
+}
 
+type Version struct {
+}
+
+func (cmd *Version) Name() string {
+	return "version"
+}
+
+func (cmd *Version) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	if !semver.IsValid(VERSION) {
 		return 1, fmt.Errorf("invalid version string: %s", VERSION)
 	}
 	fmt.Println(VERSION)
-
 	return 0, nil
 }
