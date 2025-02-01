@@ -8,8 +8,6 @@
 .Nm
 .Op Fl no-encryption
 .Op Fl no-compression
-.Op Fl hashing Ar algorithm
-.Op Fl compression Ar algorithm
 .Op Ar path
 .Sh DESCRIPTION
 The
@@ -27,18 +25,6 @@ If specified, the repository will not use encryption.
 .It Fl no-compression
 Disable transparent compression for the repository.
 If specified, the repository will not use compression.
-.It Fl hashing Ar algorithm
-Specify the hashing algorithm to use.
-The default is
-.Dq sha256 .
-Other supported algorithms may be available, depending on
-implementation.
-.It Fl compression Ar algorithm
-Specify the compression algorithm to use.
-The default is
-.Dq lz4 .
-Other supported algorithms may be available, depending on
-implementation.
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width PLAKAR_PASSPHRASE
@@ -49,11 +35,6 @@ Repository encryption password.
 Create a new repository with default settings:
 .Bd -literal -offset indent
 plakar create
-.Ed
-.Pp
-Create a new repository with specific compression algorithm:
-.Bd -literal -offset indent
-plakar create -compression "gzip" /path/to/repo
 .Ed
 .Pp
 Create a new repository without encryption:
