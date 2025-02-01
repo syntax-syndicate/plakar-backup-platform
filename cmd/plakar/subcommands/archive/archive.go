@@ -19,22 +19,21 @@ package archive
 import (
 	"flag"
 	"fmt"
-	"io"
 	"log"
-	"os"
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/rpc"
+	"github.com/PlakarKorp/plakar/rpc/archive"
 )
 
 func init() {
-	subcommands.Register("archive", cmd_archive)
+	subcommands.Register2("archive", parse_cmd_archive)
 }
 
-func cmd_archive(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
+func parse_cmd_archive(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
 	var opt_rebase bool
 	var opt_output string
 	var opt_format string
@@ -58,41 +57,16 @@ func cmd_archive(ctx *appcontext.AppContext, repo *repository.Repository, args [
 		log.Fatalf("%s: unsupported format %s", flag.CommandLine.Name(), opt_format)
 	}
 
-	snapshotPrefix, pathname := utils.ParseSnapshotID(flags.Arg(0))
-	snap, err := utils.OpenSnapshotByPrefix(repo, snapshotPrefix)
-	if err != nil {
-		log.Fatalf("%s: could not open snapshot: %s", flag.CommandLine.Name(), snapshotPrefix)
-	}
-	defer snap.Close()
-
 	if opt_output == "" {
 		opt_output = fmt.Sprintf("plakar-%s.%s", time.Now().UTC().Format(time.RFC3339), supportedFormats[opt_format])
 	}
 
-	var out io.WriteCloser
-	if opt_output == "-" {
-		out = os.Stdout
-	} else {
-		tmp, err := os.CreateTemp("", "plakar-archive-")
-		if err != nil {
-			log.Fatalf("%s: %s: %s", flag.CommandLine.Name(), pathname, err)
-		}
-		defer os.Remove(tmp.Name())
-		out = tmp
-	}
-
-	if err = snap.Archive(out, opt_format, []string{pathname}, opt_rebase); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := out.Close(); err != nil {
-		return 1, err
-	}
-	if out, isFile := out.(*os.File); isFile {
-		if err := os.Rename(out.Name(), opt_output); err != nil {
-			return 1, err
-		}
-	}
-
-	return 0, nil
+	return &archive.Archive{
+		RepositoryLocation: repo.Location(),
+		RepositorySecret:   ctx.GetSecret(),
+		Rebase:             opt_rebase,
+		Output:             opt_output,
+		Format:             opt_format,
+		SnapshotPrefix:     flags.Arg(0),
+	}, nil
 }
