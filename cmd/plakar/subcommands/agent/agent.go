@@ -36,6 +36,7 @@ import (
 	"github.com/PlakarKorp/plakar/rpc"
 	"github.com/PlakarKorp/plakar/rpc/backup"
 	"github.com/PlakarKorp/plakar/rpc/cat"
+	"github.com/PlakarKorp/plakar/rpc/checksum"
 	"github.com/PlakarKorp/plakar/rpc/info"
 	"github.com/PlakarKorp/plakar/rpc/ls"
 	"github.com/PlakarKorp/plakar/rpc/rm"
@@ -393,6 +394,18 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				var cmd struct {
 					Name       string
 					Subcommand rm.Rm
+				}
+				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
+					return
+				}
+				subcommand = &cmd.Subcommand
+				repositoryLocation = cmd.Subcommand.RepositoryLocation
+				repositorySecret = cmd.Subcommand.RepositorySecret
+			case "checksum":
+				var cmd struct {
+					Name       string
+					Subcommand checksum.Checksum
 				}
 				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
