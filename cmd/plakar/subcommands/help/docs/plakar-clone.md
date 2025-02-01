@@ -8,7 +8,7 @@ PLAKAR-CLONE(1) - General Commands Manual
 
 **plakar clone**
 **to**
-*target-path*
+*path*
 
 # DESCRIPTION
 
@@ -17,7 +17,7 @@ The
 command creates a full clone of an existing Plakar repository,
 including all snapshots, packfiles, and repository states, and saves
 it at the specified
-*target-path*.
+*path*.
 The cloned repository is assigned a new unique ID to distinguish it
 from the source repository.
 
@@ -42,6 +42,7 @@ The **plakar clone** utility exits&#160;0 on success, and&#160;&gt;0 if an error
 
 # SEE ALSO
 
-plakar(1)
+plakar(1),
+plakar-create(1)
 
-macOS 15.0 - November 12, 2024
+Nixpkgs - February 1, 2025

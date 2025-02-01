@@ -15,11 +15,14 @@ PLAKAR-SERVER(1) - General Commands Manual
 
 The
 **plakar server**
-command starts a Plakar server instance, allowing remote interaction
-with a Plakar repository over a network.
-The server can operate with different protocols (\`http\` or \`plakar\`),
-and can be configured to restrict delete operations for data
-protection.
+command starts a Plakar server instance at the provided
+*address*,
+allowing remote interaction with a Plakar repository over a network.
+If no
+*address*
+is given, the server listens on localhost at port 9876.
+
+The options are as follows:
 
 **-protocol** *protocol*
 
@@ -39,13 +42,6 @@ protection.
 > Enable delete operations.
 > By default, delete operations are disabled to prevent accidental data
 > loss.
-
-# ARGUMENTS
-
-*address*
-
-> (Optional) Specify the address and port for the server to listen on.
-> If omitted, the server will default to ":9876".
 
 # EXAMPLES
 
@@ -74,4 +70,4 @@ The **plakar server** utility exits&#160;0 on success, and&#160;&gt;0 if an erro
 
 plakar(1)
 
-macOS 15.0 - November 12, 2024
+Nixpkgs - January 29, 2025

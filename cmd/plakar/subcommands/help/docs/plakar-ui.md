@@ -2,22 +2,44 @@ PLAKAR-UI(1) - General Commands Manual
 
 # NAME
 
-**plakar ui** - Launch the Plakar user interface
+**plakar ui** - Serve the Plakar user interface over HTTP
 
 # SYNOPSIS
 
 **plakar ui**
-\[**-no-spawn**]
 \[**-addr**&nbsp;*address*]
+\[**-cors**]
+\[**-no-auth**]
+\[**-no-spawn**]
 
 # DESCRIPTION
 
 The
 **plakar ui**
-command is used to launch the Plakar user interface, allowing users to
-interact with repositories through a web-based UI.
-By default, this command spawns the user&#8217;s web browser to open the
+command serves the Plakar webapp user interface.
+By default, this command spawns the a web browser to browse the
 interface.
+
+The options are as follows:
+
+**-addr** *address*
+
+> Specify the address and port for the UI to listen on separated by a colon,
+> (e.g. localhost:8080).
+> If omitted,
+> **plakar ui**
+> listen on localhost on a random port.
+
+**-cors**
+
+> Set the
+> 'Access-Control-Allow-Origin'
+> HTTP headers to allow the UI to be accesses from any origin.
+
+**-no-auth**
+
+> Disable the authentication token that otherwise is needed to consume
+> the exposed HTTP APIs.
 
 **-no-spawn**
 
@@ -25,24 +47,11 @@ interface.
 > The UI will launch, but the user must manually open it by navigating
 > to the specified address.
 
-**-addr** *address*
-
-> Specify the address and port for the UI to listen on (e.g., "localhost:8080").
-> If omitted, a default address may be used.
-
-# ARGUMENTS
-
-None.
-
 # EXAMPLES
 
-Basic example:
+Using a custom address and disable automatic browser execution:
 
-	plakar ui
-
-Example specifying address and disabling browser spawn:
-
-	plakar ui -addr "localhost:9090" -no-spawn
+	plakar ui -addr localhost:9090 -no-spawn
 
 # DIAGNOSTICS
 
@@ -61,4 +70,4 @@ The **plakar ui** utility exits&#160;0 on success, and&#160;&gt;0 if an error oc
 
 plakar(1)
 
-macOS 15.0 - November 12, 2024
+Nixpkgs - November 12, 2024

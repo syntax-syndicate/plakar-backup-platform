@@ -21,27 +21,11 @@ the local file system, providing easy browsing and retrieval of files
 without needing to explicitly restore them.
 This command requires a Linux or Darwin (macOS) environment.
 
-*mountpoint*
-
-> Specifies the directory where the snapshot will be mounted.
-> The directory must exist and be accessible, or an error will occur.
-
-# OPTIONS
-
-No additional options are available for this command.
-
-# ARGUMENTS
-
-*mountpoint*
-
-> A required argument specifying the directory to which the snapshot
-> will be mounted.
-
 # EXAMPLES
 
 Mount a snapshot to the specified directory:
 
-	plakar mount /path/to/mountpoint
+	plakar mount ~/mnt
 
 # DIAGNOSTICS
 
@@ -60,4 +44,4 @@ The **plakar mount** utility exits&#160;0 on success, and&#160;&gt;0 if an error
 
 plakar(1)
 
-macOS 15.0 - November 12, 2024
+Nixpkgs - February 1, 2025

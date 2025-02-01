@@ -18,20 +18,6 @@ It identifies unreferenced data and reorganizes packfiles to ensure
 only active snapshots and their dependencies are retained.
 The cleanup process updates snapshot indexes to reflect these changes.
 
-# OPTIONS
-
-No options are available for this command.
-
-# ARGUMENTS
-
-None.
-
-# EXAMPLES
-
-Run cleanup to reclaim storage space:
-
-	plakar cleanup
-
 # DIAGNOSTICS
 
 The **plakar cleanup** utility exits&#160;0 on success, and&#160;&gt;0 if an error occurs.
@@ -49,4 +35,4 @@ The **plakar cleanup** utility exits&#160;0 on success, and&#160;&gt;0 if an err
 
 plakar(1)
 
-macOS 15.0 - November 12, 2024
+Nixpkgs - February 1, 2025

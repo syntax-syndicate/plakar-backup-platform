@@ -9,17 +9,18 @@ PLAKAR-CREATE(1) - General Commands Manual
 **plakar create**
 \[**-no-encryption**]
 \[**-no-compression**]
-\[**-hashing**&nbsp;*algorithm*]
-\[**-compression**&nbsp;*algorithm*]
-\[*repository\_path*]
+\[*path*]
 
 # DESCRIPTION
 
 The
 **plakar create**
-command creates a new Plakar repository at the specified path.
-Users can configure various options for encryption, compression, and
-hashing when creating the repository.
+command creates a new Plakar repository at the specified
+*path*,
+which defaults to
+*~/.plakar*.
+
+The options are as follows:
 
 **-no-encryption**
 
@@ -31,37 +32,17 @@ hashing when creating the repository.
 > Disable transparent compression for the repository.
 > If specified, the repository will not use compression.
 
-**-hashing** *algorithm*
+# ENVIRONMENT
 
-> Specify the hashing algorithm to use.
-> The default is "sha256".
-> Other supported algorithms may be available, depending on
-> implementation.
+`PLAKAR_PASSPHRASE`
 
-**-compression** *algorithm*
-
-> Specify the compression algorithm to use.
-> The default is "lz4".
-> Other supported algorithms may be available, depending on
-> implementation.
-
-# ARGUMENTS
-
-*repository\_path*
-
-> (Optional) The path where the new repository will be created.
-> If omitted, the repository will be created in the user's home
-> directory at ".plakar".
+> Repository encryption password.
 
 # EXAMPLES
 
 Create a new repository with default settings:
 
 	plakar create
-
-Create a new repository with specific compression algorithm:
-
-	plakar create -compression "gzip" /path/to/repo
 
 Create a new repository without encryption:
 
@@ -83,6 +64,6 @@ The **plakar create** utility exits&#160;0 on success, and&#160;&gt;0 if an erro
 # SEE ALSO
 
 plakar(1),
-plakar-repository(1)
+plakar-backup(1)
 
-macOS 15.0 - November 12, 2024
+Nixpkgs - February 1, 2025

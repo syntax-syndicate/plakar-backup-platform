@@ -15,13 +15,11 @@ PLAKAR-SYNC(1) - General Commands Manual
 
 The
 **plakar sync**
-command is used to synchronize snapshots between two Plakar
-repositories.
-Users can specify a direction (to, from, or with) to control the
-direction of synchronization between the primary and peer
-repositories.
+command syncronize snapshots between two Plakar repositories.
 If a specific snapshot ID is provided, only snapshots with matching
 IDs will be synchronized.
+
+The arguments are as follows:
 
 **to** | **from** | **with**
 
@@ -45,17 +43,6 @@ IDs will be synchronized.
 *repository*
 
 > Path to the peer repository to synchronize with.
-
-# OPTIONS
-
-No additional options are available for this command.
-
-# ARGUMENTS
-
-*snapshotID*
-
-> (Optional) A partial or full snapshot ID to limit synchronization to
-> specific snapshots that match this identifier.
 
 # EXAMPLES
 
@@ -88,4 +75,4 @@ The **plakar sync** utility exits&#160;0 on success, and&#160;&gt;0 if an error 
 
 plakar(1)
 
-macOS 15.0 - November 12, 2024
+Nixpkgs - February 1, 2025

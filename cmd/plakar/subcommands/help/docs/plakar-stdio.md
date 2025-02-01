@@ -18,25 +18,13 @@ mode, allowing interaction with Plakar over stdio streams.
 This command can be used for environments where communication is
 expected to occur over pipes or other stdio-based mechanisms.
 
+The options are as follows:
+
 **-no-delete**
 
 > Disables delete operations.
 > When specified, the server will reject any requests that attempt to
 > delete data.
-
-# ARGUMENTS
-
-None.
-
-# EXAMPLES
-
-Basic example to start the server in stdio mode:
-
-	plakar stdio
-
-Start stdio mode with delete operations disabled:
-
-	plakar stdio -no-delete
 
 # DIAGNOSTICS
 
@@ -55,4 +43,4 @@ The **plakar stdio** utility exits&#160;0 on success, and&#160;&gt;0 if an error
 
 plakar(1)
 
-macOS 15.0 - November 12, 2024
+Nixpkgs - November 12, 2024

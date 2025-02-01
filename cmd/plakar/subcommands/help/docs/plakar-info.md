@@ -7,7 +7,7 @@ PLAKAR-INFO(1) - General Commands Manual
 # SYNOPSIS
 
 **plakar info**
-\[**repository**&nbsp;|&nbsp;**snapshot**&nbsp;|&nbsp;**state**&nbsp;|&nbsp;**packfile**&nbsp;|&nbsp;**object**&nbsp;|&nbsp;**vfs**]
+\[**errors**&nbsp;|&nbsp;**object**&nbsp;|&nbsp;**packfile**&nbsp;|&nbsp;**snapshot**&nbsp;|&nbsp;**state**&nbsp;|&nbsp;**vfs**]
 
 # DESCRIPTION
 
@@ -16,12 +16,23 @@ The
 command provides detailed information about a Plakar repository,
 snapshots, objects, and various internal data structures.
 The type of information displayed depends on the specified argument.
+Without any arguents, display information about the repository.
 
-**repository**
+The sub-commands are as follows:
 
-> Display high-level details of the Plakar repository, including
-> configuration settings, encryption, compression, hashing, and snapshot
-> statistics.
+**errors** *snapshotID*
+
+> Display the list of errors in the given snapshot.
+
+**object** *objectID*
+
+> Display information about a specific object, including its checksum,
+> type, tags, and associated data chunks.
+
+**packfile** *packfileID*
+
+> Show details of packfiles, including entries and checksums, which
+> store object data within the repository.
 
 **snapshot** *snapshotID*
 
@@ -32,37 +43,17 @@ The type of information displayed depends on the specified argument.
 
 > List or describe the states in the repository.
 
-**packfile** *packfileID*
-
-> Show details of packfiles, including entries and checksums, which
-> store object data within the repository.
-
-**object** *objectID*
-
-> Display information about a specific object, including its checksum,
-> type, tags, and associated data chunks.
-
-**vfs** *snapshotPathname*
+**vfs** *snapshotID*:*path*
 
 > Show filesystem (VFS) details for a specific path within a snapshot,
 > listing directory or file attributes, including permissions,
 > ownership, and custom metadata.
 
-# ARGUMENTS
-
-*snapshotID*
-
-> (Optional) The ID of the snapshot to retrieve specific information from.
-
-*objectID*
-
-> (Optional) The ID of the object within a snapshot to inspect.
-
 # EXAMPLES
 
 Show repository information:
 
-	plakar info repository
+	plakar info
 
 Show detailed information for a snapshot:
 
@@ -78,7 +69,7 @@ Display a specific object within a snapshot:
 
 Display filesystem details for a path within a snapshot:
 
-	plakar info vfs abc123/path/to/file
+	plakar info vfs abc123:/etc/passwd
 
 # DIAGNOSTICS
 
@@ -98,4 +89,4 @@ The **plakar info** utility exits&#160;0 on success, and&#160;&gt;0 if an error 
 plakar(1),
 plakar-snapshot(1)
 
-macOS 15.0 - November 12, 2024
+Nixpkgs - February 1, 2025

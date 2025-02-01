@@ -7,56 +7,38 @@ PLAKAR-EXEC(1) - General Commands Manual
 # SYNOPSIS
 
 **plakar exec**
-*snapshotID*
-*filepath*
+*snapshotID*:*filepath*
 \[*command\_args&nbsp;...*]
 
 # DESCRIPTION
 
 The
 **plakar exec**
-command extracts and executes a file from a Plakar snapshot.
-It can be used to temporarily run executable files directly from
-snapshots.
-This command supports passing arguments to the extracted executable.
-
-*snapshotID*
-
-> The ID of the snapshot containing the file to execute.
-
+command extracts and executes a file at
 *filepath*
-
-> The path within the snapshot to the file to be executed.
-
+from a Plakar snapshot passing the given arguments
 *command\_args*
-
-> (Optional) Additional arguments to pass to the executable.
+to it.
 
 # EXAMPLES
 
 Execute a script from a snapshot with no arguments:
 
-	plakar exec abc123 /path/to/script.sh
+	plakar exec abc123:/path/to/script.sh
 
 Run an executable from a snapshot with arguments:
 
-	plakar exec abc123 /path/to/executable --option value
+	plakar exec abc123:/path/to/executable --option value
 
 # DIAGNOSTICS
 
-The **plakar exec** utility exits&#160;0 on success, and&#160;&gt;0 if an error occurs.
-
-0
-
-> Command completed successfully.
-
-&gt;0
-
-> An error occurred, such as a missing file in the snapshot or an
-> execution failure.
+**plakar exec**
+preserves the exit code of the command but may also fail with exit
+code 1 without executing it, for e.g. if the file or the snapshot
+doesn't exist.
 
 # SEE ALSO
 
 plakar(1)
 
-macOS 15.0 - November 12, 2024
+Nixpkgs - January 29, 2025

@@ -8,20 +8,25 @@ PLAKAR-BACKUP(1) - General Commands Manual
 
 **plakar backup**
 \[**-concurrency**&nbsp;*number*]
-\[**-tag**&nbsp;*tag*]
-\[**-excludes**&nbsp;*file*]
 \[**-exclude**&nbsp;*pattern*]
+\[**-excludes**&nbsp;*file*]
 \[**-quiet**]
+\[**-stdio**]
+\[**-tag**&nbsp;*tag*]
 \[*directory*]
 
 # DESCRIPTION
 
 The
 **plakar backup**
-command creates a new snapshot of a directory in a Plakar repository,
-storing it with an optional tag and exclusion patterns.
+command creates a new snapshot of
+*directory*,
+or the current directory,
+in a Plakar repository.
 Snapshots can be filtered to exclude specific files or directories
 based on patterns provided through options.
+
+The options are as follows:
 
 **-concurrency** *number*
 
@@ -29,31 +34,29 @@ based on patterns provided through options.
 > Defaults to
 > `8 * CPU count + 1`.
 
-**-tag** *tag*
-
-> Specify a tag to assign to the snapshot for easier identification.
-
-**-excludes** *file*
-
-> Specify a file containing exclusion patterns, one per line, to ignore
-> files or directories in the backup.
-
 **-exclude** *pattern*
 
 > Specify individual exclusion patterns to ignore files or directories
 > in the backup.
 > This option can be repeated.
 
+**-excludes** *file*
+
+> Specify a file containing exclusion patterns, one per line, to ignore
+> files or directories in the backup.
+
 **-quiet**
 
 > Suppress output to standard input, only logging errors and warnings.
 
-# ARGUMENTS
+**-stdio**
 
-*directory*
+> Output one line per file to standard output instead of the default
+> interactive output.
 
-> (Optional) The directory to back up.
-> If omitted, the current working directory is used.
+**-tag** *tag*
+
+> Specify a tag to assign to the snapshot for easier identification.
 
 # EXAMPLES
 
@@ -86,4 +89,4 @@ The **plakar backup** utility exits&#160;0 on success, and&#160;&gt;0 if an erro
 
 plakar(1)
 
-macOS 15.0 - November 12, 2024
+Nixpkgs - January 29, 2025

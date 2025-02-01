@@ -8,21 +8,29 @@ PLAKAR-RESTORE(1) - General Commands Manual
 
 **plakar restore**
 \[**-concurrency**&nbsp;*number*]
-\[**-to**&nbsp;*directory*]
-\[**-rebase**]
 \[**-quiet**]
-*snapshotID&nbsp;...*
+\[**-rebase**]
+\[**-to**&nbsp;*directory*]
+\[*snapshotID*:*path&nbsp;...*]
 
 # DESCRIPTION
 
 The
 **plakar restore**
-command is used to restore files and directories from a specified
-Plakar snapshot to the local file system.
-Users can specify a destination directory for the restore operation
-and use the
-**-rebase**
-option to remove path prefixes from restored files.
+command is used to restore files and directories at
+*path*
+from a specified Plakar snapshot to the local file system.
+If
+*path*
+is omitted, then all the files in the specified
+*snapshotID*
+are restored.
+If no
+*snapshotID*
+is provided, the command attempts to restore the current working
+directory from the last matching snapshot.
+
+The options are as follows:
 
 **-concurrency** *number*
 
@@ -47,14 +55,6 @@ option to remove path prefixes from restored files.
 **-quiet**
 
 > Suppress output to standard input, only logging errors and warnings.
-
-# ARGUMENTS
-
-*snapshotID*
-
-> One or more snapshot IDs specifying the snapshots to restore from.
-> If no snapshot ID is provided, the command attempts to restore the
-> current working directory from the latest matching snapshot.
 
 # EXAMPLES
 
@@ -85,6 +85,7 @@ The **plakar restore** utility exits&#160;0 on success, and&#160;&gt;0 if an err
 
 # SEE ALSO
 
-plakar(1)
+plakar(1),
+plakar-backup(1)
 
-macOS 15.0 - November 12, 2024
+Nixpkgs - January 29, 2025

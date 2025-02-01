@@ -11,20 +11,20 @@ PLAKAR(CHECK) - CHECK (1)
 \[**-fast**]
 \[**-no-verify**]
 \[**-quiet**]
-\[*snapshotID&nbsp;...*]
+\[*snapshotID*:*path&nbsp;...*]
 
 # DESCRIPTION
 
 The
 **plakar check**
 command verifies the integrity of data in a Plakar repository.
-It checks snapshots for consistency and validates file checksums to
-ensure no corruption has occurred.
-By default, the command performs a full checksum verification.
-Use the
-**-fast**
-option to bypass checksum calculations for a faster, less thorough
-integrity check.
+It checks the given paths inside the snapshots for consistency and
+validates file checksums to ensure no corruption has occurred, or all
+the data in the repository if no
+*snapshotID*
+is given.
+
+The options are as follows:
 
 **-concurrency** *number*
 
@@ -48,22 +48,15 @@ integrity check.
 
 > Suppress output to standard output, only logging errors and warnings.
 
-# ARGUMENTS
-
-*snapshotID*
-
-> (Optional) One or more snapshot IDs to verify.
-> If omitted, the command checks all snapshots in the repository.
-
 # EXAMPLES
 
 Perform a full integrity check on all snapshots:
 
 	plakar check
 
-Perform a fast check on a specific snapshot:
+Perform a fast check on specific paths of two snapshot:
 
-	plakar check -fast abc123
+	plakar check -fast abc123:/etc/passwd def456:/var/www
 
 # DIAGNOSTICS
 
@@ -82,4 +75,4 @@ The **plakar check** utility exits&#160;0 on success, and&#160;&gt;0 if an error
 
 plakar(1)
 
-macOS 15.0 - November 12, 2024
+Nixpkgs - January 29, 2025

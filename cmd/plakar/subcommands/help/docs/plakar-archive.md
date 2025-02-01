@@ -7,29 +7,26 @@ PLAKAR-ARCHIVE(1) - General Commands Manual
 # SYNOPSIS
 
 **plakar archive**
-\[**-output**&nbsp;*pathname*]
 \[**-format**&nbsp;*type*]
+\[**-output**&nbsp;*archive*]
 \[**-rebase**]
-*snapshotID*
+*snapshotID*:*path*
 
 # DESCRIPTION
 
 The
 **plakar archive**
-command creates an archive from the contents of a specified Plakar snapshot.
-Supported formats include
-**tar**,
-**tarball**,
-and
-**zip**.
-Archives can be output to a specified file or to standard output, with
-an option to rebase (remove leading directories) from archived paths.
+command creates an
+*archive*
+of the given
+*type*
+from the contents at
+*path*
+of a specified Plakar snapshot, or all the files if no
+*path*
+is given.
 
-**-output** *pathname*
-
-> Specify the output path for the archive file.
-> If omitted, the archive is created with a default name based on the
-> current date and time.
+The options are as follows:
 
 **-format** *type*
 
@@ -38,28 +35,26 @@ an option to rebase (remove leading directories) from archived paths.
 
 > **tar**
 
-> > Creates a standard .tar file.
+> > Creates a tar file.
 
 > **tarball**
 
-> > Creates a compressed .tar.gz file.
+> > Creates a compressed tar.gz file.
 
 > **zip**
 
-> > Creates a .zip archive.
+> > Creates a zip archive.
+
+**-output** *pathname*
+
+> Specify the output path for the archive file.
+> If omitted, the archive is created with a default name based on the
+> current date and time.
 
 **-rebase**
 
 > Strip the leading path from archived files, useful for creating "flat"
 > archives without nested directories.
-
-# ARGUMENTS
-
-*snapshotID*
-
-> The ID of the snapshot to archive.
-> A file path within the snapshot can also be specified to archive a
-> subdirectory or single file.
 
 # EXAMPLES
 
@@ -69,7 +64,7 @@ Create a tarball of the entire snapshot:
 
 Create a zip archive of a specific directory within a snapshot:
 
-	plakar archive -output dir.zip -format zip abc123:/path/to/dir
+	plakar archive -output dir.zip -format zip abc123:/var/www
 
 Archive with rebasing to remove directory structure:
 
@@ -90,6 +85,7 @@ The **plakar archive** utility exits&#160;0 on success, and&#160;&gt;0 if an err
 
 # SEE ALSO
 
-plakar(1)
+plakar(1),
+plakar-backup(1)
 
-macOS 15.0 - November 12, 2024
+Nixpkgs - January 29, 2025

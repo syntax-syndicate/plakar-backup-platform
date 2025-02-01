@@ -9,16 +9,20 @@ PLAKAR-CAT(1) - General Commands Manual
 **plakar cat**
 \[**-no-decompress**]
 \[**-highlight**]
-*snapshotID&nbsp;filepath&nbsp;...*
+*snapshotID*:*filepath&nbsp;...*
 
 # DESCRIPTION
 
 The
 **plakar cat**
-command outputs the contents of files within Plakar snapshots to the
+command outputs the contents of
+*filepath*
+within Plakar snapshots to the
 standard output.
 It can decompress compressed files and optionally apply syntax
 highlighting based on the file type.
+
+The options are as follows:
 
 **-no-decompress**
 
@@ -29,29 +33,15 @@ highlighting based on the file type.
 
 > Apply syntax highlighting to the output based on the file type.
 
-# ARGUMENTS
-
-*snapshotID*
-
-> The ID of the snapshot containing the file to display.
-
-*filepath*
-
-> One or more file paths within the snapshot to display.
-
 # EXAMPLES
 
 Display a file's contents from a snapshot:
 
-	plakar cat abc123 /path/to/file.txt
-
-Display a compressed file without decompression:
-
-	plakar cat -no-decompress abc123 /path/to/compressed.gz
+	plakar cat abc123:/etc/passwd
 
 Display a file with syntax highlighting:
 
-	plakar cat -highlight abc123 /path/to/script.sh
+	plakar cat -highlight abc123:/path/to/script.sh
 
 # DIAGNOSTICS
 
@@ -68,6 +58,7 @@ The **plakar cat** utility exits&#160;0 on success, and&#160;&gt;0 if an error o
 
 # SEE ALSO
 
-plakar(1)
+plakar(1),
+plakar-backup(1)
 
-macOS 15.0 - November 12, 2024
+Nixpkgs - January 29, 2025
