@@ -541,6 +541,24 @@ func snapshotVFSDownloaderSigned(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	format := r.URL.Query().Get("format")
+	var mime string
+	switch format {
+	case snapshot.ArchiveTar:
+		mime = "application/x-tar"
+	case snapshot.ArchiveTarball:
+		mime = "application/x-gzip"
+	case snapshot.ArchiveZip:
+		mime = "application/zip"
+	default:
+		return &ApiError{
+			HttpCode: 400,
+			ErrCode: "unknown-archive-format",
+			Message: "Unknown Archive Format",
+		}
+	}
+
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", name))
+	w.Header().Set("Content-Type", mime)
 
 	return snap.Archive(w, format, link.files, link.rebase)
 }
