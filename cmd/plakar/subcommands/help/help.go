@@ -50,7 +50,7 @@ func cmd_help(ctx *appcontext.AppContext, _ *repository.Repository, args []strin
 		return 0, nil
 	}
 
-	content, err := docs.ReadFile(fmt.Sprintf("docs/%s.md", flags.Args()[0]))
+	content, err := docs.ReadFile(fmt.Sprintf("docs/plakar-%s.md", flags.Args()[0]))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", flags.Args()[0])
 		return 1, err
