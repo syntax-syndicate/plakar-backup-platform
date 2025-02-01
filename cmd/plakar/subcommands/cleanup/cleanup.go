@@ -22,26 +22,20 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/rpc"
+	"github.com/PlakarKorp/plakar/rpc/cleanup"
 )
 
 func init() {
-	subcommands.Register("cleanup", cmd_cleanup)
+	subcommands.Register2("cleanup", parse_cmd_cleanup)
 }
 
-func cmd_cleanup(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
+func parse_cmd_cleanup(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
 	flags := flag.NewFlagSet("cleanup", flag.ExitOnError)
 	flags.Parse(args)
 
-	// the cleanup algorithm is a bit tricky and needs to be done in the correct sequence,
-	// here's what it has to do:
-	//
-	// 1. fetch all snapshot indexes to figure out which blobs, objects and chunks are used
-	// 2. blobs that are no longer in use can be be removed
-	// 3. for each object and chunk, track which packfiles contain them
-	// 4. if objects or chunks are present in more than one packfile...
-	// 5. decide which one keeps it and a new packfile has to be generated for the other that contains everything BUT the object/chunk
-	// 6. update indexes to reflect the new packfile
-	// 7. save the new index
-
-	return 0, nil
+	return &cleanup.Cleanup{
+		RepositoryLocation: repo.Location(),
+		RepositorySecret:   ctx.GetSecret(),
+	}, nil
 }
