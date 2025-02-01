@@ -1,4 +1,4 @@
-.Dd November 12, 2024
+.Dd January 29, 2025
 .Dt PLAKAR-EXEC 1
 .Os
 .Sh NAME
@@ -6,42 +6,30 @@
 .Nd Execute a file from a Plakar snapshot
 .Sh SYNOPSIS
 .Nm
-.Ar snapshotID
-.Ar filepath
+.Ar snapshotID : Ns Ar filepath
 .Op Ar command_args ...
 .Sh DESCRIPTION
 The
 .Nm
-command extracts and executes a file from a Plakar snapshot.
-It can be used to temporarily run executable files directly from
-snapshots.
-This command supports passing arguments to the extracted executable.
-.Bl -tag -width Ds
-.It Ar snapshotID
-The ID of the snapshot containing the file to execute.
-.It Ar filepath
-The path within the snapshot to the file to be executed.
-.It Ar command_args
-(Optional) Additional arguments to pass to the executable.
-.El
+command extracts and executes a file at
+.Ar filepath
+from a Plakar snapshot passing the given arguments
+.Ar command_args
+to it.
 .Sh EXAMPLES
 Execute a script from a snapshot with no arguments:
 .Bd -literal -offset indent
-plakar exec abc123 /path/to/script.sh
+plakar exec abc123:/path/to/script.sh
 .Ed
 .Pp
 Run an executable from a snapshot with arguments:
 .Bd -literal -offset indent
-plakar exec abc123 /path/to/executable --option value
+plakar exec abc123:/path/to/executable --option value
 .Ed
 .Sh DIAGNOSTICS
-.Ex -std
-.Bl -tag -width Ds
-.It 0
-Command completed successfully.
-.It >0
-An error occurred, such as a missing file in the snapshot or an
-execution failure.
-.El
+.Nm
+preserves the exit code of the command but may also fail with exit
+code 1 without executing it, for e.g. if the file or the snapshot
+doesn't exist.
 .Sh SEE ALSO
 .Xr plakar 1
