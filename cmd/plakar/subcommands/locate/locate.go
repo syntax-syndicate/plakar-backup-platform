@@ -18,83 +18,29 @@ package locate
 
 import (
 	"flag"
-	"fmt"
-	"os"
-	"path"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/snapshot"
+	"github.com/PlakarKorp/plakar/rpc"
+	"github.com/PlakarKorp/plakar/rpc/locate"
 )
 
 func init() {
-	subcommands.Register("locate", cmd_locate)
+	subcommands.Register2("locate", parse_cmd_locate)
 }
 
-func cmd_locate(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
+func parse_cmd_locate(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
 	var opt_snapshot string
 
 	flags := flag.NewFlagSet("locate", flag.ExitOnError)
 	flags.StringVar(&opt_snapshot, "snapshot", "", "snapshot to locate in")
 	flags.Parse(args)
 
-	var snapshotIDs []objects.Checksum
-	if opt_snapshot != "" {
-		snapshotIDs = utils.LookupSnapshotByPrefix(repo, opt_snapshot)
-	} else {
-		var err error
-		snapshotIDs, err = repo.GetSnapshots()
-		if err != nil {
-			ctx.GetLogger().Error("...")
-			return 1, err
-		}
-	}
-
-	for _, snapshotID := range snapshotIDs {
-		snap, err := snapshot.Load(repo, snapshotID)
-		if err != nil {
-			ctx.GetLogger().Error("%s: could not get snapshot: %s", flags.Name(), err)
-			return 1, err
-		}
-
-		fs, err := snap.Filesystem()
-		if err != nil {
-			ctx.GetLogger().Error("%s: could not get filesystem: %s", flags.Name(), err)
-			snap.Close()
-			return 1, err
-		}
-		for pathname, err := range fs.Pathnames() {
-			if err != nil {
-				ctx.GetLogger().Error("%s: could not get pathname: %s", flags.Name(), err)
-				snap.Close()
-				return 1, err
-			}
-
-			for _, pattern := range flags.Args() {
-				matched := false
-				if path.Base(pathname) == pattern {
-					matched = true
-				}
-				if !matched {
-					matched, err := path.Match(pattern, path.Base(pathname))
-					if err != nil {
-						ctx.GetLogger().Error("%s: could not match pattern: %s", flags.Name(), err)
-						snap.Close()
-						return 1, err
-					}
-					if !matched {
-						continue
-					}
-				}
-				fmt.Fprintf(os.Stdout, "%x:%s\n", snap.Header.Identifier[0:4], pathname)
-
-			}
-		}
-		snap.Close()
-	}
-
-	return 0, nil
+	return &locate.Locate{
+		RepositoryLocation: repo.Location(),
+		RepositorySecret:   ctx.GetSecret(),
+		Snapshot:           opt_snapshot,
+		Patterns:           flags.Args(),
+	}, nil
 }
