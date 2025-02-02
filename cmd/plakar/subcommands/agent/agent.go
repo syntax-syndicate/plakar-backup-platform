@@ -51,6 +51,7 @@ import (
 	"github.com/PlakarKorp/plakar/rpc/rm"
 	"github.com/PlakarKorp/plakar/rpc/server"
 	cmd_sync "github.com/PlakarKorp/plakar/rpc/sync"
+	"github.com/PlakarKorp/plakar/rpc/ui"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/vmihailenco/msgpack/v5"
@@ -549,6 +550,18 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				var cmd struct {
 					Name       string
 					Subcommand cmd_sync.Sync
+				}
+				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
+					return
+				}
+				subcommand = &cmd.Subcommand
+				repositoryLocation = cmd.Subcommand.RepositoryLocation
+				repositorySecret = cmd.Subcommand.RepositorySecret
+			case "ui":
+				var cmd struct {
+					Name       string
+					Subcommand ui.Ui
 				}
 				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
