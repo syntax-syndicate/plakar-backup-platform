@@ -1,6 +1,8 @@
 package snapshot
 
 import (
+	"fmt"
+	"math/rand"
 	"os"
 	"testing"
 	"time"
@@ -15,9 +17,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func randFileName(prefix string) string {
+	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+	suffix := make([]byte, 8)
+	for i := range suffix {
+		suffix[i] = chars[rand.Intn(len(chars))]
+	}
+	return prefix + string(suffix)
+}
+
 func TestSnapshot(t *testing.T) {
 	// init temporary directories
-	tmpRepoDir := "/tmp/tmp_repo"
+	tmpRepoDir := fmt.Sprintf("/tmp/%s", randFileName("tmp_repo_"))
 	tmpCacheDir, err := os.MkdirTemp("", "tmp_cache")
 	require.NoError(t, err)
 	tmpBackupDir, err := os.MkdirTemp("", "tmp_to_backup")
