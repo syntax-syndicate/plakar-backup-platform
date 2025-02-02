@@ -46,6 +46,7 @@ import (
 	"github.com/PlakarKorp/plakar/rpc/info"
 	"github.com/PlakarKorp/plakar/rpc/locate"
 	"github.com/PlakarKorp/plakar/rpc/ls"
+	"github.com/PlakarKorp/plakar/rpc/mount"
 	"github.com/PlakarKorp/plakar/rpc/rm"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/prometheus/client_golang/prometheus"
@@ -497,6 +498,18 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				var cmd struct {
 					Name       string
 					Subcommand exec.Exec
+				}
+				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
+					return
+				}
+				subcommand = &cmd.Subcommand
+				repositoryLocation = cmd.Subcommand.RepositoryLocation
+				repositorySecret = cmd.Subcommand.RepositorySecret
+			case "mount":
+				var cmd struct {
+					Name       string
+					Subcommand mount.Mount
 				}
 				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)

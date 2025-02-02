@@ -22,50 +22,29 @@ package mount
 import (
 	"flag"
 	"fmt"
-	"log"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/plakarfs"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/anacrolix/fuse"
-	"github.com/anacrolix/fuse/fs"
+	"github.com/PlakarKorp/plakar/rpc"
+	"github.com/PlakarKorp/plakar/rpc/mount"
 )
 
 func init() {
-	subcommands.Register("mount", cmd_mount)
+	subcommands.Register2("mount", parse_cmd_mount)
 }
 
-func cmd_mount(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
+func parse_cmd_mount(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
 	flags := flag.NewFlagSet("mount", flag.ExitOnError)
 	flags.Parse(args)
 
 	if flags.NArg() != 1 {
 		ctx.GetLogger().Error("need mountpoint")
-		return 1, fmt.Errorf("need mountpoint")
+		return nil, fmt.Errorf("need mountpoint")
 	}
-
-	mountpoint := flags.Arg(0)
-
-	c, err := fuse.Mount(
-		mountpoint,
-		fuse.FSName("plakar"),
-		fuse.Subtype("plakarfs"),
-		fuse.LocalVolume(),
-	)
-	if err != nil {
-		log.Fatalf("Mount: %v", err)
-	}
-	defer c.Close()
-	ctx.GetLogger().Info("mounted repository %s at %s", repo.Location(), mountpoint)
-
-	err = fs.Serve(c, plakarfs.NewFS(repo, mountpoint))
-	if err != nil {
-		return 1, err
-	}
-	<-c.Ready
-	if err := c.MountError; err != nil {
-		return 1, err
-	}
-	return 0, nil
+	return &mount.Mount{
+		RepositoryLocation: repo.Location(),
+		RepositorySecret:   ctx.GetSecret(),
+		Mountpoint:         flags.Arg(0),
+	}, nil
 }
