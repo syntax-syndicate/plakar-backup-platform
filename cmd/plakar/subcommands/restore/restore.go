@@ -27,7 +27,7 @@ import (
 )
 
 func init() {
-	subcommands.Register2("restore", parse_cmd_restore)
+	subcommands.Register("restore", parse_cmd_restore)
 }
 
 func parse_cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {

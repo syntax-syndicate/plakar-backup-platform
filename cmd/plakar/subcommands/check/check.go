@@ -27,7 +27,7 @@ import (
 )
 
 func init() {
-	subcommands.Register2("check", parse_cmd_check)
+	subcommands.Register("check", parse_cmd_check)
 }
 
 func parse_cmd_check(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {

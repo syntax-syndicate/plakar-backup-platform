@@ -28,7 +28,7 @@ import (
 )
 
 func init() {
-	subcommands.Register2("exec", parse_cmd_exec)
+	subcommands.Register("exec", parse_cmd_exec)
 }
 
 func parse_cmd_exec(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {

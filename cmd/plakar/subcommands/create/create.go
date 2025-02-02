@@ -34,7 +34,7 @@ import (
 )
 
 func init() {
-	subcommands.Register2("create", parse_cmd_create)
+	subcommands.Register("create", parse_cmd_create)
 }
 
 func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {

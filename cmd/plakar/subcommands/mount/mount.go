@@ -31,7 +31,7 @@ import (
 )
 
 func init() {
-	subcommands.Register2("mount", parse_cmd_mount)
+	subcommands.Register("mount", parse_cmd_mount)
 }
 
 func parse_cmd_mount(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {

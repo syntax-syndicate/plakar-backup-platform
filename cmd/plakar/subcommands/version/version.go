@@ -30,7 +30,7 @@ import (
 const VERSION = "v0.4.22-alpha"
 
 func init() {
-	subcommands.Register2("version", parse_cmd_version)
+	subcommands.Register("version", parse_cmd_version)
 }
 
 func parse_cmd_version(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {

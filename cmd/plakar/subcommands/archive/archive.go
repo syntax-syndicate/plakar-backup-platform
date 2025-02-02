@@ -30,7 +30,7 @@ import (
 )
 
 func init() {
-	subcommands.Register2("archive", parse_cmd_archive)
+	subcommands.Register("archive", parse_cmd_archive)
 }
 
 func parse_cmd_archive(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {

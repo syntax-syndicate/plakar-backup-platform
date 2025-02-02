@@ -32,7 +32,7 @@ import (
 )
 
 func init() {
-	subcommands.Register2("rm", parse_cmd_rm)
+	subcommands.Register("rm", parse_cmd_rm)
 }
 
 func parse_cmd_rm(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {

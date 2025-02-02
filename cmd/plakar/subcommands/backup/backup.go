@@ -31,7 +31,7 @@ import (
 )
 
 func init() {
-	subcommands.Register2("backup", parse_cmd_backup)
+	subcommands.Register("backup", parse_cmd_backup)
 }
 
 type excludeFlags []string

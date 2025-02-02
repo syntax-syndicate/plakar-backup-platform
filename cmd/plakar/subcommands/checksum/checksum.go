@@ -28,7 +28,7 @@ import (
 )
 
 func init() {
-	subcommands.Register2("checksum", parse_cmd_checksum)
+	subcommands.Register("checksum", parse_cmd_checksum)
 }
 
 func parse_cmd_checksum(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {

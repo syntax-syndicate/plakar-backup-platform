@@ -30,7 +30,7 @@ import (
 )
 
 func init() {
-	subcommands.Register2("ui", parse_cmd_ui)
+	subcommands.Register("ui", parse_cmd_ui)
 }
 
 func parse_cmd_ui(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {

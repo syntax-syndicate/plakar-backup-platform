@@ -30,7 +30,7 @@ import (
 )
 
 func init() {
-	subcommands.Register2("diff", parse_cmd_diff)
+	subcommands.Register("diff", parse_cmd_diff)
 }
 
 func parse_cmd_diff(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {

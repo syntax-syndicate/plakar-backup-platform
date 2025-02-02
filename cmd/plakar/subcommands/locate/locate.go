@@ -27,7 +27,7 @@ import (
 )
 
 func init() {
-	subcommands.Register2("locate", parse_cmd_locate)
+	subcommands.Register("locate", parse_cmd_locate)
 }
 
 func parse_cmd_locate(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {

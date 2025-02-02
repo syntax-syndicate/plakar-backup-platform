@@ -28,7 +28,7 @@ import (
 )
 
 func init() {
-	subcommands.Register2("clone", parse_cmd_clone)
+	subcommands.Register("clone", parse_cmd_clone)
 }
 
 func parse_cmd_clone(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {

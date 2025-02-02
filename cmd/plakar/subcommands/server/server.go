@@ -27,7 +27,7 @@ import (
 )
 
 func init() {
-	subcommands.Register2("server", parse_cmd_server)
+	subcommands.Register("server", parse_cmd_server)
 }
 
 func parse_cmd_server(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {

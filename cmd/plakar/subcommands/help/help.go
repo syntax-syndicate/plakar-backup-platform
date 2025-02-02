@@ -34,7 +34,7 @@ import (
 var docs embed.FS
 
 func init() {
-	subcommands.Register2("help", parse_cmd_help)
+	subcommands.Register("help", parse_cmd_help)
 }
 
 func parse_cmd_help(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {

@@ -58,7 +58,7 @@ import (
 )
 
 func init() {
-	subcommands.Register2("agent", parse_cmd_agent)
+	subcommands.Register("agent", parse_cmd_agent)
 }
 
 func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {

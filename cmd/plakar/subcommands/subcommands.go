@@ -9,24 +9,16 @@ import (
 	"github.com/PlakarKorp/plakar/rpc"
 )
 
-type parsefn func(*appcontext.AppContext, *repository.Repository, []string) (rpc.RPC, error)
+type parse_args_fn func(*appcontext.AppContext, *repository.Repository, []string) (rpc.RPC, error)
 
-var subcommands2 map[string]parsefn = make(map[string]parsefn)
+var subcommands map[string]parse_args_fn = make(map[string]parse_args_fn)
 
-func Register2(command string, fn parsefn) {
-	subcommands2[command] = fn
-}
-
-////
-
-var subcommands map[string]func(*appcontext.AppContext, *repository.Repository, []string) (int, error) = make(map[string]func(*appcontext.AppContext, *repository.Repository, []string) (int, error))
-
-func Register(command string, fn func(*appcontext.AppContext, *repository.Repository, []string) (int, error)) {
+func Register(command string, fn parse_args_fn) {
 	subcommands[command] = fn
 }
 
 func Parse(ctx *appcontext.AppContext, repo *repository.Repository, command string, args []string, agentless bool) (rpc.RPC, error) {
-	parsefn, exists := subcommands2[command]
+	parsefn, exists := subcommands[command]
 	if !exists {
 		return nil, fmt.Errorf("unknown command: %s", command)
 	}

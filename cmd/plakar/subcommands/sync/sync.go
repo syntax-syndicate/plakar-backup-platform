@@ -27,7 +27,7 @@ import (
 )
 
 func init() {
-	subcommands.Register2("sync", parse_cmd_sync)
+	subcommands.Register("sync", parse_cmd_sync)
 }
 
 func parse_cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
