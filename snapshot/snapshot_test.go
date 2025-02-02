@@ -9,11 +9,13 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/caching"
+	"github.com/PlakarKorp/plakar/encryption/keypair"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot/importer/fs"
 	"github.com/PlakarKorp/plakar/storage"
 	bfs "github.com/PlakarKorp/plakar/storage/backends/fs"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,7 +28,7 @@ func randFileName(prefix string) string {
 	return prefix + string(suffix)
 }
 
-func TestSnapshot(t *testing.T) {
+func generateSnapshot(t *testing.T, keyPair *keypair.KeyPair) *Snapshot {
 	// init temporary directories
 	tmpRepoDir := fmt.Sprintf("/tmp/%s", randFileName("tmp_repo_"))
 	tmpCacheDir, err := os.MkdirTemp("", "tmp_cache")
@@ -53,11 +55,14 @@ func TestSnapshot(t *testing.T) {
 	err = r.Open("fs://" + tmpRepoDir)
 	require.NoError(t, err)
 
-	// crate a repository
+	// create a repository
 	ctx := appcontext.NewAppContext()
 	cache := caching.NewManager(tmpCacheDir)
-	defer cache.Close()
 	ctx.SetCache(cache)
+	if keyPair != nil {
+		ctx.Identity = uuid.New()
+		ctx.Keypair = keyPair
+	}
 	logger := logging.NewLogger(os.Stdout, os.Stderr)
 	logger.EnableTrace("all")
 	ctx.SetLogger(logger)
@@ -68,23 +73,27 @@ func TestSnapshot(t *testing.T) {
 	snap, err := New(repo)
 	require.NoError(t, err)
 	require.NotNil(t, snap)
-	defer snap.Close()
-
-	appCtx := snap.AppContext()
-	require.NotNil(t, appCtx)
 
 	imp, err := fs.NewFSImporter(tmpBackupDir)
 	require.NoError(t, err)
 	snap.Backup(tmpBackupDir, imp, &BackupOptions{Name: "test_backup", MaxConcurrency: 1})
 
+	return snap
+}
+
+func TestSnapshot(t *testing.T) {
+	snap := generateSnapshot(t, nil)
+	defer snap.Close()
+
+	appCtx := snap.AppContext()
+	require.NotNil(t, appCtx)
+	require.NotNil(t, appCtx.GetCache())
+	defer appCtx.GetCache().Close()
+
 	events := appCtx.Events()
 	require.NotNil(t, events)
 
-	a, err := r.GetPackfiles()
-	require.NoError(t, err)
-	require.NotNil(t, a)
-
-	err = repo.RebuildState()
+	err := snap.repository.RebuildState()
 	require.NoError(t, err)
 
 	for d, err := range snap.ListDatas() {
@@ -115,20 +124,20 @@ func TestSnapshot(t *testing.T) {
 		require.NotNil(t, o)
 	}
 
-	snap2, err := Load(repo, snap.Header.Identifier)
+	snap2, err := Load(snap.repository, snap.Header.Identifier)
 	require.NoError(t, err)
 	require.NotNil(t, snap2)
 
 	require.Equal(t, snap.Header.Identifier, snap2.Header.Identifier)
 	require.Equal(t, snap.Header.Timestamp.Truncate(time.Nanosecond), snap2.Header.Timestamp.Truncate(time.Nanosecond))
 
-	snap3, err := Clone(repo, snap.Header.Identifier)
+	snap3, err := Clone(snap.repository, snap.Header.Identifier)
 	require.NoError(t, err)
 	require.NotNil(t, snap3)
 
 	require.NotEqual(t, snap.Header.Identifier, snap3.Header.Identifier)
 
-	snap4, err := Fork(repo, snap.Header.Identifier)
+	snap4, err := Fork(snap.repository, snap.Header.Identifier)
 	require.NoError(t, err)
 	require.NotNil(t, snap4)
 
