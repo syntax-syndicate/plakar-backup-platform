@@ -41,6 +41,7 @@ import (
 	"github.com/PlakarKorp/plakar/rpc/checksum"
 	"github.com/PlakarKorp/plakar/rpc/cleanup"
 	"github.com/PlakarKorp/plakar/rpc/clone"
+	"github.com/PlakarKorp/plakar/rpc/diff"
 	"github.com/PlakarKorp/plakar/rpc/info"
 	"github.com/PlakarKorp/plakar/rpc/locate"
 	"github.com/PlakarKorp/plakar/rpc/ls"
@@ -471,6 +472,18 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				var cmd struct {
 					Name       string
 					Subcommand archive.Archive
+				}
+				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
+					return
+				}
+				subcommand = &cmd.Subcommand
+				repositoryLocation = cmd.Subcommand.RepositoryLocation
+				repositorySecret = cmd.Subcommand.RepositorySecret
+			case "diff":
+				var cmd struct {
+					Name       string
+					Subcommand diff.Diff
 				}
 				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
