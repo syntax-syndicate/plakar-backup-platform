@@ -18,26 +18,21 @@ package restore
 
 import (
 	"flag"
-	"fmt"
-	"log"
-	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/snapshot"
-	"github.com/PlakarKorp/plakar/snapshot/exporter"
+	"github.com/PlakarKorp/plakar/rpc"
+	"github.com/PlakarKorp/plakar/rpc/restore"
 )
 
 func init() {
-	subcommands.Register("restore", cmd_restore)
+	subcommands.Register2("restore", parse_cmd_restore)
 }
 
-func cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
+func parse_cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
 	var pullPath string
 	var pullRebase bool
-	var exporterInstance exporter.Exporter
 	var opt_concurrency uint64
 	var opt_quiet bool
 
@@ -47,52 +42,13 @@ func cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, args [
 	flags.BoolVar(&pullRebase, "rebase", false, "strip pathname when pulling")
 	flags.BoolVar(&opt_quiet, "quiet", false, "do not print progress")
 	flags.Parse(args)
-
-	go eventsProcessorStdio(ctx, opt_quiet)
-
-	var err error
-	exporterInstance, err = exporter.NewExporter(pullPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer exporterInstance.Close()
-
-	opts := &snapshot.RestoreOptions{
-		MaxConcurrency: opt_concurrency,
-		Rebase:         pullRebase,
-	}
-
-	if flags.NArg() == 0 {
-		metadatas, err := utils.GetHeaders(repo, nil)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		for i := len(metadatas); i != 0; i-- {
-			metadata := metadatas[i-1]
-			if ctx.CWD == metadata.Importer.Directory || strings.HasPrefix(ctx.CWD, fmt.Sprintf("%s/", metadata.Importer.Directory)) {
-				snap, err := snapshot.Load(repo, metadata.GetIndexID())
-				if err != nil {
-					return 1, err
-				}
-				snap.Restore(exporterInstance, ctx.CWD, ctx.CWD, opts)
-				snap.Close()
-				return 0, nil
-			}
-		}
-		return 1, fmt.Errorf("could not find a snapshot to restore this path from")
-	}
-
-	snapshots, err := utils.GetSnapshots(repo, flags.Args())
-	if err != nil {
-		return 1, err
-	}
-
-	for offset, snap := range snapshots {
-		_, pattern := utils.ParseSnapshotID(flags.Args()[offset])
-		snap.Restore(exporterInstance, exporterInstance.Root(), pattern, opts)
-		snap.Close()
-	}
-
-	return 0, nil
+	return &restore.Restore{
+		RepositoryLocation: repo.Location(),
+		RepositorySecret:   ctx.GetSecret(),
+		Path:               pullPath,
+		Rebase:             pullRebase,
+		Concurrency:        opt_concurrency,
+		Quiet:              opt_quiet,
+		Snapshots:          flags.Args(),
+	}, nil
 }
