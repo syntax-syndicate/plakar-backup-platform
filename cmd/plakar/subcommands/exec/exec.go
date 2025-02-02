@@ -19,92 +19,30 @@ package exec
 import (
 	"flag"
 	"fmt"
-	"io"
-	"log"
-	"os"
-	"os/exec"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/rpc"
+	"github.com/PlakarKorp/plakar/rpc/exec"
 )
 
 func init() {
-	subcommands.Register("exec", cmd_exec)
+	subcommands.Register2("exec", parse_cmd_exec)
 }
 
-func cmd_exec(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
+func parse_cmd_exec(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
 	flags := flag.NewFlagSet("exec", flag.ExitOnError)
 	flags.Parse(args)
 
 	if flags.NArg() == 0 {
 		ctx.GetLogger().Error("%s: at least one parameters is required", flags.Name())
-		return 1, fmt.Errorf("at least one parameters is required")
+		return nil, fmt.Errorf("at least one parameters is required")
 	}
-
-	snapshots, err := utils.GetSnapshots(repo, []string{flags.Args()[0]})
-	if err != nil {
-		log.Fatal(err)
-	}
-	if len(snapshots) != 1 {
-		return 0, nil
-	}
-	snap := snapshots[0]
-	defer snap.Close()
-
-	_, pathname := utils.ParseSnapshotID(flags.Args()[0])
-
-	rd, err := snap.NewReader(pathname)
-	if err != nil {
-		ctx.GetLogger().Error("%s: %s: failed to open: %s", flags.Name(), pathname, err)
-		return 1, err
-	}
-	defer rd.Close()
-
-	file, err := os.CreateTemp(os.TempDir(), "plakar")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(file.Name())
-	file.Chmod(0500)
-
-	_, err = io.Copy(file, rd)
-	if err != nil {
-		log.Fatal(err)
-	}
-	file.Close()
-
-	cmd := exec.Command(file.Name(), flags.Args()[1:]...)
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		log.Fatal(err)
-	}
-	go func() {
-		defer stdin.Close()
-		io.Copy(stdin, os.Stdin)
-	}()
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		log.Fatal(err)
-	}
-	go func() {
-		defer stdout.Close()
-		io.Copy(os.Stdout, stdout)
-	}()
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		log.Fatal(err)
-	}
-	go func() {
-		defer stdout.Close()
-		io.Copy(os.Stderr, stderr)
-	}()
-	if cmd.Start() == nil {
-		cmd.Wait()
-		return cmd.ProcessState.ExitCode(), nil
-	}
-	return 1, err
+	return &exec.Exec{
+		RepositoryLocation: repo.Location(),
+		RepositorySecret:   ctx.GetSecret(),
+		SnapshotPrefix:     flags.Arg(0),
+		Args:               flags.Args()[1:],
+	}, nil
 }
