@@ -22,15 +22,15 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/server/httpd"
-	"github.com/PlakarKorp/plakar/server/plakard"
+	"github.com/PlakarKorp/plakar/rpc"
+	"github.com/PlakarKorp/plakar/rpc/server"
 )
 
 func init() {
-	subcommands.Register("server", cmd_server)
+	subcommands.Register2("server", parse_cmd_server)
 }
 
-func cmd_server(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
+func parse_cmd_server(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
 	var opt_protocol string
 	var opt_allowdelete bool
 
@@ -48,19 +48,11 @@ func cmd_server(ctx *appcontext.AppContext, repo *repository.Repository, args []
 	if opt_allowdelete {
 		noDelete = false
 	}
-
-	switch opt_protocol {
-	case "http":
-		httpd.Server(repo, addr, noDelete)
-	case "plakar":
-		options := &plakard.ServerOptions{
-			NoOpen:   true,
-			NoCreate: true,
-			NoDelete: noDelete,
-		}
-		plakard.Server(ctx, repo, addr, options)
-	default:
-		ctx.GetLogger().Error("unsupported protocol: %s", opt_protocol)
-	}
-	return 0, nil
+	return &server.Server{
+		RepositoryLocation: repo.Location(),
+		RepositorySecret:   ctx.GetSecret(),
+		Protocol:           opt_protocol,
+		Addr:               addr,
+		NoDelete:           noDelete,
+	}, nil
 }
