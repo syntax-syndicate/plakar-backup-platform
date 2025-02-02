@@ -329,7 +329,6 @@ func info_state(repo *repository.Repository, args []string) error {
 			printBlobs("chunk", packfile.TYPE_CHUNK)
 			printBlobs("object", packfile.TYPE_OBJECT)
 			printBlobs("file", packfile.TYPE_VFS)
-			printBlobs("data", packfile.TYPE_DATA)
 		}
 	}
 	return nil
