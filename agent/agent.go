@@ -347,7 +347,7 @@ func ExecuteRPC(ctx *appcontext.AppContext, repo *repository.Repository, cmd sub
 		return 1, err
 	}
 	defer client.Close()
-	if status, err := client.SendCommand2(ctx, rpcCmd, repo); err != nil {
+	if status, err := client.SendCommand(ctx, rpcCmd, repo); err != nil {
 		return status, err
 	}
 	return 0, nil
@@ -361,7 +361,7 @@ func NewClient(socketPath string) (*Client, error) {
 	return &Client{conn: conn}, nil
 }
 
-func (c *Client) SendCommand2(ctx *appcontext.AppContext, cmd rpc.RPC, repo *repository.Repository) (int, error) {
+func (c *Client) SendCommand(ctx *appcontext.AppContext, cmd rpc.RPC, repo *repository.Repository) (int, error) {
 	v := struct {
 		Name       string
 		Subcommand rpc.RPC
@@ -402,91 +402,6 @@ func (c *Client) SendCommand2(ctx *appcontext.AppContext, cmd rpc.RPC, repo *rep
 		}
 	}
 }
-
-func (c *Client) SendCommand(ctx *appcontext.AppContext, repo string, cmd string, argv []string) (int, error) {
-	encoder := msgpack.NewEncoder(c.conn)
-	decoder := msgpack.NewDecoder(c.conn)
-
-	request := CommandRequest{
-		AppContext: ctx,
-		Repository: repo,
-		Cmd:        cmd,
-		Argv:       argv,
-	}
-	if ctx.GetSecret() != nil {
-		request.RepositorySecret = ctx.GetSecret()
-	}
-
-	if err := encoder.Encode(&request); err != nil {
-		return 1, fmt.Errorf("failed to encode command: %w", err)
-	}
-
-	var response Packet
-	for {
-		if err := decoder.Decode(&response); err != nil {
-			return 1, fmt.Errorf("failed to decode response: %w", err)
-		}
-		switch response.Type {
-		case "stdout":
-			fmt.Printf("%s", string(response.Data))
-		case "stderr":
-			fmt.Fprintf(os.Stderr, "%s", string(response.Data))
-		case "event":
-			evt, err := events.Deserialize(response.Data)
-			if err != nil {
-				return 1, fmt.Errorf("failed to deserialize event: %w", err)
-			}
-			ctx.Events().Send(evt)
-		case "exit":
-			var err error
-			if response.Err != "" {
-				err = fmt.Errorf("%s", response.Err)
-			}
-			return response.ExitCode, err
-		}
-	}
-}
-
 func (c *Client) Close() error {
 	return c.conn.Close()
-}
-
-func (c *Client) ExecuteRPC(handler rpc.RPC) (int, error) {
-	encoder := msgpack.NewEncoder(c.conn)
-	decoder := msgpack.NewDecoder(c.conn)
-
-	request := handler
-
-	//if ctx.GetSecret() != nil {
-	//	request.RepositorySecret = ctx.GetSecret()
-	//}
-	if err := encoder.Encode(&request); err != nil {
-		return 1, fmt.Errorf("failed to encode command: %w", err)
-	}
-
-	var response Packet
-	for {
-		if err := decoder.Decode(&response); err != nil {
-			return 1, fmt.Errorf("failed to decode response: %w", err)
-		}
-		switch response.Type {
-		case "stdout":
-			fmt.Printf("%s", string(response.Data))
-		case "stderr":
-			fmt.Fprintf(os.Stderr, "%s", string(response.Data))
-		case "event":
-			// evt, err := events.Deserialize(response.Data)
-			// if err != nil {
-			// 	return 1, fmt.Errorf("failed to deserialize event: %w", err)
-			// }
-			// XXX: removed
-			// handler.GetAppContext().Events().Send(evt)
-		case "exit":
-			var err error
-			if response.Err != "" {
-				err = fmt.Errorf("%s", response.Err)
-			}
-			return response.ExitCode, err
-		}
-	}
 }
