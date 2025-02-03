@@ -62,10 +62,6 @@ type Create struct {
 	Location      string
 }
 
-func (cmd *Create) Name() string {
-	return "create"
-}
-
 func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	storageConfiguration := storage.NewConfiguration()
 	if cmd.NoCompression {

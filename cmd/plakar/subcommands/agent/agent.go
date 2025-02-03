@@ -83,10 +83,6 @@ type Agent struct {
 	listener net.Listener
 }
 
-func (cmd *Agent) Name() string {
-	return "agent"
-}
-
 type Packet struct {
 	Type     string
 	Data     []byte

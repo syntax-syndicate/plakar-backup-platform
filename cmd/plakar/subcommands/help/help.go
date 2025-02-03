@@ -59,10 +59,6 @@ type Help struct {
 	Command string
 }
 
-func (cmd *Help) Name() string {
-	return "help"
-}
-
 func (cmd *Help) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	if cmd.Command == "" {
 		fmt.Fprintf(os.Stderr, "available commands:\n")
