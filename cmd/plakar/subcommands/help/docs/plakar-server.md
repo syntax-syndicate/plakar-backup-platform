@@ -7,9 +7,8 @@ PLAKAR-SERVER(1) - General Commands Manual
 # SYNOPSIS
 
 **plakar server**
-\[**-protocol**&nbsp;*protocol*]
 \[**-allow-delete**]
-\[*address*]
+\[**-listen**&nbsp;*address*]
 
 # DESCRIPTION
 
@@ -18,30 +17,20 @@ The
 command starts a Plakar server instance at the provided
 *address*,
 allowing remote interaction with a Plakar repository over a network.
-If no
-*address*
-is given, the server listens on localhost at port 9876.
 
 The options are as follows:
-
-**-protocol** *protocol*
-
-> Specify the protocol for the server to use.
-> Options are:
-
-> http
-
-> > Start an HTTP server.
-
-> plakar
-
-> > Start a Plakar-native server (default).
 
 **-allow-delete**
 
 > Enable delete operations.
 > By default, delete operations are disabled to prevent accidental data
 > loss.
+
+listen *address*
+
+> The hostname and port where to listen to, separated by a colon.
+> The hostname is optional.
+> If not given, the server defaults to listen on localhost at port 9876.
 
 # EXAMPLES
 
@@ -70,4 +59,4 @@ The **plakar server** utility exits&#160;0 on success, and&#160;&gt;0 if an erro
 
 plakar(1)
 
-Nixpkgs - January 29, 2025
+Nixpkgs - February 3, 2025
