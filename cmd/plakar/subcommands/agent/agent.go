@@ -290,7 +290,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			var repositorySecret []byte
 
 			switch name {
-			case "cat":
+			case (&cat.Cat{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand cat.Cat
@@ -302,7 +302,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "ls":
+			case (&ls.Ls{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand ls.Ls
@@ -314,7 +314,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "backup":
+			case (&backup.Backup{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand backup.Backup
@@ -326,7 +326,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "info_repository":
+			case (&info.InfoRepository{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand info.InfoRepository
@@ -338,7 +338,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "info_snapshot":
+			case (&info.InfoSnapshot{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand info.InfoSnapshot
@@ -350,7 +350,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "info_errors":
+			case (&info.InfoErrors{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand info.InfoErrors
@@ -362,7 +362,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "info_state":
+			case (&info.InfoState{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand info.InfoState
@@ -374,7 +374,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "info_packfile":
+			case (&info.InfoPackfile{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand info.InfoPackfile
@@ -386,7 +386,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "info_object":
+			case (&info.InfoObject{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand info.InfoObject
@@ -398,7 +398,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "info_vfs":
+			case (&info.InfoVFS{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand info.InfoVFS
@@ -410,7 +410,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "rm":
+			case (&rm.Rm{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand rm.Rm
@@ -422,7 +422,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "checksum":
+			case (&checksum.Checksum{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand checksum.Checksum
@@ -434,7 +434,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "locate":
+			case (&locate.Locate{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand locate.Locate
@@ -446,7 +446,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "check":
+			case (&check.Check{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand check.Check
@@ -458,7 +458,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "cleanup":
+			case (&cleanup.Cleanup{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand cleanup.Cleanup
@@ -470,7 +470,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "clone":
+			case (&clone.Clone{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand clone.Clone
@@ -482,7 +482,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "archive":
+			case (&archive.Archive{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand archive.Archive
@@ -494,7 +494,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "diff":
+			case (&diff.Diff{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand diff.Diff
@@ -506,7 +506,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "exec":
+			case (&exec.Exec{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand exec.Exec
@@ -518,7 +518,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "mount":
+			case (&mount.Mount{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand mount.Mount
@@ -530,7 +530,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "restore":
+			case (&restore.Restore{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand restore.Restore
@@ -542,7 +542,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "server":
+			case (&server.Server{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand server.Server
@@ -554,7 +554,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "sync":
+			case (&cmd_sync.Sync{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand cmd_sync.Sync
@@ -566,7 +566,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case "ui":
+			case (&ui.Ui{}).Name():
 				var cmd struct {
 					Name       string
 					Subcommand ui.Ui
