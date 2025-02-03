@@ -192,12 +192,13 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 	}
 	defer srcSnapshot.Close()
 
-	dstSnapshot, err := snapshot.Clone(dstRepository, snapshotID)
+	dstSnapshot, err := snapshot.New(dstRepository)
 	if err != nil {
 		return err
 	}
 	defer dstSnapshot.Close()
 
+	// overwrite header, we want to keep the original snapshot info
 	dstSnapshot.Header = srcSnapshot.Header
 
 	iter, err := srcSnapshot.ListChunks()
@@ -266,17 +267,6 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 		}
 		return nil
 	})
-
-	iter = srcSnapshot.ListDatas()
-	for dataID := range iter {
-		if !dstRepository.BlobExists(packfile.TYPE_DATA, dataID) {
-			dataData, err := srcSnapshot.GetBlob(packfile.TYPE_DATA, dataID)
-			if err != nil {
-				return err
-			}
-			dstSnapshot.PutBlob(packfile.TYPE_DATA, dataID, dataData)
-		}
-	}
 
 	return dstSnapshot.Commit()
 }
