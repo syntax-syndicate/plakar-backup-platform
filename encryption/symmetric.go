@@ -5,7 +5,6 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"io"
 
@@ -77,50 +76,7 @@ func VerifyCanary(key []byte, canary []byte) bool {
 		return false
 	}
 	_, err = io.ReadAll(rd)
-	if err != nil {
-		return false
-	}
-	return true
-}
-
-// BuildSecretFromPassphrase generates a secret from a passphrase using scrypt
-func BuildSecretFromPassphrase(passphrase []byte) (string, error) {
-	// Generate a random salt
-	salt := make([]byte, saltSize)
-	if _, err := rand.Read(salt); err != nil {
-		return "", fmt.Errorf("failed to generate salt: %w", err)
-	}
-
-	// Derive the key using scrypt with high CPU and memory costs
-	dk, err := scrypt.Key(passphrase, salt, 1<<15, 8, 1, 32)
-	if err != nil {
-		return "", fmt.Errorf("key derivation failed: %w", err)
-	}
-
-	// Return the base64-encoded secret including the salt
-	return base64.StdEncoding.EncodeToString(append(salt, dk...)), nil
-}
-
-// DeriveSecret derives a secret key from a passphrase and a stored secret using scrypt
-func DeriveSecret(passphrase []byte, secret string) ([]byte, error) {
-	decodedSecret, err := base64.StdEncoding.DecodeString(secret)
-	if err != nil {
-		return nil, err
-	}
-
-	salt := decodedSecret[:saltSize]
-	expectedKey := decodedSecret[saltSize:]
-
-	// Derive the key using scrypt with the same parameters
-	dk, err := scrypt.Key(passphrase, salt, 1<<15, 8, 1, 32)
-	if err != nil {
-		return nil, err
-	}
-
-	if !bytes.Equal(dk, expectedKey) {
-		return nil, fmt.Errorf("passphrase does not match")
-	}
-	return dk, nil
+	return err == nil
 }
 
 // EncryptStream encrypts a stream using AES-GCM with a random session-specific subkey
