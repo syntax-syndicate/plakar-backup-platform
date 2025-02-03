@@ -33,7 +33,6 @@ import (
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/dustin/go-humanize"
 	"github.com/gobwas/glob"
-	"github.com/google/uuid"
 )
 
 func init() {
@@ -57,7 +56,6 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 	var opt_exclude excludeFlags
 	var opt_concurrency uint64
 	var opt_quiet bool
-	var opt_identity string
 	// var opt_stdio bool
 
 	excludes := []glob.Glob{}
@@ -100,7 +98,6 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 		RepositoryLocation: repo.Location(),
 		RepositorySecret:   ctx.GetSecret(),
 		Concurrency:        opt_concurrency,
-		Identity:           opt_identity,
 		Tags:               opt_tags,
 		Excludes:           excludes,
 		Exclude:            opt_exclude,
@@ -114,7 +111,6 @@ type Backup struct {
 	RepositorySecret   []byte
 
 	Concurrency uint64
-	Identity    string
 	Tags        string
 	Excludes    []glob.Glob
 	Exclude     []string
@@ -171,12 +167,8 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 	}
 	ep.Close()
 
-	signedStr := "unsigned"
-	if ctx.Identity != uuid.Nil {
-		signedStr = "signed"
-	}
 	ctx.GetLogger().Info("created %s snapshot %x with root %s of size %s in %s",
-		signedStr,
+		"unsigned",
 		snap.Header.GetIndexShortID(),
 		base64.RawStdEncoding.EncodeToString(snap.Header.Root[:]),
 		humanize.Bytes(snap.Header.Summary.Directory.Size+snap.Header.Summary.Below.Size),
