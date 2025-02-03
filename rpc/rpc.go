@@ -19,6 +19,8 @@ type encodedRPC struct {
 	Subcommand RPC
 }
 
+// Encode marshals the RPC into the msgpack encoder. It prefixes the RPC with
+// the Name() of the RPC. This is used to identify the RPC on decoding.
 func Encode(encoder *msgpack.Encoder, cmd RPC) error {
 	return encoder.Encode(encodedRPC{
 		Name:       cmd.Name(),
@@ -26,9 +28,9 @@ func Encode(encoder *msgpack.Encoder, cmd RPC) error {
 	})
 }
 
-// Decode extracts the request encoded by Encode. It returns the name of the RPC
-// and the raw bytes of the request. The raw bytes can be used to unmarshal the
-// bytes with the correct struct.
+// Decode extracts the request encoded by Encode*(). It returns the name of the
+// RPC and the raw bytes of the request. The raw bytes can be used by the caller
+// to unmarshal the bytes with the correct struct.
 func Decode(decoder *msgpack.Decoder) (string, []byte, error) {
 	var request map[string]interface{}
 	if err := decoder.Decode(&request); err != nil {

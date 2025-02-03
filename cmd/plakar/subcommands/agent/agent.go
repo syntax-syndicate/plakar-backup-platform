@@ -257,7 +257,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				}
 			}
 
-			name, rawRequest, err := rpc.Decode(decoder)
+			name, request, err := rpc.Decode(decoder)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s\n", err)
 				return
@@ -273,7 +273,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand cat.Cat
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -285,7 +285,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand ls.Ls
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -297,7 +297,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand backup.Backup
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -309,7 +309,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand info.InfoRepository
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -321,7 +321,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand info.InfoSnapshot
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -333,7 +333,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand info.InfoErrors
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -345,7 +345,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand info.InfoState
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -357,7 +357,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand info.InfoPackfile
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -369,7 +369,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand info.InfoObject
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -381,7 +381,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand info.InfoVFS
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -393,7 +393,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand rm.Rm
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -405,7 +405,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand checksum.Checksum
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -417,7 +417,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand locate.Locate
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -429,7 +429,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand check.Check
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -441,7 +441,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand cleanup.Cleanup
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -453,7 +453,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand clone.Clone
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -465,7 +465,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand archive.Archive
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -477,7 +477,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand diff.Diff
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -489,7 +489,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand exec.Exec
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -501,7 +501,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand mount.Mount
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -513,7 +513,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand restore.Restore
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -525,7 +525,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand server.Server
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -537,7 +537,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand cmd_sync.Sync
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
@@ -549,7 +549,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					Name       string
 					Subcommand ui.Ui
 				}
-				if err := msgpack.Unmarshal(rawRequest, &cmd); err != nil {
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 					return
 				}
