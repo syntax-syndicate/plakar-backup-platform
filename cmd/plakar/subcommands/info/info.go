@@ -23,7 +23,6 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/rpc/info"
 )
 
 func init() {
@@ -33,7 +32,7 @@ func init() {
 func parse_cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 
 	if len(args) == 0 {
-		return &info.InfoRepository{
+		return &InfoRepository{
 			RepositoryLocation: repo.Location(),
 			RepositorySecret:   ctx.GetSecret(),
 		}, nil
@@ -49,7 +48,7 @@ func parse_cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, arg
 			ctx.GetLogger().Error("usage: %s snapshot snapshotID", flags.Name())
 			return nil, fmt.Errorf("usage: %s snapshot snapshotID", flags.Name())
 		}
-		return &info.InfoSnapshot{
+		return &InfoSnapshot{
 			RepositoryLocation: repo.Location(),
 			RepositorySecret:   ctx.GetSecret(),
 			SnapshotID:         flags.Args()[1],
@@ -59,19 +58,19 @@ func parse_cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, arg
 			ctx.GetLogger().Error("usage: %s errors snapshotID", flags.Name())
 			return nil, fmt.Errorf("usage: %s errors snapshotID", flags.Name())
 		}
-		return &info.InfoErrors{
+		return &InfoErrors{
 			RepositoryLocation: repo.Location(),
 			RepositorySecret:   ctx.GetSecret(),
 			SnapshotID:         flags.Args()[1],
 		}, nil
 	case "state":
-		return &info.InfoState{
+		return &InfoState{
 			RepositoryLocation: repo.Location(),
 			RepositorySecret:   ctx.GetSecret(),
 			Args:               flags.Args()[1:],
 		}, nil
 	case "packfile":
-		return &info.InfoPackfile{
+		return &InfoPackfile{
 			RepositoryLocation: repo.Location(),
 			RepositorySecret:   ctx.GetSecret(),
 			Args:               flags.Args()[1:],
@@ -81,7 +80,7 @@ func parse_cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, arg
 			ctx.GetLogger().Error("usage: %s object objectID", flags.Name())
 			return nil, fmt.Errorf("usage: %s object objectID", flags.Name())
 		}
-		return &info.InfoObject{
+		return &InfoObject{
 			RepositoryLocation: repo.Location(),
 			RepositorySecret:   ctx.GetSecret(),
 			ObjectID:           flags.Args()[1],
@@ -91,7 +90,7 @@ func parse_cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, arg
 			ctx.GetLogger().Error("usage: %s vfs snapshotPathname", flags.Name())
 			return nil, fmt.Errorf("usage: %s vfs snapshotPathname", flags.Name())
 		}
-		return &info.InfoVFS{
+		return &InfoVFS{
 			RepositoryLocation: repo.Location(),
 			RepositorySecret:   ctx.GetSecret(),
 			SnapshotPath:       flags.Args()[1],

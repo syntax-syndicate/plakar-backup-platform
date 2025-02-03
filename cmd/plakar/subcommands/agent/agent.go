@@ -31,28 +31,27 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/archive"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/backup"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/cat"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/checksum"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/cleanup"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/clone"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/diff"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/exec"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/info"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/locate"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ls"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/mount"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/server"
+	cmd_sync "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ui"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/rpc"
-	"github.com/PlakarKorp/plakar/rpc/archive"
-	"github.com/PlakarKorp/plakar/rpc/backup"
-	"github.com/PlakarKorp/plakar/rpc/cat"
-	"github.com/PlakarKorp/plakar/rpc/check"
-	"github.com/PlakarKorp/plakar/rpc/checksum"
-	"github.com/PlakarKorp/plakar/rpc/cleanup"
-	"github.com/PlakarKorp/plakar/rpc/clone"
-	"github.com/PlakarKorp/plakar/rpc/diff"
-	"github.com/PlakarKorp/plakar/rpc/exec"
-	"github.com/PlakarKorp/plakar/rpc/info"
-	"github.com/PlakarKorp/plakar/rpc/locate"
-	"github.com/PlakarKorp/plakar/rpc/ls"
-	"github.com/PlakarKorp/plakar/rpc/mount"
-	"github.com/PlakarKorp/plakar/rpc/restore"
-	"github.com/PlakarKorp/plakar/rpc/rm"
-	"github.com/PlakarKorp/plakar/rpc/server"
-	cmd_sync "github.com/PlakarKorp/plakar/rpc/sync"
-	"github.com/PlakarKorp/plakar/rpc/ui"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vmihailenco/msgpack/v5"
@@ -263,7 +262,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				return
 			}
 
-			name, request, err := rpc.Decode(decoder)
+			name, request, err := subcommands.DecodeRPC(decoder)
 			if err != nil {
 				if isDisconnectError(err) {
 					fmt.Fprintf(os.Stderr, "Client disconnected during initial request\n")
@@ -286,7 +285,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				}
 			}()
 
-			var subcommand rpc.RPC
+			var subcommand subcommands.RPC
 			var repositoryLocation string
 			var repositorySecret []byte
 

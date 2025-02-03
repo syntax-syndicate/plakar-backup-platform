@@ -21,11 +21,14 @@ package ui
 
 import (
 	"flag"
+	"fmt"
+	"os"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/rpc/ui"
+	v2 "github.com/PlakarKorp/plakar/ui/v2"
+	"github.com/google/uuid"
 )
 
 func init() {
@@ -44,7 +47,8 @@ func parse_cmd_ui(ctx *appcontext.AppContext, repo *repository.Repository, args 
 	flags.BoolVar(&opt_noauth, "no-auth", false, "don't use authentication")
 	flags.BoolVar(&opt_nospawn, "no-spawn", false, "don't spawn browser")
 	flags.Parse(args)
-	return &ui.Ui{
+
+	return &Ui{
 		RepositoryLocation: repo.Location(),
 		RepositorySecret:   ctx.GetSecret(),
 		Addr:               opt_addr,
@@ -52,4 +56,37 @@ func parse_cmd_ui(ctx *appcontext.AppContext, repo *repository.Repository, args 
 		NoAuth:             opt_noauth,
 		NoSpawn:            opt_nospawn,
 	}, nil
+}
+
+type Ui struct {
+	RepositoryLocation string
+	RepositorySecret   []byte
+
+	Addr    string
+	Cors    bool
+	NoAuth  bool
+	NoSpawn bool
+}
+
+func (cmd *Ui) Name() string {
+	return "ui"
+}
+
+func (cmd *Ui) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+	ui_opts := v2.UiOptions{
+		NoSpawn: cmd.NoSpawn,
+		Cors:    cmd.Cors,
+		Token:   "",
+	}
+
+	if !cmd.NoAuth {
+		ui_opts.Token = uuid.NewString()
+	}
+
+	err := v2.Ui(repo, cmd.Addr, &ui_opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ui: %s\n", err)
+		return 1, err
+	}
+	return 0, err
 }

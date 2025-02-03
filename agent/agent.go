@@ -10,7 +10,6 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/rpc"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -26,7 +25,7 @@ type Client struct {
 }
 
 func ExecuteRPC(ctx *appcontext.AppContext, repo *repository.Repository, cmd subcommands.Subcommand) (int, error) {
-	rpcCmd, ok := cmd.(rpc.RPC)
+	rpcCmd, ok := cmd.(subcommands.RPC)
 	if !ok {
 		return 1, fmt.Errorf("subcommand is not an RPC")
 	}
@@ -50,11 +49,11 @@ func NewClient(socketPath string) (*Client, error) {
 	return &Client{conn: conn}, nil
 }
 
-func (c *Client) SendCommand(ctx *appcontext.AppContext, cmd rpc.RPC, repo *repository.Repository) (int, error) {
+func (c *Client) SendCommand(ctx *appcontext.AppContext, cmd subcommands.RPC, repo *repository.Repository) (int, error) {
 	encoder := msgpack.NewEncoder(c.conn)
 	decoder := msgpack.NewDecoder(c.conn)
 
-	if err := rpc.Encode(encoder, cmd); err != nil {
+	if err := subcommands.EncodeRPC(encoder, cmd); err != nil {
 		return 1, err
 	}
 
