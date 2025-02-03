@@ -90,7 +90,7 @@ func (cmd *Archive) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 	snapshotPrefix, pathname := utils.ParseSnapshotID(cmd.SnapshotPrefix)
 	snap, err := utils.OpenSnapshotByPrefix(repo, snapshotPrefix)
 	if err != nil {
-		log.Fatalf("%s: could not open snapshot: %s", flag.CommandLine.Name(), snapshotPrefix)
+		return 1, fmt.Errorf("archive: could not open snapshot: %s", snapshotPrefix)
 	}
 	defer snap.Close()
 
@@ -100,14 +100,14 @@ func (cmd *Archive) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 	} else {
 		tmp, err := os.CreateTemp("", "plakar-archive-")
 		if err != nil {
-			log.Fatalf("%s: %s: %s", flag.CommandLine.Name(), pathname, err)
+			return 1, fmt.Errorf("archive: %s: %w", pathname, err)
 		}
 		defer os.Remove(tmp.Name())
 		out = tmp
 	}
 
 	if err = snap.Archive(out, cmd.Format, []string{pathname}, cmd.Rebase); err != nil {
-		log.Fatal(err)
+		return 1, err
 	}
 
 	if err := out.Close(); err != nil {
@@ -119,5 +119,4 @@ func (cmd *Archive) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 		}
 	}
 	return 0, nil
-
 }
