@@ -11,7 +11,7 @@ User creating the repository is prompted for a passphrase.
 
 A 256-bits master encryption key is derived from the supplied passphrase using `scrypt` with a 128-bits randomly-generated salt and parameters N=32768, r=8, p=1 as suggested by the official package documentation (and double-checked through Google and OpenAI's ChatGPT).
 
-A random 32-bytes block is also generated and AES256-GCM encrypted with the master key and a random nonce.
+A random 32-bytes block is also generated and encrypted with the master key using the method described at the end of the document.
 
 The scrypt parameters, the salt and the encrypted block are then stored in the repository configuration file which remains cleartext as it needs to let clients determine how they will work with that repository.
 
