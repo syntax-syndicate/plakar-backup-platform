@@ -68,7 +68,7 @@ func (cmd *Help) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		return 0, nil
 	}
 
-	content, err := docs.ReadFile(fmt.Sprintf("docs/%s.md", cmd.Command))
+	content, err := docs.ReadFile(fmt.Sprintf("docs/plakar-%s.md", cmd.Command))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", cmd.Command)
 		return 1, err
@@ -92,13 +92,3 @@ func (cmd *Help) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 
 	return 1, err
 }
-
-// to rebuild documentation, run:
-/*
-find ../ -type f -name '*.1' -exec sh -c '
-  for file; do
-    base=$(basename "$file" .1)
-    mandoc -T markdown "$file" > "docs/$base.md"
-  done
-' sh {} +
-*/

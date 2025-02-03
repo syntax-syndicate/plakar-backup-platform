@@ -23,7 +23,6 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/server/httpd"
-	"github.com/PlakarKorp/plakar/server/plakard"
 )
 
 func init() {
@@ -31,18 +30,13 @@ func init() {
 }
 
 func parse_cmd_server(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
-	var opt_protocol string
+	var opt_listen string
 	var opt_allowdelete bool
 
 	flags := flag.NewFlagSet("server", flag.ExitOnError)
-	flags.StringVar(&opt_protocol, "protocol", "plakar", "protocol to use (http or plakar)")
+	flags.StringVar(&opt_listen, "listen", "127.0.0.1:9876", "address to listen on")
 	flags.BoolVar(&opt_allowdelete, "allow-delete", false, "disable delete operations")
 	flags.Parse(args)
-
-	addr := ":9876"
-	if flags.NArg() == 1 {
-		addr = flags.Arg(0)
-	}
 
 	noDelete := true
 	if opt_allowdelete {
@@ -51,9 +45,9 @@ func parse_cmd_server(ctx *appcontext.AppContext, repo *repository.Repository, a
 	return &Server{
 		RepositoryLocation: repo.Location(),
 		RepositorySecret:   ctx.GetSecret(),
-		Protocol:           opt_protocol,
-		Addr:               addr,
-		NoDelete:           noDelete,
+
+		ListenAddr: opt_listen,
+		NoDelete:   noDelete,
 	}, nil
 }
 
@@ -61,9 +55,8 @@ type Server struct {
 	RepositoryLocation string
 	RepositorySecret   []byte
 
-	Protocol string
-	Addr     string
-	NoDelete bool
+	ListenAddr string
+	NoDelete   bool
 }
 
 func (cmd *Server) Name() string {
@@ -71,18 +64,6 @@ func (cmd *Server) Name() string {
 }
 
 func (cmd *Server) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	switch cmd.Protocol {
-	case "http":
-		httpd.Server(repo, cmd.Addr, cmd.NoDelete)
-	case "plakar":
-		options := &plakard.ServerOptions{
-			NoOpen:   true,
-			NoCreate: true,
-			NoDelete: cmd.NoDelete,
-		}
-		plakard.Server(ctx, repo, cmd.Addr, options)
-	default:
-		ctx.GetLogger().Error("unsupported protocol: %s", cmd.Protocol)
-	}
+	httpd.Server(repo, cmd.ListenAddr, cmd.NoDelete)
 	return 0, nil
 }

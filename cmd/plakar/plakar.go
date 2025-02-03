@@ -250,6 +250,7 @@ func entryPoint() int {
 	// special case, server skips passphrase as it only serves storage layer
 	skipPassphrase := false
 	if command == "server" {
+		opt_agentless = true
 		skipPassphrase = true
 	}
 
@@ -282,8 +283,11 @@ func entryPoint() int {
 						passphrase = []byte(envPassphrase)
 					}
 
-					secret, err = encryption.DeriveSecret(passphrase, store.Configuration().Encryption.Key)
+					key, err := encryption.DeriveKey(store.Configuration().Encryption.KDFParams, passphrase)
 					if err != nil {
+						continue
+					}
+					if !encryption.VerifyCanary(key, store.Configuration().Encryption.Canary) {
 						if envPassphrase != "" {
 							break
 						}
@@ -293,13 +297,15 @@ func entryPoint() int {
 					break
 				}
 			} else {
-				secret, err = encryption.DeriveSecret([]byte(ctx.KeyFromFile), store.Configuration().Encryption.Key)
+				key, err := encryption.DeriveKey(store.Configuration().Encryption.KDFParams, []byte(ctx.KeyFromFile))
 				if err == nil {
-					derived = true
+					if encryption.VerifyCanary(key, store.Configuration().Encryption.Canary) {
+						derived = true
+					}
 				}
 			}
 			if !derived {
-				fmt.Fprintf(os.Stderr, "%s: could not derive secret: %s\n", flag.CommandLine.Name(), err)
+				fmt.Fprintf(os.Stderr, "%s: could not derive secret\n", flag.CommandLine.Name())
 				os.Exit(1)
 			}
 			ctx.SetSecret(secret)
@@ -307,7 +313,7 @@ func entryPoint() int {
 	}
 
 	var repo *repository.Repository
-	if opt_agentless {
+	if opt_agentless && command != "server" {
 		repo, err = repository.New(ctx, store, secret)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)

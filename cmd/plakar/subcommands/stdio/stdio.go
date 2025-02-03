@@ -16,27 +16,25 @@
 
 package stdio
 
-import (
-	"flag"
+// func init() {
+// 	subcommands.Register("stdio", cmd_stdio)
+// }
 
-	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/server/plakard"
-)
+// func cmd_stdio(ctx *appcontext.AppContext, _ *repository.Repository, args []string) (int, error) {
+// 	var opt_allowdelete bool
 
-func cmd_stdio(ctx *appcontext.AppContext, args []string) (int, error) {
-	_ = ctx
+// 	flags := flag.NewFlagSet("stdio", flag.ExitOnError)
+// 	flags.BoolVar(&opt_allowdelete, "allow-delete", false, "disable delete operations")
+// 	flags.Parse(args)
 
-	var noDelete bool
-
-	flags := flag.NewFlagSet("stdio", flag.ExitOnError)
-	flags.BoolVar(&noDelete, "no-delete", false, "disable delete operations")
-	flags.Parse(args)
-
-	options := &plakard.ServerOptions{
-		NoDelete: noDelete,
-	}
-	if err := plakard.Stdio(ctx, options); err != nil {
-		return 1, err
-	}
-	return 0, nil
-}
+// 	noDelete := true
+// 	if opt_allowdelete {
+// 		noDelete = false
+// 	}
+// 	if err := plakard.Stdio(ctx, &plakard.ServerOptions{
+// 		NoDelete: noDelete,
+// 	}); err != nil {
+// 		return 1, err
+// 	}
+// 	return 0, nil
+// }
