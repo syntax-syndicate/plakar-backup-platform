@@ -16,25 +16,48 @@
 
 package stdio
 
-// func init() {
-// 	subcommands.Register("stdio", cmd_stdio)
-// }
+import (
+	"flag"
 
-// func cmd_stdio(ctx *appcontext.AppContext, _ *repository.Repository, args []string) (int, error) {
-// 	var opt_allowdelete bool
+	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/server/plakard"
+)
 
-// 	flags := flag.NewFlagSet("stdio", flag.ExitOnError)
-// 	flags.BoolVar(&opt_allowdelete, "allow-delete", false, "disable delete operations")
-// 	flags.Parse(args)
+func init() {
+	subcommands.Register("stdio", parse_cmd_stdio)
+}
 
-// 	noDelete := true
-// 	if opt_allowdelete {
-// 		noDelete = false
-// 	}
-// 	if err := plakard.Stdio(ctx, &plakard.ServerOptions{
-// 		NoDelete: noDelete,
-// 	}); err != nil {
-// 		return 1, err
-// 	}
-// 	return 0, nil
-// }
+func parse_cmd_stdio(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+	var opt_allowdelete bool
+
+	flags := flag.NewFlagSet("stdio", flag.ExitOnError)
+	flags.BoolVar(&opt_allowdelete, "allow-delete", false, "disable delete operations")
+	flags.Parse(args)
+
+	noDelete := true
+	if opt_allowdelete {
+		noDelete = false
+	}
+	return &Stdio{
+		NoDelete: noDelete,
+	}, nil
+}
+
+type Stdio struct {
+	NoDelete bool
+}
+
+func (cmd *Stdio) Name() string {
+	return "stdio"
+}
+
+func (cmd *Stdio) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+	if err := plakard.Stdio(ctx, &plakard.ServerOptions{
+		NoDelete: cmd.NoDelete,
+	}); err != nil {
+		return 1, err
+	}
+	return 0, nil
+}
