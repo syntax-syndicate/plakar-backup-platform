@@ -139,11 +139,3 @@ The decryption works as follows:
     2- the input buffer is split into two parts: the subkey block and the data block
     3- the subkey block is decrypted so that subkey and subkey nonce are retrieved, GCM integrity check validates master key
     4- the data block is decrypted with the subkey and subkey nonce, GCM integrity check validates subkey
-    
-
-
-
-
-
-
-
