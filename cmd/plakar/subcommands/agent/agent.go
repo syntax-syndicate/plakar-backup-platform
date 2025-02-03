@@ -259,20 +259,33 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			clientContext.SetLogger(logger)
 
 			decoder := msgpack.NewDecoder(conn)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Unable to initialize decoder\n")
+				return
+			}
 
+			name, request, err := rpc.Decode(decoder)
 			if err != nil {
 				if isDisconnectError(err) {
 					fmt.Fprintf(os.Stderr, "Client disconnected during initial request\n")
 					cancel() // Cancel the context on disconnect
 					return
 				}
-			}
-
-			name, request, err := rpc.Decode(decoder)
-			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s\n", err)
 				return
 			}
+
+			// Monitor the connection for subsequent disconnection
+			go func() {
+				// Attempt another decode to detect client disconnection during processing
+				var tmp interface{}
+				if err := decoder.Decode(&tmp); err != nil {
+					if isDisconnectError(err) {
+						handleDisconnect()
+						cancel()
+					}
+				}
+			}()
 
 			var subcommand rpc.RPC
 			var repositoryLocation string
