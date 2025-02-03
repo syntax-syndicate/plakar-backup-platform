@@ -245,6 +245,7 @@ func entryPoint() int {
 	// special case, server skips passphrase as it only serves storage layer
 	skipPassphrase := false
 	if command == "server" {
+		opt_agentless = true
 		skipPassphrase = true
 	}
 
@@ -307,7 +308,7 @@ func entryPoint() int {
 	}
 
 	var repo *repository.Repository
-	if opt_agentless {
+	if opt_agentless && command != "server" {
 		repo, err = repository.New(ctx, store, secret)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
