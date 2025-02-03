@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -21,6 +20,7 @@ import (
 	"github.com/alecthomas/chroma/lexers"
 	"github.com/alecthomas/chroma/styles"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"go.omarpolo.com/ttlmap"
 )
 
@@ -469,15 +469,6 @@ type DownloadQuery struct {
 	Rebase bool           `json:"rebase,omitempty"`
 }
 
-func randomID(n int) string {
-	alphabet := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = alphabet[rand.Intn(len(alphabet))]
-	}
-	return string(b)
-}
-
 func snapshotVFSDownloader(w http.ResponseWriter, r *http.Request) error {
 	snapshotID32, _, err := SnapshotPathParam(r, lrepository, "snapshot_path")
 	if err != nil {
@@ -494,7 +485,7 @@ func snapshotVFSDownloader(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	for {
-		id := randomID(32)
+		id := uuid.New().String()
 		if _, ok := downloadSignedUrls.Get(id); ok {
 			continue
 		}
