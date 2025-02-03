@@ -119,5 +119,4 @@ func (cmd *Archive) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 		}
 	}
 	return 0, nil
-
 }
