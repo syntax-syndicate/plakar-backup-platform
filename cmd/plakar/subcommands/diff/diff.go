@@ -84,13 +84,13 @@ func (cmd *Diff) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 
 	snap1, err := utils.OpenSnapshotByPrefix(repo, cmd.SnapshotPrefix1)
 	if err != nil {
-		log.Fatalf("diff: could not open snapshot: %s", cmd.SnapshotPrefix1)
+		return 1, fmt.Errorf("diff: could not open snapshot: %s", cmd.SnapshotPrefix1)
 	}
 	defer snap1.Close()
 
 	snap2, err := utils.OpenSnapshotByPrefix(repo, cmd.SnapshotPrefix2)
 	if err != nil {
-		log.Fatalf("diff: could not open snapshot: %s", cmd.SnapshotPrefix2)
+		return 1, fmt.Errorf("diff: could not open snapshot: %s", cmd.SnapshotPrefix2)
 	}
 	defer snap2.Close()
 
@@ -98,7 +98,7 @@ func (cmd *Diff) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	if pathname1 == "" && pathname2 == "" {
 		diff, err = diff_filesystems(snap1, snap2)
 		if err != nil {
-			log.Fatalf("diff: could not diff snapshots: %s", err)
+			return 1, fmt.Errorf("diff: could not diff snapshots: %w", err)
 		}
 	} else {
 		if pathname1 == "" {
@@ -109,14 +109,14 @@ func (cmd *Diff) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		}
 		diff, err = diff_pathnames(snap1, pathname1, snap2, pathname2)
 		if err != nil {
-			log.Fatalf("diff: could not diff pathnames: %s", err)
+			return 1, fmt.Errorf("diff: could not diff pathnames: %w", err)
 		}
 	}
 
 	if cmd.Highlight {
 		err = quick.Highlight(os.Stdout, diff, "diff", "terminal", "dracula")
 		if err != nil {
-			log.Fatalf("diff: could not highlight diff: %s", err)
+			return 1, fmt.Errorf("diff: could not highlight diff: %w", err)
 		}
 	} else {
 		fmt.Printf("%s", diff)
