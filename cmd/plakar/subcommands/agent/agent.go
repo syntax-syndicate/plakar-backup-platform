@@ -64,16 +64,14 @@ func init() {
 
 func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	var opt_prometheus string
-	var opt_socketPath string
 
 	flags := flag.NewFlagSet("agent", flag.ExitOnError)
 	flags.StringVar(&opt_prometheus, "prometheus", "", "prometheus exporter interface")
-	flags.StringVar(&opt_socketPath, "socket", filepath.Join(ctx.CacheDir, "agent.sock"), "path to socket file")
 	flags.Parse(args)
 
 	return &Agent{
 		prometheus: opt_prometheus,
-		socketPath: opt_socketPath,
+		socketPath: filepath.Join(ctx.CacheDir, "agent.sock"),
 	}, nil
 }
 
