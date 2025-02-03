@@ -120,7 +120,7 @@ func list_snapshot(ctx *appcontext.AppContext, repo *repository.Repository, snap
 			log.Println("error at", path, ":", err)
 			return err
 		}
-		if path == pathname {
+		if d.IsDir() && path == pathname {
 			return nil
 		}
 
