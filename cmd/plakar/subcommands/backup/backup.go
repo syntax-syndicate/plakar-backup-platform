@@ -96,8 +96,6 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 			return nil, err
 		}
 	}
-	_ = excludes
-
 	return &Backup{
 		RepositoryLocation: repo.Location(),
 		RepositorySecret:   ctx.GetSecret(),
