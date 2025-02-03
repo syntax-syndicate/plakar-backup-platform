@@ -36,10 +36,10 @@ import (
 )
 
 func init() {
-	subcommands.Register("ls", cmd_ls)
+	subcommands.Register("ls", parse_cmd_ls)
 }
 
-func cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
+func parse_cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	var opt_recursive bool
 	var opt_tag string
 	var opt_uuid bool
@@ -50,12 +50,41 @@ func cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args []stri
 	flags.BoolVar(&opt_recursive, "recursive", false, "recursive listing")
 	flags.Parse(args)
 
-	if flags.NArg() == 0 {
-		list_snapshots(ctx, repo, opt_uuid, opt_tag)
+	if flags.NArg() > 1 {
+		return nil, fmt.Errorf("too many arguments")
+	}
+
+	return &Ls{
+		RepositoryLocation: repo.Location(),
+		RepositorySecret:   ctx.GetSecret(),
+		Recursive:          opt_recursive,
+		Tag:                opt_tag,
+		DisplayUUID:        opt_uuid,
+		Path:               flags.Arg(0),
+	}, nil
+}
+
+type Ls struct {
+	RepositoryLocation string
+	RepositorySecret   []byte
+
+	Recursive   bool
+	Tag         string
+	DisplayUUID bool
+	Path        string
+}
+
+func (cmd *Ls) Name() string {
+	return "ls"
+}
+
+func (cmd *Ls) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+	if cmd.Path == "" {
+		list_snapshots(ctx, repo, cmd.DisplayUUID, cmd.Tag)
 		return 0, nil
 	}
 
-	if err := list_snapshot(ctx, repo, flags.Arg(0), opt_recursive); err != nil {
+	if err := list_snapshot(ctx, repo, cmd.Path, cmd.Recursive); err != nil {
 		log.Println("error:", err)
 		return 1, err
 	}

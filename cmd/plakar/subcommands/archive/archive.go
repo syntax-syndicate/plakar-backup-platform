@@ -31,10 +31,10 @@ import (
 )
 
 func init() {
-	subcommands.Register("archive", cmd_archive)
+	subcommands.Register("archive", parse_cmd_archive)
 }
 
-func cmd_archive(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (int, error) {
+func parse_cmd_archive(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	var opt_rebase bool
 	var opt_output string
 	var opt_format string
@@ -58,19 +58,44 @@ func cmd_archive(ctx *appcontext.AppContext, repo *repository.Repository, args [
 		log.Fatalf("%s: unsupported format %s", flag.CommandLine.Name(), opt_format)
 	}
 
-	snapshotPrefix, pathname := utils.ParseSnapshotID(flags.Arg(0))
+	if opt_output == "" {
+		opt_output = fmt.Sprintf("plakar-%s.%s", time.Now().UTC().Format(time.RFC3339), supportedFormats[opt_format])
+	}
+
+	return &Archive{
+		RepositoryLocation: repo.Location(),
+		RepositorySecret:   ctx.GetSecret(),
+		Rebase:             opt_rebase,
+		Output:             opt_output,
+		Format:             opt_format,
+		SnapshotPrefix:     flags.Arg(0),
+	}, nil
+}
+
+type Archive struct {
+	RepositoryLocation string
+	RepositorySecret   []byte
+
+	Rebase         bool
+	Output         string
+	Format         string
+	SnapshotPrefix string
+}
+
+func (cmd *Archive) Name() string {
+	return "archive"
+}
+
+func (cmd *Archive) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+	snapshotPrefix, pathname := utils.ParseSnapshotID(cmd.SnapshotPrefix)
 	snap, err := utils.OpenSnapshotByPrefix(repo, snapshotPrefix)
 	if err != nil {
 		log.Fatalf("%s: could not open snapshot: %s", flag.CommandLine.Name(), snapshotPrefix)
 	}
 	defer snap.Close()
 
-	if opt_output == "" {
-		opt_output = fmt.Sprintf("plakar-%s.%s", time.Now().UTC().Format(time.RFC3339), supportedFormats[opt_format])
-	}
-
 	var out io.WriteCloser
-	if opt_output == "-" {
+	if cmd.Output == "-" {
 		out = os.Stdout
 	} else {
 		tmp, err := os.CreateTemp("", "plakar-archive-")
@@ -81,7 +106,7 @@ func cmd_archive(ctx *appcontext.AppContext, repo *repository.Repository, args [
 		out = tmp
 	}
 
-	if err = snap.Archive(out, opt_format, []string{pathname}, opt_rebase); err != nil {
+	if err = snap.Archive(out, cmd.Format, []string{pathname}, cmd.Rebase); err != nil {
 		log.Fatal(err)
 	}
 
@@ -89,10 +114,9 @@ func cmd_archive(ctx *appcontext.AppContext, repo *repository.Repository, args [
 		return 1, err
 	}
 	if out, isFile := out.(*os.File); isFile {
-		if err := os.Rename(out.Name(), opt_output); err != nil {
+		if err := os.Rename(out.Name(), cmd.Output); err != nil {
 			return 1, err
 		}
 	}
-
 	return 0, nil
 }
