@@ -154,7 +154,6 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 
 	cancelCtx, _ := context.WithCancel(context.Background())
 
-	// XXX: start prom logic
 	if cmd.prometheus != "" {
 		promlistener, err := net.Listen("tcp", cmd.prometheus)
 		if err != nil {
