@@ -14,7 +14,17 @@ import (
 
 type Configuration struct {
 	Algorithm string
-	Key       string
+	KDF       string
+	KDFParams KDFParams
+	Canary    []byte
+}
+
+type KDFParams struct {
+	Salt   []byte
+	N      int
+	R      int
+	P      int
+	KeyLen int
 }
 
 const (
@@ -25,7 +35,52 @@ const (
 func DefaultConfiguration() *Configuration {
 	return &Configuration{
 		Algorithm: "AES256-GCM",
+		KDF:       "SCRYPT",
+		KDFParams: KDFParams{
+			N:      1 << 15,
+			R:      8,
+			P:      1,
+			KeyLen: 32,
+		},
 	}
+}
+
+func Salt() ([]byte, error) {
+	salt := make([]byte, saltSize)
+	if _, err := rand.Read(salt); err != nil {
+		return nil, fmt.Errorf("failed to generate salt: %w", err)
+	}
+	return salt, nil
+}
+
+// BuildSecretFromPassphrase generates a secret from a passphrase using scrypt
+func DeriveKey(params KDFParams, passphrase []byte) ([]byte, error) {
+	return scrypt.Key(passphrase, params.Salt, params.N, params.R, params.P, params.KeyLen)
+}
+
+func DeriveCanary(key []byte) ([]byte, error) {
+	canary := make([]byte, 32)
+	if _, err := rand.Read(canary); err != nil {
+		return nil, err
+	}
+
+	rd, err := EncryptStream(key, bytes.NewReader(canary))
+	if err != nil {
+		return nil, err
+	}
+	return io.ReadAll(rd)
+}
+
+func VerifyCanary(key []byte, canary []byte) bool {
+	rd, err := DecryptStream(key, bytes.NewReader(canary))
+	if err != nil {
+		return false
+	}
+	_, err = io.ReadAll(rd)
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 // BuildSecretFromPassphrase generates a secret from a passphrase using scrypt

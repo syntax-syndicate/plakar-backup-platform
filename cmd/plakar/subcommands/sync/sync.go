@@ -77,12 +77,16 @@ func cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, args []st
 				continue
 			}
 
-			secret, err := encryption.DeriveSecret(passphrase, peerStore.Configuration().Encryption.Key)
+			key, err := encryption.DeriveKey(peerStore.Configuration().Encryption.KDFParams, passphrase)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s\n", err)
 				continue
 			}
-			peerSecret = secret
+			if !encryption.VerifyCanary(key, peerStore.Configuration().Encryption.Canary) {
+				fmt.Fprintf(os.Stderr, "invalid passphrase\n")
+				continue
+			}
+			peerSecret = key
 			break
 		}
 	}

@@ -154,7 +154,14 @@ func info_repository(repo *repository.Repository) (int, error) {
 	if repo.Configuration().Encryption != nil {
 		fmt.Println("Encryption:")
 		fmt.Println(" - Algorithm:", repo.Configuration().Encryption.Algorithm)
-		fmt.Println(" - Key:", repo.Configuration().Encryption.Key)
+		fmt.Printf(" - Canary: %x\n", repo.Configuration().Encryption.Canary)
+		fmt.Println(" - KDF:", repo.Configuration().Encryption.KDF)
+		fmt.Println(" - KDFParams:")
+		fmt.Printf("   - N: %d\n", repo.Configuration().Encryption.KDFParams.N)
+		fmt.Printf("   - R: %d\n", repo.Configuration().Encryption.KDFParams.R)
+		fmt.Printf("   - P: %d\n", repo.Configuration().Encryption.KDFParams.P)
+		fmt.Printf("   - Salt: %x\n", repo.Configuration().Encryption.KDFParams.Salt)
+		fmt.Printf("   - KeyLen: %d\n", repo.Configuration().Encryption.KDFParams.KeyLen)
 	}
 
 	fmt.Println("Snapshots:", len(metadatas))
