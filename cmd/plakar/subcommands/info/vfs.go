@@ -23,7 +23,6 @@ func (cmd *InfoVFS) Name() string {
 }
 
 func (cmd *InfoVFS) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	// TODO
 	snapshotPrefix, pathname := utils.ParseSnapshotID(cmd.SnapshotPath)
 	snap1, err := utils.OpenSnapshotByPrefix(repo, snapshotPrefix)
 	if err != nil {
