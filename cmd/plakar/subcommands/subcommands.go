@@ -13,11 +13,11 @@ type Subcommand interface {
 	Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error)
 }
 
-type parse_args_fn func(*appcontext.AppContext, *repository.Repository, []string) (Subcommand, error)
+type parseArgsFn func(*appcontext.AppContext, *repository.Repository, []string) (Subcommand, error)
 
-var subcommands map[string]parse_args_fn = make(map[string]parse_args_fn)
+var subcommands map[string]parseArgsFn = make(map[string]parseArgsFn)
 
-func Register(command string, fn parse_args_fn) {
+func Register(command string, fn parseArgsFn) {
 	subcommands[command] = fn
 }
 
