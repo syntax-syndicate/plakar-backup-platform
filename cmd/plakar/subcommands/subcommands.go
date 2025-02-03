@@ -58,7 +58,7 @@ func EncodeRPC(encoder *msgpack.Encoder, cmd RPC) error {
 	})
 }
 
-// Decode extracts the request encoded by Encode*(). It returns the name of the
+// Decode extracts the request encoded by Encode(). It returns the name of the
 // RPC and the raw bytes of the request. The raw bytes can be used by the caller
 // to unmarshal the bytes with the correct struct.
 func DecodeRPC(decoder *msgpack.Decoder) (string, []byte, error) {
