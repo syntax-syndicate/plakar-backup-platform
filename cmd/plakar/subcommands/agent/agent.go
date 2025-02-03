@@ -29,6 +29,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/archive"
@@ -80,13 +81,6 @@ type Agent struct {
 	socketPath string
 
 	listener net.Listener
-}
-
-type Packet struct {
-	Type     string
-	Data     []byte
-	ExitCode int
-	Err      string
 }
 
 func (cmd *Agent) checkSocket() bool {
@@ -214,7 +208,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				case <-clientContext.GetContext().Done():
 					return
 				default:
-					response := Packet{
+					response := agent.Packet{
 						Type: "stdout",
 						Data: []byte(data),
 					}
@@ -235,7 +229,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				case <-clientContext.GetContext().Done():
 					return
 				default:
-					response := Packet{
+					response := agent.Packet{
 						Type: "stderr",
 						Data: []byte(data),
 					}
@@ -621,7 +615,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 						return
 					}
 					// Send the event to the client
-					response := Packet{
+					response := agent.Packet{
 						Type: "event",
 						Data: serialized,
 					}
@@ -654,7 +648,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				if err != nil {
 					errStr = err.Error()
 				}
-				response := Packet{
+				response := agent.Packet{
 					Type:     "exit",
 					ExitCode: status,
 					Err:      errStr,
