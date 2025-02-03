@@ -23,7 +23,6 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/rpc"
 	"golang.org/x/mod/semver"
 )
 
@@ -33,7 +32,7 @@ func init() {
 	subcommands.Register("version", parse_cmd_version)
 }
 
-func parse_cmd_version(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
+func parse_cmd_version(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	flags := flag.NewFlagSet("version", flag.ExitOnError)
 	flags.Parse(args)
 	return &Version{}, nil

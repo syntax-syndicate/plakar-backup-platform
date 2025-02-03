@@ -61,7 +61,7 @@ func init() {
 	subcommands.Register("agent", parse_cmd_agent)
 }
 
-func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
+func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	var opt_prometheus string
 	var opt_socketPath string
 

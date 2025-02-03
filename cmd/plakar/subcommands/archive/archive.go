@@ -25,7 +25,6 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/rpc"
 	"github.com/PlakarKorp/plakar/rpc/archive"
 )
 
@@ -33,7 +32,7 @@ func init() {
 	subcommands.Register("archive", parse_cmd_archive)
 }
 
-func parse_cmd_archive(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
+func parse_cmd_archive(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	var opt_rebase bool
 	var opt_output string
 	var opt_format string

@@ -22,7 +22,6 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/rpc"
 	"github.com/PlakarKorp/plakar/rpc/cleanup"
 )
 
@@ -30,7 +29,7 @@ func init() {
 	subcommands.Register("cleanup", parse_cmd_cleanup)
 }
 
-func parse_cmd_cleanup(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
+func parse_cmd_cleanup(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	flags := flag.NewFlagSet("cleanup", flag.ExitOnError)
 	flags.Parse(args)
 

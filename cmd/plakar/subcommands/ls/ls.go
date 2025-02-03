@@ -23,7 +23,6 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/rpc"
 	"github.com/PlakarKorp/plakar/rpc/ls"
 )
 
@@ -31,7 +30,7 @@ func init() {
 	subcommands.Register("ls", parse_cmd_ls)
 }
 
-func parse_cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
+func parse_cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	var opt_recursive bool
 	var opt_tag string
 	var opt_uuid bool

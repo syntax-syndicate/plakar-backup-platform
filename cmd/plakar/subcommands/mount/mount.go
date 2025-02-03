@@ -26,7 +26,6 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/rpc"
 	"github.com/PlakarKorp/plakar/rpc/mount"
 )
 
@@ -34,7 +33,7 @@ func init() {
 	subcommands.Register("mount", parse_cmd_mount)
 }
 
-func parse_cmd_mount(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
+func parse_cmd_mount(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	flags := flag.NewFlagSet("mount", flag.ExitOnError)
 	flags.Parse(args)
 

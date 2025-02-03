@@ -29,7 +29,6 @@ import (
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/rpc"
 	"github.com/PlakarKorp/plakar/storage"
 )
 
@@ -37,7 +36,7 @@ func init() {
 	subcommands.Register("create", parse_cmd_create)
 }
 
-func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
+func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	var opt_noencryption bool
 	var opt_nocompression bool
 

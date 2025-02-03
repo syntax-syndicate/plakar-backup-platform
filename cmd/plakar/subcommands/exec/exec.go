@@ -23,7 +23,6 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/rpc"
 	"github.com/PlakarKorp/plakar/rpc/exec"
 )
 
@@ -31,7 +30,7 @@ func init() {
 	subcommands.Register("exec", parse_cmd_exec)
 }
 
-func parse_cmd_exec(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
+func parse_cmd_exec(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	flags := flag.NewFlagSet("exec", flag.ExitOnError)
 	flags.Parse(args)
 

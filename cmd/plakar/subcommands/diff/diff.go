@@ -25,7 +25,6 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/rpc"
 	"github.com/PlakarKorp/plakar/rpc/diff"
 )
 
@@ -33,7 +32,7 @@ func init() {
 	subcommands.Register("diff", parse_cmd_diff)
 }
 
-func parse_cmd_diff(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (rpc.RPC, error) {
+func parse_cmd_diff(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	var opt_highlight bool
 	flags := flag.NewFlagSet("diff", flag.ExitOnError)
 	flags.BoolVar(&opt_highlight, "highlight", false, "highlight output")

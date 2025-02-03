@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
@@ -335,18 +336,20 @@ type Client struct {
 	conn net.Conn
 }
 
-func ExecuteRPC(ctx *appcontext.AppContext, repo *repository.Repository, cmd rpc.RPC) (int, error) {
+func ExecuteRPC(ctx *appcontext.AppContext, repo *repository.Repository, cmd subcommands.Subcommand) (int, error) {
+	rpcCmd, ok := cmd.(rpc.RPC)
+	if !ok {
+		return 1, fmt.Errorf("subcommand is not an RPC")
+	}
+
 	client, err := NewClient(filepath.Join(ctx.CacheDir, "agent.sock"))
 	if err != nil {
 		return 1, err
 	}
 	defer client.Close()
-	if status, err := client.SendCommand2(ctx, cmd, repo); err != nil {
+	if status, err := client.SendCommand2(ctx, rpcCmd, repo); err != nil {
 		return status, err
 	}
-
-	// XXX: read packet
-
 	return 0, nil
 }
 
