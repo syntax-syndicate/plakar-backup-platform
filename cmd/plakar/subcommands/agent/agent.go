@@ -24,6 +24,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
@@ -53,7 +54,7 @@ import (
 	cmd_sync "github.com/PlakarKorp/plakar/rpc/sync"
 	"github.com/PlakarKorp/plakar/rpc/ui"
 	"github.com/PlakarKorp/plakar/storage"
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -71,14 +72,14 @@ func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, ar
 	flags.Parse(args)
 
 	return &Agent{
-		Prometheus: opt_prometheus,
-		SocketPath: opt_socketPath,
+		prometheus: opt_prometheus,
+		socketPath: opt_socketPath,
 	}, nil
 }
 
 type Agent struct {
-	Prometheus string
-	SocketPath string
+	prometheus string
+	socketPath string
 
 	listener net.Listener
 }
@@ -91,7 +92,7 @@ type Packet struct {
 }
 
 func (cmd *Agent) checkSocket() bool {
-	conn, err := net.Dial("unix", cmd.SocketPath)
+	conn, err := net.Dial("unix", cmd.socketPath)
 	if err != nil {
 		return false
 	}
@@ -103,7 +104,7 @@ func (cmd *Agent) Close() error {
 	if cmd.listener != nil {
 		cmd.listener.Close()
 	}
-	if err := os.Remove(cmd.SocketPath); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(cmd.socketPath); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return nil
@@ -126,7 +127,7 @@ func (cmd *Agent) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 }
 
 func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
-	if _, err := os.Stat(cmd.SocketPath); err == nil {
+	if _, err := os.Stat(cmd.socketPath); err == nil {
 		if !cmd.checkSocket() {
 			cmd.Close()
 		} else {
@@ -139,14 +140,14 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 	var err error
 
 	// Bind socket
-	cmd.listener, err = net.Listen("unix", cmd.SocketPath)
+	cmd.listener, err = net.Listen("unix", cmd.socketPath)
 	if err != nil {
 		return fmt.Errorf("failed to bind socket: %w", err)
 	}
-	defer os.Remove(cmd.SocketPath)
+	defer os.Remove(cmd.socketPath)
 
 	// Set socket permissions
-	if err := os.Chmod(cmd.SocketPath, 0600); err != nil {
+	if err := os.Chmod(cmd.socketPath, 0600); err != nil {
 		cmd.Close()
 		return fmt.Errorf("failed to set socket permissions: %w", err)
 	}
@@ -154,7 +155,17 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 	cancelCtx, _ := context.WithCancel(context.Background())
 
 	// XXX: start prom logic
-	if cmd.Prometheus != "" {
+	if cmd.prometheus != "" {
+		promlistener, err := net.Listen("tcp", cmd.prometheus)
+		if err != nil {
+			return fmt.Errorf("failed to bind prometheus listener: %w", err)
+		}
+		defer promlistener.Close()
+
+		go func() {
+			http.Handle("/metrics", promhttp.Handler())
+			http.Serve(promlistener, nil)
+		}()
 	}
 
 	var wg sync.WaitGroup
@@ -647,50 +658,4 @@ type CustomWriter struct {
 func (cw *CustomWriter) Write(p []byte) (n int, err error) {
 	cw.processFunc(string(p))
 	return len(p), nil
-}
-
-// Prometheus part
-var (
-	// Define a counter
-	requestsTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "my_exporter_requests_total",
-			Help: "Total number of processed requests",
-		},
-		[]string{"method", "status"},
-	)
-
-	// Define a gauge
-	upGauge = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Name: "my_exporter_up",
-			Help: "Exporter up status",
-		},
-	)
-
-	disconnectsTotal = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Name: "my_exporter_disconnects_total",
-			Help: "Total number of client disconnections",
-		},
-	)
-)
-
-func init() {
-	// Register metrics with Prometheus
-	prometheus.MustRegister(requestsTotal)
-	prometheus.MustRegister(upGauge)
-	prometheus.MustRegister(disconnectsTotal)
-}
-
-func trackRequest(method, status string) {
-	requestsTotal.WithLabelValues(method, status).Inc()
-}
-
-func setUpGauge(value float64) {
-	upGauge.Set(value)
-}
-
-func handleDisconnect() {
-	disconnectsTotal.Inc() // Increment disconnect counter
 }
