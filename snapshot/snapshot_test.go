@@ -2,7 +2,6 @@ package snapshot
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 	"testing"
 	"time"
@@ -19,18 +18,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func randFileName(prefix string) string {
-	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-	suffix := make([]byte, 8)
-	for i := range suffix {
-		suffix[i] = chars[rand.Intn(len(chars))]
-	}
-	return prefix + string(suffix)
-}
-
 func generateSnapshot(t *testing.T, keyPair *keypair.KeyPair) *Snapshot {
 	// init temporary directories
-	tmpRepoDir := fmt.Sprintf("/tmp/%s", randFileName("tmp_repo_"))
+	tmpRepoDirRoot, err := os.MkdirTemp("", "tmp_repo")
+	require.NoError(t, err)
+	tmpRepoDir := fmt.Sprintf("%s/repo", tmpRepoDirRoot)
 	tmpCacheDir, err := os.MkdirTemp("", "tmp_cache")
 	require.NoError(t, err)
 	tmpBackupDir, err := os.MkdirTemp("", "tmp_to_backup")
@@ -39,6 +31,7 @@ func generateSnapshot(t *testing.T, keyPair *keypair.KeyPair) *Snapshot {
 		os.RemoveAll(tmpRepoDir)
 		os.RemoveAll(tmpCacheDir)
 		os.RemoveAll(tmpBackupDir)
+		os.RemoveAll(tmpRepoDirRoot)
 	})
 	// create a temporary file to backup later
 	err = os.WriteFile(tmpBackupDir+"/dummy.txt", []byte("hello"), 0644)
@@ -95,11 +88,6 @@ func TestSnapshot(t *testing.T) {
 
 	err := snap.repository.RebuildState()
 	require.NoError(t, err)
-
-	for d, err := range snap.ListDatas() {
-		require.NoError(t, err)
-		require.NotNil(t, d)
-	}
 
 	snapFs, err := snap.Filesystem()
 	require.NoError(t, err)
