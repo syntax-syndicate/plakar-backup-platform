@@ -51,18 +51,10 @@ func NewClient(socketPath string) (*Client, error) {
 }
 
 func (c *Client) SendCommand(ctx *appcontext.AppContext, cmd rpc.RPC, repo *repository.Repository) (int, error) {
-	v := struct {
-		Name       string
-		Subcommand rpc.RPC
-	}{
-		Name:       cmd.Name(),
-		Subcommand: cmd,
-	}
-
 	encoder := msgpack.NewEncoder(c.conn)
 	decoder := msgpack.NewDecoder(c.conn)
 
-	if err := encoder.Encode(v); err != nil {
+	if err := rpc.Encode(encoder, cmd); err != nil {
 		return 1, err
 	}
 

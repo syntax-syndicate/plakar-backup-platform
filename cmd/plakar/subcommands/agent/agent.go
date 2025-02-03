@@ -257,19 +257,9 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				}
 			}
 
-			// Decode the client request
-			var request map[string]interface{}
-			if err := decoder.Decode(&request); err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
-				return
-			}
-
-			// Remarshal the request to get the raw bytes. This is necessary
-			// because we can't rewind the decoder, and we need to redecode the
-			// data below to the correct struct.
-			rawRequest, err := msgpack.Marshal(request)
+			name, rawRequest, err := rpc.Decode(decoder)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to marshal client request: %s\n", err)
+				fmt.Fprintf(os.Stderr, "%s\n", err)
 				return
 			}
 
@@ -277,7 +267,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			var repositoryLocation string
 			var repositorySecret []byte
 
-			switch request["Name"] {
+			switch name {
 			case "cat":
 				var cmd struct {
 					Name       string
@@ -566,9 +556,6 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			default:
-				fmt.Fprintf(os.Stderr, "Unknown RPC: %s\n", request["Name"])
-				return
 			}
 
 			var repo *repository.Repository
