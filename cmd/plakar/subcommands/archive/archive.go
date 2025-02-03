@@ -94,9 +94,9 @@ func (cmd *Archive) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 	}
 	defer snap.Close()
 
-	var out io.WriteCloser
+	var out io.Writer
 	if cmd.Output == "-" {
-		out = os.Stdout
+		out = ctx.Stdout
 	} else {
 		tmp, err := os.CreateTemp("", "plakar-archive-")
 		if err != nil {
@@ -110,9 +110,12 @@ func (cmd *Archive) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 		return 1, err
 	}
 
-	if err := out.Close(); err != nil {
-		return 1, err
+	if outCloser, isCloser := out.(io.Closer); isCloser {
+		if err := outCloser.Close(); err != nil {
+			return 1, err
+		}
 	}
+
 	if out, isFile := out.(*os.File); isFile {
 		if err := os.Rename(out.Name(), cmd.Output); err != nil {
 			return 1, err
