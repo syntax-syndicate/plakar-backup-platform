@@ -69,7 +69,7 @@ func (cmd *InfoRepository) Execute(ctx *appcontext.AppContext, repo *repository.
 	fmt.Println("Snapshots:", len(metadatas))
 	totalSize := uint64(0)
 	for _, metadata := range metadatas {
-		totalSize += metadata.Summary.Directory.Size + metadata.Summary.Below.Size
+		totalSize += metadata.GetSource(0).Summary.Directory.Size + metadata.GetSource(0).Summary.Below.Size
 	}
 	fmt.Printf("Size: %s (%d bytes)\n", humanize.Bytes(totalSize), totalSize)
 

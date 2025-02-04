@@ -114,17 +114,17 @@ func list_snapshots(ctx *appcontext.AppContext, repo *repository.Repository, use
 			fmt.Fprintf(ctx.Stdout, "%s %10s%10s%10s %s\n",
 				metadata.Timestamp.UTC().Format(time.RFC3339),
 				hex.EncodeToString(metadata.GetIndexShortID()),
-				humanize.Bytes(metadata.Summary.Directory.Size+metadata.Summary.Below.Size),
+				humanize.Bytes(metadata.GetSource(0).Summary.Directory.Size+metadata.GetSource(0).Summary.Below.Size),
 				metadata.Duration.Round(time.Second),
-				metadata.Importer.Directory)
+				metadata.GetSource(0).Importer.Directory)
 		} else {
 			indexID := metadata.GetIndexID()
 			fmt.Fprintf(ctx.Stdout, "%s %3s%10s%10s %s\n",
 				metadata.Timestamp.UTC().Format(time.RFC3339),
 				hex.EncodeToString(indexID[:]),
-				humanize.Bytes(metadata.Summary.Directory.Size+metadata.Summary.Below.Size),
+				humanize.Bytes(metadata.GetSource(0).Summary.Directory.Size+metadata.GetSource(0).Summary.Below.Size),
 				metadata.Duration.Round(time.Second),
-				metadata.Importer.Directory)
+				metadata.GetSource(0).Importer.Directory)
 		}
 	}
 }
