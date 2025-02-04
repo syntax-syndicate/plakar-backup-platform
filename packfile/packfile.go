@@ -7,21 +7,24 @@ import (
 	"fmt"
 	"io"
 	"time"
+
+	"github.com/PlakarKorp/plakar/resources"
+	"github.com/PlakarKorp/plakar/versioning"
 )
 
-const VERSION = 100
+const VERSION = "1.0.0"
 
 type Type uint8
 
 const (
-	TYPE_SNAPSHOT  Type = 1
-	TYPE_CHUNK     Type = 2
-	TYPE_OBJECT    Type = 3
-	TYPE_VFS       Type = 4
-	TYPE_VFS_ENTRY Type = 5
-	TYPE_CHILD     Type = 6
-	TYPE_SIGNATURE Type = 7
-	TYPE_ERROR     Type = 8
+	TYPE_SNAPSHOT  Type = Type(resources.RT_SNAPSHOT)
+	TYPE_CHUNK     Type = Type(resources.RT_CHUNK)
+	TYPE_OBJECT    Type = Type(resources.RT_OBJECT)
+	TYPE_VFS       Type = Type(resources.RT_VFS)
+	TYPE_VFS_ENTRY Type = Type(resources.RT_VFS_ENTRY)
+	TYPE_CHILD     Type = Type(resources.RT_CHILD)
+	TYPE_SIGNATURE Type = Type(resources.RT_SIGNATURE)
+	TYPE_ERROR     Type = Type(resources.RT_ERROR)
 )
 
 type Blob struct {
@@ -65,7 +68,7 @@ type PackFile struct {
 }
 
 type PackFileFooter struct {
-	Version       uint32
+	Version       versioning.Version
 	Timestamp     int64
 	Count         uint32
 	IndexOffset   uint32
@@ -139,7 +142,7 @@ func New() *PackFile {
 		Blobs: make([]byte, 0),
 		Index: make([]Blob, 0),
 		Footer: PackFileFooter{
-			Version:   VERSION,
+			Version:   versioning.FromString(VERSION),
 			Timestamp: time.Now().UnixNano(),
 			Count:     0,
 		},

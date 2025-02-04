@@ -3,6 +3,7 @@ package repository
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"hash"
 	"io"
 	"iter"
@@ -21,7 +22,9 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository/state"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/plakar/versioning"
 )
 
 var (
@@ -176,11 +179,13 @@ func (r *Repository) Deserialize(input io.Reader) (io.Reader, error) {
 	return r.decode(input)
 }
 
-func (r *Repository) Serialize(input io.Reader) (io.Reader, error) {
+func (r *Repository) Serialize(resourceType resources.Resource, version versioning.Version, input io.Reader) (io.Reader, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "Serialize: %s", time.Since(t0))
 	}()
+
+	fmt.Println("WILL SERIALIZE RESOURCE TYPE", resourceType, "VERSION", version)
 
 	return r.encode(input)
 }
@@ -250,13 +255,13 @@ func (r *Repository) DeserializeBuffer(buffer []byte) ([]byte, error) {
 	return io.ReadAll(rd)
 }
 
-func (r *Repository) SerializeBuffer(buffer []byte) ([]byte, error) {
+func (r *Repository) SerializeBuffer(resourceType resources.Resource, version versioning.Version, buffer []byte) ([]byte, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "Encode(%d): %s", len(buffer), time.Since(t0))
 	}()
 
-	rd, err := r.Serialize(bytes.NewBuffer(buffer))
+	rd, err := r.Serialize(resourceType, version, bytes.NewBuffer(buffer))
 	if err != nil {
 		return nil, err
 	}
@@ -367,13 +372,13 @@ func (r *Repository) GetState(checksum objects.Checksum) (io.Reader, error) {
 	return r.Deserialize(rd)
 }
 
-func (r *Repository) PutState(checksum objects.Checksum, rd io.Reader) error {
+func (r *Repository) PutState(version versioning.Version, checksum objects.Checksum, rd io.Reader) error {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "PutState(%x, ...): %s", checksum, time.Since(t0))
 	}()
 
-	rd, err := r.Serialize(rd)
+	rd, err := r.Serialize(resources.RT_STATE, version, rd)
 	if err != nil {
 		return err
 	}

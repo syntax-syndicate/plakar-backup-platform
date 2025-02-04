@@ -9,6 +9,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
+	"github.com/PlakarKorp/plakar/resources"
 )
 
 type PackerMsg struct {
@@ -100,7 +101,10 @@ func packerJob(snap *Snapshot) {
 func (snap *Snapshot) PutBlob(Type packfile.Type, checksum [32]byte, data []byte) error {
 	snap.Logger().Trace("snapshot", "%x: PutBlob(%d, %064x) len=%d", snap.Header.GetIndexShortID(), Type, checksum, len(data))
 
-	encodedReader, err := snap.repository.Serialize(bytes.NewReader(data))
+	// XXX: Temporary workaround, resolve type to version using a lookup function
+	version := snap.Header.Version
+
+	encodedReader, err := snap.repository.Serialize(resources.Resource(Type), version, bytes.NewReader(data))
 	if err != nil {
 		return err
 	}

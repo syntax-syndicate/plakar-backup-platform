@@ -20,6 +20,7 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository/state"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/gabriel-vasile/mimetype"
@@ -773,12 +774,12 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 		panic("could not serialize pack file footer" + err.Error())
 	}
 
-	encryptedIndex, err := repo.SerializeBuffer(serializedIndex)
+	encryptedIndex, err := repo.SerializeBuffer(resources.RT_PACKFILE_INDEX, packer.Packfile.Footer.Version, serializedIndex)
 	if err != nil {
 		return err
 	}
 
-	encryptedFooter, err := repo.SerializeBuffer(serializedFooter)
+	encryptedFooter, err := repo.SerializeBuffer(resources.RT_PACKFILE_FOOTER, packer.Packfile.Footer.Version, serializedFooter)
 	if err != nil {
 		return err
 	}
@@ -786,7 +787,7 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 	encryptedFooterLength := uint8(len(encryptedFooter))
 
 	versionBytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(versionBytes, packer.Packfile.Footer.Version)
+	binary.LittleEndian.PutUint32(versionBytes, uint32(packer.Packfile.Footer.Version))
 
 	serializedPackfile := append(serializedData, encryptedIndex...)
 	serializedPackfile = append(serializedPackfile, encryptedFooter...)
@@ -852,7 +853,7 @@ func (snap *Snapshot) Commit() error {
 	<-snap.packerChanDone
 
 	stateDelta := snap.buildSerializedDeltaState()
-	err = repo.PutState(snap.Header.Identifier, stateDelta)
+	err = repo.PutState(snap.deltaState.Metadata.Version, snap.Header.Identifier, stateDelta)
 	if err != nil {
 		snap.Logger().Warn("Failed to push the state to the repository %s", err)
 		return err

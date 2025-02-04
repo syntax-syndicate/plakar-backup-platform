@@ -27,11 +27,12 @@ import (
 	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/google/uuid"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-const VERSION = 100
+const VERSION = "1.0.0"
 
 type EntryType uint8
 
@@ -42,10 +43,10 @@ const (
 )
 
 type Metadata struct {
-	Version   uint32    `msgpack:"version"`
-	Timestamp time.Time `msgpack:"timestamp"`
-	Aggregate bool      `msgpack:"aggregate"`
-	Serial    uuid.UUID `msgpack:"serial"`
+	Version   versioning.Version `msgpack:"version"`
+	Timestamp time.Time          `msgpack:"timestamp"`
+	Aggregate bool               `msgpack:"aggregate"`
+	Serial    uuid.UUID          `msgpack:"serial"`
 }
 
 type Location struct {
@@ -91,7 +92,7 @@ type LocalState struct {
 func NewLocalState(cache caching.StateCache) *LocalState {
 	return &LocalState{
 		Metadata: Metadata{
-			Version:   VERSION,
+			Version:   versioning.FromString(VERSION),
 			Timestamp: time.Now(),
 			Aggregate: false,
 		},
@@ -208,7 +209,7 @@ func (ls *LocalState) SerializeToStream(w io.Writer) error {
 
 	/* Finally we serialize the Metadata */
 	w.Write([]byte{byte(ET_METADATA)})
-	if err := writeUint32(ls.Metadata.Version); err != nil {
+	if err := writeUint32(uint32(ls.Metadata.Version)); err != nil {
 		return fmt.Errorf("failed to write version: %w", err)
 	}
 	timestamp := ls.Metadata.Timestamp.UnixNano()
@@ -331,7 +332,7 @@ func (ls *LocalState) deserializeFromStream(r io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("failed to read version: %w", err)
 	}
-	ls.Metadata.Version = version
+	ls.Metadata.Version = versioning.Version(version)
 
 	timestamp, err := readUint64()
 	if err != nil {
