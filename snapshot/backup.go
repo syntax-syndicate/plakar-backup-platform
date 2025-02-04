@@ -22,6 +22,7 @@ import (
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/gobwas/glob"
 )
@@ -61,8 +62,9 @@ func (bc *BackupContext) recordEntry(entry *vfs.Entry) error {
 func (bc *BackupContext) recordError(path string, err error) error {
 	bc.muerridx.Lock()
 	e := bc.erridx.Insert(path, ErrorItem{
-		Name:  path,
-		Error: err.Error(),
+		Version: versioning.FromString(ERROR_VERSION),
+		Name:    path,
+		Error:   err.Error(),
 	})
 	bc.muerridx.Unlock()
 	return e
@@ -786,7 +788,7 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 	encryptedFooterLength := uint8(len(encryptedFooter))
 
 	versionBytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(versionBytes, packer.Packfile.Footer.Version)
+	binary.LittleEndian.PutUint32(versionBytes, uint32(packer.Packfile.Footer.Version))
 
 	serializedPackfile := append(serializedData, encryptedIndex...)
 	serializedPackfile = append(serializedPackfile, encryptedFooter...)

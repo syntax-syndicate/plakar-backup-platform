@@ -9,10 +9,12 @@ import (
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
-	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/google/uuid"
 	"github.com/vmihailenco/msgpack/v5"
 )
+
+const VERSION = "1.0.0"
 
 type Importer struct {
 	Type      string `msgpack:"type" json:"type"`
@@ -63,26 +65,26 @@ func NewSource() *Source {
 }
 
 type Header struct {
-	Identifier      objects.Checksum `msgpack:"identifier" json:"identifier"`
-	Version         string           `msgpack:"version" json:"version"`
-	Timestamp       time.Time        `msgpack:"timestamp" json:"timestamp"`
-	Duration        time.Duration    `msgpack:"duration" json:"duration"`
-	Identity        Identity         `msgpack:"identity" json:"identity"`
-	Name            string           `msgpack:"name" json:"name"`
-	Category        string           `msgpack:"category" json:"category"`
-	Environment     string           `msgpack:"environment" json:"environment"`
-	Perimeter       string           `msgpack:"perimeter" json:"perimeter"`
-	Classifications []Classification `msgpack:"classifications" json:"classifications"`
-	Tags            []string         `msgpack:"tags" json:"tags"`
-	Context         []KeyValue       `msgpack:"context" json:"context"`
-	Sources         []*Source        `msgpack:"sources" json:"sources"`
+	Identifier      objects.Checksum   `msgpack:"identifier" json:"identifier"`
+	Version         versioning.Version `msgpack:"version" json:"version"`
+	Timestamp       time.Time          `msgpack:"timestamp" json:"timestamp"`
+	Duration        time.Duration      `msgpack:"duration" json:"duration"`
+	Identity        Identity           `msgpack:"identity" json:"identity"`
+	Name            string             `msgpack:"name" json:"name"`
+	Category        string             `msgpack:"category" json:"category"`
+	Environment     string             `msgpack:"environment" json:"environment"`
+	Perimeter       string             `msgpack:"perimeter" json:"perimeter"`
+	Classifications []Classification   `msgpack:"classifications" json:"classifications"`
+	Tags            []string           `msgpack:"tags" json:"tags"`
+	Context         []KeyValue         `msgpack:"context" json:"context"`
+	Sources         []*Source          `msgpack:"sources" json:"sources"`
 }
 
 func NewHeader(name string, identifier objects.Checksum) *Header {
 	return &Header{
 		Identifier:      identifier,
 		Timestamp:       time.Now(),
-		Version:         storage.VERSION,
+		Version:         versioning.FromString(VERSION),
 		Name:            name,
 		Category:        "default",
 		Environment:     "default",
