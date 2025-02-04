@@ -19,7 +19,6 @@ package locate
 import (
 	"flag"
 	"fmt"
-	"os"
 	"path"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -105,7 +104,7 @@ func (cmd *Locate) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 						continue
 					}
 				}
-				fmt.Fprintf(os.Stdout, "%x:%s\n", snap.Header.Identifier[0:4], pathname)
+				fmt.Fprintf(ctx.Stdout, "%x:%s\n", snap.Header.Identifier[0:4], pathname)
 			}
 		}
 		snap.Close()
