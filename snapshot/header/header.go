@@ -65,8 +65,8 @@ func NewSource() *Source {
 }
 
 type Header struct {
-	Identifier      objects.Checksum   `msgpack:"identifier" json:"identifier"`
 	Version         versioning.Version `msgpack:"version" json:"version"`
+	Identifier      objects.Checksum   `msgpack:"identifier" json:"identifier"`
 	Timestamp       time.Time          `msgpack:"timestamp" json:"timestamp"`
 	Duration        time.Duration      `msgpack:"duration" json:"duration"`
 	Identity        Identity           `msgpack:"identity" json:"identity"`
