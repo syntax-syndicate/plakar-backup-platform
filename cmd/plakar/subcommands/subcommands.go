@@ -13,11 +13,11 @@ type Subcommand interface {
 	Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error)
 }
 
-type parse_args_fn func(*appcontext.AppContext, *repository.Repository, []string) (Subcommand, error)
+type parseArgsFn func(*appcontext.AppContext, *repository.Repository, []string) (Subcommand, error)
 
-var subcommands map[string]parse_args_fn = make(map[string]parse_args_fn)
+var subcommands map[string]parseArgsFn = make(map[string]parseArgsFn)
 
-func Register(command string, fn parse_args_fn) {
+func Register(command string, fn parseArgsFn) {
 	subcommands[command] = fn
 }
 
@@ -58,7 +58,7 @@ func EncodeRPC(encoder *msgpack.Encoder, cmd RPC) error {
 	})
 }
 
-// Decode extracts the request encoded by Encode*(). It returns the name of the
+// Decode extracts the request encoded by Encode(). It returns the name of the
 // RPC and the raw bytes of the request. The raw bytes can be used by the caller
 // to unmarshal the bytes with the correct struct.
 func DecodeRPC(decoder *msgpack.Decoder) (string, []byte, error) {

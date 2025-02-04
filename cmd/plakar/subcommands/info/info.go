@@ -30,7 +30,6 @@ func init() {
 }
 
 func parse_cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
-
 	if len(args) == 0 {
 		return &InfoRepository{
 			RepositoryLocation: repo.Location(),
@@ -96,7 +95,5 @@ func parse_cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, arg
 			SnapshotPath:       flags.Args()[1],
 		}, nil
 	}
-
-	fmt.Println("Invalid parameter. usage: info [snapshot|object|chunk|state|packfile|vfs]")
-	return nil, fmt.Errorf("Invalid parameter. usage: info [snapshot|object|chunk|state|packfile|vfs]")
+	return nil, fmt.Errorf("Invalid parameter. usage: info [snapshot|object|state|packfile|vfs|errors]")
 }

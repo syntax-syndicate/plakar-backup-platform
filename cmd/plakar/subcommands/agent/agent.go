@@ -29,6 +29,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/archive"
@@ -47,7 +48,6 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/server"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/stdio"
 	cmd_sync "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ui"
 	"github.com/PlakarKorp/plakar/events"
@@ -64,16 +64,14 @@ func init() {
 
 func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	var opt_prometheus string
-	var opt_socketPath string
 
 	flags := flag.NewFlagSet("agent", flag.ExitOnError)
 	flags.StringVar(&opt_prometheus, "prometheus", "", "prometheus exporter interface")
-	flags.StringVar(&opt_socketPath, "socket", filepath.Join(ctx.CacheDir, "agent.sock"), "path to socket file")
 	flags.Parse(args)
 
 	return &Agent{
 		prometheus: opt_prometheus,
-		socketPath: opt_socketPath,
+		socketPath: filepath.Join(ctx.CacheDir, "agent.sock"),
 	}, nil
 }
 
@@ -82,13 +80,6 @@ type Agent struct {
 	socketPath string
 
 	listener net.Listener
-}
-
-type Packet struct {
-	Type     string
-	Data     []byte
-	ExitCode int
-	Err      string
 }
 
 func (cmd *Agent) checkSocket() bool {
@@ -216,7 +207,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				case <-clientContext.GetContext().Done():
 					return
 				default:
-					response := Packet{
+					response := agent.Packet{
 						Type: "stdout",
 						Data: []byte(data),
 					}
@@ -237,7 +228,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				case <-clientContext.GetContext().Done():
 					return
 				default:
-					response := Packet{
+					response := agent.Packet{
 						Type: "stderr",
 						Data: []byte(data),
 					}
@@ -579,16 +570,6 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case (&stdio.Stdio{}).Name():
-				var cmd struct {
-					Name       string
-					Subcommand stdio.Stdio
-				}
-				if err := msgpack.Unmarshal(request, &cmd); err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
-					return
-				}
-				subcommand = &cmd.Subcommand
 			}
 
 			var repo *repository.Repository
@@ -623,7 +604,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 						return
 					}
 					// Send the event to the client
-					response := Packet{
+					response := agent.Packet{
 						Type: "event",
 						Data: serialized,
 					}
@@ -656,7 +637,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				if err != nil {
 					errStr = err.Error()
 				}
-				response := Packet{
+				response := agent.Packet{
 					Type:     "exit",
 					ExitCode: status,
 					Err:      errStr,

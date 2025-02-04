@@ -49,10 +49,6 @@ type Stdio struct {
 	NoDelete bool
 }
 
-func (cmd *Stdio) Name() string {
-	return "stdio"
-}
-
 func (cmd *Stdio) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	if err := plakard.Stdio(ctx, &plakard.ServerOptions{
 		NoDelete: cmd.NoDelete,
