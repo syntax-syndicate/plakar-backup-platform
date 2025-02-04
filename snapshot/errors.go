@@ -11,6 +11,10 @@ import (
 
 const ERROR_VERSION = "1.0.0"
 
+func init() {
+	versioning.Register(resources.RT_ERROR, versioning.FromString(ERROR_VERSION))
+}
+
 type ErrorItem struct {
 	Version versioning.Version `msgpack:"version" json:"version"`
 	Name    string             `msgpack:"name" json:"name"`

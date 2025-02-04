@@ -34,6 +34,10 @@ import (
 
 const VERSION = "1.0.0"
 
+func init() {
+	versioning.Register(resources.RT_STATE, versioning.FromString(VERSION))
+}
+
 type EntryType uint8
 
 const (

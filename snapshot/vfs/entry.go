@@ -21,6 +21,10 @@ import (
 
 const VFS_ENTRY_VERSION = "1.0.0"
 
+func init() {
+	versioning.Register(resources.RT_VFS_ENTRY, versioning.FromString(VFS_ENTRY_VERSION))
+}
+
 // Entry implements FSEntry and fs.DirEntry, as well as some other
 // helper methods.
 type Entry struct {
