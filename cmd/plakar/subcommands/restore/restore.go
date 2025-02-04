@@ -97,7 +97,7 @@ func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 
 		for i := len(metadatas); i != 0; i-- {
 			metadata := metadatas[i-1]
-			if ctx.CWD == metadata.Importer.Directory || strings.HasPrefix(ctx.CWD, fmt.Sprintf("%s/", metadata.Importer.Directory)) {
+			if ctx.CWD == metadata.GetSource(0).Importer.Directory || strings.HasPrefix(ctx.CWD, fmt.Sprintf("%s/", metadata.GetSource(0).Importer.Directory)) {
 				snap, err := snapshot.Load(repo, metadata.GetIndexID())
 				if err != nil {
 					return 1, err
