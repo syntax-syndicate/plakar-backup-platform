@@ -29,7 +29,7 @@ func (cmd *InfoState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 	if len(cmd.Args) == 0 {
 		states, err := repo.GetStates()
 		if err != nil {
-			log.Fatal(err)
+			return 1, err
 		}
 
 		for _, state := range states {
@@ -39,12 +39,12 @@ func (cmd *InfoState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 		for _, arg := range cmd.Args {
 			// convert arg to [32]byte
 			if len(arg) != 64 {
-				log.Fatalf("invalid packfile hash: %s", arg)
+				return 1, fmt.Errorf("invalid packfile hash: %s", arg)
 			}
 
 			b, err := hex.DecodeString(arg)
 			if err != nil {
-				log.Fatalf("invalid packfile hash: %s", arg)
+				return 1, fmt.Errorf("invalid packfile hash: %s", arg)
 			}
 
 			// Convert the byte slice to a [32]byte
@@ -71,7 +71,7 @@ func (cmd *InfoState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 
 			st, err := state.FromStream(rawStateRd, scanCache)
 			if err != nil {
-				log.Fatal(err)
+				return 1, err
 			}
 
 			fmt.Fprintf(ctx.Stdout, "Version: %d.%d.%d\n", st.Metadata.Version/100, (st.Metadata.Version/10)%10, st.Metadata.Version%10)

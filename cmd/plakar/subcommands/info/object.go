@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
 	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -26,12 +25,12 @@ func (cmd *InfoObject) Name() string {
 
 func (cmd *InfoObject) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	if len(cmd.ObjectID) != 64 {
-		log.Fatalf("invalid object hash: %s", cmd.ObjectID)
+		return 1, fmt.Errorf("invalid object hash: %s", cmd.ObjectID)
 	}
 
 	b, err := hex.DecodeString(cmd.ObjectID)
 	if err != nil {
-		log.Fatalf("invalid object hash: %s", cmd.ObjectID)
+		return 1, fmt.Errorf("invalid object hash: %s", cmd.ObjectID)
 	}
 
 	// Convert the byte slice to a [32]byte
@@ -40,17 +39,17 @@ func (cmd *InfoObject) Execute(ctx *appcontext.AppContext, repo *repository.Repo
 
 	rd, err := repo.GetBlob(packfile.TYPE_OBJECT, byteArray)
 	if err != nil {
-		log.Fatal(err)
+		return 1, err
 	}
 
 	blob, err := io.ReadAll(rd)
 	if err != nil {
-		log.Fatal(err)
+		return 1, err
 	}
 
 	object, err := objects.NewObjectFromBytes(blob)
 	if err != nil {
-		log.Fatal(err)
+		return 1, err
 	}
 
 	fmt.Fprintf(ctx.Stdout, "object: %x\n", object.Checksum)
