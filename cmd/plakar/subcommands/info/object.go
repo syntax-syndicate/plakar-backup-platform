@@ -8,8 +8,8 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/resources"
 )
 
 type InfoObject struct {
@@ -37,7 +37,7 @@ func (cmd *InfoObject) Execute(ctx *appcontext.AppContext, repo *repository.Repo
 	var byteArray [32]byte
 	copy(byteArray[:], b)
 
-	rd, err := repo.GetBlob(packfile.TYPE_OBJECT, byteArray)
+	rd, err := repo.GetBlob(resources.RT_OBJECT, byteArray)
 	if err != nil {
 		return 1, err
 	}

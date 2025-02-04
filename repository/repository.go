@@ -19,8 +19,8 @@ import (
 	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository/state"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/storage"
 )
 
@@ -431,7 +431,7 @@ func (r *Repository) DeletePackfile(checksum objects.Checksum) error {
 	return r.store.DeletePackfile(checksum)
 }
 
-func (r *Repository) GetBlob(Type packfile.Type, checksum objects.Checksum) (io.ReadSeeker, error) {
+func (r *Repository) GetBlob(Type resources.Type, checksum objects.Checksum) (io.ReadSeeker, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "GetBlob(%x): %s", checksum, time.Since(t0))
@@ -450,7 +450,7 @@ func (r *Repository) GetBlob(Type packfile.Type, checksum objects.Checksum) (io.
 	return rd, nil
 }
 
-func (r *Repository) BlobExists(Type packfile.Type, checksum objects.Checksum) bool {
+func (r *Repository) BlobExists(Type resources.Type, checksum objects.Checksum) bool {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "BlobExists(%x): %s", checksum, time.Since(t0))
@@ -467,7 +467,7 @@ func (r *Repository) ListSnapshots() iter.Seq[objects.Checksum] {
 	return r.state.ListSnapshots()
 }
 
-func (r *Repository) SetPackfileForBlob(Type packfile.Type, packfileChecksum objects.Checksum, chunkChecksum objects.Checksum, offset uint32, length uint32) {
+func (r *Repository) SetPackfileForBlob(Type resources.Type, packfileChecksum objects.Checksum, chunkChecksum objects.Checksum, offset uint32, length uint32) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "SetPackfileForBlob(%x, %x, %d, %d): %s", packfileChecksum, chunkChecksum, offset, length, time.Since(t0))

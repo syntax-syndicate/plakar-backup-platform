@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/packfile"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
@@ -144,16 +144,16 @@ func (c *ScanCache) DelState(stateID objects.Checksum) error {
 	panic("DelStates should never be used on the ScanCache backend")
 }
 
-func (c *ScanCache) GetDelta(blobType packfile.Type, blobCsum objects.Checksum) ([]byte, error) {
+func (c *ScanCache) GetDelta(blobType resources.Type, blobCsum objects.Checksum) ([]byte, error) {
 	return c.get("__delta__", fmt.Sprintf("%d:%x", blobType, blobCsum))
 }
 
-func (c *ScanCache) HasDelta(blobType packfile.Type, blobCsum objects.Checksum) (bool, error) {
+func (c *ScanCache) HasDelta(blobType resources.Type, blobCsum objects.Checksum) (bool, error) {
 	return c.has("__delta__", fmt.Sprintf("%d:%x", blobType, blobCsum))
 }
 
 func (c *ScanCache) GetDeltaByCsum(blobCsum objects.Checksum) ([]byte, error) {
-	for typ := packfile.TYPE_SNAPSHOT; typ <= packfile.TYPE_ERROR; typ++ {
+	for typ := resources.RT_SNAPSHOT; typ <= resources.RT_ERROR; typ++ {
 		ret, err := c.GetDelta(typ, blobCsum)
 
 		if err != nil {
@@ -168,11 +168,11 @@ func (c *ScanCache) GetDeltaByCsum(blobCsum objects.Checksum) ([]byte, error) {
 	return nil, nil
 }
 
-func (c *ScanCache) PutDelta(blobType packfile.Type, blobCsum objects.Checksum, data []byte) error {
+func (c *ScanCache) PutDelta(blobType resources.Type, blobCsum objects.Checksum, data []byte) error {
 	return c.put("__delta__", fmt.Sprintf("%d:%x", blobType, blobCsum), data)
 }
 
-func (c *ScanCache) GetDeltasByType(blobType packfile.Type) iter.Seq2[objects.Checksum, []byte] {
+func (c *ScanCache) GetDeltasByType(blobType resources.Type) iter.Seq2[objects.Checksum, []byte] {
 	return func(yield func(objects.Checksum, []byte) bool) {
 		iter := c.db.NewIterator(nil, nil)
 		defer iter.Release()

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,8 +18,8 @@ func TestPackFile(t *testing.T) {
 	checksum2 := [32]byte{2} // Mock checksum for chunk2
 
 	// Test AddBlob
-	p.AddBlob(TYPE_CHUNK, checksum1, chunk1)
-	p.AddBlob(TYPE_CHUNK, checksum2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, checksum1, chunk1)
+	p.AddBlob(resources.RT_CHUNK, checksum2, chunk2)
 
 	// Test GetBlob
 	retrievedChunk1, exists := p.GetBlob(checksum1)
@@ -54,8 +55,8 @@ func TestPackFileSerialization(t *testing.T) {
 	checksum2 := [32]byte{2} // Mock checksum for chunk2
 
 	// Test AddBlob
-	p.AddBlob(TYPE_CHUNK, checksum1, chunk1)
-	p.AddBlob(TYPE_CHUNK, checksum2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, checksum1, chunk1)
+	p.AddBlob(resources.RT_CHUNK, checksum2, chunk2)
 
 	// Test Serialize and NewFromBytes
 	serialized, err := p.Serialize()
@@ -104,8 +105,8 @@ func TestPackFileSerializeIndex(t *testing.T) {
 	checksum2 := [32]byte{2} // Mock checksum for chunk2
 
 	// Test AddBlob
-	p.AddBlob(TYPE_CHUNK, checksum1, chunk1)
-	p.AddBlob(TYPE_CHUNK, checksum2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, checksum1, chunk1)
+	p.AddBlob(resources.RT_CHUNK, checksum2, chunk2)
 
 	// Test packfile Size
 	require.Equal(t, p.Size(), uint32(44), "Expected 2 blobs but got %q", p.Size())
@@ -122,8 +123,8 @@ func TestPackFileSerializeIndex(t *testing.T) {
 	// Test that both chunks are equal after serialization and deserialization
 	blob1, blob2 := p2[0], p2[1]
 
-	require.Equal(t, blob1.Type, TYPE_CHUNK)
-	require.Equal(t, blob2.Type, TYPE_CHUNK)
+	require.Equal(t, blob1.Type, resources.RT_CHUNK)
+	require.Equal(t, blob2.Type, resources.RT_CHUNK)
 
 	require.Equal(t, blob1.Length, uint32(len(chunk1)))
 	require.Equal(t, blob2.Length, uint32(len(chunk2)))
@@ -142,8 +143,8 @@ func TestPackFileSerializeFooter(t *testing.T) {
 	checksum2 := [32]byte{2} // Mock checksum for chunk2
 
 	// Test AddBlob
-	p.AddBlob(TYPE_CHUNK, checksum1, chunk1)
-	p.AddBlob(TYPE_CHUNK, checksum2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, checksum1, chunk1)
+	p.AddBlob(resources.RT_CHUNK, checksum2, chunk2)
 
 	// Test Serialize and NewFromBytes
 	serialized, err := p.SerializeFooter()
@@ -167,8 +168,8 @@ func TestPackFileSerializeData(t *testing.T) {
 	checksum2 := [32]byte{2} // Mock checksum for chunk2
 
 	// Test AddBlob
-	p.AddBlob(TYPE_CHUNK, checksum1, chunk1)
-	p.AddBlob(TYPE_CHUNK, checksum2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, checksum1, chunk1)
+	p.AddBlob(resources.RT_CHUNK, checksum2, chunk2)
 
 	// Test SerializeData
 	serialized, err := p.SerializeData()
@@ -183,34 +184,4 @@ func TestDefaultConfiguration(t *testing.T) {
 	c := DefaultConfiguration()
 
 	require.Equal(t, c.MaxSize, uint32(20971520))
-}
-
-func TestTypes(t *testing.T) {
-	list := Types()
-
-	require.Equal(t, 8, len(list))
-	require.Equal(t, []Type{TYPE_SNAPSHOT, TYPE_CHUNK, TYPE_OBJECT, TYPE_VFS, TYPE_VFS_ENTRY, TYPE_CHILD, TYPE_SIGNATURE, TYPE_ERROR}, list)
-}
-
-func TestBlobTypeName(t *testing.T) {
-	tests := []struct {
-		blobType Type
-		expected string
-	}{
-		{TYPE_SNAPSHOT, "snapshot"},
-		{TYPE_CHUNK, "chunk"},
-		{TYPE_OBJECT, "object"},
-		{TYPE_VFS, "vfs"},
-		{TYPE_VFS_ENTRY, "vfs_entry"},
-		{TYPE_CHILD, "directory"},
-		{TYPE_SIGNATURE, "signature"},
-		{TYPE_ERROR, "error"},
-		{255, "unknown"}, // test default case
-	}
-
-	for _, test := range tests {
-		blob := Blob{Type: test.blobType}
-		actual := blob.TypeName()
-		require.Equal(t, actual, test.expected)
-	}
 }

@@ -9,23 +9,24 @@ import (
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
+	"github.com/PlakarKorp/plakar/resources"
 )
 
 type PackerMsg struct {
 	Timestamp time.Time
-	Type      packfile.Type
+	Type      resources.Type
 	Checksum  objects.Checksum
 	Data      []byte
 }
 
 type Packer struct {
-	Blobs    map[packfile.Type]map[[32]byte][]byte
+	Blobs    map[resources.Type]map[[32]byte][]byte
 	Packfile *packfile.PackFile
 }
 
 func NewPacker() *Packer {
-	blobs := make(map[packfile.Type]map[[32]byte][]byte)
-	for _, Type := range packfile.Types() {
+	blobs := make(map[resources.Type]map[[32]byte][]byte)
+	for _, Type := range resources.Types() {
 		blobs[Type] = make(map[[32]byte][]byte)
 	}
 	return &Packer{
@@ -34,7 +35,7 @@ func NewPacker() *Packer {
 	}
 }
 
-func (packer *Packer) AddBlob(Type packfile.Type, checksum [32]byte, data []byte) {
+func (packer *Packer) AddBlob(Type resources.Type, checksum [32]byte, data []byte) {
 	if _, ok := packer.Blobs[Type]; !ok {
 		packer.Blobs[Type] = make(map[[32]byte][]byte)
 	}
@@ -46,8 +47,8 @@ func (packer *Packer) Size() uint32 {
 	return packer.Packfile.Size()
 }
 
-func (packer *Packer) Types() []packfile.Type {
-	ret := make([]packfile.Type, 0, len(packer.Blobs))
+func (packer *Packer) Types() []resources.Type {
+	ret := make([]resources.Type, 0, len(packer.Blobs))
 	for k := range packer.Blobs {
 		ret = append(ret, k)
 	}
@@ -97,7 +98,7 @@ func packerJob(snap *Snapshot) {
 	close(snap.packerChanDone)
 }
 
-func (snap *Snapshot) PutBlob(Type packfile.Type, checksum [32]byte, data []byte) error {
+func (snap *Snapshot) PutBlob(Type resources.Type, checksum [32]byte, data []byte) error {
 	snap.Logger().Trace("snapshot", "%x: PutBlob(%d, %064x) len=%d", snap.Header.GetIndexShortID(), Type, checksum, len(data))
 
 	encodedReader, err := snap.repository.Encode(bytes.NewReader(data))
@@ -114,7 +115,7 @@ func (snap *Snapshot) PutBlob(Type packfile.Type, checksum [32]byte, data []byte
 	return nil
 }
 
-func (snap *Snapshot) GetBlob(Type packfile.Type, checksum [32]byte) ([]byte, error) {
+func (snap *Snapshot) GetBlob(Type resources.Type, checksum [32]byte) ([]byte, error) {
 	snap.Logger().Trace("snapshot", "%x: GetBlob(%x)", snap.Header.GetIndexShortID(), checksum)
 
 	// XXX: Temporary workaround, once the state API changes to get from both sources (delta+aggregated state)
@@ -141,7 +142,7 @@ func (snap *Snapshot) GetBlob(Type packfile.Type, checksum [32]byte) ([]byte, er
 	return io.ReadAll(rd)
 }
 
-func (snap *Snapshot) BlobExists(Type packfile.Type, checksum [32]byte) bool {
+func (snap *Snapshot) BlobExists(Type resources.Type, checksum [32]byte) bool {
 	snap.Logger().Trace("snapshot", "%x: CheckBlob(%064x)", snap.Header.GetIndexShortID(), checksum)
 
 	// XXX: Same here, remove this workaround when state API changes.
