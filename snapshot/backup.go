@@ -426,10 +426,6 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	var rootSummary *vfs.Summary
 
 	diriter := backupCtx.scanCache.EnumerateKeysWithPrefix("__directory__:", true)
-	if err != nil {
-		return err
-	}
-
 	for dirPath, bytes := range diriter {
 		select {
 		case <-snap.AppContext().GetContext().Done():
@@ -465,33 +461,38 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 				return err
 			}
 
-			if childEntry.Stat().Mode().IsDir() {
-				data, err := snap.scanCache.GetSummary(childPath)
-				if err != nil {
-					continue
-				}
+			data, err := vfsCache.GetFileSummary(childPath)
+			if err != nil {
+				continue
+			}
 
-				childSummary, err := vfs.SummaryFromBytes(data)
-				if err != nil {
-					continue
-				}
-
-				dirEntry.Summary.UpdateBelow(childSummary)
-			} else {
-				data, err := vfsCache.GetFileSummary(childPath)
-				if err != nil {
-					continue
-				}
-
-				fileSummary, err := vfs.FileSummaryFromBytes(data)
-				if err != nil {
-					continue
-				}
-
-				dirEntry.Summary.UpdateWithFileSummary(fileSummary)
+			fileSummary, err := vfs.FileSummaryFromBytes(data)
+			if err != nil {
+				continue
 			}
 
 			dirEntry.Summary.Directory.Children++
+			dirEntry.Summary.UpdateWithFileSummary(fileSummary)
+		}
+
+		subDirIter := backupCtx.scanCache.EnumerateKeysWithPrefix("__directory__:"+prefix, false)
+		for relpath, _ := range subDirIter {
+			if relpath == "" || strings.Contains(relpath, "/") {
+				continue
+			}
+
+			childPath := prefix + relpath
+			data, err := snap.scanCache.GetSummary(childPath)
+			if err != nil {
+				continue
+			}
+
+			childSummary, err := vfs.SummaryFromBytes(data)
+			if err != nil {
+				continue
+			}
+			dirEntry.Summary.Directory.Children++
+			dirEntry.Summary.UpdateBelow(childSummary)
 		}
 
 		erriter, err := backupCtx.erridx.ScanFrom(prefix)
