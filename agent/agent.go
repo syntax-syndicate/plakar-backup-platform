@@ -32,7 +32,11 @@ func ExecuteRPC(ctx *appcontext.AppContext, repo *repository.Repository, cmd sub
 
 	client, err := NewClient(filepath.Join(ctx.CacheDir, "agent.sock"))
 	if err != nil {
-		return 1, err
+		ctx.GetLogger().Warn("failed to connect to agent, falling back to -no-agent: %v", err)
+		if err := repo.RebuildState(); err != nil {
+			return 1, fmt.Errorf("failed to rebuild state: %v", err)
+		}
+		return cmd.Execute(ctx, repo)
 	}
 	defer client.Close()
 	if status, err := client.SendCommand(ctx, rpcCmd, repo); err != nil {
