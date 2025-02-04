@@ -189,3 +189,11 @@ func (c *_RepositoryCache) HasDeleted(blobType resources.Type, blobCsum objects.
 func (c *_RepositoryCache) GetDeleteds() iter.Seq2[objects.Checksum, []byte] {
 	return c.getObjects("__deleted__:")
 }
+
+func (c *_RepositoryCache) PutPackfile(packfile objects.Checksum, data []byte) error {
+	return c.put("__packfile__", fmt.Sprintf("%x", packfile), data)
+}
+
+func (c *_RepositoryCache) GetPackfiles() iter.Seq2[objects.Checksum, []byte] {
+	return c.getObjects("__packfile__:")
+}

@@ -24,4 +24,7 @@ type StateCache interface {
 	PutDeleted(blobType resources.Type, blobCsum objects.Checksum, data []byte) error
 	HasDeleted(blobType resources.Type, blobCsum objects.Checksum) (bool, error)
 	GetDeleteds() iter.Seq2[objects.Checksum, []byte]
+
+	PutPackfile(packfile objects.Checksum, data []byte) error
+	GetPackfiles() iter.Seq2[objects.Checksum, []byte]
 }

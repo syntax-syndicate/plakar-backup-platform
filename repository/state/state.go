@@ -44,6 +44,7 @@ const (
 	ET_METADATA  EntryType = 1
 	ET_LOCATIONS           = 2
 	ET_DELETED             = 3
+	ET_PACKFILE            = 4
 )
 
 type Metadata struct {
@@ -75,6 +76,13 @@ type DeletedEntry struct {
 }
 
 const DeletedEntrySerializedSize = 1 + 32 + 8
+
+type PackfileEntry struct {
+	Packfile  objects.Checksum
+	Timestamp time.Time
+}
+
+const PackfileEntrySerializedSize = 32 + 8
 
 /*
  * A local version of the state, possibly aggregated, that uses on-disk storage.
@@ -239,6 +247,21 @@ func (ls *LocalState) SerializeToStream(w io.Writer) error {
 		}
 	}
 
+	/* Then all the Deleted entries */
+	for _, entry := range ls.cache.GetPackfiles() {
+		if _, err := w.Write([]byte{byte(ET_PACKFILE)}); err != nil {
+			return fmt.Errorf("failed to write packfile entry type: %w", err)
+		}
+
+		if err := writeUint32(PackfileEntrySerializedSize); err != nil {
+			return fmt.Errorf("failed to write packfile entry length: %w", err)
+		}
+
+		if _, err := w.Write(entry); err != nil {
+			return fmt.Errorf("failed to write packfile entry: %w", err)
+		}
+	}
+
 	/* Finally we serialize the Metadata */
 	if _, err := w.Write([]byte{byte(ET_METADATA)}); err != nil {
 		return fmt.Errorf("failed to write metadata type %w", err)
@@ -307,6 +330,34 @@ func (de *DeltaEntry) ToBytes() (ret []byte) {
 	de._toBytes(ret)
 	return
 }
+func PackfileEntryFromBytes(buf []byte) (pe PackfileEntry, err error) {
+	bbuf := bytes.NewBuffer(buf)
+
+	n, err := bbuf.Read(pe.Packfile[:])
+	if err != nil {
+		return
+	}
+	if n < len(objects.Checksum{}) {
+		return pe, fmt.Errorf("Short read while deserializing delta entry")
+	}
+
+	timestamp := binary.LittleEndian.Uint64(bbuf.Next(8))
+	pe.Timestamp = time.Unix(0, int64(timestamp))
+
+	return
+}
+
+func (pe *PackfileEntry) _toBytes(buf []byte) {
+	pos := 0
+	pos += copy(buf[pos:], pe.Packfile[:])
+	binary.LittleEndian.PutUint64(buf[pos:], uint64(pe.Timestamp.UnixNano()))
+}
+
+func (pe *PackfileEntry) ToBytes() (ret []byte) {
+	ret = make([]byte, PackfileEntrySerializedSize)
+	pe._toBytes(ret)
+	return
+}
 
 func DeletedEntryFromBytes(buf []byte) (de DeletedEntry, err error) {
 	bbuf := bytes.NewBuffer(buf)
@@ -368,6 +419,7 @@ func (ls *LocalState) deserializeFromStream(r io.Reader) error {
 	et_buf := make([]byte, 1)
 	de_buf := make([]byte, DeltaEntrySerializedSize)
 	deleted_buf := make([]byte, DeletedEntrySerializedSize)
+	pe_buf := make([]byte, PackfileEntrySerializedSize)
 	for {
 		n, err := r.Read(et_buf)
 		if err != nil || n != len(et_buf) {
@@ -405,7 +457,7 @@ func (ls *LocalState) deserializeFromStream(r io.Reader) error {
 			ls.cache.PutDelta(delta.Type, delta.Blob, de_buf)
 		case ET_DELETED:
 			if length != DeletedEntrySerializedSize {
-				return fmt.Errorf("failed to read dleted entry wrong length got(%d)/expected(%d)", length, DeletedEntrySerializedSize)
+				return fmt.Errorf("failed to read deleted entry wrong length got(%d)/expected(%d)", length, DeletedEntrySerializedSize)
 			}
 
 			if n, err := io.ReadFull(r, deleted_buf); err != nil {
@@ -418,7 +470,21 @@ func (ls *LocalState) deserializeFromStream(r io.Reader) error {
 			}
 
 			ls.cache.PutDeleted(deleted.Type, deleted.Blob, deleted_buf)
+		case ET_PACKFILE:
+			if length != PackfileEntrySerializedSize {
+				return fmt.Errorf("failed to read packfile entry wrong length got(%d)/expected(%d)", length, PackfileEntrySerializedSize)
+			}
 
+			if n, err := io.ReadFull(r, pe_buf); err != nil {
+				return fmt.Errorf("failed to read packfile entry %w, read(%d)/expected(%d)", err, n, length)
+			}
+
+			pe, err := PackfileEntryFromBytes(pe_buf)
+			if err != nil {
+				return fmt.Errorf("failed to deserialize packfile entry %w", err)
+			}
+
+			ls.cache.PutPackfile(pe.Packfile, pe_buf)
 		default:
 			// Our version doesn't know this entry type, just skip it.
 			io.CopyN(io.Discard, r, int64(length))
@@ -489,6 +555,16 @@ func (ls *LocalState) GetSubpartForBlob(Type resources.Type, blobChecksum object
 		de, _ := DeltaEntryFromBytes(delta)
 		return de.Location.Packfile, de.Location.Offset, de.Location.Length, true
 	}
+}
+
+func (ls *LocalState) PutPackfile(packfile objects.Checksum) error {
+	pe := PackfileEntry{
+		Packfile:  packfile,
+		Timestamp: time.Now(),
+	}
+
+	ls.cache.PutPackfile(pe.Packfile, pe.ToBytes())
+	return nil
 }
 
 func (ls *LocalState) ListSnapshots() iter.Seq[objects.Checksum] {

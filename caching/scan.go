@@ -235,6 +235,14 @@ func (c *ScanCache) GetDeleteds() iter.Seq2[objects.Checksum, []byte] {
 	return c.getObjects("__deleted__:")
 }
 
+func (c *ScanCache) PutPackfile(packfile objects.Checksum, data []byte) error {
+	return c.put("__packfile__", fmt.Sprintf("%x", packfile), data)
+}
+
+func (c *ScanCache) GetPackfiles() iter.Seq2[objects.Checksum, []byte] {
+	return c.getObjects("__packfile__:")
+}
+
 func (c *ScanCache) EnumerateKeysWithPrefix(prefix string, reverse bool) iter.Seq2[string, []byte] {
 	l := len(prefix)
 
