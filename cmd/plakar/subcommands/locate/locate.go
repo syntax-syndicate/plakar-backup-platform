@@ -69,7 +69,6 @@ func (cmd *Locate) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		var err error
 		snapshotIDs, err = repo.GetSnapshots()
 		if err != nil {
-			ctx.GetLogger().Error("...")
 			return 1, err
 		}
 	}
@@ -77,21 +76,18 @@ func (cmd *Locate) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 	for _, snapshotID := range snapshotIDs {
 		snap, err := snapshot.Load(repo, snapshotID)
 		if err != nil {
-			ctx.GetLogger().Error("locate: could not get snapshot: %s", err)
-			return 1, err
+			return 1, fmt.Errorf("locate: could not get snapshot: %w", err)
 		}
 
 		fs, err := snap.Filesystem()
 		if err != nil {
-			ctx.GetLogger().Error("locate: could not get filesystem: %s", err)
 			snap.Close()
-			return 1, err
+			return 1, fmt.Errorf("locate: could not get filesystem: %w", err)
 		}
 		for pathname, err := range fs.Pathnames() {
 			if err != nil {
-				ctx.GetLogger().Error("locate: could not get pathname: %s", err)
 				snap.Close()
-				return 1, err
+				return 1, fmt.Errorf("locate: could not get pathname: %w", err)
 			}
 
 			for _, pattern := range cmd.Patterns {
@@ -102,9 +98,8 @@ func (cmd *Locate) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 				if !matched {
 					matched, err := path.Match(pattern, path.Base(pathname))
 					if err != nil {
-						ctx.GetLogger().Error("locate: could not match pattern: %s", err)
 						snap.Close()
-						return 1, err
+						return 1, fmt.Errorf("locate: could not match pattern: %w", err)
 					}
 					if !matched {
 						continue
