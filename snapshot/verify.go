@@ -7,6 +7,8 @@ import (
 	"github.com/google/uuid"
 )
 
+const SIGNATURE_VERSION = "1.0.0"
+
 func (snap *Snapshot) Verify() (bool, error) {
 	if snap.Header.Identity.Identifier == uuid.Nil {
 		return false, nil
