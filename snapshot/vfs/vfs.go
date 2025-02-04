@@ -16,6 +16,10 @@ import (
 
 const VFS_VERSION = "1.0.0"
 
+func init() {
+	versioning.Register(resources.RT_VFS, versioning.FromString(VFS_VERSION))
+}
+
 type Classification struct {
 	Analyzer string   `msgpack:"analyzer" json:"analyzer"`
 	Classes  []string `msgpack:"classes" json:"classes"`

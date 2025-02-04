@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/google/uuid"
@@ -15,6 +16,10 @@ import (
 )
 
 const VERSION = "1.0.0"
+
+func init() {
+	versioning.Register(resources.RT_SNAPSHOT, versioning.FromString(VERSION))
+}
 
 type Importer struct {
 	Type      string `msgpack:"type" json:"type"`

@@ -5,12 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
 const OBJECT_VERSION = "1.0.0"
 const CHUNK_VERSION = "1.0.0"
+
+func init() {
+	versioning.Register(resources.RT_OBJECT, versioning.FromString(OBJECT_VERSION))
+	versioning.Register(resources.RT_CHUNK, versioning.FromString(CHUNK_VERSION))
+}
 
 type Checksum [32]byte
 

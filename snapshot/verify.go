@@ -4,10 +4,15 @@ import (
 	"crypto/ed25519"
 
 	"github.com/PlakarKorp/plakar/resources"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/google/uuid"
 )
 
 const SIGNATURE_VERSION = "1.0.0"
+
+func init() {
+	versioning.Register(resources.RT_SIGNATURE, versioning.FromString(SIGNATURE_VERSION))
+}
 
 func (snap *Snapshot) Verify() (bool, error) {
 	if snap.Header.Identity.Identifier == uuid.Nil {

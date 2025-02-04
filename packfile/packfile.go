@@ -14,6 +14,12 @@ import (
 
 const VERSION = "1.0.0"
 
+func init() {
+	versioning.Register(resources.RT_PACKFILE, versioning.FromString(VERSION))
+	versioning.Register(resources.RT_PACKFILE_INDEX, versioning.FromString(VERSION))
+	versioning.Register(resources.RT_PACKFILE_FOOTER, versioning.FromString(VERSION))
+}
+
 type Blob struct {
 	Type     resources.Type
 	Checksum [32]byte
