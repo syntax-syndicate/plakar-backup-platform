@@ -9,8 +9,8 @@ import (
 
 	"github.com/PlakarKorp/plakar/btree"
 	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/resources"
 )
 
 const VERSION = 002
@@ -64,12 +64,12 @@ func isEntryBelow(parent, entry string) bool {
 }
 
 func NewFilesystem(repo *repository.Repository, root objects.Checksum) (*Filesystem, error) {
-	rd, err := repo.GetBlob(packfile.TYPE_VFS, root)
+	rd, err := repo.GetBlob(resources.RT_VFS, root)
 	if err != nil {
 		return nil, err
 	}
 
-	storage := repository.NewRepositoryStore[string, objects.Checksum](repo, packfile.TYPE_VFS)
+	storage := repository.NewRepositoryStore[string, objects.Checksum](repo, resources.RT_VFS)
 	tree, err := btree.Deserialize(rd, storage, PathCmp)
 	if err != nil {
 		return nil, err
@@ -105,7 +105,7 @@ func (fsc *Filesystem) lookup(entrypath string) (*Entry, error) {
 }
 
 func (fsc *Filesystem) resolveEntry(csum objects.Checksum) (*Entry, error) {
-	rd, err := fsc.repo.GetBlob(packfile.TYPE_VFS_ENTRY, csum)
+	rd, err := fsc.repo.GetBlob(resources.RT_VFS_ENTRY, csum)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (fsc *Filesystem) resolveEntry(csum objects.Checksum) (*Entry, error) {
 		return nil, err
 	}
 
-	return EntryFromBytes(bytes)	
+	return EntryFromBytes(bytes)
 }
 
 func (fsc *Filesystem) Open(path string) (fs.File, error) {

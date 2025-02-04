@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/PlakarKorp/plakar/btree"
-	"github.com/PlakarKorp/plakar/packfile"
+	"github.com/PlakarKorp/plakar/resources"
 )
 
 type ErrorItem struct {
@@ -18,13 +18,13 @@ func (snapshot *Snapshot) Errors(beneath string) (iter.Seq2[ErrorItem, error], e
 		beneath += "/"
 	}
 
-	rd, err := snapshot.repository.GetBlob(packfile.TYPE_ERROR, snapshot.Header.GetSource(0).Errors)
+	rd, err := snapshot.repository.GetBlob(resources.RT_ERROR, snapshot.Header.GetSource(0).Errors)
 	if err != nil {
 		return nil, err
 	}
 
 	storage := SnapshotStore[string, ErrorItem]{
-		blobtype: packfile.TYPE_ERROR,
+		blobtype: resources.RT_ERROR,
 		snap:     snapshot,
 	}
 	tree, err := btree.Deserialize(rd, &storage, strings.Compare)

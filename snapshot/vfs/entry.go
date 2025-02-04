@@ -12,16 +12,17 @@ import (
 
 	"github.com/PlakarKorp/plakar/btree"
 	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
 // Entry implements FSEntry and fs.DirEntry, as well as some other
 // helper methods.
 type Entry struct {
-	Version    uint32              `msgpack:"version" json:"version"`
+	Version    versioning.Version  `msgpack:"version" json:"version"`
 	ParentPath string              `msgpack:"parent_path" json:"parent_path"`
 	RecordType importer.RecordType `msgpack:"type" json:"type"`
 	FileInfo   objects.FileInfo    `msgpack:"file_info" json:"file_info"`
@@ -262,7 +263,7 @@ func (vf *vfile) Read(p []byte) (int, error) {
 
 	for vf.objoff < len(vf.entry.Object.Chunks) {
 		if vf.rd == nil {
-			rd, err := vf.repo.GetBlob(packfile.TYPE_CHUNK,
+			rd, err := vf.repo.GetBlob(resources.RT_CHUNK,
 				vf.entry.Object.Chunks[vf.objoff].Checksum)
 			if err != nil {
 				return -1, err
@@ -306,7 +307,7 @@ func (vf *vfile) Seek(offset int64, whence int) (int64, error) {
 				continue
 			}
 			vf.off += offset
-			rd, err := vf.repo.GetBlob(packfile.TYPE_CHUNK,
+			rd, err := vf.repo.GetBlob(resources.RT_CHUNK,
 				chunks[vf.objoff].Checksum)
 			if err != nil {
 				return 0, err
@@ -329,7 +330,7 @@ func (vf *vfile) Seek(offset int64, whence int) (int64, error) {
 				continue
 			}
 			vf.off -= offset
-			rd, err := vf.repo.GetBlob(packfile.TYPE_CHUNK,
+			rd, err := vf.repo.GetBlob(resources.RT_CHUNK,
 				chunks[vf.objoff].Checksum)
 			if err != nil {
 				return 0, err
@@ -364,7 +365,7 @@ func (vf *vfile) Seek(offset int64, whence int) (int64, error) {
 				offset -= clen
 			}
 			vf.off += offset
-			rd, err := vf.repo.GetBlob(packfile.TYPE_CHUNK,
+			rd, err := vf.repo.GetBlob(resources.RT_CHUNK,
 				chunks[vf.objoff].Checksum)
 			if err != nil {
 				return 0, err

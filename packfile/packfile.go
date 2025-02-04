@@ -14,51 +14,11 @@ import (
 
 const VERSION = "1.0.0"
 
-type Type uint8
-
-const (
-	TYPE_SNAPSHOT  Type = Type(resources.RT_SNAPSHOT)
-	TYPE_CHUNK     Type = Type(resources.RT_CHUNK)
-	TYPE_OBJECT    Type = Type(resources.RT_OBJECT)
-	TYPE_VFS       Type = Type(resources.RT_VFS)
-	TYPE_VFS_ENTRY Type = Type(resources.RT_VFS_ENTRY)
-	TYPE_CHILD     Type = Type(resources.RT_CHILD)
-	TYPE_SIGNATURE Type = Type(resources.RT_SIGNATURE)
-	TYPE_ERROR     Type = Type(resources.RT_ERROR)
-)
-
 type Blob struct {
-	Type     Type
+	Type     resources.Type
 	Checksum [32]byte
 	Offset   uint32
 	Length   uint32
-}
-
-func Types() []Type {
-	return []Type{TYPE_SNAPSHOT, TYPE_CHUNK, TYPE_OBJECT, TYPE_VFS, TYPE_VFS_ENTRY, TYPE_CHILD, TYPE_SIGNATURE, TYPE_ERROR}
-}
-
-func (b Blob) TypeName() string {
-	switch b.Type {
-	case TYPE_SNAPSHOT:
-		return "snapshot"
-	case TYPE_CHUNK:
-		return "chunk"
-	case TYPE_OBJECT:
-		return "object"
-	case TYPE_VFS:
-		return "vfs"
-	case TYPE_VFS_ENTRY:
-		return "vfs_entry"
-	case TYPE_CHILD:
-		return "directory"
-	case TYPE_SIGNATURE:
-		return "signature"
-	case TYPE_ERROR:
-		return "error"
-	default:
-		return "unknown"
-	}
 }
 
 type PackFile struct {
@@ -111,7 +71,7 @@ func NewIndexFromBytes(serialized []byte) ([]Blob, error) {
 	reader := bytes.NewReader(serialized)
 	index := make([]Blob, 0)
 	for reader.Len() > 0 {
-		var dataType uint8
+		var dataType resources.Type
 		var checksum [32]byte
 		var chunkOffset uint32
 		var chunkLength uint32
@@ -128,7 +88,7 @@ func NewIndexFromBytes(serialized []byte) ([]Blob, error) {
 			return nil, err
 		}
 		index = append(index, Blob{
-			Type:     Type(dataType),
+			Type:     resources.Type(dataType),
 			Checksum: checksum,
 			Offset:   chunkOffset,
 			Length:   chunkLength,
@@ -189,7 +149,7 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 	p.Blobs = data
 	hasher := sha256.New()
 	for remaining > 0 {
-		var dataType uint8
+		var dataType resources.Type
 		var checksum [32]byte
 		var chunkOffset uint32
 		var chunkLength uint32
@@ -223,12 +183,12 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 			return nil, err
 		}
 		p.Index = append(p.Index, Blob{
-			Type:     Type(dataType),
+			Type:     dataType,
 			Checksum: checksum,
 			Offset:   chunkOffset,
 			Length:   chunkLength,
 		})
-		remaining -= (len(checksum) + 9)
+		remaining -= (len(checksum) + 8 + 4)
 	}
 	checksum := [32]byte(hasher.Sum(nil))
 	if checksum != p.Footer.IndexChecksum {
@@ -386,7 +346,7 @@ func (p *PackFile) SerializeFooter() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (p *PackFile) AddBlob(dataType Type, checksum [32]byte, data []byte) {
+func (p *PackFile) AddBlob(dataType resources.Type, checksum [32]byte, data []byte) {
 	p.Index = append(p.Index, Blob{dataType, checksum, uint32(len(p.Blobs)), uint32(len(data))})
 	p.Blobs = append(p.Blobs, data...)
 	p.Footer.Count++

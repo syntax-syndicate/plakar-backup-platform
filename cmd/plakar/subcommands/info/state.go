@@ -9,9 +9,9 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/repository/state"
+	"github.com/PlakarKorp/plakar/resources"
 )
 
 type InfoState struct {
@@ -78,7 +78,7 @@ func (cmd *InfoState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 			fmt.Fprintf(ctx.Stdout, "Creation: %s\n", st.Metadata.Timestamp)
 			fmt.Fprintf(ctx.Stdout, "State serial: %s\n", st.Metadata.Serial)
 
-			printBlobs := func(name string, Type packfile.Type) {
+			printBlobs := func(name string, Type resources.Type) {
 				for snapshot, err := range st.ListObjectsOfType(Type) {
 					if err != nil {
 						fmt.Fprintf(ctx.Stdout, "Could not fetch blob entry for %s\n", name)
@@ -93,10 +93,10 @@ func (cmd *InfoState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 				}
 			}
 
-			printBlobs("snapshot", packfile.TYPE_SNAPSHOT)
-			printBlobs("chunk", packfile.TYPE_CHUNK)
-			printBlobs("object", packfile.TYPE_OBJECT)
-			printBlobs("file", packfile.TYPE_VFS)
+			printBlobs("snapshot", resources.RT_SNAPSHOT)
+			printBlobs("chunk", resources.RT_CHUNK)
+			printBlobs("object", resources.RT_OBJECT)
+			printBlobs("file", resources.RT_VFS)
 		}
 	}
 	return 0, nil

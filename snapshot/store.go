@@ -5,7 +5,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/btree"
 	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/packfile"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -16,7 +16,7 @@ var (
 // RepositoryStore implements btree.Storer
 type SnapshotStore[K any, V any] struct {
 	readonly bool
-	blobtype packfile.Type
+	blobtype resources.Type
 	snap     *Snapshot
 }
 
@@ -55,7 +55,7 @@ func (s *SnapshotStore[K, V]) Put(node *btree.Node[K, objects.Checksum, V]) (obj
 
 // persistIndex saves a btree[K, P, V] index to the snapshot.  The
 // pointer type P is converted to a checksum.
-func persistIndex[K, P, VA, VB any](snap *Snapshot, tree *btree.BTree[K, P, VA], t packfile.Type, conv func(VA) (VB, error)) (csum objects.Checksum, err error) {
+func persistIndex[K, P, VA, VB any](snap *Snapshot, tree *btree.BTree[K, P, VA], t resources.Type, conv func(VA) (VB, error)) (csum objects.Checksum, err error) {
 	root, err := btree.Persist(tree, &SnapshotStore[K, VB]{
 		readonly: false,
 		blobtype: t,

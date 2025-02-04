@@ -111,7 +111,7 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 			fmt.Fprintln(ctx.Stdout)
 
 			for i, entry := range p.Index {
-				fmt.Fprintf(ctx.Stdout, "blob[%d]: %x %d %d %s\n", i, entry.Checksum, entry.Offset, entry.Length, entry.TypeName())
+				fmt.Fprintf(ctx.Stdout, "blob[%d]: %x %d %d %s\n", i, entry.Checksum, entry.Offset, entry.Length, entry.Type)
 			}
 		}
 	}

@@ -14,9 +14,9 @@ import (
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/repository/state"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/snapshot/header"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/google/uuid"
@@ -170,7 +170,7 @@ func (snap *Snapshot) Event(evt events.Event) {
 func GetSnapshot(repo *repository.Repository, Identifier objects.Checksum) (*header.Header, bool, error) {
 	repo.Logger().Trace("snapshot", "repository.GetSnapshot(%x)", Identifier)
 
-	rd, err := repo.GetBlob(packfile.TYPE_SNAPSHOT, Identifier)
+	rd, err := repo.GetBlob(resources.RT_SNAPSHOT, Identifier)
 	if err != nil {
 		if errors.Is(err, repository.ErrBlobNotFound) {
 			err = ErrNotFound
@@ -196,7 +196,7 @@ func (snap *Snapshot) Repository() *repository.Repository {
 }
 
 func (snap *Snapshot) LookupObject(checksum objects.Checksum) (*objects.Object, error) {
-	buffer, err := snap.GetBlob(packfile.TYPE_OBJECT, checksum)
+	buffer, err := snap.GetBlob(resources.RT_OBJECT, checksum)
 	if err != nil {
 		return nil, err
 	}

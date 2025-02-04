@@ -4,7 +4,7 @@ import (
 	"iter"
 
 	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/packfile"
+	"github.com/PlakarKorp/plakar/resources"
 )
 
 type StateCache interface {
@@ -14,10 +14,10 @@ type StateCache interface {
 	DelState(stateID objects.Checksum) error
 	GetStates() (map[objects.Checksum][]byte, error)
 
-	PutDelta(blobType packfile.Type, blobCsum objects.Checksum, data []byte) error
-	GetDelta(blobType packfile.Type, blobCsum objects.Checksum) ([]byte, error)
-	HasDelta(blobType packfile.Type, blobCsum objects.Checksum) (bool, error)
+	PutDelta(blobType resources.Type, blobCsum objects.Checksum, data []byte) error
+	GetDelta(blobType resources.Type, blobCsum objects.Checksum) ([]byte, error)
+	HasDelta(blobType resources.Type, blobCsum objects.Checksum) (bool, error)
 	GetDeltaByCsum(blobCsum objects.Checksum) ([]byte, error)
-	GetDeltasByType(blobType packfile.Type) iter.Seq2[objects.Checksum, []byte]
+	GetDeltasByType(blobType resources.Type) iter.Seq2[objects.Checksum, []byte]
 	GetDeltas() iter.Seq2[objects.Checksum, []byte]
 }

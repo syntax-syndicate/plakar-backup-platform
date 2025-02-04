@@ -26,7 +26,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/packfile"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/google/uuid"
 	"github.com/vmihailenco/msgpack/v5"
@@ -56,7 +56,7 @@ type Location struct {
 }
 
 type DeltaEntry struct {
-	Type     packfile.Type
+	Type     resources.Type
 	Blob     objects.Checksum
 	Location Location
 }
@@ -241,7 +241,7 @@ func DeltaEntryFromBytes(buf []byte) (de DeltaEntry, err error) {
 		return
 	}
 
-	de.Type = packfile.Type(typ)
+	de.Type = resources.Type(typ)
 
 	n, err := bbuf.Read(de.Blob[:])
 	if err != nil {
@@ -368,7 +368,7 @@ func (ls *LocalState) PutDelta(de DeltaEntry) error {
 }
 
 // XXX: Keeping those to minimize the diff, but this should get refactored into using PutDelta.
-func (ls *LocalState) SetPackfileForBlob(Type packfile.Type, packfileChecksum objects.Checksum, blobChecksum objects.Checksum, packfileOffset uint32, chunkLength uint32) {
+func (ls *LocalState) SetPackfileForBlob(Type resources.Type, packfileChecksum objects.Checksum, blobChecksum objects.Checksum, packfileOffset uint32, chunkLength uint32) {
 	de := DeltaEntry{
 		Type: Type,
 		Blob: blobChecksum,
@@ -382,12 +382,12 @@ func (ls *LocalState) SetPackfileForBlob(Type packfile.Type, packfileChecksum ob
 	ls.PutDelta(de)
 }
 
-func (ls *LocalState) BlobExists(Type packfile.Type, blobChecksum objects.Checksum) bool {
+func (ls *LocalState) BlobExists(Type resources.Type, blobChecksum objects.Checksum) bool {
 	has, _ := ls.cache.HasDelta(Type, blobChecksum)
 	return has
 }
 
-func (ls *LocalState) GetSubpartForBlob(Type packfile.Type, blobChecksum objects.Checksum) (objects.Checksum, uint32, uint32, bool) {
+func (ls *LocalState) GetSubpartForBlob(Type resources.Type, blobChecksum objects.Checksum) (objects.Checksum, uint32, uint32, bool) {
 	/* XXX: We treat an error as missing data. Checking calling code I assume it's safe .. */
 	delta, _ := ls.cache.GetDelta(Type, blobChecksum)
 	if delta == nil {
@@ -400,7 +400,7 @@ func (ls *LocalState) GetSubpartForBlob(Type packfile.Type, blobChecksum objects
 
 func (ls *LocalState) ListSnapshots() iter.Seq[objects.Checksum] {
 	return func(yield func(objects.Checksum) bool) {
-		for csum, _ := range ls.cache.GetDeltasByType(packfile.TYPE_SNAPSHOT) {
+		for csum, _ := range ls.cache.GetDeltasByType(resources.RT_SNAPSHOT) {
 			// TODO: handling of deleted snaps.
 			//st.muDeletedSnapshots.Lock()
 			//_, deleted := st.DeletedSnapshots[k]
@@ -414,7 +414,7 @@ func (ls *LocalState) ListSnapshots() iter.Seq[objects.Checksum] {
 	}
 }
 
-func (ls *LocalState) ListObjectsOfType(Type packfile.Type) iter.Seq2[DeltaEntry, error] {
+func (ls *LocalState) ListObjectsOfType(Type resources.Type) iter.Seq2[DeltaEntry, error] {
 	return func(yield func(DeltaEntry, error) bool) {
 		for _, buf := range ls.cache.GetDeltasByType(Type) {
 			de, err := DeltaEntryFromBytes(buf)
