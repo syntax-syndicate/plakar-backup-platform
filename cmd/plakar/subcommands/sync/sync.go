@@ -29,8 +29,8 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/vmihailenco/msgpack/v5"
@@ -226,12 +226,12 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 		if err != nil {
 			return err
 		}
-		if !dstRepository.BlobExists(packfile.TYPE_CHUNK, chunkID) {
-			chunkData, err := srcSnapshot.GetBlob(packfile.TYPE_CHUNK, chunkID)
+		if !dstRepository.BlobExists(resources.RT_CHUNK, chunkID) {
+			chunkData, err := srcSnapshot.GetBlob(resources.RT_CHUNK, chunkID)
 			if err != nil {
 				return err
 			}
-			dstSnapshot.PutBlob(packfile.TYPE_CHUNK, chunkID, chunkData)
+			dstSnapshot.PutBlob(resources.RT_CHUNK, chunkID, chunkData)
 		}
 	}
 
@@ -243,12 +243,12 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 		if err != nil {
 			return err
 		}
-		if !dstRepository.BlobExists(packfile.TYPE_OBJECT, objectID) {
-			objectData, err := srcSnapshot.GetBlob(packfile.TYPE_OBJECT, objectID)
+		if !dstRepository.BlobExists(resources.RT_OBJECT, objectID) {
+			objectData, err := srcSnapshot.GetBlob(resources.RT_OBJECT, objectID)
 			if err != nil {
 				return err
 			}
-			dstSnapshot.PutBlob(packfile.TYPE_OBJECT, objectID, objectData)
+			dstSnapshot.PutBlob(resources.RT_OBJECT, objectID, objectData)
 		}
 	}
 
@@ -265,22 +265,22 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 		if err != nil {
 			return err
 		}
-		if !dstRepository.BlobExists(packfile.TYPE_VFS_ENTRY, entryID) {
-			entryData, err := srcSnapshot.GetBlob(packfile.TYPE_VFS_ENTRY, entryID)
+		if !dstRepository.BlobExists(resources.RT_VFS_ENTRY, entryID) {
+			entryData, err := srcSnapshot.GetBlob(resources.RT_VFS_ENTRY, entryID)
 			if err != nil {
 				return err
 			}
-			dstSnapshot.PutBlob(packfile.TYPE_VFS_ENTRY, entryID, entryData)
+			dstSnapshot.PutBlob(resources.RT_VFS_ENTRY, entryID, entryData)
 		}
 	}
 
 	fs.VisitNodes(func(csum objects.Checksum, node *btree.Node[string, objects.Checksum, objects.Checksum]) error {
-		if !dstRepository.BlobExists(packfile.TYPE_VFS, csum) {
+		if !dstRepository.BlobExists(resources.RT_VFS, csum) {
 			bytes, err := msgpack.Marshal(node)
 			if err != nil {
 				return err
 			}
-			dstSnapshot.PutBlob(packfile.TYPE_VFS, csum, bytes)
+			dstSnapshot.PutBlob(resources.RT_VFS, csum, bytes)
 		}
 		return nil
 	})

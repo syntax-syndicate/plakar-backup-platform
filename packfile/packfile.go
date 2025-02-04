@@ -7,55 +7,17 @@ import (
 	"fmt"
 	"io"
 	"time"
+
+	"github.com/PlakarKorp/plakar/resources"
 )
 
 const VERSION = 100
 
-type Type uint8
-
-const (
-	TYPE_SNAPSHOT  Type = 1
-	TYPE_CHUNK     Type = 2
-	TYPE_OBJECT    Type = 3
-	TYPE_VFS       Type = 4
-	TYPE_VFS_ENTRY Type = 5
-	TYPE_CHILD     Type = 6
-	TYPE_SIGNATURE Type = 7
-	TYPE_ERROR     Type = 8
-)
-
 type Blob struct {
-	Type     Type
+	Type     resources.Type
 	Checksum [32]byte
 	Offset   uint32
 	Length   uint32
-}
-
-func Types() []Type {
-	return []Type{TYPE_SNAPSHOT, TYPE_CHUNK, TYPE_OBJECT, TYPE_VFS, TYPE_VFS_ENTRY, TYPE_CHILD, TYPE_SIGNATURE, TYPE_ERROR}
-}
-
-func (b Blob) TypeName() string {
-	switch b.Type {
-	case TYPE_SNAPSHOT:
-		return "snapshot"
-	case TYPE_CHUNK:
-		return "chunk"
-	case TYPE_OBJECT:
-		return "object"
-	case TYPE_VFS:
-		return "vfs"
-	case TYPE_VFS_ENTRY:
-		return "vfs_entry"
-	case TYPE_CHILD:
-		return "directory"
-	case TYPE_SIGNATURE:
-		return "signature"
-	case TYPE_ERROR:
-		return "error"
-	default:
-		return "unknown"
-	}
 }
 
 type PackFile struct {
@@ -125,7 +87,7 @@ func NewIndexFromBytes(serialized []byte) ([]Blob, error) {
 			return nil, err
 		}
 		index = append(index, Blob{
-			Type:     Type(dataType),
+			Type:     resources.Type(dataType),
 			Checksum: checksum,
 			Offset:   chunkOffset,
 			Length:   chunkLength,
@@ -220,7 +182,7 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 			return nil, err
 		}
 		p.Index = append(p.Index, Blob{
-			Type:     Type(dataType),
+			Type:     resources.Type(dataType),
 			Checksum: checksum,
 			Offset:   chunkOffset,
 			Length:   chunkLength,
@@ -383,7 +345,7 @@ func (p *PackFile) SerializeFooter() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (p *PackFile) AddBlob(dataType Type, checksum [32]byte, data []byte) {
+func (p *PackFile) AddBlob(dataType resources.Type, checksum [32]byte, data []byte) {
 	p.Index = append(p.Index, Blob{dataType, checksum, uint32(len(p.Blobs)), uint32(len(data))})
 	p.Blobs = append(p.Blobs, data...)
 	p.Footer.Count++

@@ -5,7 +5,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/btree"
 	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/packfile"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -13,18 +13,18 @@ var ErrStoreReadOnly = errors.New("read only store")
 
 type RepositoryStore[K, V any] struct {
 	repo     *Repository
-	blobtype packfile.Type
+	blobtype resources.Type
 }
 
-func NewRepositoryStore[K, V any](repo *Repository, blobtype packfile.Type) *RepositoryStore[K, V] {
+func NewRepositoryStore[K, V any](repo *Repository, blobtype resources.Type) *RepositoryStore[K, V] {
 	return &RepositoryStore[K, V]{
-		repo: repo,
+		repo:     repo,
 		blobtype: blobtype,
 	}
 }
 
 func (rs *RepositoryStore[K, V]) Get(sum objects.Checksum) (*btree.Node[K, objects.Checksum, V], error) {
-	rd, err  := rs.repo.GetBlob(rs.blobtype, sum)
+	rd, err := rs.repo.GetBlob(rs.blobtype, sum)
 	if err != nil {
 		return nil, err
 	}
