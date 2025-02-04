@@ -264,6 +264,11 @@ func (r *Repository) Checksum(data []byte) objects.Checksum {
 	return checksum
 }
 
+func (r *Repository) LookupKey(checksum objects.Checksum) objects.Checksum {
+	rid := r.Configuration().RepositoryID
+	return r.Checksum(append(rid[:], checksum[:]...))
+}
+
 func (r *Repository) Chunker(rd io.ReadCloser) (*chunkers.Chunker, error) {
 	chunkingAlgorithm := r.configuration.Chunking.Algorithm
 	chunkingMinSize := r.configuration.Chunking.MinSize
