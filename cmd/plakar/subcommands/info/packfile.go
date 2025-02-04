@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -30,22 +29,22 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 	if len(cmd.Args) == 0 {
 		packfiles, err := repo.GetPackfiles()
 		if err != nil {
-			log.Fatal(err)
+			return 1, err
 		}
 
 		for _, packfile := range packfiles {
-			fmt.Printf("%x\n", packfile)
+			fmt.Fprintf(ctx.Stdout, "%x\n", packfile)
 		}
 	} else {
 		for _, arg := range cmd.Args {
 			// convert arg to [32]byte
 			if len(arg) != 64 {
-				log.Fatalf("invalid packfile hash: %s", arg)
+				return 1, fmt.Errorf("invalid packfile hash: %s", arg)
 			}
 
 			b, err := hex.DecodeString(arg)
 			if err != nil {
-				log.Fatalf("invalid packfile hash: %s", arg)
+				return 1, fmt.Errorf("invalid packfile hash: %s", arg)
 			}
 
 			// Convert the byte slice to a [32]byte
@@ -54,12 +53,12 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 
 			rd, err := repo.GetPackfile(byteArray)
 			if err != nil {
-				log.Fatal(err)
+				return 1, err
 			}
 
 			rawPackfile, err := io.ReadAll(rd)
 			if err != nil {
-				log.Fatal(err)
+				return 1, err
 			}
 
 			versionBytes := rawPackfile[len(rawPackfile)-5 : len(rawPackfile)-5+4]
@@ -76,11 +75,11 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 
 			footerbuf, err = repo.DecodeBuffer(footerbuf)
 			if err != nil {
-				log.Fatal(err)
+				return 1, err
 			}
 			footer, err := packfile.NewFooterFromBytes(footerbuf)
 			if err != nil {
-				log.Fatal(err)
+				return 1, err
 			}
 
 			indexbuf := rawPackfile[int(footer.IndexOffset):]
@@ -88,14 +87,14 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 
 			indexbuf, err = repo.DecodeBuffer(indexbuf)
 			if err != nil {
-				log.Fatal(err)
+				return 1, err
 			}
 
 			hasher := sha256.New()
 			hasher.Write(indexbuf)
 
 			if !bytes.Equal(hasher.Sum(nil), footer.IndexChecksum[:]) {
-				log.Fatal("index checksum mismatch")
+				return 1, fmt.Errorf("index checksum mismatch")
 			}
 
 			rawPackfile = append(rawPackfile, indexbuf...)
@@ -103,16 +102,16 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 
 			p, err := packfile.NewFromBytes(rawPackfile)
 			if err != nil {
-				log.Fatal(err)
+				return 1, err
 			}
 
-			fmt.Printf("Version: %d.%d.%d\n", p.Footer.Version/100, p.Footer.Version%100/10, p.Footer.Version%10)
-			fmt.Printf("Timestamp: %s\n", time.Unix(0, p.Footer.Timestamp))
-			fmt.Printf("Index checksum: %x\n", p.Footer.IndexChecksum)
-			fmt.Println()
+			fmt.Fprintf(ctx.Stdout, "Version: %d.%d.%d\n", p.Footer.Version/100, p.Footer.Version%100/10, p.Footer.Version%10)
+			fmt.Fprintf(ctx.Stdout, "Timestamp: %s\n", time.Unix(0, p.Footer.Timestamp))
+			fmt.Fprintf(ctx.Stdout, "Index checksum: %x\n", p.Footer.IndexChecksum)
+			fmt.Fprintln(ctx.Stdout)
 
 			for i, entry := range p.Index {
-				fmt.Printf("blob[%d]: %x %d %d %s\n", i, entry.Checksum, entry.Offset, entry.Length, entry.TypeName())
+				fmt.Fprintf(ctx.Stdout, "blob[%d]: %x %d %d %s\n", i, entry.Checksum, entry.Offset, entry.Length, entry.TypeName())
 			}
 		}
 	}

@@ -90,29 +90,32 @@ func (cmd *Archive) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 	snapshotPrefix, pathname := utils.ParseSnapshotID(cmd.SnapshotPrefix)
 	snap, err := utils.OpenSnapshotByPrefix(repo, snapshotPrefix)
 	if err != nil {
-		log.Fatalf("%s: could not open snapshot: %s", flag.CommandLine.Name(), snapshotPrefix)
+		return 1, fmt.Errorf("archive: could not open snapshot: %s", snapshotPrefix)
 	}
 	defer snap.Close()
 
-	var out io.WriteCloser
+	var out io.Writer
 	if cmd.Output == "-" {
-		out = os.Stdout
+		out = ctx.Stdout
 	} else {
 		tmp, err := os.CreateTemp("", "plakar-archive-")
 		if err != nil {
-			log.Fatalf("%s: %s: %s", flag.CommandLine.Name(), pathname, err)
+			return 1, fmt.Errorf("archive: %s: %w", pathname, err)
 		}
 		defer os.Remove(tmp.Name())
 		out = tmp
 	}
 
 	if err = snap.Archive(out, cmd.Format, []string{pathname}, cmd.Rebase); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := out.Close(); err != nil {
 		return 1, err
 	}
+
+	if outCloser, isCloser := out.(io.Closer); isCloser {
+		if err := outCloser.Close(); err != nil {
+			return 1, err
+		}
+	}
+
 	if out, isFile := out.(*os.File); isFile {
 		if err := os.Rename(out.Name(), cmd.Output); err != nil {
 			return 1, err
