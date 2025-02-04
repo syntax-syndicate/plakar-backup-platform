@@ -9,9 +9,10 @@ import (
 	"time"
 
 	"github.com/PlakarKorp/plakar/resources"
+	"github.com/PlakarKorp/plakar/versioning"
 )
 
-const VERSION = 100
+const VERSION = "1.0.0"
 
 type Blob struct {
 	Type     resources.Type
@@ -27,7 +28,7 @@ type PackFile struct {
 }
 
 type PackFileFooter struct {
-	Version       uint32
+	Version       versioning.Version
 	Timestamp     int64
 	Count         uint32
 	IndexOffset   uint32
@@ -101,7 +102,7 @@ func New() *PackFile {
 		Blobs: make([]byte, 0),
 		Index: make([]Blob, 0),
 		Footer: PackFileFooter{
-			Version:   VERSION,
+			Version:   versioning.FromString(VERSION),
 			Timestamp: time.Now().UnixNano(),
 			Count:     0,
 		},

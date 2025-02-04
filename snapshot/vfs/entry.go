@@ -15,13 +15,16 @@ import (
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/vmihailenco/msgpack/v5"
 )
+
+const VFS_ENTRY_VERSION = "1.0.0"
 
 // Entry implements FSEntry and fs.DirEntry, as well as some other
 // helper methods.
 type Entry struct {
-	Version    uint32              `msgpack:"version" json:"version"`
+	Version    versioning.Version  `msgpack:"version" json:"version"`
 	ParentPath string              `msgpack:"parent_path" json:"parent_path"`
 	RecordType importer.RecordType `msgpack:"type" json:"type"`
 	FileInfo   objects.FileInfo    `msgpack:"file_info" json:"file_info"`
@@ -98,7 +101,7 @@ func NewEntry(parentPath string, record *importer.ScanRecord) *Entry {
 	})
 
 	entry := &Entry{
-		Version:            VERSION,
+		Version:            versioning.FromString(VFS_ENTRY_VERSION),
 		RecordType:         record.Type,
 		FileInfo:           record.FileInfo,
 		SymlinkTarget:      target,
