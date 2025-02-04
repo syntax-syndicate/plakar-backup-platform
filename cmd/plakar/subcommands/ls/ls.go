@@ -21,7 +21,6 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
-	"log"
 	"os/user"
 	"path"
 	"time"
@@ -80,21 +79,22 @@ func (cmd *Ls) Name() string {
 
 func (cmd *Ls) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	if cmd.Path == "" {
-		list_snapshots(ctx, repo, cmd.DisplayUUID, cmd.Tag)
+		if err := list_snapshots(ctx, repo, cmd.DisplayUUID, cmd.Tag); err != nil {
+			return 1, err
+		}
 		return 0, nil
 	}
 
 	if err := list_snapshot(ctx, repo, cmd.Path, cmd.Recursive); err != nil {
-		log.Println("error:", err)
 		return 1, err
 	}
 	return 0, nil
 }
 
-func list_snapshots(ctx *appcontext.AppContext, repo *repository.Repository, useUuid bool, tag string) {
+func list_snapshots(ctx *appcontext.AppContext, repo *repository.Repository, useUuid bool, tag string) error {
 	metadatas, err := utils.GetHeaders(repo, nil)
 	if err != nil {
-		log.Fatalf("%s: could not fetch snapshots list", flag.CommandLine.Name())
+		return fmt.Errorf("ls: could not fetch snapshots list: %w", err)
 	}
 
 	for _, metadata := range metadatas {
@@ -127,6 +127,7 @@ func list_snapshots(ctx *appcontext.AppContext, repo *repository.Repository, use
 				metadata.GetSource(0).Importer.Directory)
 		}
 	}
+	return nil
 }
 
 func list_snapshot(ctx *appcontext.AppContext, repo *repository.Repository, snapshotPath string, recursive bool) error {
@@ -135,18 +136,17 @@ func list_snapshot(ctx *appcontext.AppContext, repo *repository.Repository, snap
 
 	snap, err := utils.OpenSnapshotByPrefix(repo, prefix)
 	if err != nil {
-		log.Fatalf("%s: could not fetch snapshot: %s", flag.CommandLine.Name(), err)
+		return fmt.Errorf("ls: could not fetch snapshot: %w", err)
 	}
 	defer snap.Close()
 
 	pvfs, err := snap.Filesystem()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	return pvfs.WalkDir(pathname, func(path string, d *vfs.Entry, err error) error {
 		if err != nil {
-			log.Println("error at", path, ":", err)
 			return err
 		}
 		if d.IsDir() && path == pathname {

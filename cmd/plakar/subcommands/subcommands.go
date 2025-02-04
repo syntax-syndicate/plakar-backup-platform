@@ -21,7 +21,7 @@ func Register(command string, fn parseArgsFn) {
 	subcommands[command] = fn
 }
 
-func Parse(ctx *appcontext.AppContext, repo *repository.Repository, command string, args []string, agentless bool) (Subcommand, error) {
+func Parse(ctx *appcontext.AppContext, repo *repository.Repository, command string, args []string) (Subcommand, error) {
 	parsefn, exists := subcommands[command]
 	if !exists {
 		return nil, fmt.Errorf("unknown command: %s", command)

@@ -1,6 +1,11 @@
 package versioning
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+
+	"github.com/PlakarKorp/plakar/resources"
+)
 
 type Version uint32
 
@@ -31,4 +36,28 @@ func FromString(s string) Version {
 		panic(err)
 	}
 	return NewVersion(major, minor, patch)
+}
+
+var currentVersions map[resources.Type]Version = make(map[resources.Type]Version)
+var currentVersionsMu sync.Mutex
+
+func Register(resourceType resources.Type, version Version) {
+	currentVersionsMu.Lock()
+	defer currentVersionsMu.Unlock()
+
+	if _, ok := currentVersions[resourceType]; ok {
+		panic(fmt.Sprintf("version already registered for type %s", resourceType))
+	}
+	currentVersions[resourceType] = version
+}
+
+func GetCurrentVersion(Type resources.Type) Version {
+	currentVersionsMu.Lock()
+	defer currentVersionsMu.Unlock()
+
+	if version, ok := currentVersions[Type]; !ok {
+		panic(fmt.Sprintf("version not registered for type %s", Type))
+	} else {
+		return version
+	}
 }

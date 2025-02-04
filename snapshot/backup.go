@@ -22,6 +22,7 @@ import (
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/gobwas/glob"
 )
@@ -61,8 +62,9 @@ func (bc *BackupContext) recordEntry(entry *vfs.Entry) error {
 func (bc *BackupContext) recordError(path string, err error) error {
 	bc.muerridx.Lock()
 	e := bc.erridx.Insert(path, ErrorItem{
-		Name:  path,
-		Error: err.Error(),
+		Version: versioning.FromString(ERROR_VERSION),
+		Name:    path,
+		Error:   err.Error(),
 	})
 	bc.muerridx.Unlock()
 	return e
@@ -424,10 +426,6 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	var rootSummary *vfs.Summary
 
 	diriter := backupCtx.scanCache.EnumerateKeysWithPrefix("__directory__:", true)
-	if err != nil {
-		return err
-	}
-
 	for dirPath, bytes := range diriter {
 		select {
 		case <-snap.AppContext().GetContext().Done():
@@ -463,33 +461,38 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 				return err
 			}
 
-			if childEntry.Stat().Mode().IsDir() {
-				data, err := snap.scanCache.GetSummary(childPath)
-				if err != nil {
-					continue
-				}
+			data, err := vfsCache.GetFileSummary(childPath)
+			if err != nil {
+				continue
+			}
 
-				childSummary, err := vfs.SummaryFromBytes(data)
-				if err != nil {
-					continue
-				}
-
-				dirEntry.Summary.UpdateBelow(childSummary)
-			} else {
-				data, err := vfsCache.GetFileSummary(childPath)
-				if err != nil {
-					continue
-				}
-
-				fileSummary, err := vfs.FileSummaryFromBytes(data)
-				if err != nil {
-					continue
-				}
-
-				dirEntry.Summary.UpdateWithFileSummary(fileSummary)
+			fileSummary, err := vfs.FileSummaryFromBytes(data)
+			if err != nil {
+				continue
 			}
 
 			dirEntry.Summary.Directory.Children++
+			dirEntry.Summary.UpdateWithFileSummary(fileSummary)
+		}
+
+		subDirIter := backupCtx.scanCache.EnumerateKeysWithPrefix("__directory__:"+prefix, false)
+		for relpath, _ := range subDirIter {
+			if relpath == "" || strings.Contains(relpath, "/") {
+				continue
+			}
+
+			childPath := prefix + relpath
+			data, err := snap.scanCache.GetSummary(childPath)
+			if err != nil {
+				continue
+			}
+
+			childSummary, err := vfs.SummaryFromBytes(data)
+			if err != nil {
+				continue
+			}
+			dirEntry.Summary.Directory.Children++
+			dirEntry.Summary.UpdateBelow(childSummary)
 		}
 
 		erriter, err := backupCtx.erridx.ScanFrom(prefix)
@@ -786,7 +789,7 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 	encryptedFooterLength := uint8(len(encryptedFooter))
 
 	versionBytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(versionBytes, packer.Packfile.Footer.Version)
+	binary.LittleEndian.PutUint32(versionBytes, uint32(packer.Packfile.Footer.Version))
 
 	serializedPackfile := append(serializedData, encryptedIndex...)
 	serializedPackfile = append(serializedPackfile, encryptedFooter...)
