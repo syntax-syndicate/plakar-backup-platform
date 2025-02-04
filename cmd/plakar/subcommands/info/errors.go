@@ -38,8 +38,7 @@ func (cmd *InfoErrors) Execute(ctx *appcontext.AppContext, repo *repository.Repo
 	}
 
 	for item := range errstream {
-		fmt.Printf("%s: %s\n", item.Name, item.Error)
+		fmt.Fprintf(ctx.Stdout, "%s: %s\n", item.Name, item.Error)
 	}
-
 	return 0, nil
 }

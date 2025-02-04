@@ -44,7 +44,6 @@ func parse_cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, arg
 	switch flags.Arg(0) {
 	case "snapshot":
 		if len(flags.Args()) < 2 {
-			ctx.GetLogger().Error("usage: %s snapshot snapshotID", flags.Name())
 			return nil, fmt.Errorf("usage: %s snapshot snapshotID", flags.Name())
 		}
 		return &InfoSnapshot{
@@ -54,7 +53,6 @@ func parse_cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, arg
 		}, nil
 	case "errors":
 		if len(flags.Args()) < 2 {
-			ctx.GetLogger().Error("usage: %s errors snapshotID", flags.Name())
 			return nil, fmt.Errorf("usage: %s errors snapshotID", flags.Name())
 		}
 		return &InfoErrors{
@@ -76,7 +74,6 @@ func parse_cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, arg
 		}, nil
 	case "object":
 		if len(flags.Args()) < 2 {
-			ctx.GetLogger().Error("usage: %s object objectID", flags.Name())
 			return nil, fmt.Errorf("usage: %s object objectID", flags.Name())
 		}
 		return &InfoObject{
@@ -86,7 +83,6 @@ func parse_cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, arg
 		}, nil
 	case "vfs":
 		if len(flags.Args()) < 2 {
-			ctx.GetLogger().Error("usage: %s vfs snapshotPathname", flags.Name())
 			return nil, fmt.Errorf("usage: %s vfs snapshotPathname", flags.Name())
 		}
 		return &InfoVFS{
