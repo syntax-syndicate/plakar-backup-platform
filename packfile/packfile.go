@@ -70,7 +70,7 @@ func NewIndexFromBytes(serialized []byte) ([]Blob, error) {
 	reader := bytes.NewReader(serialized)
 	index := make([]Blob, 0)
 	for reader.Len() > 0 {
-		var dataType uint8
+		var dataType resources.Type
 		var checksum [32]byte
 		var chunkOffset uint32
 		var chunkLength uint32
@@ -148,7 +148,7 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 	p.Blobs = data
 	hasher := sha256.New()
 	for remaining > 0 {
-		var dataType uint8
+		var dataType resources.Type
 		var checksum [32]byte
 		var chunkOffset uint32
 		var chunkLength uint32
@@ -182,12 +182,12 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 			return nil, err
 		}
 		p.Index = append(p.Index, Blob{
-			Type:     resources.Type(dataType),
+			Type:     dataType,
 			Checksum: checksum,
 			Offset:   chunkOffset,
 			Length:   chunkLength,
 		})
-		remaining -= (len(checksum) + 9)
+		remaining -= (len(checksum) + 8 + 4)
 	}
 	checksum := [32]byte(hasher.Sum(nil))
 	if checksum != p.Footer.IndexChecksum {
