@@ -188,7 +188,7 @@ func (cmd *Rm) Execute(ctx *appcontext.AppContext, repo *repository.Repository) 
 			wg.Done()
 			ctx.GetLogger().Info("removed snapshot %x of size %s in %s",
 				snap.Header.GetIndexShortID(),
-				humanize.Bytes(snap.Header.Summary.Directory.Size+snap.Header.Summary.Below.Size),
+				humanize.Bytes(snap.Header.GetSource(0).Summary.Directory.Size+snap.Header.GetSource(0).Summary.Below.Size),
 				time.Since(t0))
 		}(snap)
 	}
