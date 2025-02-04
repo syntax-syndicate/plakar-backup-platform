@@ -34,7 +34,7 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 		}
 
 		for _, packfile := range packfiles {
-			fmt.Printf("%x\n", packfile)
+			fmt.Fprintf(ctx.Stdout, "%x\n", packfile)
 		}
 	} else {
 		for _, arg := range cmd.Args {
@@ -106,13 +106,13 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 				log.Fatal(err)
 			}
 
-			fmt.Printf("Version: %d.%d.%d\n", p.Footer.Version/100, p.Footer.Version%100/10, p.Footer.Version%10)
-			fmt.Printf("Timestamp: %s\n", time.Unix(0, p.Footer.Timestamp))
-			fmt.Printf("Index checksum: %x\n", p.Footer.IndexChecksum)
-			fmt.Println()
+			fmt.Fprintf(ctx.Stdout, "Version: %d.%d.%d\n", p.Footer.Version/100, p.Footer.Version%100/10, p.Footer.Version%10)
+			fmt.Fprintf(ctx.Stdout, "Timestamp: %s\n", time.Unix(0, p.Footer.Timestamp))
+			fmt.Fprintf(ctx.Stdout, "Index checksum: %x\n", p.Footer.IndexChecksum)
+			fmt.Fprintln(ctx.Stdout)
 
 			for i, entry := range p.Index {
-				fmt.Printf("blob[%d]: %x %d %d %s\n", i, entry.Checksum, entry.Offset, entry.Length, entry.TypeName())
+				fmt.Fprintf(ctx.Stdout, "blob[%d]: %x %d %d %s\n", i, entry.Checksum, entry.Offset, entry.Length, entry.TypeName())
 			}
 		}
 	}

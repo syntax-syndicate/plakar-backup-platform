@@ -33,7 +33,7 @@ func (cmd *InfoState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 		}
 
 		for _, state := range states {
-			fmt.Printf("%x\n", state)
+			fmt.Fprintf(ctx.Stdout, "%x\n", state)
 		}
 	} else {
 		for _, arg := range cmd.Args {
@@ -74,16 +74,16 @@ func (cmd *InfoState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 				log.Fatal(err)
 			}
 
-			fmt.Printf("Version: %d.%d.%d\n", st.Metadata.Version/100, (st.Metadata.Version/10)%10, st.Metadata.Version%10)
-			fmt.Printf("Creation: %s\n", st.Metadata.Timestamp)
-			fmt.Printf("State serial: %s\n", st.Metadata.Serial)
+			fmt.Fprintf(ctx.Stdout, "Version: %d.%d.%d\n", st.Metadata.Version/100, (st.Metadata.Version/10)%10, st.Metadata.Version%10)
+			fmt.Fprintf(ctx.Stdout, "Creation: %s\n", st.Metadata.Timestamp)
+			fmt.Fprintf(ctx.Stdout, "State serial: %s\n", st.Metadata.Serial)
 
 			printBlobs := func(name string, Type packfile.Type) {
 				for snapshot, err := range st.ListObjectsOfType(Type) {
 					if err != nil {
-						fmt.Printf("Could not fetch blob entry for %s\n", name)
+						fmt.Fprintf(ctx.Stdout, "Could not fetch blob entry for %s\n", name)
 					} else {
-						fmt.Printf("%s %x : packfile %x, offset %d, length %d\n",
+						fmt.Fprintf(ctx.Stdout, "%s %x : packfile %x, offset %d, length %d\n",
 							name,
 							snapshot.Blob,
 							snapshot.Location.Packfile,

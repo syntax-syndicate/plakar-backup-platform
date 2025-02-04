@@ -53,15 +53,15 @@ func (cmd *InfoObject) Execute(ctx *appcontext.AppContext, repo *repository.Repo
 		log.Fatal(err)
 	}
 
-	fmt.Printf("object: %x\n", object.Checksum)
-	fmt.Println("  type:", object.ContentType)
+	fmt.Fprintf(ctx.Stdout, "object: %x\n", object.Checksum)
+	fmt.Fprintln(ctx.Stdout, "  type:", object.ContentType)
 	if len(object.Tags) > 0 {
-		fmt.Println("  tags:", strings.Join(object.Tags, ","))
+		fmt.Fprintln(ctx.Stdout, "  tags:", strings.Join(object.Tags, ","))
 	}
 
-	fmt.Println("  chunks:")
+	fmt.Fprintln(ctx.Stdout, "  chunks:")
 	for _, chunk := range object.Chunks {
-		fmt.Printf("    checksum: %x\n", chunk.Checksum)
+		fmt.Fprintf(ctx.Stdout, "    checksum: %x\n", chunk.Checksum)
 	}
 	return 0, nil
 }
