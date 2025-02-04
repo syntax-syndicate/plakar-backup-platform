@@ -100,7 +100,7 @@ func packerJob(snap *Snapshot) {
 func (snap *Snapshot) PutBlob(Type packfile.Type, checksum [32]byte, data []byte) error {
 	snap.Logger().Trace("snapshot", "%x: PutBlob(%d, %064x) len=%d", snap.Header.GetIndexShortID(), Type, checksum, len(data))
 
-	encodedReader, err := snap.repository.Encode(bytes.NewReader(data))
+	encodedReader, err := snap.repository.Serialize(bytes.NewReader(data))
 	if err != nil {
 		return err
 	}

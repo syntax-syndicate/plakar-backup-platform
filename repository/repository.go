@@ -167,7 +167,25 @@ func (r *Repository) Close() error {
 	return nil
 }
 
-func (r *Repository) Decode(input io.Reader) (io.Reader, error) {
+func (r *Repository) Deserialize(input io.Reader) (io.Reader, error) {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "Deserialize: %s", time.Since(t0))
+	}()
+
+	return r.decode(input)
+}
+
+func (r *Repository) Serialize(input io.Reader) (io.Reader, error) {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "Serialize: %s", time.Since(t0))
+	}()
+
+	return r.encode(input)
+}
+
+func (r *Repository) decode(input io.Reader) (io.Reader, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "Decode: %s", time.Since(t0))
@@ -193,7 +211,7 @@ func (r *Repository) Decode(input io.Reader) (io.Reader, error) {
 	return stream, nil
 }
 
-func (r *Repository) Encode(input io.Reader) (io.Reader, error) {
+func (r *Repository) encode(input io.Reader) (io.Reader, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "Encode: %s", time.Since(t0))
@@ -219,26 +237,26 @@ func (r *Repository) Encode(input io.Reader) (io.Reader, error) {
 	return stream, nil
 }
 
-func (r *Repository) DecodeBuffer(buffer []byte) ([]byte, error) {
+func (r *Repository) DeserializeBuffer(buffer []byte) ([]byte, error) {
 	t0 := time.Now()
 	defer func() {
-		r.Logger().Trace("repository", "Decode(%d bytes): %s", len(buffer), time.Since(t0))
+		r.Logger().Trace("repository", "Deserialize(%d bytes): %s", len(buffer), time.Since(t0))
 	}()
 
-	rd, err := r.Decode(bytes.NewBuffer(buffer))
+	rd, err := r.Deserialize(bytes.NewBuffer(buffer))
 	if err != nil {
 		return nil, err
 	}
 	return io.ReadAll(rd)
 }
 
-func (r *Repository) EncodeBuffer(buffer []byte) ([]byte, error) {
+func (r *Repository) SerializeBuffer(buffer []byte) ([]byte, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "Encode(%d): %s", len(buffer), time.Since(t0))
 	}()
 
-	rd, err := r.Encode(bytes.NewBuffer(buffer))
+	rd, err := r.Serialize(bytes.NewBuffer(buffer))
 	if err != nil {
 		return nil, err
 	}
@@ -346,7 +364,7 @@ func (r *Repository) GetState(checksum objects.Checksum) (io.Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return r.Decode(rd)
+	return r.Deserialize(rd)
 }
 
 func (r *Repository) PutState(checksum objects.Checksum, rd io.Reader) error {
@@ -355,7 +373,7 @@ func (r *Repository) PutState(checksum objects.Checksum, rd io.Reader) error {
 		r.Logger().Trace("repository", "PutState(%x, ...): %s", checksum, time.Since(t0))
 	}()
 
-	rd, err := r.Encode(rd)
+	rd, err := r.Serialize(rd)
 	if err != nil {
 		return err
 	}
@@ -405,7 +423,7 @@ func (r *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint32, l
 		return nil, err
 	}
 
-	decoded, err := r.DecodeBuffer(data)
+	decoded, err := r.DeserializeBuffer(data)
 	if err != nil {
 		return nil, err
 	}
