@@ -683,6 +683,16 @@ func (ls *LocalState) PutPackfile(stateId, packfile objects.MAC) error {
 	return ls.cache.PutPackfile(pe.Packfile, pe.ToBytes())
 }
 
+func (ls *LocalState) ListPackfiles() iter.Seq[objects.MAC] {
+	return func(yield func(objects.MAC) bool) {
+		for st, _ := range ls.cache.GetPackfiles() {
+			if !yield(st) {
+				return
+			}
+		}
+	}
+}
+
 func (ls *LocalState) ListSnapshots() iter.Seq[objects.MAC] {
 	return func(yield func(objects.MAC) bool) {
 		for _, buf := range ls.cache.GetDeltasByType(resources.RT_SNAPSHOT) {
