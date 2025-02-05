@@ -190,10 +190,14 @@ func (c *_RepositoryCache) GetDeleteds() iter.Seq2[objects.Checksum, []byte] {
 	return c.getObjects("__deleted__:")
 }
 
-func (c *_RepositoryCache) PutPackfile(packfile objects.Checksum, data []byte) error {
-	return c.put("__packfile__", fmt.Sprintf("%x", packfile), data)
+func (c *_RepositoryCache) PutPackfile(stateID, packfile objects.Checksum, data []byte) error {
+	return c.put("__packfile__", fmt.Sprintf("%x:%x", stateID, packfile), data)
 }
 
 func (c *_RepositoryCache) GetPackfiles() iter.Seq2[objects.Checksum, []byte] {
 	return c.getObjects("__packfile__:")
+}
+
+func (c *_RepositoryCache) GetPackfilesForState(stateID objects.Checksum) iter.Seq2[objects.Checksum, []byte] {
+	return c.getObjects(fmt.Sprintf("__packfile__:%x", stateID))
 }

@@ -79,10 +79,11 @@ const DeletedEntrySerializedSize = 1 + 32 + 8
 
 type PackfileEntry struct {
 	Packfile  objects.Checksum
+	StateID   objects.Checksum
 	Timestamp time.Time
 }
 
-const PackfileEntrySerializedSize = 32 + 8
+const PackfileEntrySerializedSize = 32 + 32 + 8
 
 /*
  * A local version of the state, possibly aggregated, that uses on-disk storage.
@@ -217,7 +218,6 @@ func (ls *LocalState) SerializeToStream(w io.Writer) error {
 		return err
 	}
 
-	/* First we serialize all the LOCATIONS type entries */
 	for _, entry := range ls.cache.GetDeltas() {
 		if _, err := w.Write([]byte{byte(ET_LOCATIONS)}); err != nil {
 			return fmt.Errorf("failed to write delta entry type: %w", err)
@@ -232,7 +232,6 @@ func (ls *LocalState) SerializeToStream(w io.Writer) error {
 		}
 	}
 
-	/* Then all the Deleted entries */
 	for _, entry := range ls.cache.GetDeleteds() {
 		if _, err := w.Write([]byte{byte(ET_DELETED)}); err != nil {
 			return fmt.Errorf("failed to write deleted entry type: %w", err)
@@ -247,7 +246,6 @@ func (ls *LocalState) SerializeToStream(w io.Writer) error {
 		}
 	}
 
-	/* Then all the Deleted entries */
 	for _, entry := range ls.cache.GetPackfiles() {
 		if _, err := w.Write([]byte{byte(ET_PACKFILE)}); err != nil {
 			return fmt.Errorf("failed to write packfile entry type: %w", err)
@@ -338,7 +336,15 @@ func PackfileEntryFromBytes(buf []byte) (pe PackfileEntry, err error) {
 		return
 	}
 	if n < len(objects.Checksum{}) {
-		return pe, fmt.Errorf("Short read while deserializing delta entry")
+		return pe, fmt.Errorf("Short read while deserializing packfile entry")
+	}
+
+	n, err = bbuf.Read(pe.StateID[:])
+	if err != nil {
+		return
+	}
+	if n < len(objects.Checksum{}) {
+		return pe, fmt.Errorf("Short read while deserializing packfile entry")
 	}
 
 	timestamp := binary.LittleEndian.Uint64(bbuf.Next(8))
@@ -350,6 +356,7 @@ func PackfileEntryFromBytes(buf []byte) (pe PackfileEntry, err error) {
 func (pe *PackfileEntry) _toBytes(buf []byte) {
 	pos := 0
 	pos += copy(buf[pos:], pe.Packfile[:])
+	pos += copy(buf[pos:], pe.StateID[:])
 	binary.LittleEndian.PutUint64(buf[pos:], uint64(pe.Timestamp.UnixNano()))
 }
 
@@ -484,7 +491,7 @@ func (ls *LocalState) deserializeFromStream(r io.Reader) error {
 				return fmt.Errorf("failed to deserialize packfile entry %w", err)
 			}
 
-			ls.cache.PutPackfile(pe.Packfile, pe_buf)
+			ls.cache.PutPackfile(pe.StateID, pe.Packfile, pe_buf)
 		default:
 			// Our version doesn't know this entry type, just skip it.
 			io.CopyN(io.Discard, r, int64(length))
@@ -557,14 +564,24 @@ func (ls *LocalState) GetSubpartForBlob(Type resources.Type, blobChecksum object
 	}
 }
 
-func (ls *LocalState) PutPackfile(packfile objects.Checksum) error {
+func (ls *LocalState) PutPackfile(stateId, packfile objects.Checksum) error {
 	pe := PackfileEntry{
+		StateID:   stateId,
 		Packfile:  packfile,
 		Timestamp: time.Now(),
 	}
 
-	ls.cache.PutPackfile(pe.Packfile, pe.ToBytes())
-	return nil
+	return ls.cache.PutPackfile(pe.StateID, pe.Packfile, pe.ToBytes())
+}
+
+func (ls *LocalState) ListPackfiles(stateId objects.Checksum) iter.Seq[objects.Checksum] {
+	return func(yield func(objects.Checksum) bool) {
+		for st, _ := range ls.cache.GetPackfilesForState(stateId) {
+			if !yield(st) {
+				return
+			}
+		}
+	}
 }
 
 func (ls *LocalState) ListSnapshots() iter.Seq[objects.Checksum] {

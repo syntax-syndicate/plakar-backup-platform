@@ -806,7 +806,7 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 		}
 	}
 
-	if err := snap.deltaState.PutPackfile(checksum); err != nil {
+	if err := snap.deltaState.PutPackfile(snap.Header.Identifier, checksum); err != nil {
 		return err
 	}
 
