@@ -42,13 +42,39 @@ import (
 	_ "github.com/PlakarKorp/plakar/snapshot/exporter/s3"
 
 	_ "github.com/PlakarKorp/plakar/classifier/backend/noop"
+	sentry "github.com/getsentry/sentry-go"
 )
 
 func main() {
+	err := sentry.Init(sentry.ClientOptions{
+		Dsn: "https://d2bc6d73f95f85dc1ebb0415edf87dea@o4508766106419200.ingest.de.sentry.io/4508766109237328",
+		// Set TracesSampleRate to 1.0 to capture 100% of transactions for
+		// tracing.
+		// We recommend adjusting this value in production,
+		TracesSampleRate: 1.0,
+		Debug:            true,
+	})
+	if err != nil {
+		log.Fatalf("sentry.Init: %s", err)
+	}
+	// Flush buffered events before the program terminates.
+	defer sentry.Flush(2 * time.Second)
+	defer sentry.Recover()
+
 	os.Exit(entryPoint())
+
 }
 
 func entryPoint() int {
+
+	var s *string
+
+	fmt.Printf("==> %s\n", *s)
+
+	// sentry.CaptureMessage("toto")
+
+	// panic("Oops, plakar can't start")
+
 	// default values
 	cwd, err := os.Getwd()
 	if err != nil {
