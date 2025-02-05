@@ -22,7 +22,7 @@ func init() {
 type Blob struct {
 	Type     resources.Type
 	Checksum [32]byte
-	Offset   uint32
+	Offset   uint64
 	Length   uint32
 }
 
@@ -36,11 +36,13 @@ type PackFileFooter struct {
 	Version     versioning.Version
 	Timestamp   int64
 	Count       uint32
-	IndexOffset uint32
+	IndexOffset uint64
 }
 
 type Configuration struct {
-	MaxSize uint32
+	MinSize uint64
+	AvgSize uint64
+	MaxSize uint64
 }
 
 func DefaultConfiguration() *Configuration {
@@ -74,7 +76,7 @@ func NewIndexFromBytes(serialized []byte) ([]Blob, error) {
 	for reader.Len() > 0 {
 		var dataType resources.Type
 		var checksum [32]byte
-		var chunkOffset uint32
+		var chunkOffset uint64
 		var chunkLength uint32
 		if err := binary.Read(reader, binary.LittleEndian, &dataType); err != nil {
 			return nil, err
@@ -113,7 +115,7 @@ func New() *PackFile {
 func NewFromBytes(serialized []byte) (*PackFile, error) {
 	reader := bytes.NewReader(serialized)
 	var footer PackFileFooter
-	_, err := reader.Seek(-20, io.SeekEnd)
+	_, err := reader.Seek(-24, io.SeekEnd)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +142,7 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 	}
 
 	// we won't read the totalLength again
-	remaining := reader.Len() - 20
+	remaining := reader.Len() - 24
 
 	p := New()
 	p.Footer = footer
@@ -148,7 +150,7 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 	for remaining > 0 {
 		var dataType resources.Type
 		var checksum [32]byte
-		var chunkOffset uint32
+		var chunkOffset uint64
 		var chunkLength uint32
 		if err := binary.Read(reader, binary.LittleEndian, &dataType); err != nil {
 			return nil, err
@@ -163,7 +165,7 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 			return nil, err
 		}
 
-		if chunkOffset+chunkLength > p.Footer.IndexOffset {
+		if chunkOffset+uint64(chunkLength) > p.Footer.IndexOffset {
 			return nil, fmt.Errorf("chunk offset + chunk length exceeds total length of packfile")
 		}
 
@@ -173,7 +175,7 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 			Offset:   chunkOffset,
 			Length:   chunkLength,
 		})
-		remaining -= (len(checksum) + 4 + 4 + 4)
+		remaining -= (4 + len(checksum) + 8 + 4)
 	}
 
 	return p, nil
@@ -278,16 +280,16 @@ func (p *PackFile) SerializeFooter() ([]byte, error) {
 }
 
 func (p *PackFile) AddBlob(dataType resources.Type, checksum [32]byte, data []byte) {
-	p.Index = append(p.Index, Blob{dataType, checksum, uint32(len(p.Blobs)), uint32(len(data))})
+	p.Index = append(p.Index, Blob{dataType, checksum, uint64(len(p.Blobs)), uint32(len(data))})
 	p.Blobs = append(p.Blobs, data...)
 	p.Footer.Count++
-	p.Footer.IndexOffset = uint32(len(p.Blobs))
+	p.Footer.IndexOffset = uint64(len(p.Blobs))
 }
 
 func (p *PackFile) GetBlob(checksum [32]byte) ([]byte, bool) {
 	for _, chunk := range p.Index {
 		if chunk.Checksum == checksum {
-			return p.Blobs[chunk.Offset : chunk.Offset+chunk.Length], true
+			return p.Blobs[chunk.Offset : chunk.Offset+uint64(chunk.Length)], true
 		}
 	}
 	return nil, false
