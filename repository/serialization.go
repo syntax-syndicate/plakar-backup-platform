@@ -251,7 +251,9 @@ func (s *serializeReader) Read(p []byte) (n int, err error) {
 					return total, nil
 				}
 			}
-			s.phase = PHASE_DATA
+			if s.headerOffset == len(s.header) {
+				s.phase = PHASE_DATA
+			}
 
 		case PHASE_DATA:
 			n, err := s.inner.Read(p[total:])
