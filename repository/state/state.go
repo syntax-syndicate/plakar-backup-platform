@@ -43,13 +43,13 @@ type EntryType uint8
 const (
 	ET_METADATA  EntryType = 1
 	ET_LOCATIONS           = 2
-	ET_TIMESTAMP           = 3
+	ET_DELETED             = 3
+	ET_PACKFILE            = 4
 )
 
 type Metadata struct {
 	Version   versioning.Version `msgpack:"version"`
 	Timestamp time.Time          `msgpack:"timestamp"`
-	Aggregate bool               `msgpack:"aggregate"`
 	Serial    uuid.UUID          `msgpack:"serial"`
 }
 
@@ -59,17 +59,31 @@ type Location struct {
 	Length   uint32
 }
 
+const LocationSerializedSize = 32 + 4 + 4
+
 type DeltaEntry struct {
 	Type     resources.Type
 	Blob     objects.Checksum
 	Location Location
 }
 
-/* /!\ Always keep those in sync with the serialized format on disk.
- * We are not using reflect.SizeOf because we might have padding in those structs
- */
-const LocationSerializedSize = 32 + 4 + 4
 const DeltaEntrySerializedSize = 1 + 32 + LocationSerializedSize
+
+type DeletedEntry struct {
+	Type resources.Type
+	Blob objects.Checksum
+	When time.Time
+}
+
+const DeletedEntrySerializedSize = 1 + 32 + 8
+
+type PackfileEntry struct {
+	Packfile  objects.Checksum
+	StateID   objects.Checksum
+	Timestamp time.Time
+}
+
+const PackfileEntrySerializedSize = 32 + 32 + 8
 
 /*
  * A local version of the state, possibly aggregated, that uses on-disk storage.
@@ -98,7 +112,6 @@ func NewLocalState(cache caching.StateCache) *LocalState {
 		Metadata: Metadata{
 			Version:   versioning.FromString(VERSION),
 			Timestamp: time.Now(),
-			Aggregate: false,
 		},
 		cache: cache,
 	}
@@ -186,7 +199,7 @@ func (ls *LocalState) InsertState(stateID objects.Checksum, rd io.Reader) error 
 	return nil
 }
 
-/* On disk format is <EntryType><Entry>...N<header>
+/* On disk format is <EntryType><EntryLength><Entry>...N<header>
  * Counting keys would mean iterating twice so we reverse the format and add a
  * type.
  */
@@ -205,29 +218,58 @@ func (ls *LocalState) SerializeToStream(w io.Writer) error {
 		return err
 	}
 
-	/* First we serialize all the LOCATIONS type entries */
 	for _, entry := range ls.cache.GetDeltas() {
-		w.Write([]byte{byte(ET_LOCATIONS)})
-		w.Write(entry)
+		if _, err := w.Write([]byte{byte(ET_LOCATIONS)}); err != nil {
+			return fmt.Errorf("failed to write delta entry type: %w", err)
+		}
+
+		if err := writeUint32(DeltaEntrySerializedSize); err != nil {
+			return fmt.Errorf("failed to write delta entry length: %w", err)
+		}
+
+		if _, err := w.Write(entry); err != nil {
+			return fmt.Errorf("failed to write delta entry: %w", err)
+		}
+	}
+
+	for _, entry := range ls.cache.GetDeleteds() {
+		if _, err := w.Write([]byte{byte(ET_DELETED)}); err != nil {
+			return fmt.Errorf("failed to write deleted entry type: %w", err)
+		}
+
+		if err := writeUint32(DeletedEntrySerializedSize); err != nil {
+			return fmt.Errorf("failed to write deleted entry length: %w", err)
+		}
+
+		if _, err := w.Write(entry); err != nil {
+			return fmt.Errorf("failed to write deleted entry: %w", err)
+		}
+	}
+
+	for _, entry := range ls.cache.GetPackfiles() {
+		if _, err := w.Write([]byte{byte(ET_PACKFILE)}); err != nil {
+			return fmt.Errorf("failed to write packfile entry type: %w", err)
+		}
+
+		if err := writeUint32(PackfileEntrySerializedSize); err != nil {
+			return fmt.Errorf("failed to write packfile entry length: %w", err)
+		}
+
+		if _, err := w.Write(entry); err != nil {
+			return fmt.Errorf("failed to write packfile entry: %w", err)
+		}
 	}
 
 	/* Finally we serialize the Metadata */
-	w.Write([]byte{byte(ET_METADATA)})
+	if _, err := w.Write([]byte{byte(ET_METADATA)}); err != nil {
+		return fmt.Errorf("failed to write metadata type %w", err)
+	}
 	if err := writeUint32(uint32(ls.Metadata.Version)); err != nil {
 		return fmt.Errorf("failed to write version: %w", err)
 	}
 	timestamp := ls.Metadata.Timestamp.UnixNano()
 	if err := writeUint64(uint64(timestamp)); err != nil {
 		return fmt.Errorf("failed to write timestamp: %w", err)
-	}
-	if ls.Metadata.Aggregate {
-		if _, err := w.Write([]byte{1}); err != nil {
-			return fmt.Errorf("failed to write aggregate flag: %w", err)
-		}
-	} else {
-		if _, err := w.Write([]byte{0}); err != nil {
-			return fmt.Errorf("failed to write aggregate flag: %w", err)
-		}
 	}
 	if _, err := w.Write(ls.Metadata.Serial[:]); err != nil {
 		return fmt.Errorf("failed to write serial flag: %w", err)
@@ -286,6 +328,82 @@ func (de *DeltaEntry) ToBytes() (ret []byte) {
 	de._toBytes(ret)
 	return
 }
+func PackfileEntryFromBytes(buf []byte) (pe PackfileEntry, err error) {
+	bbuf := bytes.NewBuffer(buf)
+
+	n, err := bbuf.Read(pe.Packfile[:])
+	if err != nil {
+		return
+	}
+	if n < len(objects.Checksum{}) {
+		return pe, fmt.Errorf("Short read while deserializing packfile entry")
+	}
+
+	n, err = bbuf.Read(pe.StateID[:])
+	if err != nil {
+		return
+	}
+	if n < len(objects.Checksum{}) {
+		return pe, fmt.Errorf("Short read while deserializing packfile entry")
+	}
+
+	timestamp := binary.LittleEndian.Uint64(bbuf.Next(8))
+	pe.Timestamp = time.Unix(0, int64(timestamp))
+
+	return
+}
+
+func (pe *PackfileEntry) _toBytes(buf []byte) {
+	pos := 0
+	pos += copy(buf[pos:], pe.Packfile[:])
+	pos += copy(buf[pos:], pe.StateID[:])
+	binary.LittleEndian.PutUint64(buf[pos:], uint64(pe.Timestamp.UnixNano()))
+}
+
+func (pe *PackfileEntry) ToBytes() (ret []byte) {
+	ret = make([]byte, PackfileEntrySerializedSize)
+	pe._toBytes(ret)
+	return
+}
+
+func DeletedEntryFromBytes(buf []byte) (de DeletedEntry, err error) {
+	bbuf := bytes.NewBuffer(buf)
+
+	typ, err := bbuf.ReadByte()
+	if err != nil {
+		return
+	}
+
+	de.Type = resources.Type(typ)
+
+	n, err := bbuf.Read(de.Blob[:])
+	if err != nil {
+		return
+	}
+	if n < len(objects.Checksum{}) {
+		return de, fmt.Errorf("Short read while deserializing deleted entry")
+	}
+
+	timestamp := binary.LittleEndian.Uint64(bbuf.Next(8))
+	de.When = time.Unix(0, int64(timestamp))
+
+	return
+}
+
+func (de *DeletedEntry) _toBytes(buf []byte) {
+	pos := 0
+	buf[pos] = byte(de.Type)
+	pos++
+
+	pos += copy(buf[pos:], de.Blob[:])
+	binary.LittleEndian.PutUint64(buf[pos:], uint64(de.When.UnixNano()))
+}
+
+func (de *DeletedEntry) ToBytes() (ret []byte) {
+	ret = make([]byte, DeletedEntrySerializedSize)
+	de._toBytes(ret)
+	return
+}
 
 func (ls *LocalState) deserializeFromStream(r io.Reader) error {
 	readUint64 := func() (uint64, error) {
@@ -307,28 +425,78 @@ func (ls *LocalState) deserializeFromStream(r io.Reader) error {
 	/* Deserialize LOCATIONS */
 	et_buf := make([]byte, 1)
 	de_buf := make([]byte, DeltaEntrySerializedSize)
+	deleted_buf := make([]byte, DeletedEntrySerializedSize)
+	pe_buf := make([]byte, PackfileEntrySerializedSize)
 	for {
 		n, err := r.Read(et_buf)
 		if err != nil || n != len(et_buf) {
 			return fmt.Errorf("failed to read entry type %w", err)
 		}
 
-		if EntryType(et_buf[0]) == ET_METADATA {
+		entryType := EntryType(et_buf[0])
+		if entryType == ET_METADATA {
 			break
 		}
 
-		if n, err := io.ReadFull(r, de_buf); err != nil {
-			return fmt.Errorf("failed to read delta entry %w, read(%d)/expected(%d)", err, n, DeltaEntrySerializedSize)
-		}
-
-		// We need to decode just to make the key, but we can reuse the buffer
-		// to put inside the data part of the cache.
-		delta, err := DeltaEntryFromBytes(de_buf)
+		length, err := readUint32()
 		if err != nil {
-			return fmt.Errorf("failed to deserialize delta entry %w", err)
+			return fmt.Errorf("failed to read entry length %w", err)
 		}
 
-		ls.cache.PutDelta(delta.Type, delta.Blob, de_buf)
+		//XXX: This is screaming refactorization, but is a bit subtil.
+		switch entryType {
+		case ET_LOCATIONS:
+			if length != DeltaEntrySerializedSize {
+				return fmt.Errorf("failed to read delta entry wrong length got(%d)/expected(%d)", length, DeltaEntrySerializedSize)
+			}
+
+			if n, err := io.ReadFull(r, de_buf); err != nil {
+				return fmt.Errorf("failed to read delta entry %w, read(%d)/expected(%d)", err, n, length)
+			}
+
+			// We need to decode just to make the key, but we can reuse the buffer
+			// to put inside the data part of the cache.
+			delta, err := DeltaEntryFromBytes(de_buf)
+			if err != nil {
+				return fmt.Errorf("failed to deserialize delta entry %w", err)
+			}
+
+			ls.cache.PutDelta(delta.Type, delta.Blob, de_buf)
+		case ET_DELETED:
+			if length != DeletedEntrySerializedSize {
+				return fmt.Errorf("failed to read deleted entry wrong length got(%d)/expected(%d)", length, DeletedEntrySerializedSize)
+			}
+
+			if n, err := io.ReadFull(r, deleted_buf); err != nil {
+				return fmt.Errorf("failed to read deleted entry %w, read(%d)/expected(%d)", err, n, length)
+			}
+
+			deleted, err := DeletedEntryFromBytes(deleted_buf)
+			if err != nil {
+				return fmt.Errorf("failed to deserialize deleted entry %w", err)
+			}
+
+			ls.cache.PutDeleted(deleted.Type, deleted.Blob, deleted_buf)
+		case ET_PACKFILE:
+			if length != PackfileEntrySerializedSize {
+				return fmt.Errorf("failed to read packfile entry wrong length got(%d)/expected(%d)", length, PackfileEntrySerializedSize)
+			}
+
+			if n, err := io.ReadFull(r, pe_buf); err != nil {
+				return fmt.Errorf("failed to read packfile entry %w, read(%d)/expected(%d)", err, n, length)
+			}
+
+			pe, err := PackfileEntryFromBytes(pe_buf)
+			if err != nil {
+				return fmt.Errorf("failed to deserialize packfile entry %w", err)
+			}
+
+			ls.cache.PutPackfile(pe.StateID, pe.Packfile, pe_buf)
+		default:
+			// Our version doesn't know this entry type, just skip it.
+			io.CopyN(io.Discard, r, int64(length))
+		}
+
 	}
 
 	/* Deserialize Metadata */
@@ -343,12 +511,6 @@ func (ls *LocalState) deserializeFromStream(r io.Reader) error {
 		return fmt.Errorf("failed to read timestamp: %w", err)
 	}
 	ls.Metadata.Timestamp = time.Unix(0, int64(timestamp))
-
-	aggregate := make([]byte, 1)
-	if _, err := io.ReadFull(r, aggregate); err != nil {
-		return fmt.Errorf("failed to read aggregate flag: %w", err)
-	}
-	ls.Metadata.Aggregate = aggregate[0] == 1
 
 	serial := make([]byte, len(uuid.UUID{}))
 	if _, err := io.ReadFull(r, serial); err != nil {
@@ -402,18 +564,36 @@ func (ls *LocalState) GetSubpartForBlob(Type resources.Type, blobChecksum object
 	}
 }
 
+func (ls *LocalState) PutPackfile(stateId, packfile objects.Checksum) error {
+	pe := PackfileEntry{
+		StateID:   stateId,
+		Packfile:  packfile,
+		Timestamp: time.Now(),
+	}
+
+	return ls.cache.PutPackfile(pe.StateID, pe.Packfile, pe.ToBytes())
+}
+
+func (ls *LocalState) ListPackfiles(stateId objects.Checksum) iter.Seq[objects.Checksum] {
+	return func(yield func(objects.Checksum) bool) {
+		for st, _ := range ls.cache.GetPackfilesForState(stateId) {
+			if !yield(st) {
+				return
+			}
+		}
+	}
+}
+
 func (ls *LocalState) ListSnapshots() iter.Seq[objects.Checksum] {
 	return func(yield func(objects.Checksum) bool) {
 		for csum, _ := range ls.cache.GetDeltasByType(resources.RT_SNAPSHOT) {
-			// TODO: handling of deleted snaps.
-			//st.muDeletedSnapshots.Lock()
-			//_, deleted := st.DeletedSnapshots[k]
-			//st.muDeletedSnapshots.Unlock()
-			//if !deleted {
+			if has, _ := ls.cache.HasDeleted(resources.RT_SNAPSHOT, csum); has {
+				continue
+			}
+
 			if !yield(csum) {
 				return
 			}
-			//}
 		}
 	}
 }
@@ -429,6 +609,15 @@ func (ls *LocalState) ListObjectsOfType(Type resources.Type) iter.Seq2[DeltaEntr
 		}
 	}
 
+}
+
+func (ls *LocalState) DeleteSnapshot(snapshotID objects.Checksum) error {
+	de := DeletedEntry{
+		Type: resources.RT_SNAPSHOT,
+		Blob: snapshotID,
+		When: time.Now(),
+	}
+	return ls.cache.PutDeleted(resources.RT_SNAPSHOT, snapshotID, de.ToBytes())
 }
 
 func (mt *Metadata) ToBytes() ([]byte, error) {

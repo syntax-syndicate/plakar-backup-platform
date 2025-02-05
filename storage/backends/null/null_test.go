@@ -7,6 +7,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,7 +27,7 @@ func TestNullBackend(t *testing.T) {
 	err = repo.Open(location)
 	require.NoError(t, err)
 	// only test one field
-	require.Equal(t, repo.Configuration().Version, storage.VERSION)
+	require.Equal(t, repo.Configuration().Version, versioning.FromString(storage.VERSION))
 
 	err = repo.Close()
 	require.NoError(t, err)

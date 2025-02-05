@@ -629,29 +629,12 @@ func entropy(data []byte) (float64, [256]float64) {
 	return entropy, freq
 }
 
-func distribution(freq [256]float64, dataSize uint64) [256]byte {
-	if dataSize == 0 {
-		return [256]byte{}
-	}
-
-	var dist [256]byte
-	for i, f := range freq {
-		if f > 0 {
-			percentage := (f / float64(dataSize)) * 100
-			dist[i] = byte(percentage + 0.5)
-		}
-	}
-	return dist
-}
-
 func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier, record importer.ScanRecord) (*objects.Object, error) {
 	rd, err := imp.NewReader(record.Pathname)
 	if err != nil {
 		return nil, err
 	}
 	defer rd.Close()
-
-	cprocessor := cf.Processor(record.Pathname)
 
 	object := objects.NewObject()
 	object.ContentType = mime.TypeByExtension(path.Ext(record.Pathname))
@@ -678,7 +661,6 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 			firstChunk = false
 		}
 		objectHasher.Write(data)
-		cprocessor.Write(data)
 
 		chunkHasher.Reset()
 		chunkHasher.Write(data)
@@ -690,8 +672,12 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 				totalFreq[i] += freq[i]
 			}
 		}
-		chunk := objects.Chunk{Checksum: chunk_t32, Length: uint32(len(data)), Entropy: entropyScore, Distribution: distribution(freq, uint64(len(data)))}
-		object.Chunks = append(object.Chunks, chunk)
+		chunk := objects.NewChunk()
+		chunk.Checksum = chunk_t32
+		chunk.Length = uint32(len(data))
+		chunk.Entropy = entropyScore
+
+		object.Chunks = append(object.Chunks, *chunk)
 		cdcOffset += uint64(len(data))
 
 		totalEntropy += chunk.Entropy * float64(len(data))
@@ -742,20 +728,12 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 
 	if totalDataSize > 0 {
 		object.Entropy = totalEntropy / float64(totalDataSize)
-		object.Distribution = distribution(totalFreq, totalDataSize)
 	} else {
 		object.Entropy = 0.0
-		object.Distribution = [256]byte{}
 	}
 
 	copy(object_t32[:], objectHasher.Sum(nil))
 	object.Checksum = object_t32
-
-	classifications := cprocessor.Finalize()
-	for _, result := range classifications {
-		object.AddClassification(result.Analyzer, result.Classes)
-	}
-
 	return object, nil
 }
 
@@ -826,6 +804,10 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 				}
 			}
 		}
+	}
+
+	if err := snap.deltaState.PutPackfile(snap.Header.Identifier, checksum); err != nil {
+		return err
 	}
 
 	return nil
