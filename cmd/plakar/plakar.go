@@ -293,6 +293,7 @@ func entryPoint() int {
 						}
 						continue
 					}
+					secret = key
 					derived = true
 					break
 				}
@@ -300,6 +301,7 @@ func entryPoint() int {
 				key, err := encryption.DeriveKey(store.Configuration().Encryption.KDFParams, []byte(ctx.KeyFromFile))
 				if err == nil {
 					if encryption.VerifyCanary(key, store.Configuration().Encryption.Canary) {
+						secret = key
 						derived = true
 					}
 				}
