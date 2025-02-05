@@ -23,6 +23,7 @@ import (
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/denisbrodbeck/machineid"
 	"github.com/google/uuid"
 
@@ -260,7 +261,7 @@ func entryPoint() int {
 		return 1
 	}
 
-	if store.Configuration().Version != storage.VERSION {
+	if store.Configuration().Version != versioning.FromString(storage.VERSION) {
 		fmt.Fprintf(os.Stderr, "%s: incompatible repository version: %s != %s\n",
 			flag.CommandLine.Name(), store.Configuration().Version, storage.VERSION)
 		return 1
