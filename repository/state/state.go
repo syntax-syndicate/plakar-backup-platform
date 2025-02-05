@@ -43,7 +43,7 @@ type EntryType uint8
 const (
 	ET_METADATA  EntryType = 1
 	ET_LOCATIONS           = 2
-	ET_TIMESTAMP           = 3
+	ET_DELETED             = 3
 )
 
 type Metadata struct {
@@ -58,17 +58,23 @@ type Location struct {
 	Length   uint32
 }
 
+const LocationSerializedSize = 32 + 4 + 4
+
 type DeltaEntry struct {
 	Type     resources.Type
 	Blob     objects.Checksum
 	Location Location
 }
 
-/* /!\ Always keep those in sync with the serialized format on disk.
- * We are not using reflect.SizeOf because we might have padding in those structs
- */
-const LocationSerializedSize = 32 + 4 + 4
 const DeltaEntrySerializedSize = 1 + 32 + LocationSerializedSize
+
+type DeletedEntry struct {
+	Type resources.Type
+	Blob objects.Checksum
+	When time.Time
+}
+
+const DeletedEntrySerializedSize = 1 + 32 + 8
 
 /*
  * A local version of the state, possibly aggregated, that uses on-disk storage.
@@ -184,7 +190,7 @@ func (ls *LocalState) InsertState(stateID objects.Checksum, rd io.Reader) error 
 	return nil
 }
 
-/* On disk format is <EntryType><Entry>...N<header>
+/* On disk format is <EntryType><EntryLength><Entry>...N<header>
  * Counting keys would mean iterating twice so we reverse the format and add a
  * type.
  */
@@ -205,12 +211,38 @@ func (ls *LocalState) SerializeToStream(w io.Writer) error {
 
 	/* First we serialize all the LOCATIONS type entries */
 	for _, entry := range ls.cache.GetDeltas() {
-		w.Write([]byte{byte(ET_LOCATIONS)})
-		w.Write(entry)
+		if _, err := w.Write([]byte{byte(ET_LOCATIONS)}); err != nil {
+			return fmt.Errorf("failed to write delta entry type: %w", err)
+		}
+
+		if err := writeUint32(DeltaEntrySerializedSize); err != nil {
+			return fmt.Errorf("failed to write delta entry length: %w", err)
+		}
+
+		if _, err := w.Write(entry); err != nil {
+			return fmt.Errorf("failed to write delta entry: %w", err)
+		}
+	}
+
+	/* Then all the Deleted entries */
+	for _, entry := range ls.cache.GetDeleteds() {
+		if _, err := w.Write([]byte{byte(ET_DELETED)}); err != nil {
+			return fmt.Errorf("failed to write deleted entry type: %w", err)
+		}
+
+		if err := writeUint32(DeletedEntrySerializedSize); err != nil {
+			return fmt.Errorf("failed to write deleted entry length: %w", err)
+		}
+
+		if _, err := w.Write(entry); err != nil {
+			return fmt.Errorf("failed to write deleted entry: %w", err)
+		}
 	}
 
 	/* Finally we serialize the Metadata */
-	w.Write([]byte{byte(ET_METADATA)})
+	if _, err := w.Write([]byte{byte(ET_METADATA)}); err != nil {
+		return fmt.Errorf("failed to write metadata type %w", err)
+	}
 	if err := writeUint32(uint32(ls.Metadata.Version)); err != nil {
 		return fmt.Errorf("failed to write version: %w", err)
 	}
@@ -276,6 +308,45 @@ func (de *DeltaEntry) ToBytes() (ret []byte) {
 	return
 }
 
+func DeletedEntryFromBytes(buf []byte) (de DeletedEntry, err error) {
+	bbuf := bytes.NewBuffer(buf)
+
+	typ, err := bbuf.ReadByte()
+	if err != nil {
+		return
+	}
+
+	de.Type = resources.Type(typ)
+
+	n, err := bbuf.Read(de.Blob[:])
+	if err != nil {
+		return
+	}
+	if n < len(objects.Checksum{}) {
+		return de, fmt.Errorf("Short read while deserializing deleted entry")
+	}
+
+	timestamp := binary.LittleEndian.Uint64(bbuf.Next(8))
+	de.When = time.Unix(0, int64(timestamp))
+
+	return
+}
+
+func (de *DeletedEntry) _toBytes(buf []byte) {
+	pos := 0
+	buf[pos] = byte(de.Type)
+	pos++
+
+	pos += copy(buf[pos:], de.Blob[:])
+	binary.LittleEndian.PutUint64(buf[pos:], uint64(de.When.UnixNano()))
+}
+
+func (de *DeletedEntry) ToBytes() (ret []byte) {
+	ret = make([]byte, DeletedEntrySerializedSize)
+	de._toBytes(ret)
+	return
+}
+
 func (ls *LocalState) deserializeFromStream(r io.Reader) error {
 	readUint64 := func() (uint64, error) {
 		buf := make([]byte, 8)
@@ -296,28 +367,63 @@ func (ls *LocalState) deserializeFromStream(r io.Reader) error {
 	/* Deserialize LOCATIONS */
 	et_buf := make([]byte, 1)
 	de_buf := make([]byte, DeltaEntrySerializedSize)
+	deleted_buf := make([]byte, DeletedEntrySerializedSize)
 	for {
 		n, err := r.Read(et_buf)
 		if err != nil || n != len(et_buf) {
 			return fmt.Errorf("failed to read entry type %w", err)
 		}
 
-		if EntryType(et_buf[0]) == ET_METADATA {
+		entryType := EntryType(et_buf[0])
+		if entryType == ET_METADATA {
 			break
 		}
 
-		if n, err := io.ReadFull(r, de_buf); err != nil {
-			return fmt.Errorf("failed to read delta entry %w, read(%d)/expected(%d)", err, n, DeltaEntrySerializedSize)
-		}
-
-		// We need to decode just to make the key, but we can reuse the buffer
-		// to put inside the data part of the cache.
-		delta, err := DeltaEntryFromBytes(de_buf)
+		length, err := readUint32()
 		if err != nil {
-			return fmt.Errorf("failed to deserialize delta entry %w", err)
+			return fmt.Errorf("failed to read entry length %w", err)
 		}
 
-		ls.cache.PutDelta(delta.Type, delta.Blob, de_buf)
+		//XXX: This is screaming refactorization, but is a bit subtil.
+		switch entryType {
+		case ET_LOCATIONS:
+			if length != DeltaEntrySerializedSize {
+				return fmt.Errorf("failed to read delta entry wrong length got(%d)/expected(%d)", length, DeltaEntrySerializedSize)
+			}
+
+			if n, err := io.ReadFull(r, de_buf); err != nil {
+				return fmt.Errorf("failed to read delta entry %w, read(%d)/expected(%d)", err, n, length)
+			}
+
+			// We need to decode just to make the key, but we can reuse the buffer
+			// to put inside the data part of the cache.
+			delta, err := DeltaEntryFromBytes(de_buf)
+			if err != nil {
+				return fmt.Errorf("failed to deserialize delta entry %w", err)
+			}
+
+			ls.cache.PutDelta(delta.Type, delta.Blob, de_buf)
+		case ET_DELETED:
+			if length != DeletedEntrySerializedSize {
+				return fmt.Errorf("failed to read dleted entry wrong length got(%d)/expected(%d)", length, DeletedEntrySerializedSize)
+			}
+
+			if n, err := io.ReadFull(r, deleted_buf); err != nil {
+				return fmt.Errorf("failed to read deleted entry %w, read(%d)/expected(%d)", err, n, length)
+			}
+
+			deleted, err := DeletedEntryFromBytes(deleted_buf)
+			if err != nil {
+				return fmt.Errorf("failed to deserialize deleted entry %w", err)
+			}
+
+			ls.cache.PutDeleted(deleted.Type, deleted.Blob, deleted_buf)
+
+		default:
+			// Our version doesn't know this entry type, just skip it.
+			io.CopyN(io.Discard, r, int64(length))
+		}
+
 	}
 
 	/* Deserialize Metadata */
@@ -388,15 +494,13 @@ func (ls *LocalState) GetSubpartForBlob(Type resources.Type, blobChecksum object
 func (ls *LocalState) ListSnapshots() iter.Seq[objects.Checksum] {
 	return func(yield func(objects.Checksum) bool) {
 		for csum, _ := range ls.cache.GetDeltasByType(resources.RT_SNAPSHOT) {
-			// TODO: handling of deleted snaps.
-			//st.muDeletedSnapshots.Lock()
-			//_, deleted := st.DeletedSnapshots[k]
-			//st.muDeletedSnapshots.Unlock()
-			//if !deleted {
+			if has, _ := ls.cache.HasDeleted(resources.RT_SNAPSHOT, csum); has {
+				continue
+			}
+
 			if !yield(csum) {
 				return
 			}
-			//}
 		}
 	}
 }
@@ -412,6 +516,15 @@ func (ls *LocalState) ListObjectsOfType(Type resources.Type) iter.Seq2[DeltaEntr
 		}
 	}
 
+}
+
+func (ls *LocalState) DeleteSnapshot(snapshotID objects.Checksum) error {
+	de := DeletedEntry{
+		Type: resources.RT_SNAPSHOT,
+		Blob: snapshotID,
+		When: time.Now(),
+	}
+	return ls.cache.PutDeleted(resources.RT_SNAPSHOT, snapshotID, de.ToBytes())
 }
 
 func (mt *Metadata) ToBytes() ([]byte, error) {
