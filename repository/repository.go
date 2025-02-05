@@ -272,16 +272,16 @@ func (r *Repository) GetState(checksum objects.Checksum) (io.Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return r.Deserialize(rd)
+	return r.Deserialize(resources.RT_STATE, rd)
 }
 
-func (r *Repository) PutState(version versioning.Version, checksum objects.Checksum, rd io.Reader) error {
+func (r *Repository) PutState(checksum objects.Checksum, rd io.Reader) error {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "PutState(%x, ...): %s", checksum, time.Since(t0))
 	}()
 
-	rd, err := r.Serialize(resources.RT_STATE, version, rd)
+	rd, err := r.Serialize(resources.RT_STATE, versioning.GetCurrentVersion(resources.RT_STATE), rd)
 	if err != nil {
 		return err
 	}
@@ -315,13 +315,13 @@ func (r *Repository) GetPackfile(checksum objects.Checksum) (io.Reader, error) {
 	return r.store.GetPackfile(checksum)
 }
 
-func (r *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint32, length uint32) (io.ReadSeeker, error) {
+func (r *Repository) GetPackfileBlob(resourceType resources.Type, checksum objects.Checksum, offset uint32, length uint32) (io.ReadSeeker, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "GetPackfileBlob(%x, %d, %d): %s", checksum, offset, length, time.Since(t0))
 	}()
 
-	rd, err := r.store.GetPackfileBlob(checksum, offset, length)
+	rd, err := r.store.GetPackfileBlob(checksum, offset+HEADER_SIZE, length)
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +331,7 @@ func (r *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint32, l
 		return nil, err
 	}
 
-	decoded, err := r.DeserializeBuffer(data)
+	decoded, err := r.DeserializeBuffer(resourceType, data)
 	if err != nil {
 		return nil, err
 	}
@@ -345,6 +345,10 @@ func (r *Repository) PutPackfile(checksum objects.Checksum, rd io.Reader) error 
 		r.Logger().Trace("repository", "PutPackfile(%x, ...): %s", checksum, time.Since(t0))
 	}()
 
+	rd, err := r.Serialize(resources.RT_PACKFILE, versioning.GetCurrentVersion(resources.RT_PACKFILE), rd)
+	if err != nil {
+		return err
+	}
 	return r.store.PutPackfile(checksum, rd)
 }
 
@@ -368,7 +372,7 @@ func (r *Repository) GetBlob(Type resources.Type, checksum objects.Checksum) (io
 		return nil, ErrPackfileNotFound
 	}
 
-	rd, err := r.GetPackfileBlob(packfileChecksum, offset, length)
+	rd, err := r.GetPackfileBlob(Type, packfileChecksum, offset, length)
 	if err != nil {
 		return nil, err
 	}

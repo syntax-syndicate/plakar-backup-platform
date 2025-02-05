@@ -12,6 +12,7 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/resources"
 )
 
 type InfoPackfile struct {
@@ -73,7 +74,7 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 			footerbuf := rawPackfile[len(rawPackfile)-int(footerOffset):]
 			rawPackfile = rawPackfile[:len(rawPackfile)-int(footerOffset)]
 
-			footerbuf, err = repo.DeserializeBuffer(footerbuf)
+			footerbuf, err = repo.DeserializeBuffer(resources.RT_PACKFILE_FOOTER, footerbuf)
 			if err != nil {
 				return 1, err
 			}
@@ -85,7 +86,7 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 			indexbuf := rawPackfile[int(footer.IndexOffset):]
 			rawPackfile = rawPackfile[:int(footer.IndexOffset)]
 
-			indexbuf, err = repo.DeserializeBuffer(indexbuf)
+			indexbuf, err = repo.DeserializeBuffer(resources.RT_PACKFILE_INDEX, indexbuf)
 			if err != nil {
 				return 1, err
 			}

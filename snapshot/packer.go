@@ -127,7 +127,7 @@ func (snap *Snapshot) GetBlob(Type resources.Type, checksum [32]byte) ([]byte, e
 		packfileChecksum, offset, length, exists := snap.deltaState.GetSubpartForBlob(Type, checksum)
 
 		if exists {
-			rd, err := snap.repository.GetPackfileBlob(packfileChecksum, offset, length)
+			rd, err := snap.repository.GetPackfileBlob(Type, packfileChecksum, offset, length)
 			if err != nil {
 				return nil, err
 			}

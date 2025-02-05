@@ -148,7 +148,8 @@ func repositoryPackfile(w http.ResponseWriter, r *http.Request) error {
 
 	var rd io.Reader
 	if offsetExists && lengthExists {
-		rd, err = lrepository.GetPackfileBlob(packfileBytes32, offset, length)
+		//XXX: Temporary workaround
+		rd, err = lrepository.GetPackfileBlob(0, packfileBytes32, offset, length)
 		if err != nil {
 			return err
 		}

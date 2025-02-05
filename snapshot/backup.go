@@ -776,12 +776,12 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 		panic("could not serialize pack file footer" + err.Error())
 	}
 
-	encryptedIndex, err := repo.SerializeBuffer(resources.RT_PACKFILE_INDEX, packer.Packfile.Footer.Version, serializedIndex)
+	encryptedIndex, err := repo.SerializeBuffer(resources.RT_PACKFILE_INDEX, serializedIndex)
 	if err != nil {
 		return err
 	}
 
-	encryptedFooter, err := repo.SerializeBuffer(resources.RT_PACKFILE_FOOTER, packer.Packfile.Footer.Version, serializedFooter)
+	encryptedFooter, err := repo.SerializeBuffer(resources.RT_PACKFILE_FOOTER, serializedFooter)
 	if err != nil {
 		return err
 	}
@@ -855,7 +855,7 @@ func (snap *Snapshot) Commit() error {
 	<-snap.packerChanDone
 
 	stateDelta := snap.buildSerializedDeltaState()
-	err = repo.PutState(snap.deltaState.Metadata.Version, snap.Header.Identifier, stateDelta)
+	err = repo.PutState(snap.Header.Identifier, stateDelta)
 	if err != nil {
 		snap.Logger().Warn("Failed to push the state to the repository %s", err)
 		return err

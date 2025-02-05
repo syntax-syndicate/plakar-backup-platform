@@ -15,6 +15,11 @@ import (
 )
 
 const (
+	HEADER_SIZE uint32 = 8
+	FOOTER_SIZE uint32 = 32
+)
+
+const (
 	PHASE_HEADER = iota
 	PHASE_DATA
 	PHASE_FOOTER
@@ -72,26 +77,26 @@ func (r *Repository) encode(input io.Reader) (io.Reader, error) {
 	return stream, nil
 }
 
-func (r *Repository) DeserializeBuffer(buffer []byte) ([]byte, error) {
+func (r *Repository) DeserializeBuffer(resourceType resources.Type, buffer []byte) ([]byte, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "DeserializeBuffer(%d bytes): %s", len(buffer), time.Since(t0))
 	}()
 
-	rd, err := r.Deserialize(bytes.NewBuffer(buffer))
+	rd, err := r.Deserialize(resourceType, bytes.NewBuffer(buffer))
 	if err != nil {
 		return nil, err
 	}
 	return io.ReadAll(rd)
 }
 
-func (r *Repository) SerializeBuffer(resourceType resources.Type, version versioning.Version, buffer []byte) ([]byte, error) {
+func (r *Repository) SerializeBuffer(resourceType resources.Type, buffer []byte) ([]byte, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "SerializeBuffer(%d): %s", len(buffer), time.Since(t0))
 	}()
 
-	rd, err := r.Serialize(resourceType, version, bytes.NewBuffer(buffer))
+	rd, err := r.Serialize(resourceType, versioning.GetCurrentVersion(resourceType), bytes.NewBuffer(buffer))
 	if err != nil {
 		return nil, err
 	}
@@ -165,12 +170,6 @@ func (s *deserializeReader) Read(p []byte) (int, error) {
 
 		if s.eof && len(s.leftOver) == 32 {
 			copy(s.hmac[:], s.leftOver)
-
-			//s.hmac = [32]byte{}
-
-			//s.innerChecksum = [32]byte{}
-			//s.outerChecksum = [32]byte{}
-
 			if !bytes.Equal(s.hmac[:], s.hasher.Sum(nil)) {
 				return 0, fmt.Errorf("hmac mismatch")
 			}
@@ -189,7 +188,7 @@ func (s *deserializeReader) Read(p []byte) (int, error) {
 	return total, nil
 }
 
-func (r *Repository) Deserialize(input io.Reader) (io.Reader, error) {
+func (r *Repository) Deserialize(resourceType resources.Type, input io.Reader) (io.Reader, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "Deserialize: %s", time.Since(t0))
@@ -198,6 +197,10 @@ func (r *Repository) Deserialize(input io.Reader) (io.Reader, error) {
 	rd, err := r.newDeserializeReader(input)
 	if err != nil {
 		return nil, err
+	}
+
+	if resourceType == resources.RT_PACKFILE {
+		return rd, nil
 	}
 	return r.decode(rd)
 }
@@ -299,12 +302,16 @@ func (r *Repository) Serialize(resourceType resources.Type, version versioning.V
 		r.Logger().Trace("repository", "Serialize: %s", time.Since(t0))
 	}()
 
+	// packfiles are a special case they must not be encoded
+	// as they are a collection of encoded objects glued together
+	//
+	if resourceType == resources.RT_PACKFILE {
+		return r.newSerializeReader(resourceType, version, input), nil
+	}
+
 	encoded, err := r.encode(input)
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println("serialize", resourceType, version)
-
 	return r.newSerializeReader(resourceType, version, encoded), nil
 }
