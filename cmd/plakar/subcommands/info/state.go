@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
@@ -53,7 +52,7 @@ func (cmd *InfoState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 
 			rawStateRd, err := repo.GetState(byteArray)
 			if err != nil {
-				log.Fatal(err)
+				return 1, err
 			}
 
 			// Temporary scan cache to reconstruct that state.
