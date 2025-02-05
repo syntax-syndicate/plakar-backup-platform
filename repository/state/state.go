@@ -333,11 +333,6 @@ func (ls *LocalState) deserializeFromStream(r io.Reader) error {
 	}
 	ls.Metadata.Timestamp = time.Unix(0, int64(timestamp))
 
-	aggregate := make([]byte, 1)
-	if _, err := io.ReadFull(r, aggregate); err != nil {
-		return fmt.Errorf("failed to read aggregate flag: %w", err)
-	}
-
 	serial := make([]byte, len(uuid.UUID{}))
 	if _, err := io.ReadFull(r, serial); err != nil {
 		return fmt.Errorf("failed to read serial: %w", err)
