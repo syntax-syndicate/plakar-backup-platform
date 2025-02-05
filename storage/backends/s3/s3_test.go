@@ -8,6 +8,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/johannesboyne/gofakes3"
 	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"github.com/stretchr/testify/require"
@@ -34,7 +35,7 @@ func TestS3Backend(t *testing.T) {
 
 	err = repo.Open(ts.URL + "/bucket")
 	require.NoError(t, err)
-	require.Equal(t, repo.Configuration().Version, storage.VERSION)
+	require.Equal(t, repo.Configuration().Version, versioning.FromString(storage.VERSION))
 
 	err = repo.Close()
 	require.NoError(t, err)
