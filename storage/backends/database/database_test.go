@@ -8,6 +8,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/stretchr/testify/require"
 
 	_ "modernc.org/sqlite"
@@ -32,7 +33,7 @@ func TestDatabaseBackend(t *testing.T) {
 
 	err = repo.Open("sqlite:///tmp/testdb.db")
 	require.NoError(t, err)
-	require.Equal(t, repo.Configuration().Version, storage.VERSION)
+	require.Equal(t, repo.Configuration().Version, versioning.FromString(storage.VERSION))
 
 	err = repo.Close()
 	require.NoError(t, err)
