@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/google/uuid"
@@ -15,6 +16,10 @@ import (
 )
 
 const VERSION = "1.0.0"
+
+func init() {
+	versioning.Register(resources.RT_SNAPSHOT, versioning.FromString(VERSION))
+}
 
 type Importer struct {
 	Type      string `msgpack:"type" json:"type"`
@@ -65,8 +70,8 @@ func NewSource() *Source {
 }
 
 type Header struct {
-	Identifier      objects.Checksum   `msgpack:"identifier" json:"identifier"`
 	Version         versioning.Version `msgpack:"version" json:"version"`
+	Identifier      objects.Checksum   `msgpack:"identifier" json:"identifier"`
 	Timestamp       time.Time          `msgpack:"timestamp" json:"timestamp"`
 	Duration        time.Duration      `msgpack:"duration" json:"duration"`
 	Identity        Identity           `msgpack:"identity" json:"identity"`

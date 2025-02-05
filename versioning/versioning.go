@@ -41,20 +41,23 @@ func FromString(s string) Version {
 var currentVersions map[resources.Type]Version = make(map[resources.Type]Version)
 var currentVersionsMu sync.Mutex
 
-func RegisterVersion(resourceType resources.Type, version Version) {
+func Register(resourceType resources.Type, version Version) {
 	currentVersionsMu.Lock()
 	defer currentVersionsMu.Unlock()
+
+	if _, ok := currentVersions[resourceType]; ok {
+		panic(fmt.Sprintf("version already registered for type %s", resourceType))
+	}
 	currentVersions[resourceType] = version
 }
 
-func CurrentVersion(resourceType resources.Type) Version {
+func GetCurrentVersion(Type resources.Type) Version {
 	currentVersionsMu.Lock()
 	defer currentVersionsMu.Unlock()
 
-	fmt.Println("resourceType", resourceType)
-	ret, found := currentVersions[resourceType]
-	if !found {
-		panic("version not found for resource type" + string(resourceType))
+	if version, ok := currentVersions[Type]; !ok {
+		panic(fmt.Sprintf("version not registered for type %s", Type))
+	} else {
+		return version
 	}
-	return ret
 }

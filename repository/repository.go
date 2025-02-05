@@ -2,8 +2,8 @@ package repository
 
 import (
 	"bytes"
+	"crypto/hmac"
 	"errors"
-	"fmt"
 	"hash"
 	"io"
 	"iter"
@@ -15,8 +15,6 @@ import (
 	_ "github.com/PlakarKorp/go-cdc-chunkers/chunkers/ultracdc"
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/caching"
-	"github.com/PlakarKorp/plakar/compression"
-	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/objects"
@@ -169,106 +167,12 @@ func (r *Repository) Close() error {
 	return nil
 }
 
-func (r *Repository) Deserialize(input io.Reader) (io.Reader, error) {
-	t0 := time.Now()
-	defer func() {
-		r.Logger().Trace("repository", "Deserialize: %s", time.Since(t0))
-	}()
-
-	return r.decode(input)
-}
-
-func (r *Repository) Serialize(resourceType resources.Type, version versioning.Version, input io.Reader) (io.Reader, error) {
-	t0 := time.Now()
-	defer func() {
-		r.Logger().Trace("repository", "Serialize: %s", time.Since(t0))
-	}()
-
-	fmt.Println("WILL SERIALIZE RESOURCE TYPE", resourceType, "VERSION", version)
-
-	return r.encode(input)
-}
-
-func (r *Repository) decode(input io.Reader) (io.Reader, error) {
-	t0 := time.Now()
-	defer func() {
-		r.Logger().Trace("repository", "Decode: %s", time.Since(t0))
-	}()
-
-	stream := input
-	if r.secret != nil {
-		tmp, err := encryption.DecryptStream(r.secret, stream)
-		if err != nil {
-			return nil, err
-		}
-		stream = tmp
-	}
-
-	if r.configuration.Compression != nil {
-		tmp, err := compression.InflateStream(r.configuration.Compression.Algorithm, stream)
-		if err != nil {
-			return nil, err
-		}
-		stream = tmp
-	}
-
-	return stream, nil
-}
-
-func (r *Repository) encode(input io.Reader) (io.Reader, error) {
-	t0 := time.Now()
-	defer func() {
-		r.Logger().Trace("repository", "Encode: %s", time.Since(t0))
-	}()
-
-	stream := input
-	if r.configuration.Compression != nil {
-		tmp, err := compression.DeflateStream(r.configuration.Compression.Algorithm, stream)
-		if err != nil {
-			return nil, err
-		}
-		stream = tmp
-	}
-
-	if r.secret != nil {
-		tmp, err := encryption.EncryptStream(r.secret, stream)
-		if err != nil {
-			return nil, err
-		}
-		stream = tmp
-	}
-
-	return stream, nil
-}
-
-func (r *Repository) DeserializeBuffer(buffer []byte) ([]byte, error) {
-	t0 := time.Now()
-	defer func() {
-		r.Logger().Trace("repository", "Deserialize(%d bytes): %s", len(buffer), time.Since(t0))
-	}()
-
-	rd, err := r.Deserialize(bytes.NewBuffer(buffer))
-	if err != nil {
-		return nil, err
-	}
-	return io.ReadAll(rd)
-}
-
-func (r *Repository) SerializeBuffer(resourceType resources.Type, version versioning.Version, buffer []byte) ([]byte, error) {
-	t0 := time.Now()
-	defer func() {
-		r.Logger().Trace("repository", "Encode(%d): %s", len(buffer), time.Since(t0))
-	}()
-
-	rd, err := r.Serialize(resourceType, version, bytes.NewBuffer(buffer))
-	if err != nil {
-		return nil, err
-	}
-	return io.ReadAll(rd)
-}
-
 func (r *Repository) Hasher() hash.Hash {
 	return hashing.GetHasher(r.Configuration().Hashing.Algorithm)
+}
+
+func (r *Repository) HMAC() hash.Hash {
+	return hmac.New(r.Hasher, r.AppContext().GetSecret())
 }
 
 func (r *Repository) Checksum(data []byte) objects.Checksum {

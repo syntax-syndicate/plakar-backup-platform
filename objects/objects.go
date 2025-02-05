@@ -5,8 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/PlakarKorp/plakar/resources"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/vmihailenco/msgpack/v5"
 )
+
+const OBJECT_VERSION = "1.0.0"
+const CHUNK_VERSION = "1.0.0"
+
+func init() {
+	versioning.Register(resources.RT_OBJECT, versioning.FromString(OBJECT_VERSION))
+	versioning.Register(resources.RT_CHUNK, versioning.FromString(CHUNK_VERSION))
+}
 
 type Checksum [32]byte
 
@@ -44,15 +54,16 @@ type CustomMetadata struct {
 }
 
 type Object struct {
-	Checksum        Checksum         `msgpack:"checksum" json:"checksum"`
-	Chunks          []Chunk          `msgpack:"chunks" json:"chunks"`
-	ContentType     string           `msgpack:"content_type,omitempty" json:"content_type"`
-	Classifications []Classification `msgpack:"classifications,omitempty" json:"classifications"`
-	CustomMetadata  []CustomMetadata `msgpack:"custom_metadata,omitempty" json:"custom_metadata"`
-	Tags            []string         `msgpack:"tags,omitempty" json:"tags"`
-	Entropy         float64          `msgpack:"entropy,omitempty" json:"entropy"`
-	Distribution    [256]byte        `msgpack:"distribution,omitempty" json:"distribution"`
-	Flags           uint32           `msgpack:"flags" json:"flags"`
+	Version         versioning.Version `msgpack:"version" json:"version"`
+	Checksum        Checksum           `msgpack:"checksum" json:"checksum"`
+	Chunks          []Chunk            `msgpack:"chunks" json:"chunks"`
+	ContentType     string             `msgpack:"content_type,omitempty" json:"content_type"`
+	Classifications []Classification   `msgpack:"classifications,omitempty" json:"classifications"`
+	CustomMetadata  []CustomMetadata   `msgpack:"custom_metadata,omitempty" json:"custom_metadata"`
+	Tags            []string           `msgpack:"tags,omitempty" json:"tags"`
+	Entropy         float64            `msgpack:"entropy,omitempty" json:"entropy"`
+	Distribution    [256]byte          `msgpack:"distribution,omitempty" json:"distribution"`
+	Flags           uint32             `msgpack:"flags" json:"flags"`
 }
 
 // Return empty lists for nil slices.
@@ -82,6 +93,7 @@ func (o *Object) MarshalJSON() ([]byte, error) {
 
 func NewObject() *Object {
 	return &Object{
+		Version:        versioning.FromString(OBJECT_VERSION),
 		CustomMetadata: make([]CustomMetadata, 0),
 	}
 }
@@ -116,9 +128,16 @@ func (o *Object) AddClassification(analyzer string, classes []string) {
 }
 
 type Chunk struct {
-	Checksum     Checksum  `msgpack:"checksum" json:"checksum"`
-	Length       uint32    `msgpack:"length" json:"length"`
-	Entropy      float64   `msgpack:"entropy" json:"entropy"`
-	Flags        uint32    `msgpack:"flags" json:"flags"`
-	Distribution [256]byte `msgpack:"distribution,omitempty" json:"distribution"`
+	Version      versioning.Version `msgpack:"version" json:"version"`
+	Checksum     Checksum           `msgpack:"checksum" json:"checksum"`
+	Length       uint32             `msgpack:"length" json:"length"`
+	Entropy      float64            `msgpack:"entropy" json:"entropy"`
+	Flags        uint32             `msgpack:"flags" json:"flags"`
+	Distribution [256]byte          `msgpack:"distribution,omitempty" json:"distribution"`
+}
+
+func NewChunk() *Chunk {
+	return &Chunk{
+		Version: versioning.FromString(CHUNK_VERSION),
+	}
 }

@@ -19,6 +19,12 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
+const VFS_ENTRY_VERSION = "1.0.0"
+
+func init() {
+	versioning.Register(resources.RT_VFS_ENTRY, versioning.FromString(VFS_ENTRY_VERSION))
+}
+
 // Entry implements FSEntry and fs.DirEntry, as well as some other
 // helper methods.
 type Entry struct {
@@ -99,7 +105,7 @@ func NewEntry(parentPath string, record *importer.ScanRecord) *Entry {
 	})
 
 	entry := &Entry{
-		Version:            VERSION,
+		Version:            versioning.FromString(VFS_ENTRY_VERSION),
 		RecordType:         record.Type,
 		FileInfo:           record.FileInfo,
 		SymlinkTarget:      target,

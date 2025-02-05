@@ -5,12 +5,22 @@ import (
 	"io"
 	"slices"
 
+	"github.com/PlakarKorp/plakar/resources"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
 var (
 	ErrExists = errors.New("Item already exists")
 )
+
+const BTREE_VERSION = "1.0.0"
+const BTREE_NODE_VERSION = "1.0.0"
+
+func init() {
+	versioning.Register(resources.RT_INDEX, versioning.FromString(BTREE_VERSION))
+	versioning.Register(resources.RT_INDEX_ENTRY, versioning.FromString(BTREE_NODE_VERSION))
+}
 
 type Storer[K any, P any, V any] interface {
 	// Get returns the node pointed by P.  The pointer is one

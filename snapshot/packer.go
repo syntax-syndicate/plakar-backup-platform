@@ -102,7 +102,7 @@ func packerJob(snap *Snapshot) {
 func (snap *Snapshot) PutBlob(Type resources.Type, checksum [32]byte, data []byte) error {
 	snap.Logger().Trace("snapshot", "%x: PutBlob(%d, %064x) len=%d", snap.Header.GetIndexShortID(), Type, checksum, len(data))
 
-	version := versioning.CurrentVersion(Type)
+	version := versioning.GetCurrentVersion(Type)
 
 	encodedReader, err := snap.repository.Serialize(Type, version, bytes.NewReader(data))
 	if err != nil {
