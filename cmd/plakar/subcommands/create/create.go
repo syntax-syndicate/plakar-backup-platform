@@ -84,7 +84,7 @@ func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 			if envPassphrase != "" {
 				passphrase = []byte(envPassphrase)
 			} else {
-				for {
+				for attempt := 0; attempt < 3; attempt++ {
 					tmp, err := utils.GetPassphraseConfirm("repository")
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "%s\n", err)

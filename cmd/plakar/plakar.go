@@ -235,7 +235,7 @@ func entryPoint() int {
 
 	// these commands need to be ran before the repository is opened
 	if command == "agent" || command == "create" || command == "version" || command == "stdio" || command == "help" {
-		cmd, err := subcommands.Parse(ctx, nil, command, args, opt_agentless)
+		cmd, err := subcommands.Parse(ctx, nil, command, args)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
@@ -301,6 +301,7 @@ func entryPoint() int {
 				key, err := encryption.DeriveKey(store.Configuration().Encryption.KDFParams, []byte(ctx.KeyFromFile))
 				if err == nil {
 					if encryption.VerifyCanary(key, store.Configuration().Encryption.Canary) {
+						secret = key
 						derived = true
 					}
 				}
@@ -331,7 +332,7 @@ func entryPoint() int {
 
 	// commands below all operate on an open repository
 	t0 := time.Now()
-	cmd, err := subcommands.Parse(ctx, repo, command, args, opt_agentless)
+	cmd, err := subcommands.Parse(ctx, repo, command, args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		return 1
