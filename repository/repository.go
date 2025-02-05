@@ -2,7 +2,6 @@ package repository
 
 import (
 	"bytes"
-	"crypto/hmac"
 	"errors"
 	"hash"
 	"io"
@@ -266,7 +265,7 @@ func (r *Repository) Checksum(data []byte) objects.Checksum {
 }
 
 func (r *Repository) HMAC() hash.Hash {
-	return hmac.New(r.Hasher, r.AppContext().GetSecret())
+	return hashing.GetHMAC(r.Configuration().Hashing.Algorithm, r.AppContext().GetSecret())
 }
 
 func (r *Repository) ChecksumHMAC(data []byte) objects.Checksum {
