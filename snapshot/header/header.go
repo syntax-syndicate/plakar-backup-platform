@@ -81,6 +81,8 @@ type Header struct {
 	Category        string             `msgpack:"category" json:"category"`
 	Environment     string             `msgpack:"environment" json:"environment"`
 	Perimeter       string             `msgpack:"perimeter" json:"perimeter"`
+	Job             string             `msgpack:"job" json:"job"`
+	Replicas        uint32             `msgpack:"replicas" json:"replicas"`
 	Classifications []Classification   `msgpack:"classifications" json:"classifications"`
 	Tags            []string           `msgpack:"tags" json:"tags"`
 	Context         []KeyValue         `msgpack:"context" json:"context"`
@@ -96,6 +98,8 @@ func NewHeader(name string, identifier objects.Checksum) *Header {
 		Category:        "default",
 		Environment:     "default",
 		Perimeter:       "default",
+		Job:             "default",
+		Replicas:        1,
 		Classifications: []Classification{},
 		Tags:            []string{},
 
