@@ -22,7 +22,6 @@ package mount
 import (
 	"flag"
 	"fmt"
-	"log"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
@@ -70,7 +69,7 @@ func (cmd *Mount) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 		fuse.LocalVolume(),
 	)
 	if err != nil {
-		log.Fatalf("Mount: %v", err)
+		return 1, fmt.Errorf("mount: %v", err)
 	}
 	defer c.Close()
 	ctx.GetLogger().Info("mounted repository %s at %s", repo.Location(), cmd.Mountpoint)

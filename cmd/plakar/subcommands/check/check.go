@@ -19,7 +19,6 @@ package check
 import (
 	"flag"
 	"fmt"
-	"log"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
@@ -94,7 +93,7 @@ func (cmd *Check) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 		snapshotPrefix, pathname := utils.ParseSnapshotID(arg)
 		snap, err := utils.OpenSnapshotByPrefix(repo, snapshotPrefix)
 		if err != nil {
-			log.Fatal(err)
+			return 1, err
 		}
 
 		if !cmd.NoVerify && snap.Header.Identity.Identifier != uuid.Nil {
