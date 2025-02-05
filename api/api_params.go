@@ -64,6 +64,24 @@ func QueryParamToUint32(r *http.Request, param string) (uint32, bool, error) {
 	return uint32(n), true, nil
 }
 
+func QueryParamToUint64(r *http.Request, param string) (uint64, bool, error) {
+	str := r.URL.Query().Get(param)
+	if str == "" {
+		return 0, false, nil
+	}
+
+	n, err := strconv.ParseInt(str, 10, 64)
+	if err != nil {
+		return 0, true, err
+	}
+
+	if n < 0 {
+		return 0, true, parameterError(param, BadNumber, ErrNegativeNumber)
+	}
+
+	return uint64(n), true, nil
+}
+
 func QueryParamToInt64(r *http.Request, param string) (int64, bool, error) {
 	str := r.URL.Query().Get(param)
 	if str == "" {

@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	HEADER_SIZE uint32 = 8
-	FOOTER_SIZE uint32 = 32
+	HEADER_SIZE uint64 = 8
+	FOOTER_SIZE uint64 = 32
 )
 
 const (

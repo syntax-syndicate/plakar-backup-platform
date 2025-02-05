@@ -342,7 +342,7 @@ func (r *Repository) GetPackfile(checksum objects.Checksum) (io.Reader, error) {
 	return r.store.GetPackfile(checksum)
 }
 
-func (r *Repository) GetPackfileBlob(resourceType resources.Type, checksum objects.Checksum, offset uint32, length uint32) (io.ReadSeeker, error) {
+func (r *Repository) GetPackfileBlob(resourceType resources.Type, checksum objects.Checksum, offset uint64, length uint32) (io.ReadSeeker, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "GetPackfileBlob(%x, %d, %d): %s", checksum, offset, length, time.Since(t0))
@@ -424,7 +424,7 @@ func (r *Repository) ListSnapshots() iter.Seq[objects.Checksum] {
 	return r.state.ListSnapshots()
 }
 
-func (r *Repository) SetPackfileForBlob(Type resources.Type, packfileChecksum objects.Checksum, chunkChecksum objects.Checksum, offset uint32, length uint32) {
+func (r *Repository) SetPackfileForBlob(Type resources.Type, packfileChecksum objects.Checksum, chunkChecksum objects.Checksum, offset uint64, length uint32) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "SetPackfileForBlob(%x, %x, %d, %d): %s", packfileChecksum, chunkChecksum, offset, length, time.Since(t0))

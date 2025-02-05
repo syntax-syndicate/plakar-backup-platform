@@ -274,9 +274,9 @@ func (repository *Repository) GetPackfile(checksum objects.Checksum) (io.Reader,
 	return object, nil
 }
 
-func (repository *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint32, length uint32) (io.Reader, error) {
+func (repository *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint64, length uint32) (io.Reader, error) {
 	opts := minio.GetObjectOptions{}
-	opts.SetRange(int64(offset), int64(offset+length))
+	opts.SetRange(int64(offset), int64(offset+uint64(length)))
 	object, err := repository.minioClient.GetObject(context.Background(), repository.bucketName, fmt.Sprintf("packfiles/%02x/%016x", checksum[0], checksum), opts)
 	if err != nil {
 		return nil, err
@@ -286,7 +286,7 @@ func (repository *Repository) GetPackfileBlob(checksum objects.Checksum, offset 
 		return nil, err
 	}
 
-	if stat.Size < int64(offset+length) {
+	if stat.Size < int64(offset+uint64(length)) {
 		return nil, fmt.Errorf("invalid range")
 	}
 
