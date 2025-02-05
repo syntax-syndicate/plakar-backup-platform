@@ -19,7 +19,6 @@ package restore
 import (
 	"flag"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -80,7 +79,7 @@ func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 	var err error
 	exporterInstance, err = exporter.NewExporter(cmd.Path)
 	if err != nil {
-		log.Fatal(err)
+		return 1, err
 	}
 	defer exporterInstance.Close()
 
@@ -92,7 +91,7 @@ func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 	if len(cmd.Snapshots) == 0 {
 		metadatas, err := utils.GetHeaders(repo, nil)
 		if err != nil {
-			log.Fatal(err)
+			return 1, err
 		}
 
 		for i := len(metadatas); i != 0; i-- {
