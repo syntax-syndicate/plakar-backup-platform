@@ -305,7 +305,6 @@ func entryPoint() int {
 						derived = true
 					}
 				}
-				secret = key
 			}
 			if !derived {
 				fmt.Fprintf(os.Stderr, "%s: could not derive secret\n", flag.CommandLine.Name())
