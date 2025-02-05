@@ -2,9 +2,10 @@
 
 ## Notes
 
-1- Whenever it is written that data was randomly-generated, it is using the `crypto/rand` PRNG as its source of randomness.
-2- The passphrase that protects a repository is the single most important secret: it must be safely backed up as loss means the repository data can't be recovered and compromission means the repository data is fully readable.
-3- Repository can be stored in a public cloud, configuration and encrypted content being available to the hosting company and its employees
+- Whenever it is written that data was randomly-generated, it is using the `crypto/rand` PRNG as its source of randomness.
+- The passphrase that protects a repository is the single most important secret:
+it must be safely backed up as loss means the repository data can't be recovered and compromission means the repository data is fully readable.
+- Repository can be stored in a public cloud, configuration and encrypted content being available to the hosting company and its employees
 
 
 ## Initialization of an encrypted repository
