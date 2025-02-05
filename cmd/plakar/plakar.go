@@ -23,6 +23,7 @@ import (
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/denisbrodbeck/machineid"
 	"github.com/google/uuid"
 
@@ -260,7 +261,7 @@ func entryPoint() int {
 		return 1
 	}
 
-	if store.Configuration().Version != storage.VERSION {
+	if store.Configuration().Version != versioning.FromString(storage.VERSION) {
 		fmt.Fprintf(os.Stderr, "%s: incompatible repository version: %s != %s\n",
 			flag.CommandLine.Name(), store.Configuration().Version, storage.VERSION)
 		return 1
@@ -293,6 +294,7 @@ func entryPoint() int {
 						}
 						continue
 					}
+					secret = key
 					derived = true
 					break
 				}
@@ -300,6 +302,7 @@ func entryPoint() int {
 				key, err := encryption.DeriveKey(store.Configuration().Encryption.KDFParams, []byte(ctx.KeyFromFile))
 				if err == nil {
 					if encryption.VerifyCanary(key, store.Configuration().Encryption.Canary) {
+						secret = key
 						derived = true
 					}
 				}
