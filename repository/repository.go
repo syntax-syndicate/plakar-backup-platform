@@ -2,6 +2,7 @@ package repository
 
 import (
 	"bytes"
+	"crypto/hmac"
 	"errors"
 	"hash"
 	"io"
@@ -251,6 +252,25 @@ func (r *Repository) Hasher() hash.Hash {
 
 func (r *Repository) Checksum(data []byte) objects.Checksum {
 	hasher := r.Hasher()
+	hasher.Write(data)
+	result := hasher.Sum(nil)
+
+	if len(result) != 32 {
+		panic("hasher returned invalid length")
+	}
+
+	var checksum objects.Checksum
+	copy(checksum[:], result)
+
+	return checksum
+}
+
+func (r *Repository) HMAC() hash.Hash {
+	return hmac.New(r.Hasher, r.AppContext().GetSecret())
+}
+
+func (r *Repository) ChecksumHMAC(data []byte) objects.Checksum {
+	hasher := r.HMAC()
 	hasher.Write(data)
 	result := hasher.Sum(nil)
 
