@@ -171,10 +171,6 @@ func (r *Repository) Hasher() hash.Hash {
 	return hashing.GetHasher(r.Configuration().Hashing.Algorithm)
 }
 
-func (r *Repository) HMAC() hash.Hash {
-	return hmac.New(r.Hasher, r.AppContext().GetSecret())
-}
-
 func (r *Repository) Checksum(data []byte) objects.Checksum {
 	hasher := r.Hasher()
 	hasher.Write(data)
