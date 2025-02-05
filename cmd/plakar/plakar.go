@@ -52,7 +52,7 @@ func main() {
 		// tracing.
 		// We recommend adjusting this value in production,
 		TracesSampleRate: 1.0,
-		Debug:            true,
+		// Debug:            true,
 	})
 	if err != nil {
 		log.Fatalf("sentry.Init: %s", err)
