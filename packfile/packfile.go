@@ -2,7 +2,6 @@ package packfile
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -34,11 +33,10 @@ type PackFile struct {
 }
 
 type PackFileFooter struct {
-	Version       versioning.Version
-	Timestamp     int64
-	Count         uint32
-	IndexOffset   uint32
-	IndexChecksum [32]byte
+	Version     versioning.Version
+	Timestamp   int64
+	Count       uint32
+	IndexOffset uint32
 }
 
 type Configuration struct {
@@ -65,9 +63,6 @@ func NewFooterFromBytes(serialized []byte) (PackFileFooter, error) {
 		return footer, err
 	}
 	if err := binary.Read(reader, binary.LittleEndian, &footer.IndexOffset); err != nil {
-		return footer, err
-	}
-	if err := binary.Read(reader, binary.LittleEndian, &footer.IndexChecksum); err != nil {
 		return footer, err
 	}
 	return footer, nil
@@ -118,7 +113,7 @@ func New() *PackFile {
 func NewFromBytes(serialized []byte) (*PackFile, error) {
 	reader := bytes.NewReader(serialized)
 	var footer PackFileFooter
-	_, err := reader.Seek(-52, io.SeekEnd)
+	_, err := reader.Seek(-20, io.SeekEnd)
 	if err != nil {
 		return nil, err
 	}
@@ -134,9 +129,6 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 	if err := binary.Read(reader, binary.LittleEndian, &footer.IndexOffset); err != nil {
 		return nil, err
 	}
-	if err := binary.Read(reader, binary.LittleEndian, &footer.IndexChecksum); err != nil {
-		return nil, err
-	}
 
 	_, err = reader.Seek(0, io.SeekStart)
 	if err != nil {
@@ -148,12 +140,11 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 	}
 
 	// we won't read the totalLength again
-	remaining := reader.Len() - 52
+	remaining := reader.Len() - 20
 
 	p := New()
 	p.Footer = footer
 	p.Blobs = data
-	hasher := sha256.New()
 	for remaining > 0 {
 		var dataType resources.Type
 		var checksum [32]byte
@@ -176,29 +167,13 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 			return nil, fmt.Errorf("chunk offset + chunk length exceeds total length of packfile")
 		}
 
-		if err := binary.Write(hasher, binary.LittleEndian, dataType); err != nil {
-			return nil, err
-		}
-		if err := binary.Write(hasher, binary.LittleEndian, checksum); err != nil {
-			return nil, err
-		}
-		if err := binary.Write(hasher, binary.LittleEndian, chunkOffset); err != nil {
-			return nil, err
-		}
-		if err := binary.Write(hasher, binary.LittleEndian, chunkLength); err != nil {
-			return nil, err
-		}
 		p.Index = append(p.Index, Blob{
 			Type:     dataType,
 			Checksum: checksum,
 			Offset:   chunkOffset,
 			Length:   chunkLength,
 		})
-		remaining -= (len(checksum) + 8 + 4)
-	}
-	checksum := [32]byte(hasher.Sum(nil))
-	if checksum != p.Footer.IndexChecksum {
-		return nil, fmt.Errorf("index checksum mismatch")
+		remaining -= (len(checksum) + 4 + 4 + 4)
 	}
 
 	return p, nil
@@ -210,7 +185,6 @@ func (p *PackFile) Serialize() ([]byte, error) {
 		return nil, err
 	}
 
-	hasher := sha256.New()
 	for _, chunk := range p.Index {
 		if err := binary.Write(&buffer, binary.LittleEndian, chunk.Type); err != nil {
 			return nil, err
@@ -224,21 +198,7 @@ func (p *PackFile) Serialize() ([]byte, error) {
 		if err := binary.Write(&buffer, binary.LittleEndian, chunk.Length); err != nil {
 			return nil, err
 		}
-
-		if err := binary.Write(hasher, binary.LittleEndian, chunk.Type); err != nil {
-			return nil, err
-		}
-		if err := binary.Write(hasher, binary.LittleEndian, chunk.Checksum); err != nil {
-			return nil, err
-		}
-		if err := binary.Write(hasher, binary.LittleEndian, chunk.Offset); err != nil {
-			return nil, err
-		}
-		if err := binary.Write(hasher, binary.LittleEndian, chunk.Length); err != nil {
-			return nil, err
-		}
 	}
-	p.Footer.IndexChecksum = [32]byte(hasher.Sum(nil))
 
 	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.Version); err != nil {
 		return nil, err
@@ -250,9 +210,6 @@ func (p *PackFile) Serialize() ([]byte, error) {
 		return nil, err
 	}
 	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.IndexOffset); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.IndexChecksum); err != nil {
 		return nil, err
 	}
 
@@ -269,7 +226,6 @@ func (p *PackFile) SerializeData() ([]byte, error) {
 
 func (p *PackFile) SerializeIndex() ([]byte, error) {
 	var buffer bytes.Buffer
-	hasher := sha256.New()
 	for _, chunk := range p.Index {
 		if err := binary.Write(&buffer, binary.LittleEndian, chunk.Type); err != nil {
 			return nil, err
@@ -281,19 +237,6 @@ func (p *PackFile) SerializeIndex() ([]byte, error) {
 			return nil, err
 		}
 		if err := binary.Write(&buffer, binary.LittleEndian, chunk.Length); err != nil {
-			return nil, err
-		}
-
-		if err := binary.Write(hasher, binary.LittleEndian, chunk.Type); err != nil {
-			return nil, err
-		}
-		if err := binary.Write(hasher, binary.LittleEndian, chunk.Checksum); err != nil {
-			return nil, err
-		}
-		if err := binary.Write(hasher, binary.LittleEndian, chunk.Offset); err != nil {
-			return nil, err
-		}
-		if err := binary.Write(hasher, binary.LittleEndian, chunk.Length); err != nil {
 			return nil, err
 		}
 	}
@@ -302,7 +245,6 @@ func (p *PackFile) SerializeIndex() ([]byte, error) {
 
 func (p *PackFile) SerializeFooter() ([]byte, error) {
 	var buffer bytes.Buffer
-	hasher := sha256.New()
 	for _, chunk := range p.Index {
 		if err := binary.Write(&buffer, binary.LittleEndian, chunk.Type); err != nil {
 			return nil, err
@@ -316,21 +258,7 @@ func (p *PackFile) SerializeFooter() ([]byte, error) {
 		if err := binary.Write(&buffer, binary.LittleEndian, chunk.Length); err != nil {
 			return nil, err
 		}
-
-		if err := binary.Write(hasher, binary.LittleEndian, chunk.Type); err != nil {
-			return nil, err
-		}
-		if err := binary.Write(hasher, binary.LittleEndian, chunk.Checksum); err != nil {
-			return nil, err
-		}
-		if err := binary.Write(hasher, binary.LittleEndian, chunk.Offset); err != nil {
-			return nil, err
-		}
-		if err := binary.Write(hasher, binary.LittleEndian, chunk.Length); err != nil {
-			return nil, err
-		}
 	}
-	p.Footer.IndexChecksum = [32]byte(hasher.Sum(nil))
 
 	buffer.Reset()
 	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.Version); err != nil {
@@ -343,9 +271,6 @@ func (p *PackFile) SerializeFooter() ([]byte, error) {
 		return nil, err
 	}
 	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.IndexOffset); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.IndexChecksum); err != nil {
 		return nil, err
 	}
 

@@ -1,8 +1,6 @@
 package info
 
 import (
-	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -91,13 +89,6 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 				return 1, err
 			}
 
-			hasher := sha256.New()
-			hasher.Write(indexbuf)
-
-			if !bytes.Equal(hasher.Sum(nil), footer.IndexChecksum[:]) {
-				return 1, fmt.Errorf("index checksum mismatch")
-			}
-
 			rawPackfile = append(rawPackfile, indexbuf...)
 			rawPackfile = append(rawPackfile, footerbuf...)
 
@@ -108,7 +99,6 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 
 			fmt.Fprintf(ctx.Stdout, "Version: %d.%d.%d\n", p.Footer.Version/100, p.Footer.Version%100/10, p.Footer.Version%10)
 			fmt.Fprintf(ctx.Stdout, "Timestamp: %s\n", time.Unix(0, p.Footer.Timestamp))
-			fmt.Fprintf(ctx.Stdout, "Index checksum: %x\n", p.Footer.IndexChecksum)
 			fmt.Fprintln(ctx.Stdout)
 
 			for i, entry := range p.Index {
