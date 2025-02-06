@@ -45,8 +45,8 @@ type AlternateDataStream struct {
 }
 
 type Filesystem struct {
-	tree    *btree.BTree[string, objects.Checksum, objects.Checksum]
-	repo    *repository.Repository
+	tree *btree.BTree[string, objects.Checksum, objects.Checksum]
+	repo *repository.Repository
 }
 
 func PathCmp(a, b string) int {
@@ -85,8 +85,8 @@ func NewFilesystem(repo *repository.Repository, root objects.Checksum) (*Filesys
 	}
 
 	fs := &Filesystem{
-		tree:    tree,
-		repo:    repo,
+		tree: tree,
+		repo: repo,
 	}
 
 	return fs, nil
@@ -124,7 +124,28 @@ func (fsc *Filesystem) resolveEntry(csum objects.Checksum) (*Entry, error) {
 		return nil, err
 	}
 
-	return EntryFromBytes(bytes)
+	entry, err := EntryFromBytes(bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	if entry.HasObject() {
+		rd, err := fsc.repo.GetBlob(resources.RT_OBJECT, entry.Object)
+		bytes, err := io.ReadAll(rd)
+		if err != nil {
+			return nil, err
+		}
+
+		obj, err := objects.NewObjectFromBytes(bytes)
+		if err != nil {
+			return nil, err
+		}
+
+		entry.ResolvedObject = obj
+	}
+
+	return entry, nil
+
 }
 
 func (fsc *Filesystem) Open(path string) (fs.File, error) {

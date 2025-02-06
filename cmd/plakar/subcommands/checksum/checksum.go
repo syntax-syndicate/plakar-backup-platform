@@ -118,7 +118,7 @@ func displayChecksums(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repo
 		return nil
 	}
 
-	object, err := snap.LookupObject(fsinfo.Object.Checksum)
+	object, err := snap.LookupObject(fsinfo.Object)
 	if err != nil {
 		return err
 	}
