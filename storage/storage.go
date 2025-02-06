@@ -34,11 +34,16 @@ import (
 	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/google/uuid"
 )
 
 const VERSION string = "1.0.0"
+
+func init() {
+	versioning.Register(resources.RT_CONFIG, versioning.FromString(VERSION))
+}
 
 type Configuration struct {
 	Version      versioning.Version

@@ -384,7 +384,7 @@ func (r *Repository) GetState(checksum objects.Checksum) (io.Reader, error) {
 		return nil, err
 	}
 
-	rd, err = r.DeserializeStorage(resources.RT_STATE, rd)
+	rd, err = storage.Deserialize(r.HasherHMAC(), resources.RT_STATE, rd)
 	if err != nil {
 		return nil, err
 	}
@@ -403,7 +403,7 @@ func (r *Repository) PutState(checksum objects.Checksum, rd io.Reader) error {
 		return err
 	}
 
-	rd, err = r.SerializeStorage(resources.RT_STATE, versioning.GetCurrentVersion(resources.RT_STATE), rd)
+	rd, err = storage.Serialize(r.HasherHMAC(), resources.RT_STATE, versioning.GetCurrentVersion(resources.RT_STATE), rd)
 	if err != nil {
 		return err
 	}
@@ -440,7 +440,7 @@ func (r *Repository) GetPackfile(checksum objects.Checksum) (io.Reader, error) {
 		return nil, err
 	}
 
-	return r.DeserializeStorage(resources.RT_PACKFILE, rd)
+	return storage.Deserialize(r.HasherHMAC(), resources.RT_PACKFILE, rd)
 }
 
 func (r *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint64, length uint32) (io.ReadSeeker, error) {
@@ -449,7 +449,7 @@ func (r *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint64, l
 		r.Logger().Trace("repository", "GetPackfileBlob(%x, %d, %d): %s", checksum, offset, length, time.Since(t0))
 	}()
 
-	rd, err := r.store.GetPackfileBlob(checksum, offset+uint64(SERIALIZED_HEADER_SIZE), length)
+	rd, err := r.store.GetPackfileBlob(checksum, offset+uint64(storage.STORAGE_HEADER_SIZE), length)
 	if err != nil {
 		return nil, err
 	}
@@ -473,7 +473,7 @@ func (r *Repository) PutPackfile(checksum objects.Checksum, rd io.Reader) error 
 		r.Logger().Trace("repository", "PutPackfile(%x, ...): %s", checksum, time.Since(t0))
 	}()
 
-	rd, err := r.SerializeStorage(resources.RT_PACKFILE, versioning.GetCurrentVersion(resources.RT_PACKFILE), rd)
+	rd, err := storage.Serialize(r.HasherHMAC(), resources.RT_PACKFILE, versioning.GetCurrentVersion(resources.RT_PACKFILE), rd)
 	if err != nil {
 		return err
 	}

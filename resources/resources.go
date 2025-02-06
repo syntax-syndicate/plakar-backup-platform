@@ -3,21 +3,23 @@ package resources
 type Type uint32
 
 const (
-	RT_STATE       Type = 1
-	RT_PACKFILE    Type = 2
-	RT_SNAPSHOT    Type = 3
-	RT_CHUNK       Type = 4
-	RT_OBJECT      Type = 5
-	RT_VFS         Type = 6
-	RT_VFS_ENTRY   Type = 7
-	RT_INDEX       Type = 8
-	RT_INDEX_ENTRY Type = 9
-	RT_SIGNATURE   Type = 10
-	RT_ERROR       Type = 11
+	RT_CONFIG      Type = 1
+	RT_STATE       Type = 2
+	RT_PACKFILE    Type = 3
+	RT_SNAPSHOT    Type = 4
+	RT_CHUNK       Type = 5
+	RT_OBJECT      Type = 6
+	RT_VFS         Type = 7
+	RT_VFS_ENTRY   Type = 8
+	RT_INDEX       Type = 9
+	RT_INDEX_ENTRY Type = 10
+	RT_SIGNATURE   Type = 11
+	RT_ERROR       Type = 12
 )
 
 func Types() []Type {
 	return []Type{
+		RT_CONFIG,
 		RT_STATE,
 		RT_PACKFILE,
 		RT_SNAPSHOT,
@@ -33,6 +35,8 @@ func Types() []Type {
 
 func (r Type) String() string {
 	switch r {
+	case RT_CONFIG:
+		return "config"
 	case RT_STATE:
 		return "state"
 	case RT_PACKFILE:

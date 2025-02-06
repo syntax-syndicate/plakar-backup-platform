@@ -1,4 +1,4 @@
-package repository
+package storage
 
 import (
 	"bytes"
@@ -6,15 +6,14 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"time"
 
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/versioning"
 )
 
 const (
-	SERIALIZED_HEADER_SIZE uint32 = 16
-	SERIALIZED_FOOTER_SIZE uint32 = 32
+	STORAGE_HEADER_SIZE uint32 = 16
+	STORAGE_FOOTER_SIZE uint32 = 32
 )
 
 const (
@@ -33,8 +32,8 @@ type deserializeReader struct {
 	eof bool
 }
 
-func (r *Repository) newDeserializeReader(resourceType resources.Type, inner io.Reader) (*deserializeReader, error) {
-	buf := make([]byte, SERIALIZED_HEADER_SIZE)
+func newDeserializeReader(hasher hash.Hash, resourceType resources.Type, inner io.Reader) (*deserializeReader, error) {
+	buf := make([]byte, STORAGE_HEADER_SIZE)
 	_, err := io.ReadFull(inner, buf)
 	if err != nil {
 		return nil, err
@@ -51,7 +50,7 @@ func (r *Repository) newDeserializeReader(resourceType resources.Type, inner io.
 		return nil, fmt.Errorf("invalid resource type")
 	}
 
-	hasher := r.HasherHMAC()
+	hasher.Reset()
 	hasher.Write(buf)
 
 	return &deserializeReader{
@@ -119,13 +118,8 @@ func (s *deserializeReader) Read(p []byte) (int, error) {
 	return total, nil
 }
 
-func (r *Repository) DeserializeStorage(resourceType resources.Type, input io.Reader) (io.Reader, error) {
-	t0 := time.Now()
-	defer func() {
-		r.Logger().Trace("repository", "Deserialize: %s", time.Since(t0))
-	}()
-
-	return r.newDeserializeReader(resourceType, input)
+func Deserialize(hasher hash.Hash, resourceType resources.Type, input io.Reader) (io.Reader, error) {
+	return newDeserializeReader(hasher, resourceType, input)
 }
 
 type serializeReader struct {
@@ -141,13 +135,13 @@ type serializeReader struct {
 	phase int
 }
 
-func (r *Repository) newSerializeReader(resourceType resources.Type, version versioning.Version, inner io.Reader) *serializeReader {
-	header := make([]byte, SERIALIZED_HEADER_SIZE)
+func newSerializeReader(hasher hash.Hash, resourceType resources.Type, version versioning.Version, inner io.Reader) *serializeReader {
+	header := make([]byte, STORAGE_HEADER_SIZE)
 	copy(header[0:8], []byte("_PLAKAR_"))
 	binary.LittleEndian.PutUint32(header[8:12], uint32(resourceType))
 	binary.LittleEndian.PutUint32(header[12:16], uint32(version))
 
-	hasher := r.HasherHMAC()
+	hasher.Reset()
 	hasher.Write(header)
 
 	return &serializeReader{
@@ -222,14 +216,6 @@ func (s *serializeReader) Read(p []byte) (n int, err error) {
 	return total, nil
 }
 
-func (r *Repository) SerializeStorage(resourceType resources.Type, version versioning.Version, input io.Reader) (io.Reader, error) {
-	t0 := time.Now()
-	defer func() {
-		r.Logger().Trace("repository", "SerializeStorage: %s", time.Since(t0))
-	}()
-
-	// packfiles are a special case they must not be encoded
-	// as they are a collection of encoded objects glued together
-	//
-	return r.newSerializeReader(resourceType, version, input), nil
+func Serialize(hasher hash.Hash, resourceType resources.Type, version versioning.Version, input io.Reader) (io.Reader, error) {
+	return newSerializeReader(hasher, resourceType, version, input), nil
 }
