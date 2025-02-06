@@ -13,9 +13,8 @@ const (
 	RT_VFS             Type = 8
 	RT_VFS_ENTRY       Type = 9
 	RT_INDEX           Type = 10
-	RT_INDEX_ENTRY     Type = 11
-	RT_SIGNATURE       Type = 12
-	RT_ERROR           Type = 13
+	RT_SIGNATURE       Type = 11
+	RT_ERROR           Type = 12
 )
 
 func Types() []Type {
@@ -30,7 +29,6 @@ func Types() []Type {
 		RT_VFS,
 		RT_VFS_ENTRY,
 		RT_INDEX,
-		RT_INDEX_ENTRY,
 		RT_SIGNATURE,
 		RT_ERROR,
 	}
@@ -58,8 +56,6 @@ func (r Type) String() string {
 		return "vfs entry"
 	case RT_INDEX:
 		return "index"
-	case RT_INDEX_ENTRY:
-		return "index entry"
 	case RT_SIGNATURE:
 		return "signature"
 	case RT_ERROR:
