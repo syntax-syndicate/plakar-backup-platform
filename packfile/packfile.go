@@ -40,12 +40,12 @@ type PackFile struct {
 type PackFileFooter struct {
 	Version       versioning.Version
 	Timestamp     int64
-	Count         uint64
+	Count         uint32
 	IndexOffset   uint64
 	IndexChecksum objects.Checksum
 }
 
-const FOOTER_SIZE = 60
+const FOOTER_SIZE = 56
 
 type Configuration struct {
 	MinSize uint64

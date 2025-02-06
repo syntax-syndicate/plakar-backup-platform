@@ -158,7 +158,7 @@ func TestPackFileSerializeFooter(t *testing.T) {
 	p2, err := NewFooterFromBytes(serialized)
 	require.NoError(t, err, "Failed to create PackFile footer from bytes")
 
-	require.Equal(t, p2.Count, uint64(2), "Expected 2 blobs but got %d", uint64(p2.Count))
+	require.Equal(t, p2.Count, uint32(2), "Expected 2 blobs but got %d", uint32(p2.Count))
 
 	require.Equal(t, p2.IndexOffset, uint64(len(chunk1)+len(chunk2)), "Expected IndexOffset to be %d but got %d", len(chunk1)+len(chunk2), p2.IndexOffset)
 }
