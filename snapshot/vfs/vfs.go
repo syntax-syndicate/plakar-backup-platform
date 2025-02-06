@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	versioning.Register(resources.RT_VFS, versioning.FromString(btree.BTREE_VERSION))
+	versioning.Register(resources.RT_VFS_BTREE, versioning.FromString(btree.BTREE_VERSION))
 }
 
 type Score struct {
@@ -73,12 +73,12 @@ func isEntryBelow(parent, entry string) bool {
 }
 
 func NewFilesystem(repo *repository.Repository, root objects.Checksum) (*Filesystem, error) {
-	rd, err := repo.GetBlob(resources.RT_VFS, root)
+	rd, err := repo.GetBlob(resources.RT_VFS_BTREE, root)
 	if err != nil {
 		return nil, err
 	}
 
-	storage := repository.NewRepositoryStore[string, objects.Checksum](repo, resources.RT_VFS)
+	storage := repository.NewRepositoryStore[string, objects.Checksum](repo, resources.RT_VFS_BTREE)
 	tree, err := btree.Deserialize(rd, storage, PathCmp)
 	if err != nil {
 		return nil, err
