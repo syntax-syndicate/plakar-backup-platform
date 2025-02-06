@@ -101,7 +101,7 @@ func packerJob(snap *Snapshot) {
 }
 
 func (snap *Snapshot) PutBlob(Type resources.Type, checksum [32]byte, data []byte) error {
-	snap.Logger().Trace("snapshot", "%x: PutBlob(%d, %064x) len=%d", snap.Header.GetIndexShortID(), Type, checksum, len(data))
+	snap.Logger().Trace("snapshot", "%x: PutBlob(%s, %064x) len=%d", snap.Header.GetIndexShortID(), Type, checksum, len(data))
 
 	encodedReader, err := snap.repository.Encode(bytes.NewReader(data))
 	if err != nil {
@@ -113,18 +113,23 @@ func (snap *Snapshot) PutBlob(Type resources.Type, checksum [32]byte, data []byt
 		return err
 	}
 
+	if Type != resources.RT_SNAPSHOT {
+		checksum = snap.repository.ChecksumHMAC(checksum[:])
+	}
 	snap.packerChan <- &PackerMsg{Type: Type, Version: versioning.GetCurrentVersion(Type), Timestamp: time.Now(), Checksum: checksum, Data: encoded}
 	return nil
 }
 
 func (snap *Snapshot) GetBlob(Type resources.Type, checksum [32]byte) ([]byte, error) {
-	snap.Logger().Trace("snapshot", "%x: GetBlob(%x)", snap.Header.GetIndexShortID(), checksum)
+	snap.Logger().Trace("snapshot", "%x: GetBlob(%s, %x)", snap.Header.GetIndexShortID(), Type, checksum)
 
 	// XXX: Temporary workaround, once the state API changes to get from both sources (delta+aggregated state)
 	// we can remove this hack.
 	if snap.deltaState != nil {
+		if Type != resources.RT_SNAPSHOT {
+			checksum = snap.repository.ChecksumHMAC(checksum[:])
+		}
 		packfileChecksum, offset, length, exists := snap.deltaState.GetSubpartForBlob(Type, checksum)
-
 		if exists {
 			rd, err := snap.repository.GetPackfileBlob(packfileChecksum, offset, length)
 			if err != nil {
@@ -145,11 +150,15 @@ func (snap *Snapshot) GetBlob(Type resources.Type, checksum [32]byte) ([]byte, e
 }
 
 func (snap *Snapshot) BlobExists(Type resources.Type, checksum [32]byte) bool {
-	snap.Logger().Trace("snapshot", "%x: CheckBlob(%064x)", snap.Header.GetIndexShortID(), checksum)
+	snap.Logger().Trace("snapshot", "%x: CheckBlob(%s, %064x)", snap.Header.GetIndexShortID(), Type, checksum)
 
 	// XXX: Same here, remove this workaround when state API changes.
 	if snap.deltaState != nil {
-		return snap.deltaState.BlobExists(Type, checksum) || snap.repository.BlobExists(Type, checksum)
+		hmacsum := checksum
+		if Type != resources.RT_SNAPSHOT {
+			hmacsum = snap.repository.ChecksumHMAC(checksum[:])
+		}
+		return snap.deltaState.BlobExists(Type, hmacsum) || snap.repository.BlobExists(Type, checksum)
 	} else {
 		return snap.repository.BlobExists(Type, checksum)
 	}

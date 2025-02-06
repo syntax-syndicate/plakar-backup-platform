@@ -265,6 +265,29 @@ func (r *Repository) Checksum(data []byte) objects.Checksum {
 	return checksum
 }
 
+func (r *Repository) HasherHMAC() hash.Hash {
+	secret := r.AppContext().GetSecret()
+	if secret == nil {
+		return r.Hasher()
+	}
+	return hashing.GetHasherHMAC(r.Configuration().Hashing.Algorithm, secret)
+}
+
+func (r *Repository) ChecksumHMAC(data []byte) objects.Checksum {
+	hasher := r.HasherHMAC()
+	hasher.Write(data)
+	result := hasher.Sum(nil)
+
+	if len(result) != 32 {
+		panic("hasher returned invalid length")
+	}
+
+	var checksum objects.Checksum
+	copy(checksum[:], result)
+
+	return checksum
+}
+
 func (r *Repository) Chunker(rd io.ReadCloser) (*chunkers.Chunker, error) {
 	chunkingAlgorithm := r.configuration.Chunking.Algorithm
 	chunkingMinSize := r.configuration.Chunking.MinSize
@@ -447,9 +470,12 @@ func (r *Repository) DeletePackfile(checksum objects.Checksum) error {
 func (r *Repository) GetBlob(Type resources.Type, checksum objects.Checksum) (io.ReadSeeker, error) {
 	t0 := time.Now()
 	defer func() {
-		r.Logger().Trace("repository", "GetBlob(%x): %s", checksum, time.Since(t0))
+		r.Logger().Trace("repository", "GetBlob(%s, %x): %s", Type, checksum, time.Since(t0))
 	}()
 
+	if Type != resources.RT_SNAPSHOT {
+		checksum = r.ChecksumHMAC(checksum[:])
+	}
 	packfileChecksum, offset, length, exists := r.state.GetSubpartForBlob(Type, checksum)
 	if !exists {
 		return nil, ErrPackfileNotFound
@@ -466,9 +492,12 @@ func (r *Repository) GetBlob(Type resources.Type, checksum objects.Checksum) (io
 func (r *Repository) BlobExists(Type resources.Type, checksum objects.Checksum) bool {
 	t0 := time.Now()
 	defer func() {
-		r.Logger().Trace("repository", "BlobExists(%x): %s", checksum, time.Since(t0))
+		r.Logger().Trace("repository", "BlobExists(%s, %x): %s", Type, checksum, time.Since(t0))
 	}()
 
+	if Type != resources.RT_SNAPSHOT {
+		checksum = r.ChecksumHMAC(checksum[:])
+	}
 	return r.state.BlobExists(Type, checksum)
 }
 
