@@ -142,8 +142,8 @@ func TestPackFileSerializeIndex(t *testing.T) {
 	require.Equal(t, blob1.Length, uint32(len(chunk1)))
 	require.Equal(t, blob2.Length, uint32(len(chunk2)))
 
-	require.Equal(t, blob1.Checksum, checksum1, "Expected %q but got %q", checksum1, blob1.Checksum)
-	require.Equal(t, blob2.Checksum, checksum2, "Expected %q but got %q", checksum1, blob2.Checksum)
+	require.Equal(t, blob1.HMAC, checksum1, "Expected %q but got %q", checksum1, blob1.HMAC)
+	require.Equal(t, blob2.HMAC, checksum2, "Expected %q but got %q", checksum1, blob2.HMAC)
 }
 
 func TestPackFileSerializeFooter(t *testing.T) {
