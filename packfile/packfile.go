@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
-	"hash"
 	"io"
 	"time"
 
@@ -31,7 +30,6 @@ type Blob struct {
 }
 
 type PackFile struct {
-	hasher hash.Hash
 	Blobs  []byte
 	Index  []Blob
 	Footer PackFileFooter
