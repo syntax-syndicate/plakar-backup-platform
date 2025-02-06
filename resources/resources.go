@@ -10,11 +10,12 @@ const (
 	RT_SNAPSHOT        Type = 5
 	RT_CHUNK           Type = 6
 	RT_OBJECT          Type = 7
-	RT_VFS_ENTRY       Type = 8
-	RT_INDEX           Type = 9
-	RT_INDEX_ENTRY     Type = 10
-	RT_SIGNATURE       Type = 11
-	RT_ERROR           Type = 12
+	RT_VFS             Type = 8
+	RT_VFS_ENTRY       Type = 9
+	RT_INDEX           Type = 10
+	RT_INDEX_ENTRY     Type = 11
+	RT_SIGNATURE       Type = 12
+	RT_ERROR           Type = 13
 )
 
 func Types() []Type {
@@ -26,6 +27,7 @@ func Types() []Type {
 		RT_SNAPSHOT,
 		RT_CHUNK,
 		RT_OBJECT,
+		RT_VFS,
 		RT_VFS_ENTRY,
 		RT_INDEX,
 		RT_INDEX_ENTRY,
@@ -50,6 +52,8 @@ func (r Type) String() string {
 		return "chunk"
 	case RT_OBJECT:
 		return "object"
+	case RT_VFS:
+		return "vfs"
 	case RT_VFS_ENTRY:
 		return "vfs entry"
 	case RT_INDEX:
