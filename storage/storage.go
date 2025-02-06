@@ -37,6 +37,7 @@ import (
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/google/uuid"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 const VERSION string = "1.0.0"
@@ -70,6 +71,19 @@ func NewConfiguration() *Configuration {
 		Compression: compression.DefaultConfiguration(),
 		Encryption:  encryption.DefaultConfiguration(),
 	}
+}
+
+func NewConfigurationFromBytes(data []byte) (*Configuration, error) {
+	var configuration Configuration
+	err := msgpack.Unmarshal(data, &configuration)
+	if err != nil {
+		return nil, err
+	}
+	return &configuration, nil
+}
+
+func (c *Configuration) ToBytes() ([]byte, error) {
+	return msgpack.Marshal(c)
 }
 
 type Store interface {
