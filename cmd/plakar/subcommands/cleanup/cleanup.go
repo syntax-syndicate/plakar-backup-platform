@@ -32,7 +32,7 @@ func init() {
 func parse_cmd_cleanup(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	flags := flag.NewFlagSet("cleanup", flag.ExitOnError)
 	flags.Usage = func() {
-		fmt.Fprintf(flags.Output(), "Usage: %s", flags.Name())
+		fmt.Fprintf(flags.Output(), "Usage: %s\n", flags.Name())
 	}
 	flags.Parse(args)
 
