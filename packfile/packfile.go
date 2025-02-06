@@ -2,9 +2,9 @@ package packfile
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"hash"
 	"io"
 	"time"
 
@@ -32,6 +32,7 @@ type Blob struct {
 const BLOB_RECORD_SIZE = 52
 
 type PackFile struct {
+	hasher hash.Hash
 	Blobs  []byte
 	Index  []Blob
 	Footer PackFileFooter
@@ -117,10 +118,11 @@ func NewIndexFromBytes(serialized []byte) ([]Blob, error) {
 	return index, nil
 }
 
-func New() *PackFile {
+func New(hasher hash.Hash) *PackFile {
 	return &PackFile{
-		Blobs: make([]byte, 0),
-		Index: make([]Blob, 0),
+		hasher: hasher,
+		Blobs:  make([]byte, 0),
+		Index:  make([]Blob, 0),
 		Footer: PackFileFooter{
 			Version:   versioning.FromString(VERSION),
 			Timestamp: time.Now().UnixNano(),
@@ -129,7 +131,7 @@ func New() *PackFile {
 	}
 }
 
-func NewFromBytes(serialized []byte) (*PackFile, error) {
+func NewFromBytes(hasher hash.Hash, serialized []byte) (*PackFile, error) {
 	reader := bytes.NewReader(serialized)
 	var footer PackFileFooter
 	_, err := reader.Seek(-FOOTER_SIZE, io.SeekEnd)
@@ -164,10 +166,10 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 	// we won't read the totalLength again
 	remaining := reader.Len() - FOOTER_SIZE
 
-	p := New()
+	p := New(hasher)
 	p.Footer = footer
 	p.Blobs = data
-	hasher := sha256.New()
+	p.hasher.Reset()
 	for remaining > 0 {
 		var resourceType resources.Type
 		var resourceVersion versioning.Version
@@ -195,19 +197,19 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 			return nil, fmt.Errorf("blob offset + blob length exceeds total length of packfile")
 		}
 
-		if err := binary.Write(hasher, binary.LittleEndian, resourceType); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, resourceType); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(hasher, binary.LittleEndian, resourceVersion); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, resourceVersion); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(hasher, binary.LittleEndian, checksum); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, checksum); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(hasher, binary.LittleEndian, blobOffset); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blobOffset); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(hasher, binary.LittleEndian, blobLength); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blobLength); err != nil {
 			return nil, err
 		}
 		p.Index = append(p.Index, Blob{
@@ -219,7 +221,7 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 		})
 		remaining -= BLOB_RECORD_SIZE
 	}
-	checksum := objects.Checksum(hasher.Sum(nil))
+	checksum := objects.Checksum(p.hasher.Sum(nil))
 	if checksum != p.Footer.IndexChecksum {
 		return nil, fmt.Errorf("index checksum mismatch")
 	}
@@ -233,7 +235,7 @@ func (p *PackFile) Serialize() ([]byte, error) {
 		return nil, err
 	}
 
-	hasher := sha256.New()
+	p.hasher.Reset()
 	for _, blob := range p.Index {
 		if err := binary.Write(&buffer, binary.LittleEndian, blob.Type); err != nil {
 			return nil, err
@@ -251,23 +253,23 @@ func (p *PackFile) Serialize() ([]byte, error) {
 			return nil, err
 		}
 
-		if err := binary.Write(hasher, binary.LittleEndian, blob.Type); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Type); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(hasher, binary.LittleEndian, blob.Version); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Version); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(hasher, binary.LittleEndian, blob.Checksum); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Checksum); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(hasher, binary.LittleEndian, blob.Offset); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Offset); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(hasher, binary.LittleEndian, blob.Length); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Length); err != nil {
 			return nil, err
 		}
 	}
-	p.Footer.IndexChecksum = objects.Checksum(hasher.Sum(nil))
+	p.Footer.IndexChecksum = objects.Checksum(p.hasher.Sum(nil))
 
 	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.Version); err != nil {
 		return nil, err
@@ -298,7 +300,7 @@ func (p *PackFile) SerializeData() ([]byte, error) {
 
 func (p *PackFile) SerializeIndex() ([]byte, error) {
 	var buffer bytes.Buffer
-	hasher := sha256.New()
+	p.hasher.Reset()
 	for _, blob := range p.Index {
 		if err := binary.Write(&buffer, binary.LittleEndian, blob.Type); err != nil {
 			return nil, err
@@ -316,19 +318,19 @@ func (p *PackFile) SerializeIndex() ([]byte, error) {
 			return nil, err
 		}
 
-		if err := binary.Write(hasher, binary.LittleEndian, blob.Type); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Type); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(hasher, binary.LittleEndian, blob.Version); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Version); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(hasher, binary.LittleEndian, blob.Checksum); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Checksum); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(hasher, binary.LittleEndian, blob.Offset); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Offset); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(hasher, binary.LittleEndian, blob.Length); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Length); err != nil {
 			return nil, err
 		}
 	}
@@ -337,7 +339,7 @@ func (p *PackFile) SerializeIndex() ([]byte, error) {
 
 func (p *PackFile) SerializeFooter() ([]byte, error) {
 	var buffer bytes.Buffer
-	hasher := sha256.New()
+	p.hasher.Reset()
 	for _, blob := range p.Index {
 		if err := binary.Write(&buffer, binary.LittleEndian, blob.Type); err != nil {
 			return nil, err
@@ -355,23 +357,23 @@ func (p *PackFile) SerializeFooter() ([]byte, error) {
 			return nil, err
 		}
 
-		if err := binary.Write(hasher, binary.LittleEndian, blob.Type); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Type); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(hasher, binary.LittleEndian, blob.Version); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Version); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(hasher, binary.LittleEndian, blob.Checksum); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Checksum); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(hasher, binary.LittleEndian, blob.Offset); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Offset); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(hasher, binary.LittleEndian, blob.Length); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Length); err != nil {
 			return nil, err
 		}
 	}
-	p.Footer.IndexChecksum = objects.Checksum(hasher.Sum(nil))
+	p.Footer.IndexChecksum = objects.Checksum(p.hasher.Sum(nil))
 
 	buffer.Reset()
 	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.Version); err != nil {

@@ -2,7 +2,6 @@ package info
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -90,7 +89,7 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 				return 1, err
 			}
 
-			hasher := sha256.New()
+			hasher := repo.HasherHMAC()
 			hasher.Write(indexbuf)
 
 			if !bytes.Equal(hasher.Sum(nil), footer.IndexChecksum[:]) {
@@ -100,7 +99,7 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 			rawPackfile = append(rawPackfile, indexbuf...)
 			rawPackfile = append(rawPackfile, footerbuf...)
 
-			p, err := packfile.NewFromBytes(rawPackfile)
+			p, err := packfile.NewFromBytes(hasher, rawPackfile)
 			if err != nil {
 				return 1, err
 			}
