@@ -20,7 +20,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path"
 
@@ -45,8 +44,7 @@ func parse_cmd_diff(ctx *appcontext.AppContext, repo *repository.Repository, arg
 	flags.Parse(args)
 
 	if flags.NArg() != 2 {
-		fmt.Println("args", flags.Args())
-		log.Fatalf("%s: needs two snapshot ID and/or snapshot files to diff", flag.CommandLine.Name())
+		return nil, fmt.Errorf("needs two snapshot ID and/or snapshot files to diff")
 	}
 
 	snapshotPrefix1, pathname1 := utils.ParseSnapshotID(flags.Arg(0))

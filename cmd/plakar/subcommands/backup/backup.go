@@ -21,7 +21,6 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -156,7 +155,7 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		}
 		imp, err = importer.NewImporter("fs://" + scanDir)
 		if err != nil {
-			log.Fatalf("failed to create an import for %s: %s", scanDir, err)
+			return 1, fmt.Errorf("failed to create an import for %s: %s", scanDir, err)
 		}
 	}
 

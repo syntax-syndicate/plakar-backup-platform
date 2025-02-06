@@ -13,9 +13,15 @@ import (
 	"github.com/PlakarKorp/plakar/resources"
 )
 
+type Score struct {
+	Key   string  `msgpack:"key" json:"key"`
+	Value float64 `msgpack:"value" json:"value"`
+}
+
 type Classification struct {
 	Analyzer string   `msgpack:"analyzer" json:"analyzer"`
 	Classes  []string `msgpack:"classes" json:"classes"`
+	Scores   []Score  `msgpack:"scores" json:"scores"`
 }
 
 type ExtendedAttribute struct {
