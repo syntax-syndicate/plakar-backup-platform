@@ -73,7 +73,7 @@ func (cmd *InfoState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 				return 1, err
 			}
 
-			fmt.Fprintf(ctx.Stdout, "Version: %d.%d.%d\n", st.Metadata.Version/100, (st.Metadata.Version/10)%10, st.Metadata.Version%10)
+			fmt.Fprintf(ctx.Stdout, "Version: %d.s\n", st.Metadata.Version)
 			fmt.Fprintf(ctx.Stdout, "Creation: %s\n", st.Metadata.Timestamp)
 			fmt.Fprintf(ctx.Stdout, "State serial: %s\n", st.Metadata.Serial)
 

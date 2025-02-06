@@ -104,7 +104,7 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 				return 1, err
 			}
 
-			fmt.Fprintf(ctx.Stdout, "Version: %d.%d.%d\n", p.Footer.Version/100, p.Footer.Version%100/10, p.Footer.Version%10)
+			fmt.Fprintf(ctx.Stdout, "Version: %s\n", p.Footer.Version)
 			fmt.Fprintf(ctx.Stdout, "Timestamp: %s\n", time.Unix(0, p.Footer.Timestamp))
 			fmt.Fprintf(ctx.Stdout, "Index HMAC: %x\n", p.Footer.IndexHMAC)
 			fmt.Fprintln(ctx.Stdout)

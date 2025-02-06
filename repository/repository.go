@@ -23,6 +23,7 @@ import (
 	"github.com/PlakarKorp/plakar/repository/state"
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/plakar/versioning"
 )
 
 var (
@@ -382,6 +383,12 @@ func (r *Repository) GetState(checksum objects.Checksum) (io.Reader, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	rd, err = r.DeserializeStorage(resources.RT_STATE, rd)
+	if err != nil {
+		return nil, err
+	}
+
 	return r.Decode(rd)
 }
 
@@ -395,6 +402,12 @@ func (r *Repository) PutState(checksum objects.Checksum, rd io.Reader) error {
 	if err != nil {
 		return err
 	}
+
+	rd, err = r.SerializeStorage(resources.RT_STATE, versioning.GetCurrentVersion(resources.RT_STATE), rd)
+	if err != nil {
+		return err
+	}
+
 	return r.store.PutState(checksum, rd)
 }
 
@@ -422,7 +435,12 @@ func (r *Repository) GetPackfile(checksum objects.Checksum) (io.Reader, error) {
 		r.Logger().Trace("repository", "GetPackfile(%x, ...): %s", checksum, time.Since(t0))
 	}()
 
-	return r.store.GetPackfile(checksum)
+	rd, err := r.store.GetPackfile(checksum)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.DeserializeStorage(resources.RT_PACKFILE, rd)
 }
 
 func (r *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint64, length uint32) (io.ReadSeeker, error) {
@@ -431,7 +449,7 @@ func (r *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint64, l
 		r.Logger().Trace("repository", "GetPackfileBlob(%x, %d, %d): %s", checksum, offset, length, time.Since(t0))
 	}()
 
-	rd, err := r.store.GetPackfileBlob(checksum, offset, length)
+	rd, err := r.store.GetPackfileBlob(checksum, offset+uint64(SERIALIZED_HEADER_SIZE), length)
 	if err != nil {
 		return nil, err
 	}
@@ -455,6 +473,10 @@ func (r *Repository) PutPackfile(checksum objects.Checksum, rd io.Reader) error 
 		r.Logger().Trace("repository", "PutPackfile(%x, ...): %s", checksum, time.Since(t0))
 	}()
 
+	rd, err := r.SerializeStorage(resources.RT_PACKFILE, versioning.GetCurrentVersion(resources.RT_PACKFILE), rd)
+	if err != nil {
+		return err
+	}
 	return r.store.PutPackfile(checksum, rd)
 }
 
