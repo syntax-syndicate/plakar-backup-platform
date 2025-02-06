@@ -36,10 +36,16 @@ func init() {
 
 func parse_cmd_clone(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	flags := flag.NewFlagSet("clone", flag.ExitOnError)
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] to /path/to/repository\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s [OPTIONS] to s3://bucket/path\n", flags.Name())
+		flags.PrintDefaults()
+	}
+
 	flags.Parse(args)
 
 	if flags.NArg() != 2 || flags.Arg(0) != "to" {
-		return nil, fmt.Errorf("usage: %s to repository", flags.Name())
+		return nil, fmt.Errorf("usage: %s to <repository>. See '%s -h' or 'help %s'", flags.Name(), flags.Name(), flags.Name())
 	}
 
 	return &Clone{
