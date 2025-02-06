@@ -61,8 +61,8 @@ type Source struct {
 	Summary  vfs.Summary      `msgpack:"summary" json:"summary"`
 }
 
-func NewSource() *Source {
-	return &Source{
+func NewSource() Source {
+	return Source{
 		Importer: Importer{},
 		VFS:      objects.Checksum{},
 		Errors:   objects.Checksum{},
@@ -86,7 +86,7 @@ type Header struct {
 	Classifications []Classification   `msgpack:"classifications" json:"classifications"`
 	Tags            []string           `msgpack:"tags" json:"tags"`
 	Context         []KeyValue         `msgpack:"context" json:"context"`
-	Sources         []*Source          `msgpack:"sources" json:"sources"`
+	Sources         []Source           `msgpack:"sources" json:"sources"`
 }
 
 func NewHeader(name string, identifier objects.Checksum) *Header {
@@ -105,7 +105,7 @@ func NewHeader(name string, identifier objects.Checksum) *Header {
 
 		Identity: Identity{},
 
-		Sources: []*Source{NewSource()},
+		Sources: []Source{NewSource()},
 	}
 }
 
@@ -143,7 +143,7 @@ func (h *Header) GetSource(idx int) *Source {
 	if idx < 0 || idx >= len(h.Sources) {
 		panic("invalid source index")
 	}
-	return h.Sources[idx]
+	return &h.Sources[idx]
 }
 
 func (h *Header) GetIndexID() [32]byte {

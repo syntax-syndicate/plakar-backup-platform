@@ -11,14 +11,7 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/resources"
-	"github.com/PlakarKorp/plakar/versioning"
 )
-
-const VFS_VERSION = "1.0.0"
-
-func init() {
-	versioning.Register(resources.RT_VFS, versioning.FromString(VFS_VERSION))
-}
 
 type Classification struct {
 	Analyzer string   `msgpack:"analyzer" json:"analyzer"`
@@ -41,7 +34,6 @@ type AlternateDataStream struct {
 }
 
 type Filesystem struct {
-	Version versioning.Version
 	tree    *btree.BTree[string, objects.Checksum, objects.Checksum]
 	repo    *repository.Repository
 }
@@ -82,7 +74,6 @@ func NewFilesystem(repo *repository.Repository, root objects.Checksum) (*Filesys
 	}
 
 	fs := &Filesystem{
-		Version: versioning.FromString(VFS_VERSION),
 		tree:    tree,
 		repo:    repo,
 	}
