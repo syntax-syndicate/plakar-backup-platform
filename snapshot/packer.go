@@ -10,11 +10,13 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/resources"
+	"github.com/PlakarKorp/plakar/versioning"
 )
 
 type PackerMsg struct {
 	Timestamp time.Time
 	Type      resources.Type
+	Version   versioning.Version
 	Checksum  objects.Checksum
 	Data      []byte
 }
@@ -35,12 +37,12 @@ func NewPacker() *Packer {
 	}
 }
 
-func (packer *Packer) AddBlob(Type resources.Type, checksum [32]byte, data []byte) {
+func (packer *Packer) AddBlob(Type resources.Type, version versioning.Version, checksum [32]byte, data []byte) {
 	if _, ok := packer.Blobs[Type]; !ok {
 		packer.Blobs[Type] = make(map[[32]byte][]byte)
 	}
 	packer.Blobs[Type][checksum] = data
-	packer.Packfile.AddBlob(Type, checksum, data)
+	packer.Packfile.AddBlob(Type, version, checksum, data)
 }
 
 func (packer *Packer) Size() uint32 {
@@ -71,8 +73,8 @@ func packerJob(snap *Snapshot) {
 				if msg, ok := msg.(*PackerMsg); !ok {
 					panic("received data with unexpected type")
 				} else {
-					snap.Logger().Trace("packer", "%x: PackerMsg(%d, %064x), dt=%s", snap.Header.GetIndexShortID(), msg.Type, msg.Checksum, time.Since(msg.Timestamp))
-					packer.AddBlob(msg.Type, msg.Checksum, msg.Data)
+					snap.Logger().Trace("packer", "%x: PackerMsg(%d, %s, %064x), dt=%s", snap.Header.GetIndexShortID(), msg.Type, msg.Version, msg.Checksum, time.Since(msg.Timestamp))
+					packer.AddBlob(msg.Type, msg.Version, msg.Checksum, msg.Data)
 				}
 
 				if packer.Size() > uint32(snap.repository.Configuration().Packfile.MaxSize) {
@@ -111,7 +113,7 @@ func (snap *Snapshot) PutBlob(Type resources.Type, checksum [32]byte, data []byt
 		return err
 	}
 
-	snap.packerChan <- &PackerMsg{Type: Type, Timestamp: time.Now(), Checksum: checksum, Data: encoded}
+	snap.packerChan <- &PackerMsg{Type: Type, Version: versioning.GetCurrentVersion(Type), Timestamp: time.Now(), Checksum: checksum, Data: encoded}
 	return nil
 }
 

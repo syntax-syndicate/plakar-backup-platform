@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/resources"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,8 +20,8 @@ func TestPackFile(t *testing.T) {
 	checksum2 := [32]byte{2} // Mock checksum for chunk2
 
 	// Test AddBlob
-	p.AddBlob(resources.RT_CHUNK, checksum1, chunk1)
-	p.AddBlob(resources.RT_CHUNK, checksum2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum1, chunk1)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum2, chunk2)
 
 	// Test GetBlob
 	retrievedChunk1, exists := p.GetBlob(checksum1)
@@ -40,7 +42,7 @@ func TestPackFile(t *testing.T) {
 	if p.Footer.Count != 2 {
 		t.Fatalf("Expected Footer.Count to be 2 but got %d", p.Footer.Count)
 	}
-	if p.Footer.IndexOffset != uint32(len(p.Blobs)) {
+	if p.Footer.IndexOffset != uint64(len(p.Blobs)) {
 		t.Fatalf("Expected Footer.Length to be %d but got %d", len(p.Blobs), p.Footer.IndexOffset)
 	}
 }
@@ -55,8 +57,8 @@ func TestPackFileSerialization(t *testing.T) {
 	checksum2 := [32]byte{2} // Mock checksum for chunk2
 
 	// Test AddBlob
-	p.AddBlob(resources.RT_CHUNK, checksum1, chunk1)
-	p.AddBlob(resources.RT_CHUNK, checksum2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum1, chunk1)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum2, chunk2)
 
 	// Test Serialize and NewFromBytes
 	serialized, err := p.Serialize()
@@ -101,12 +103,12 @@ func TestPackFileSerializeIndex(t *testing.T) {
 	// Define some sample chunks
 	chunk1 := []byte("This is chunk number 1")
 	chunk2 := []byte("This is chunk number 2")
-	checksum1 := [32]byte{1} // Mock checksum for chunk1
-	checksum2 := [32]byte{2} // Mock checksum for chunk2
+	checksum1 := objects.Checksum{1} // Mock checksum for chunk1
+	checksum2 := objects.Checksum{2} // Mock checksum for chunk2
 
 	// Test AddBlob
-	p.AddBlob(resources.RT_CHUNK, checksum1, chunk1)
-	p.AddBlob(resources.RT_CHUNK, checksum2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum1, chunk1)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum2, chunk2)
 
 	// Test packfile Size
 	require.Equal(t, p.Size(), uint32(44), "Expected 2 blobs but got %q", p.Size())
@@ -126,6 +128,9 @@ func TestPackFileSerializeIndex(t *testing.T) {
 	require.Equal(t, blob1.Type, resources.RT_CHUNK)
 	require.Equal(t, blob2.Type, resources.RT_CHUNK)
 
+	require.Equal(t, blob1.Version, versioning.GetCurrentVersion(resources.RT_CHUNK))
+	require.Equal(t, blob2.Version, versioning.GetCurrentVersion(resources.RT_CHUNK))
+
 	require.Equal(t, blob1.Length, uint32(len(chunk1)))
 	require.Equal(t, blob2.Length, uint32(len(chunk2)))
 
@@ -143,8 +148,8 @@ func TestPackFileSerializeFooter(t *testing.T) {
 	checksum2 := [32]byte{2} // Mock checksum for chunk2
 
 	// Test AddBlob
-	p.AddBlob(resources.RT_CHUNK, checksum1, chunk1)
-	p.AddBlob(resources.RT_CHUNK, checksum2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum1, chunk1)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum2, chunk2)
 
 	// Test Serialize and NewFromBytes
 	serialized, err := p.SerializeFooter()
@@ -155,7 +160,7 @@ func TestPackFileSerializeFooter(t *testing.T) {
 
 	require.Equal(t, p2.Count, uint32(2), "Expected 2 blobs but got %d", uint32(p2.Count))
 
-	require.Equal(t, p2.IndexOffset, uint32(len(chunk1)+len(chunk2)), "Expected IndexOffset to be %d but got %d", len(chunk1)+len(chunk2), p2.IndexOffset)
+	require.Equal(t, p2.IndexOffset, uint64(len(chunk1)+len(chunk2)), "Expected IndexOffset to be %d but got %d", len(chunk1)+len(chunk2), p2.IndexOffset)
 }
 
 func TestPackFileSerializeData(t *testing.T) {
@@ -168,8 +173,8 @@ func TestPackFileSerializeData(t *testing.T) {
 	checksum2 := [32]byte{2} // Mock checksum for chunk2
 
 	// Test AddBlob
-	p.AddBlob(resources.RT_CHUNK, checksum1, chunk1)
-	p.AddBlob(resources.RT_CHUNK, checksum2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum1, chunk1)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum2, chunk2)
 
 	// Test SerializeData
 	serialized, err := p.SerializeData()
@@ -183,5 +188,7 @@ func TestPackFileSerializeData(t *testing.T) {
 func TestDefaultConfiguration(t *testing.T) {
 	c := DefaultConfiguration()
 
-	require.Equal(t, c.MaxSize, uint32(20971520))
+	require.Equal(t, c.MinSize, uint64(0))
+	require.Equal(t, c.AvgSize, uint64(0))
+	require.Equal(t, c.MaxSize, uint64(20971520))
 }
