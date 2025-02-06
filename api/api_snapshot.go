@@ -389,8 +389,8 @@ func snapshotVFSErrors(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	var i int64
-	items := Items[snapshot.ErrorItem]{
-		Items: []snapshot.ErrorItem{},
+	items := Items[*snapshot.ErrorItem]{
+		Items: []*snapshot.ErrorItem{},
 	}
 	for errorEntry := range errorList {
 		if i < offset {

@@ -34,7 +34,7 @@ type BackupContext struct {
 	maxConcurrency chan bool
 	scanCache      *caching.ScanCache
 
-	erridx   *btree.BTree[string, int, ErrorItem]
+	erridx   *btree.BTree[string, int, *ErrorItem]
 	muerridx sync.Mutex
 }
 
@@ -61,7 +61,7 @@ func (bc *BackupContext) recordEntry(entry *vfs.Entry) error {
 
 func (bc *BackupContext) recordError(path string, err error) error {
 	bc.muerridx.Lock()
-	e := bc.erridx.Insert(path, ErrorItem{
+	e := bc.erridx.Insert(path, &ErrorItem{
 		Version: versioning.FromString(ERROR_VERSION),
 		Name:    path,
 		Error:   err.Error(),
@@ -223,7 +223,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		scanCache:      snap.scanCache,
 	}
 
-	errstore := caching.DBStore[string, ErrorItem]{
+	errstore := caching.DBStore[string, *ErrorItem]{
 		Prefix: "__error__",
 		Cache:  snap.scanCache,
 	}
@@ -407,8 +407,16 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	}
 	scannerWg.Wait()
 
-	errcsum, err := persistIndex(snap, backupCtx.erridx, resources.RT_ERROR, func(e ErrorItem) (ErrorItem, error) {
-		return e, nil
+	errcsum, err := persistIndex(snap, backupCtx.erridx, resources.RT_BTREE, func(e *ErrorItem) (csum objects.Checksum, err error) {
+		serialized, err := e.ToBytes()
+		if err != nil {
+			return
+		}
+		csum = snap.repository.Checksum(serialized)
+		if !snap.BlobExists(resources.RT_ERROR, csum) {
+			err = snap.PutBlob(resources.RT_ERROR, csum, serialized)
+		}
+		return
 	})
 	if err != nil {
 		return err
