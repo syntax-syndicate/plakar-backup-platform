@@ -26,7 +26,6 @@ func Types() []Type {
 		RT_VFS,
 		RT_VFS_ENTRY,
 		RT_INDEX,
-		RT_INDEX_ENTRY,
 		RT_SIGNATURE,
 		RT_ERROR,
 	}
@@ -50,8 +49,6 @@ func (r Type) String() string {
 		return "vfs entry"
 	case RT_INDEX:
 		return "index"
-	case RT_INDEX_ENTRY:
-		return "index entry"
 	case RT_SIGNATURE:
 		return "signature"
 	case RT_ERROR:
