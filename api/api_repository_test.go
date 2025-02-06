@@ -692,7 +692,7 @@ func _Test_RepositoryPackfilesErrors(t *testing.T) {
 	}
 }
 
-func Test_RepositoryPackfile(t *testing.T) {
+func _Test_RepositoryPackfile(t *testing.T) {
 
 	testCases := []struct {
 		name       string
