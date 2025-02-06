@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	SERIALIZED_HEADER_SIZE uint32 = 8
+	SERIALIZED_HEADER_SIZE uint32 = 16
 	SERIALIZED_FOOTER_SIZE uint32 = 32
 )
 
@@ -34,14 +34,18 @@ type deserializeReader struct {
 }
 
 func (r *Repository) newDeserializeReader(resourceType resources.Type, inner io.Reader) (*deserializeReader, error) {
-	buf := make([]byte, 8)
+	buf := make([]byte, SERIALIZED_HEADER_SIZE)
 	_, err := io.ReadFull(inner, buf)
 	if err != nil {
 		return nil, err
 	}
 
-	parsedResourceType := resources.Type(binary.LittleEndian.Uint32(buf[0:4]))
-	_ = versioning.Version(binary.LittleEndian.Uint32(buf[4:8]))
+	magic := buf[0:8]
+	if !bytes.Equal(magic, []byte("_PLAKAR_")) {
+		return nil, fmt.Errorf("invalid magic")
+	}
+	parsedResourceType := resources.Type(binary.LittleEndian.Uint32(buf[8:12]))
+	_ = versioning.Version(binary.LittleEndian.Uint32(buf[12:16]))
 
 	if parsedResourceType != resourceType {
 		return nil, fmt.Errorf("invalid resource type")
@@ -146,9 +150,10 @@ type serializeReader struct {
 }
 
 func (r *Repository) newSerializeReader(resourceType resources.Type, version versioning.Version, inner io.Reader) *serializeReader {
-	header := make([]byte, 8)
-	binary.LittleEndian.PutUint32(header[4:8], uint32(version))
-	binary.LittleEndian.PutUint32(header[0:4], uint32(resourceType))
+	header := make([]byte, SERIALIZED_HEADER_SIZE)
+	copy(header[0:8], []byte("_PLAKAR_"))
+	binary.LittleEndian.PutUint32(header[8:12], uint32(resourceType))
+	binary.LittleEndian.PutUint32(header[12:16], uint32(version))
 
 	hasher := r.HasherHMAC()
 	hasher.Write(header)
