@@ -46,7 +46,9 @@ type PackFileFooter struct {
 }
 
 type Configuration struct {
-	MaxSize uint32
+	MinSize uint64
+	AvgSize uint64
+	MaxSize uint64
 }
 
 func DefaultConfiguration() *Configuration {
