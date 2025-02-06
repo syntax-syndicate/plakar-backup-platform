@@ -168,7 +168,7 @@ func (mb *MockBackend) GetPackfile(checksum objects.Checksum) (io.Reader, error)
 	}
 }
 
-func (mb *MockBackend) GetPackfileBlob(checksum objects.Checksum, offset uint32, length uint32) (io.Reader, error) {
+func (mb *MockBackend) GetPackfileBlob(checksum objects.Checksum, offset uint64, length uint32) (io.Reader, error) {
 	if mb.behavior == "brokenGetPackfileBlob" {
 		return nil, errors.New("broken get packfile blob")
 	}
