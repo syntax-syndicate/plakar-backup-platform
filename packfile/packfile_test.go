@@ -2,6 +2,8 @@ package packfile
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
 	"testing"
 
 	"github.com/PlakarKorp/plakar/objects"
@@ -11,7 +13,9 @@ import (
 )
 
 func TestPackFile(t *testing.T) {
-	p := New()
+	hasher := hmac.New(sha256.New, []byte("testkey"))
+
+	p := New(hasher)
 
 	// Define some sample chunks
 	chunk1 := []byte("This is chunk number 1")
@@ -48,7 +52,9 @@ func TestPackFile(t *testing.T) {
 }
 
 func TestPackFileSerialization(t *testing.T) {
-	p := New()
+	hasher := hmac.New(sha256.New, []byte("testkey"))
+
+	p := New(hasher)
 
 	// Define some sample chunks
 	chunk1 := []byte("This is chunk number 1")
@@ -66,7 +72,7 @@ func TestPackFileSerialization(t *testing.T) {
 		t.Fatalf("Failed to serialize PackFile: %v", err)
 	}
 
-	p2, err := NewFromBytes(serialized)
+	p2, err := NewFromBytes(hasher, serialized)
 	if err != nil {
 		t.Fatalf("Failed to create PackFile from bytes: %v", err)
 	}
@@ -98,7 +104,9 @@ func TestPackFileSerialization(t *testing.T) {
 }
 
 func TestPackFileSerializeIndex(t *testing.T) {
-	p := New()
+	hasher := hmac.New(sha256.New, []byte("testkey"))
+
+	p := New(hasher)
 
 	// Define some sample chunks
 	chunk1 := []byte("This is chunk number 1")
@@ -139,7 +147,8 @@ func TestPackFileSerializeIndex(t *testing.T) {
 }
 
 func TestPackFileSerializeFooter(t *testing.T) {
-	p := New()
+	hasher := hmac.New(sha256.New, []byte("testkey"))
+	p := New(hasher)
 
 	// Define some sample chunks
 	chunk1 := []byte("This is chunk number 1")
@@ -164,7 +173,8 @@ func TestPackFileSerializeFooter(t *testing.T) {
 }
 
 func TestPackFileSerializeData(t *testing.T) {
-	p := New()
+	hasher := hmac.New(sha256.New, []byte("testkey"))
+	p := New(hasher)
 
 	// Define some sample chunks
 	chunk1 := []byte("This is chunk number 1")

@@ -2,6 +2,7 @@ package snapshot
 
 import (
 	"bytes"
+	"hash"
 	"io"
 	"runtime"
 	"sync"
@@ -26,13 +27,13 @@ type Packer struct {
 	Packfile *packfile.PackFile
 }
 
-func NewPacker() *Packer {
+func NewPacker(hasher hash.Hash) *Packer {
 	blobs := make(map[resources.Type]map[[32]byte][]byte)
 	for _, Type := range resources.Types() {
 		blobs[Type] = make(map[[32]byte][]byte)
 	}
 	return &Packer{
-		Packfile: packfile.New(),
+		Packfile: packfile.New(hasher),
 		Blobs:    blobs,
 	}
 }
@@ -67,7 +68,7 @@ func packerJob(snap *Snapshot) {
 
 			for msg := range snap.packerChan {
 				if packer == nil {
-					packer = NewPacker()
+					packer = NewPacker(snap.Repository().HasherHMAC())
 				}
 
 				if msg, ok := msg.(*PackerMsg); !ok {
