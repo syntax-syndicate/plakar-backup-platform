@@ -114,7 +114,6 @@ func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 			if err != nil {
 				return 1, fmt.Errorf("passphrase is too weak: %s", err)
 			}
-
 		}
 
 		salt, err := encryption.Salt()
