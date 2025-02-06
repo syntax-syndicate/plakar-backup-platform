@@ -107,15 +107,14 @@ func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 			return 1, fmt.Errorf("can't encrypt the repository with an empty passphrase")
 		}
 
-		// keepass considers < 80 bits as weak
-		minEntropBits := 80.
-		if cmd.AllowWeak {
-			minEntropBits = 0.
-		}
+		if !cmd.AllowWeak {
+			// keepass considers < 80 bits as weak
+			minEntropBits := 80.
+			err := passwordvalidator.Validate(string(passphrase), minEntropBits)
+			if err != nil {
+				return 1, fmt.Errorf("passphrase is too weak: %s", err)
+			}
 
-		err := passwordvalidator.Validate(string(passphrase), minEntropBits)
-		if err != nil {
-			return 1, fmt.Errorf("passphrase is too weak: %s", err)
 		}
 
 		salt, err := encryption.Salt()
