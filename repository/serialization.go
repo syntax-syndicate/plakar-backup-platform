@@ -125,15 +125,7 @@ func (r *Repository) DeserializeStorage(resourceType resources.Type, input io.Re
 		r.Logger().Trace("repository", "Deserialize: %s", time.Since(t0))
 	}()
 
-	rd, err := r.newDeserializeReader(resourceType, input)
-	if err != nil {
-		return nil, err
-	}
-
-	if resourceType == resources.RT_PACKFILE {
-		return rd, nil
-	}
-	return r.Decode(rd)
+	return r.newDeserializeReader(resourceType, input)
 }
 
 type serializeReader struct {
@@ -239,13 +231,5 @@ func (r *Repository) SerializeStorage(resourceType resources.Type, version versi
 	// packfiles are a special case they must not be encoded
 	// as they are a collection of encoded objects glued together
 	//
-	if resourceType == resources.RT_PACKFILE {
-		return r.newSerializeReader(resourceType, version, input), nil
-	}
-
-	encoded, err := r.Encode(input)
-	if err != nil {
-		return nil, err
-	}
-	return r.newSerializeReader(resourceType, version, encoded), nil
+	return r.newSerializeReader(resourceType, version, input), nil
 }
