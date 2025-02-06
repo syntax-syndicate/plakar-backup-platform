@@ -11,7 +11,12 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/resources"
+	"github.com/PlakarKorp/plakar/versioning"
 )
+
+func init() {
+	versioning.Register(resources.RT_VFS, versioning.FromString(btree.BTREE_VERSION))
+}
 
 type Score struct {
 	Key   string  `msgpack:"key" json:"key"`
