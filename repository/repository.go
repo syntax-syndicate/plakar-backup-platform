@@ -268,7 +268,7 @@ func (r *Repository) Checksum(data []byte) objects.Checksum {
 func (r *Repository) HasherHMAC() hash.Hash {
 	secret := r.AppContext().GetSecret()
 	if secret == nil {
-		secret = []byte{}
+		return r.Hasher()
 	}
 	return hashing.GetHasherHMAC(r.Configuration().Hashing.Algorithm, secret)
 }
