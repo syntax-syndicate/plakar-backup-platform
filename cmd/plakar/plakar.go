@@ -150,6 +150,10 @@ func entryPoint() int {
 	}
 
 	// setup from default + override
+	if opt_cpuCount <= 0 {
+		fmt.Fprintf(os.Stderr, "%s: invalid -cpu value %d\n", flag.CommandLine.Name(), opt_cpuCount)
+		return 1
+	}
 	if opt_cpuCount > runtime.NumCPU() {
 		fmt.Fprintf(os.Stderr, "%s: can't use more cores than available: %d\n", flag.CommandLine.Name(), runtime.NumCPU())
 		return 1
