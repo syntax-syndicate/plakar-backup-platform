@@ -11,9 +11,8 @@ const (
 	RT_VFS         Type = 6
 	RT_VFS_ENTRY   Type = 7
 	RT_INDEX       Type = 8
-	RT_INDEX_ENTRY Type = 9
-	RT_SIGNATURE   Type = 10
-	RT_ERROR       Type = 11
+	RT_SIGNATURE   Type = 9
+	RT_ERROR       Type = 10
 )
 
 func Types() []Type {
