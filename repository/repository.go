@@ -265,6 +265,29 @@ func (r *Repository) Checksum(data []byte) objects.Checksum {
 	return checksum
 }
 
+func (r *Repository) HasherHMAC() hash.Hash {
+	secret := r.AppContext().GetSecret()
+	if secret == nil {
+		secret = []byte{}
+	}
+	return hashing.GetHasherHMAC(r.Configuration().Hashing.Algorithm, secret)
+}
+
+func (r *Repository) ChecksumHMAC(data []byte) objects.Checksum {
+	hasher := r.HasherHMAC()
+	hasher.Write(data)
+	result := hasher.Sum(nil)
+
+	if len(result) != 32 {
+		panic("hasher returned invalid length")
+	}
+
+	var checksum objects.Checksum
+	copy(checksum[:], result)
+
+	return checksum
+}
+
 func (r *Repository) Chunker(rd io.ReadCloser) (*chunkers.Chunker, error) {
 	chunkingAlgorithm := r.configuration.Chunking.Algorithm
 	chunkingMinSize := r.configuration.Chunking.MinSize
