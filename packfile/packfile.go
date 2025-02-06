@@ -29,6 +29,8 @@ type Blob struct {
 	Length   uint32
 }
 
+const BLOB_RECORD_SIZE = 48
+
 type PackFile struct {
 	Blobs  []byte
 	Index  []Blob
@@ -38,10 +40,12 @@ type PackFile struct {
 type PackFileFooter struct {
 	Version       versioning.Version
 	Timestamp     int64
-	Count         uint32
-	IndexOffset   uint32
+	Count         uint64
+	IndexOffset   uint64
 	IndexChecksum objects.Checksum
 }
+
+const FOOTER_SIZE = 60
 
 type Configuration struct {
 	MinSize uint64
@@ -128,7 +132,7 @@ func New() *PackFile {
 func NewFromBytes(serialized []byte) (*PackFile, error) {
 	reader := bytes.NewReader(serialized)
 	var footer PackFileFooter
-	_, err := reader.Seek(-52, io.SeekEnd)
+	_, err := reader.Seek(-FOOTER_SIZE, io.SeekEnd)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +162,7 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 	}
 
 	// we won't read the totalLength again
-	remaining := reader.Len() - 52
+	remaining := reader.Len() - FOOTER_SIZE
 
 	p := New()
 	p.Footer = footer
@@ -187,7 +191,7 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 			return nil, err
 		}
 
-		if blobOffset+blobLength > p.Footer.IndexOffset {
+		if uint64(blobOffset+blobLength) > p.Footer.IndexOffset {
 			return nil, fmt.Errorf("blob offset + blob length exceeds total length of packfile")
 		}
 
@@ -213,7 +217,7 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 			Offset:   blobOffset,
 			Length:   blobLength,
 		})
-		remaining -= (4 + 4 + len(checksum) + 4 + 4)
+		remaining -= BLOB_RECORD_SIZE
 	}
 	checksum := objects.Checksum(hasher.Sum(nil))
 	if checksum != p.Footer.IndexChecksum {
@@ -399,7 +403,7 @@ func (p *PackFile) AddBlob(resourceType resources.Type, version versioning.Versi
 	})
 	p.Blobs = append(p.Blobs, data...)
 	p.Footer.Count++
-	p.Footer.IndexOffset = uint32(len(p.Blobs))
+	p.Footer.IndexOffset = uint64(len(p.Blobs))
 }
 
 func (p *PackFile) GetBlob(checksum objects.Checksum) ([]byte, bool) {

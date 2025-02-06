@@ -42,7 +42,7 @@ func TestPackFile(t *testing.T) {
 	if p.Footer.Count != 2 {
 		t.Fatalf("Expected Footer.Count to be 2 but got %d", p.Footer.Count)
 	}
-	if p.Footer.IndexOffset != uint32(len(p.Blobs)) {
+	if p.Footer.IndexOffset != uint64(len(p.Blobs)) {
 		t.Fatalf("Expected Footer.Length to be %d but got %d", len(p.Blobs), p.Footer.IndexOffset)
 	}
 }
@@ -158,9 +158,9 @@ func TestPackFileSerializeFooter(t *testing.T) {
 	p2, err := NewFooterFromBytes(serialized)
 	require.NoError(t, err, "Failed to create PackFile footer from bytes")
 
-	require.Equal(t, p2.Count, uint32(2), "Expected 2 blobs but got %d", uint32(p2.Count))
+	require.Equal(t, p2.Count, uint64(2), "Expected 2 blobs but got %d", uint64(p2.Count))
 
-	require.Equal(t, p2.IndexOffset, uint32(len(chunk1)+len(chunk2)), "Expected IndexOffset to be %d but got %d", len(chunk1)+len(chunk2), p2.IndexOffset)
+	require.Equal(t, p2.IndexOffset, uint64(len(chunk1)+len(chunk2)), "Expected IndexOffset to be %d but got %d", len(chunk1)+len(chunk2), p2.IndexOffset)
 }
 
 func TestPackFileSerializeData(t *testing.T) {
