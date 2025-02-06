@@ -3,16 +3,16 @@ package resources
 type Type uint32
 
 const (
-	RT_STATE       Type = 1
-	RT_PACKFILE    Type = 2
-	RT_SNAPSHOT    Type = 3
-	RT_CHUNK       Type = 4
-	RT_OBJECT      Type = 5
-	RT_VFS         Type = 6
-	RT_VFS_ENTRY   Type = 7
-	RT_INDEX       Type = 8
-	RT_SIGNATURE   Type = 9
-	RT_ERROR       Type = 10
+	RT_STATE     Type = 1
+	RT_PACKFILE  Type = 2
+	RT_SNAPSHOT  Type = 3
+	RT_CHUNK     Type = 4
+	RT_OBJECT    Type = 5
+	RT_VFS       Type = 6
+	RT_VFS_ENTRY Type = 7
+	RT_SIGNATURE Type = 8
+	RT_ERROR     Type = 9
+	RT_BTREE     Type = 10
 )
 
 func Types() []Type {
@@ -24,9 +24,9 @@ func Types() []Type {
 		RT_OBJECT,
 		RT_VFS,
 		RT_VFS_ENTRY,
-		RT_INDEX,
 		RT_SIGNATURE,
 		RT_ERROR,
+		RT_BTREE,
 	}
 }
 
@@ -46,12 +46,12 @@ func (r Type) String() string {
 		return "vfs"
 	case RT_VFS_ENTRY:
 		return "vfs entry"
-	case RT_INDEX:
-		return "index"
 	case RT_SIGNATURE:
 		return "signature"
 	case RT_ERROR:
 		return "error"
+	case RT_BTREE:
+		return "btree"
 	default:
 		return "unknown"
 	}
