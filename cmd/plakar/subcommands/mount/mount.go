@@ -37,6 +37,9 @@ func init() {
 
 func parse_cmd_mount(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	flags := flag.NewFlagSet("mount", flag.ExitOnError)
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: %s PATH\n", flags.Name())
+	}
 	flags.Parse(args)
 
 	if flags.NArg() != 1 {

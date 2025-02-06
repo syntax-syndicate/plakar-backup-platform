@@ -40,6 +40,12 @@ func init() {
 func parse_cmd_diff(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	var opt_highlight bool
 	flags := flag.NewFlagSet("diff", flag.ExitOnError)
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] SNAPSHOT:PATH SNAPSHOT[:PATH]\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "\nOPTIONS:\n")
+		flags.PrintDefaults()
+	}
+
 	flags.BoolVar(&opt_highlight, "highlight", false, "highlight output")
 	flags.Parse(args)
 

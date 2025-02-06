@@ -41,6 +41,12 @@ func parse_cmd_rm(ctx *appcontext.AppContext, repo *repository.Repository, args 
 	var opt_older string
 	var opt_tag string
 	flags := flag.NewFlagSet("rm", flag.ExitOnError)
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] SNAPSHOT...\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "\nOPTIONS:\n")
+		flags.PrintDefaults()
+	}
+
 	flags.StringVar(&opt_tag, "tag", "", "filter by tag")
 	flags.StringVar(&opt_older, "older", "", "remove snapshots older than this date")
 	flags.Parse(args)
