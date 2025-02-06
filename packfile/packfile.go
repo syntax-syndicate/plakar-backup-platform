@@ -25,11 +25,11 @@ type Blob struct {
 	Type     resources.Type
 	Version  versioning.Version
 	Checksum objects.Checksum
-	Offset   uint32
+	Offset   uint64
 	Length   uint32
 }
 
-const BLOB_RECORD_SIZE = 48
+const BLOB_RECORD_SIZE = 52
 
 type PackFile struct {
 	Blobs  []byte
@@ -88,7 +88,7 @@ func NewIndexFromBytes(serialized []byte) ([]Blob, error) {
 		var resourceType resources.Type
 		var resourceVersion versioning.Version
 		var checksum objects.Checksum
-		var blobOffset uint32
+		var blobOffset uint64
 		var blobLength uint32
 
 		if err := binary.Read(reader, binary.LittleEndian, &resourceType); err != nil {
@@ -172,7 +172,7 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 		var resourceType resources.Type
 		var resourceVersion versioning.Version
 		var checksum objects.Checksum
-		var blobOffset uint32
+		var blobOffset uint64
 		var blobLength uint32
 
 		if err := binary.Read(reader, binary.LittleEndian, &resourceType); err != nil {
@@ -191,7 +191,7 @@ func NewFromBytes(serialized []byte) (*PackFile, error) {
 			return nil, err
 		}
 
-		if uint64(blobOffset+blobLength) > p.Footer.IndexOffset {
+		if blobOffset+uint64(blobLength) > p.Footer.IndexOffset {
 			return nil, fmt.Errorf("blob offset + blob length exceeds total length of packfile")
 		}
 
@@ -398,7 +398,7 @@ func (p *PackFile) AddBlob(resourceType resources.Type, version versioning.Versi
 		Type:     resourceType,
 		Version:  version,
 		Checksum: checksum,
-		Offset:   uint32(len(p.Blobs)),
+		Offset:   uint64(len(p.Blobs)),
 		Length:   uint32(len(data)),
 	})
 	p.Blobs = append(p.Blobs, data...)
@@ -409,7 +409,7 @@ func (p *PackFile) AddBlob(resourceType resources.Type, version versioning.Versi
 func (p *PackFile) GetBlob(checksum objects.Checksum) ([]byte, bool) {
 	for _, blob := range p.Index {
 		if blob.Checksum == checksum {
-			return p.Blobs[blob.Offset : blob.Offset+blob.Length], true
+			return p.Blobs[blob.Offset : blob.Offset+uint64(blob.Length)], true
 		}
 	}
 	return nil, false

@@ -55,11 +55,11 @@ type Metadata struct {
 
 type Location struct {
 	Packfile objects.Checksum
-	Offset   uint32
+	Offset   uint64
 	Length   uint32
 }
 
-const LocationSerializedSize = 32 + 4 + 4
+const LocationSerializedSize = 32 + 8 + 4
 
 type DeltaEntry struct {
 	Type     resources.Type
@@ -305,7 +305,7 @@ func DeltaEntryFromBytes(buf []byte) (de DeltaEntry, err error) {
 		return de, fmt.Errorf("Short read while deserializing delta entry")
 	}
 
-	de.Location.Offset = binary.LittleEndian.Uint32(bbuf.Next(4))
+	de.Location.Offset = binary.LittleEndian.Uint64(bbuf.Next(8))
 	de.Location.Length = binary.LittleEndian.Uint32(bbuf.Next(4))
 
 	return
@@ -318,8 +318,8 @@ func (de *DeltaEntry) _toBytes(buf []byte) {
 
 	pos += copy(buf[pos:], de.Blob[:])
 	pos += copy(buf[pos:], de.Location.Packfile[:])
-	binary.LittleEndian.PutUint32(buf[pos:], de.Location.Offset)
-	pos += 4
+	binary.LittleEndian.PutUint64(buf[pos:], de.Location.Offset)
+	pos += 8
 	binary.LittleEndian.PutUint32(buf[pos:], de.Location.Length)
 }
 
@@ -534,7 +534,7 @@ func (ls *LocalState) PutDelta(de DeltaEntry) error {
 }
 
 // XXX: Keeping those to minimize the diff, but this should get refactored into using PutDelta.
-func (ls *LocalState) SetPackfileForBlob(Type resources.Type, packfileChecksum objects.Checksum, blobChecksum objects.Checksum, packfileOffset uint32, chunkLength uint32) {
+func (ls *LocalState) SetPackfileForBlob(Type resources.Type, packfileChecksum objects.Checksum, blobChecksum objects.Checksum, packfileOffset uint64, chunkLength uint32) {
 	de := DeltaEntry{
 		Type: Type,
 		Blob: blobChecksum,
@@ -553,7 +553,7 @@ func (ls *LocalState) BlobExists(Type resources.Type, blobChecksum objects.Check
 	return has
 }
 
-func (ls *LocalState) GetSubpartForBlob(Type resources.Type, blobChecksum objects.Checksum) (objects.Checksum, uint32, uint32, bool) {
+func (ls *LocalState) GetSubpartForBlob(Type resources.Type, blobChecksum objects.Checksum) (objects.Checksum, uint64, uint32, bool) {
 	/* XXX: We treat an error as missing data. Checking calling code I assume it's safe .. */
 	delta, _ := ls.cache.GetDelta(Type, blobChecksum)
 	if delta == nil {
