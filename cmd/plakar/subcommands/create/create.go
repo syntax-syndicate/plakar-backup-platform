@@ -107,7 +107,8 @@ func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 			return 1, fmt.Errorf("can't encrypt the repository with an empty passphrase")
 		}
 
-		minEntropBits := 60.
+		// keypass considers < 80 bits as weak
+		minEntropBits := 80.
 		if cmd.AllowWeak {
 			minEntropBits = 0.
 		}
