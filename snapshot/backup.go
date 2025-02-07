@@ -34,7 +34,7 @@ type BackupContext struct {
 	maxConcurrency chan bool
 	scanCache      *caching.ScanCache
 
-	erridx   *btree.BTree[string, int, ErrorItem]
+	erridx   *btree.BTree[string, int, *ErrorItem]
 	muerridx sync.Mutex
 }
 
@@ -61,7 +61,7 @@ func (bc *BackupContext) recordEntry(entry *vfs.Entry) error {
 
 func (bc *BackupContext) recordError(path string, err error) error {
 	bc.muerridx.Lock()
-	e := bc.erridx.Insert(path, ErrorItem{
+	e := bc.erridx.Insert(path, &ErrorItem{
 		Version: versioning.FromString(ERROR_VERSION),
 		Name:    path,
 		Error:   err.Error(),
@@ -223,7 +223,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		scanCache:      snap.scanCache,
 	}
 
-	errstore := caching.DBStore[string, ErrorItem]{
+	errstore := caching.DBStore[string, *ErrorItem]{
 		Prefix: "__error__",
 		Cache:  snap.scanCache,
 	}
@@ -278,7 +278,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 					if cachedFileEntry.Stat().Equal(&record.FileInfo) {
 						fileEntry = cachedFileEntry
 						if fileEntry.RecordType == importer.RecordTypeFile {
-							data, err := vfsCache.GetObject(cachedFileEntry.Object.Checksum)
+							data, err := vfsCache.GetObject(cachedFileEntry.Object)
 							if err != nil {
 								snap.Logger().Warn("VFS CACHE: Error getting object: %v", err)
 							} else if data != nil {
@@ -332,12 +332,12 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			}
 
 			var fileEntryChecksum objects.Checksum
-			if fileEntry != nil && snap.BlobExists(resources.RT_VFS, cachedFileEntryChecksum) {
+			if fileEntry != nil && snap.BlobExists(resources.RT_VFS_BTREE, cachedFileEntryChecksum) {
 				fileEntryChecksum = cachedFileEntryChecksum
 			} else {
 				fileEntry = vfs.NewEntry(path.Dir(record.Pathname), &record)
 				if object != nil {
-					fileEntry.Object = object
+					fileEntry.Object = object.Checksum
 				}
 
 				classifications := cf.Processor(record.Pathname).File(fileEntry)
@@ -352,7 +352,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 				}
 
 				fileEntryChecksum = snap.repository.Checksum(serialized)
-				err = snap.PutBlob(resources.RT_VFS, fileEntryChecksum, serialized)
+				err = snap.PutBlob(resources.RT_VFS_BTREE, fileEntryChecksum, serialized)
 				if err != nil {
 					backupCtx.recordError(record.Pathname, err)
 					return
@@ -407,8 +407,16 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	}
 	scannerWg.Wait()
 
-	errcsum, err := persistIndex(snap, backupCtx.erridx, resources.RT_ERROR, func(e ErrorItem) (ErrorItem, error) {
-		return e, nil
+	errcsum, err := persistIndex(snap, backupCtx.erridx, resources.RT_BTREE, func(e *ErrorItem) (csum objects.Checksum, err error) {
+		serialized, err := e.ToBytes()
+		if err != nil {
+			return
+		}
+		csum = snap.repository.Checksum(serialized)
+		if !snap.BlobExists(resources.RT_ERROR, csum) {
+			err = snap.PutBlob(resources.RT_ERROR, csum, serialized)
+		}
+		return
 	})
 	if err != nil {
 		return err
@@ -549,7 +557,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		}
 	}
 
-	rootcsum, err := persistIndex(snap, fileidx, resources.RT_VFS, func(entry *vfs.Entry) (csum objects.Checksum, err error) {
+	rootcsum, err := persistIndex(snap, fileidx, resources.RT_VFS_BTREE, func(entry *vfs.Entry) (csum objects.Checksum, err error) {
 		serialized, err := entry.ToBytes()
 		if err != nil {
 			return

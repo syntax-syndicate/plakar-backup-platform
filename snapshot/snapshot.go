@@ -219,10 +219,10 @@ func (snap *Snapshot) ListChunks() (iter.Seq2[objects.Checksum, error], error) {
 				yield(objects.Checksum{}, err)
 				return
 			}
-			if fsentry.Object == nil {
+			if fsentry.ResolvedObject == nil {
 				continue
 			}
-			for _, chunk := range fsentry.Object.Chunks {
+			for _, chunk := range fsentry.ResolvedObject.Chunks {
 				if !yield(chunk.Checksum, nil) {
 					return
 				}
@@ -247,10 +247,10 @@ func (snap *Snapshot) ListObjects() (iter.Seq2[objects.Checksum, error], error) 
 				yield(objects.Checksum{}, err)
 				return
 			}
-			if fsentry.Object == nil {
+			if fsentry.ResolvedObject == nil {
 				continue
 			}
-			if !yield(fsentry.Object.Checksum, nil) {
+			if !yield(fsentry.Object, nil) {
 				return
 			}
 		}
