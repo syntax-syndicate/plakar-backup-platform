@@ -541,7 +541,8 @@ The encryption works as follows:
 
 
 Q1: is it a safe scheme ?
-Q2: how to generate a safe nounce for the subkey block as to ensure there is no reuse ?
+Q2: is AES256-GCM the most appropriate mode ?
+Q3: how to generate a safe nounce for the subkey block as to ensure there is no reuse ?
 
 
 ### Decryption
