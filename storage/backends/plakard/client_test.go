@@ -12,7 +12,9 @@ import (
 
 	"github.com/PlakarKorp/plakar/network"
 	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/stretchr/testify/require"
 )
 
@@ -385,7 +387,7 @@ func _TestPlakardBackendTCP(t *testing.T) {
 	serializedConfig, err = repo.Open(location)
 	require.NoError(t, err)
 
-	repoConfig, err := storage.NewConfigurationFromBytes(serializedConfig)
+	repoConfig, err := storage.NewConfigurationFromBytes(versioning.GetCurrentVersion(resources.RT_CONFIG), serializedConfig)
 	require.NoError(t, err)
 
 	require.NoError(t, err)

@@ -267,9 +267,6 @@ func (p *PackFile) Serialize() ([]byte, error) {
 	}
 	p.Footer.IndexHMAC = objects.Checksum(p.hasher.Sum(nil))
 
-	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.Version); err != nil {
-		return nil, err
-	}
 	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.Timestamp); err != nil {
 		return nil, err
 	}
