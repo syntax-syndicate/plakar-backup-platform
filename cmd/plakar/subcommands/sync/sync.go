@@ -24,7 +24,6 @@ import (
 	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/btree"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/encryption"
@@ -278,7 +277,9 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 		}
 	}
 
-	fs.VisitNodes(func(csum objects.Checksum, node *btree.Node[string, objects.Checksum, objects.Checksum]) error {
+	fsiter := fs.IterNodes()
+	for fsiter.Next() {
+		csum, node := fsiter.Current()
 		if !dstRepository.BlobExists(resources.RT_VFS_BTREE, csum) {
 			bytes, err := msgpack.Marshal(node)
 			if err != nil {
@@ -286,8 +287,10 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 			}
 			dstSnapshot.PutBlob(resources.RT_VFS_BTREE, csum, bytes)
 		}
-		return nil
-	})
+	}
+	if err := fsiter.Err(); err != nil {
+		return err
+	}
 
 	return dstSnapshot.Commit()
 }
