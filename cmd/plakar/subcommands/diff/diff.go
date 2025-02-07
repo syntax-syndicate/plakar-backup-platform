@@ -20,7 +20,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"path"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -118,7 +117,7 @@ func (cmd *Diff) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	}
 
 	if cmd.Highlight {
-		err = quick.Highlight(os.Stdout, diff, "diff", "terminal", "dracula")
+		err = quick.Highlight(ctx.Stdout, diff, "diff", "terminal", "dracula")
 		if err != nil {
 			return 1, fmt.Errorf("diff: could not highlight diff: %w", err)
 		}
