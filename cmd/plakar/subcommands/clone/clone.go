@@ -90,13 +90,13 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 
 			rd, err := sourceStore.GetPackfile(packfileChecksum)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "could not get packfile from repository: %w\n", err)
+				fmt.Fprintf(os.Stderr, "could not get packfile from repository: %s\n", err)
 				return
 			}
 
 			err = cloneStore.PutPackfile(packfileChecksum, rd)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "could not put packfile to repository: %w\n", err)
+				fmt.Fprintf(os.Stderr, "could not put packfile to repository: %s\n", err)
 				return
 			}
 		}(_packfileChecksum)
@@ -116,13 +116,13 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 
 			data, err := sourceStore.GetState(indexChecksum)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "could not get index from repository: %w\n", err)
+				fmt.Fprintf(os.Stderr, "could not get index from repository: %s\n", err)
 				return
 			}
 
 			err = cloneStore.PutState(indexChecksum, data)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "could not put packfile to repository: %w\n", err)
+				fmt.Fprintf(os.Stderr, "could not put packfile to repository: %s\n", err)
 				return
 			}
 		}(_indexChecksum)
