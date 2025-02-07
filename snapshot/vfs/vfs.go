@@ -14,10 +14,8 @@ import (
 	"github.com/PlakarKorp/plakar/versioning"
 )
 
-const VFS_VERSION = "1.0.0"
-
 func init() {
-	versioning.Register(resources.RT_VFS, versioning.FromString(VFS_VERSION))
+	versioning.Register(resources.RT_VFS, versioning.FromString(btree.BTREE_VERSION))
 }
 
 type Score struct {
@@ -47,7 +45,6 @@ type AlternateDataStream struct {
 }
 
 type Filesystem struct {
-	Version versioning.Version
 	tree    *btree.BTree[string, objects.Checksum, objects.Checksum]
 	repo    *repository.Repository
 }
@@ -88,7 +85,6 @@ func NewFilesystem(repo *repository.Repository, root objects.Checksum) (*Filesys
 	}
 
 	fs := &Filesystem{
-		Version: versioning.FromString(VFS_VERSION),
 		tree:    tree,
 		repo:    repo,
 	}
