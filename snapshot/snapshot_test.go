@@ -51,9 +51,6 @@ func generateSnapshot(t *testing.T, keyPair *keypair.KeyPair) *Snapshot {
 	r, serializedConfig, err := storage.Open("fs://" + tmpRepoDir)
 	require.NoError(t, err)
 
-	stConfig, err := storage.NewConfigurationFromBytes(serializedConfig)
-	require.NoError(t, err)
-
 	// create a repository
 	ctx := appcontext.NewAppContext()
 	cache := caching.NewManager(tmpCacheDir)
@@ -65,7 +62,7 @@ func generateSnapshot(t *testing.T, keyPair *keypair.KeyPair) *Snapshot {
 	logger := logging.NewLogger(os.Stdout, os.Stderr)
 	logger.EnableTrace("all")
 	ctx.SetLogger(logger)
-	repo, err := repository.New(ctx, r, *stConfig, nil)
+	repo, err := repository.New(ctx, r, serializedConfig, nil)
 	require.NoError(t, err, "creating repository")
 
 	// create a snapshot
