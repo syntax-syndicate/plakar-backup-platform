@@ -11,8 +11,8 @@ const (
 	RT_VFS_BTREE Type = 6
 	RT_VFS_ENTRY Type = 7
 	RT_SIGNATURE Type = 8
-	RT_ERROR     Type = 9
-	RT_BTREE     Type = 10
+	RT_BTREE     Type = 9
+	RT_ERROR     Type = 10
 )
 
 func Types() []Type {
@@ -25,8 +25,8 @@ func Types() []Type {
 		RT_VFS_BTREE,
 		RT_VFS_ENTRY,
 		RT_SIGNATURE,
-		RT_ERROR,
 		RT_BTREE,
+		RT_ERROR,
 	}
 }
 
@@ -48,10 +48,10 @@ func (r Type) String() string {
 		return "vfs entry"
 	case RT_SIGNATURE:
 		return "signature"
-	case RT_ERROR:
-		return "error"
 	case RT_BTREE:
 		return "btree"
+	case RT_ERROR:
+		return "error"
 	default:
 		return "unknown"
 	}
