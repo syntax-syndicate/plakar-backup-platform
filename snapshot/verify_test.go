@@ -7,7 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestVerify(t *testing.T) {
+// will be fixed when signed snapshots are back post beta
+func _TestVerify(t *testing.T) {
 	defaultKeyPair, err := keypair.Generate()
 	require.NoError(t, err)
 

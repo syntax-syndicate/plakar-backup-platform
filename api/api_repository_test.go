@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,10 +12,13 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/caching"
+	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/storage"
 	ptesting "github.com/PlakarKorp/plakar/testing"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,8 +28,17 @@ func init() {
 
 // XXX: re-add once we move to non-mocked state object.
 func _Test_RepositoryConfiguration(t *testing.T) {
+
 	config := ptesting.NewConfiguration()
-	lstore, err := storage.Create("/test/location", *config)
+	serializedConfig, err := config.ToBytes()
+	require.NoError(t, err)
+
+	hasher := hashing.GetHasher("SHA256")
+	wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
+	require.NoError(t, err)
+	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
+	require.NoError(t, err)
+	lstore, err := storage.Create("/test/location", wrappedConfig)
 	require.NoError(t, err, "creating storage")
 
 	ctx := appcontext.NewAppContext()
@@ -33,7 +46,7 @@ func _Test_RepositoryConfiguration(t *testing.T) {
 	defer cache.Close()
 	ctx.SetCache(cache)
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-	repo, err := repository.New(ctx, lstore, *config, nil)
+	repo, err := repository.New(ctx, lstore, wrappedConfig, nil)
 	require.NoError(t, err, "creating repository")
 
 	var noToken string
@@ -293,7 +306,18 @@ func _Test_RepositorySnapshots(t *testing.T) {
 
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
-			lstore, err := storage.Create(c.location, *c.config)
+
+			serializedConfig, err := c.config.ToBytes()
+			require.NoError(t, err)
+
+			hasher := hashing.GetHasher("SHA256")
+			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
+			require.NoError(t, err)
+
+			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
+			require.NoError(t, err)
+
+			lstore, err := storage.Create(c.location, wrappedConfig)
 			require.NoError(t, err, "creating storage")
 
 			ctx := appcontext.NewAppContext()
@@ -301,7 +325,7 @@ func _Test_RepositorySnapshots(t *testing.T) {
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-			repo, err := repository.New(ctx, lstore, *c.config, nil)
+			repo, err := repository.New(ctx, lstore, wrappedConfig, nil)
 			require.NoError(t, err, "creating repository")
 
 			var noToken string
@@ -381,7 +405,18 @@ func _Test_RepositorySnapshotsErrors(t *testing.T) {
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
 			config := ptesting.NewConfiguration()
-			lstore, err := storage.Create(c.location, *config)
+
+			serializedConfig, err := config.ToBytes()
+			require.NoError(t, err)
+
+			hasher := hashing.GetHasher("SHA256")
+			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
+			require.NoError(t, err)
+
+			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
+			require.NoError(t, err)
+
+			lstore, err := storage.Create(c.location, wrappedConfig)
 			require.NoError(t, err, "creating storage")
 
 			ctx := appcontext.NewAppContext()
@@ -389,7 +424,7 @@ func _Test_RepositorySnapshotsErrors(t *testing.T) {
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-			repo, err := repository.New(ctx, lstore, *config, nil)
+			repo, err := repository.New(ctx, lstore, wrappedConfig, nil)
 			require.NoError(t, err, "creating repository")
 
 			var noToken string
@@ -444,7 +479,18 @@ func _Test_RepositoryStates(t *testing.T) {
 
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
-			lstore, err := storage.Create(c.location, *c.config)
+
+			serializedConfig, err := c.config.ToBytes()
+			require.NoError(t, err)
+
+			hasher := hashing.GetHasher("SHA256")
+			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
+			require.NoError(t, err)
+
+			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
+			require.NoError(t, err)
+
+			lstore, err := storage.Create(c.location, wrappedConfig)
 			require.NoError(t, err, "creating storage")
 
 			ctx := appcontext.NewAppContext()
@@ -452,7 +498,7 @@ func _Test_RepositoryStates(t *testing.T) {
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-			repo, err := repository.New(ctx, lstore, *c.config, nil)
+			repo, err := repository.New(ctx, lstore, wrappedConfig, nil)
 			require.NoError(t, err, "creating repository")
 
 			var noToken string
@@ -501,7 +547,18 @@ func _Test_RepositoryState(t *testing.T) {
 
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
-			lstore, err := storage.Create(c.location, *c.config)
+
+			serializedConfig, err := c.config.ToBytes()
+			require.NoError(t, err)
+
+			hasher := hashing.GetHasher("SHA256")
+			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
+			require.NoError(t, err)
+
+			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
+			require.NoError(t, err)
+
+			lstore, err := storage.Create(c.location, wrappedConfig)
 			require.NoError(t, err, "creating storage")
 
 			ctx := appcontext.NewAppContext()
@@ -509,7 +566,7 @@ func _Test_RepositoryState(t *testing.T) {
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-			repo, err := repository.New(ctx, lstore, *c.config, nil)
+			repo, err := repository.New(ctx, lstore, wrappedConfig, nil)
 			require.NoError(t, err, "creating repository")
 
 			var noToken string
@@ -563,7 +620,18 @@ func Test_RepositoryStateErrors(t *testing.T) {
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
 			config := ptesting.NewConfiguration()
-			lstore, err := storage.Create(c.location, *config)
+
+			serializedConfig, err := config.ToBytes()
+			require.NoError(t, err)
+
+			hasher := hashing.GetHasher("SHA256")
+			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
+			require.NoError(t, err)
+
+			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
+			require.NoError(t, err)
+
+			lstore, err := storage.Create(c.location, wrappedConfig)
 			require.NoError(t, err, "creating storage")
 
 			ctx := appcontext.NewAppContext()
@@ -571,7 +639,7 @@ func Test_RepositoryStateErrors(t *testing.T) {
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-			repo, err := repository.New(ctx, lstore, *config, nil)
+			repo, err := repository.New(ctx, lstore, wrappedConfig, nil)
 			require.NoError(t, err, "creating repository")
 
 			var noToken string
@@ -613,7 +681,17 @@ func _Test_RepositoryPackfiles(t *testing.T) {
 
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
-			lstore, err := storage.Create(c.location, *c.config)
+			serializedConfig, err := c.config.ToBytes()
+			require.NoError(t, err)
+
+			hasher := hashing.GetHasher("SHA256")
+			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
+			require.NoError(t, err)
+
+			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
+			require.NoError(t, err)
+
+			lstore, err := storage.Create(c.location, wrappedConfig)
 			require.NoError(t, err, "creating storage")
 
 			ctx := appcontext.NewAppContext()
@@ -621,7 +699,7 @@ func _Test_RepositoryPackfiles(t *testing.T) {
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-			repo, err := repository.New(ctx, lstore, *c.config, nil)
+			repo, err := repository.New(ctx, lstore, wrappedConfig, nil)
 			require.NoError(t, err, "creating repository")
 
 			var noToken string
@@ -667,7 +745,18 @@ func _Test_RepositoryPackfilesErrors(t *testing.T) {
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
 			config := ptesting.NewConfiguration()
-			lstore, err := storage.Create(c.location, *config)
+
+			serializedConfig, err := config.ToBytes()
+			require.NoError(t, err)
+
+			hasher := hashing.GetHasher("SHA256")
+			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
+			require.NoError(t, err)
+
+			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
+			require.NoError(t, err)
+
+			lstore, err := storage.Create(c.location, wrappedConfig)
 			require.NoError(t, err, "creating storage")
 
 			ctx := appcontext.NewAppContext()
@@ -675,7 +764,7 @@ func _Test_RepositoryPackfilesErrors(t *testing.T) {
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-			repo, err := repository.New(ctx, lstore, *config, nil)
+			repo, err := repository.New(ctx, lstore, wrappedConfig, nil)
 			require.NoError(t, err, "creating repository")
 
 			var noToken string
@@ -712,7 +801,18 @@ func _Test_RepositoryPackfile(t *testing.T) {
 
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
-			lstore, err := storage.Create(c.location, *c.config)
+
+			serializedConfig, err := c.config.ToBytes()
+			require.NoError(t, err)
+
+			hasher := hashing.GetHasher("SHA256")
+			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
+			require.NoError(t, err)
+
+			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
+			require.NoError(t, err)
+
+			lstore, err := storage.Create(c.location, wrappedConfig)
 			require.NoError(t, err, "creating storage")
 
 			ctx := appcontext.NewAppContext()
@@ -720,7 +820,7 @@ func _Test_RepositoryPackfile(t *testing.T) {
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-			repo, err := repository.New(ctx, lstore, *c.config, nil)
+			repo, err := repository.New(ctx, lstore, wrappedConfig, nil)
 			require.NoError(t, err, "creating repository")
 
 			var noToken string
@@ -802,7 +902,18 @@ func Test_RepositoryPackfileErrors(t *testing.T) {
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
 			config := ptesting.NewConfiguration()
-			lstore, err := storage.Create(c.location, *config)
+
+			serializedConfig, err := config.ToBytes()
+			require.NoError(t, err)
+
+			hasher := hashing.GetHasher("SHA256")
+			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
+			require.NoError(t, err)
+
+			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
+			require.NoError(t, err)
+
+			lstore, err := storage.Create(c.location, wrappedConfig)
 			require.NoError(t, err, "creating storage")
 
 			ctx := appcontext.NewAppContext()
@@ -810,7 +921,7 @@ func Test_RepositoryPackfileErrors(t *testing.T) {
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-			repo, err := repository.New(ctx, lstore, *config, nil)
+			repo, err := repository.New(ctx, lstore, wrappedConfig, nil)
 			require.NoError(t, err, "creating repository")
 
 			var noToken string

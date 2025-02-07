@@ -3,7 +3,6 @@ package http
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -29,12 +28,15 @@ type MyHandler struct {
 func (h MyHandler) Configuration(w http.ResponseWriter, r *http.Request) error {
 	w.WriteHeader(http.StatusOK)
 	configuration := storage.NewConfiguration()
-	config, err := json.Marshal(configuration)
+
+	res := make(map[string][]byte)
+	var err error
+	res["Configuration"], err = configuration.ToBytes()
 	if err != nil {
 		return err
 	}
-	w.Write([]byte(fmt.Sprintf(`{"Configuration": %s}`, config)))
-	return nil
+
+	return json.NewEncoder(w).Encode(res)
 }
 
 func (h MyHandler) Close(w http.ResponseWriter, r *http.Request) error {

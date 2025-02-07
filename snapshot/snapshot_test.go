@@ -1,7 +1,9 @@
 package snapshot
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"testing"
 	"time"
@@ -9,11 +11,14 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/encryption/keypair"
+	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/snapshot/importer/fs"
 	"github.com/PlakarKorp/plakar/storage"
 	bfs "github.com/PlakarKorp/plakar/storage/backends/fs"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -44,7 +49,14 @@ func generateSnapshot(t *testing.T, keyPair *keypair.KeyPair) *Snapshot {
 	serialized, err := config.ToBytes()
 	require.NoError(t, err)
 
-	err = r.Create("fs://"+tmpRepoDir, serialized)
+	hasher := hashing.GetHasher("SHA256")
+	wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serialized))
+	require.NoError(t, err)
+
+	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
+	require.NoError(t, err)
+
+	err = r.Create("fs://"+tmpRepoDir, wrappedConfig)
 	require.NoError(t, err)
 
 	// open the storage to load the configuration
