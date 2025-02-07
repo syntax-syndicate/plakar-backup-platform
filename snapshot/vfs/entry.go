@@ -28,8 +28,6 @@ func init() {
 // Entry implements FSEntry and fs.DirEntry, as well as some other
 // helper methods.
 type Entry struct {
-	ResolvedObject *objects.Object `msgpack:"-" json:"-"`
-
 	Version    versioning.Version  `msgpack:"version" json:"version"`
 	ParentPath string              `msgpack:"parent_path" json:"parent_path"`
 	RecordType importer.RecordType `msgpack:"type" json:"type"`
@@ -39,8 +37,9 @@ type Entry struct {
 	Summary *Summary `msgpack:"summary" json:"summary,omitempty"`
 
 	/* File specific fields */
-	SymlinkTarget string           `msgpack:"symlinkTarget,omitempty" json:"symlink_target,omitempty"`
-	Object        objects.Checksum `msgpack:"object,omitempty" json:"object,omitempty"` // nil for !regular files
+	SymlinkTarget  string           `msgpack:"symlinkTarget,omitempty" json:"symlink_target,omitempty"`
+	Object         objects.Checksum `msgpack:"object,omitempty" json:"-"` // nil for !regular files
+	ResolvedObject *objects.Object  `msgpack:"-" json:"object,omitempty"` // This the true object, resolved when opening the entry. Beware we serialize it as "Object" only for json to not break API compat'
 
 	/* Windows specific fields */
 	AlternateDataStreams []AlternateDataStream `msgpack:"alternate_data_streams,omitempty" json:"alternate_data_streams"`
