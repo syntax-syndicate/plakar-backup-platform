@@ -39,6 +39,12 @@ func parse_cmd_check(ctx *appcontext.AppContext, repo *repository.Repository, ar
 	var opt_quiet bool
 
 	flags := flag.NewFlagSet("check", flag.ExitOnError)
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] [SNAPSHOT[:PATH]]...\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "\nOPTIONS:\n")
+		flags.PrintDefaults()
+	}
+
 	flags.Uint64Var(&opt_concurrency, "concurrency", uint64(ctx.MaxConcurrency), "maximum number of parallel tasks")
 	flags.BoolVar(&opt_noVerify, "no-verify", false, "disable signature verification")
 	flags.BoolVar(&opt_fastCheck, "fast", false, "enable fast checking (no checksum verification)")

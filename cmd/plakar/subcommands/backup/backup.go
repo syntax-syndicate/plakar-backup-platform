@@ -58,7 +58,15 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 	// var opt_stdio bool
 
 	excludes := []glob.Glob{}
+
 	flags := flag.NewFlagSet("backup", flag.ExitOnError)
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] path\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s [OPTIONS] s3://path\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "\nOPTIONS:\n")
+		flags.PrintDefaults()
+	}
+
 	flags.Uint64Var(&opt_concurrency, "concurrency", uint64(ctx.MaxConcurrency), "maximum number of parallel tasks")
 	flags.StringVar(&opt_tags, "tag", "", "tag to assign to this snapshot")
 	flags.StringVar(&opt_excludes, "excludes", "", "file containing a list of exclusions")
