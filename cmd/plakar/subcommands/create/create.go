@@ -48,6 +48,13 @@ func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, a
 	var opt_allowweak bool
 
 	flags := flag.NewFlagSet("create", flag.ExitOnError)
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] /path/to/repository\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s [OPTIONS] s3://bucket/path\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "\nOPTIONS:\n")
+		flags.PrintDefaults()
+	}
+
 	flags.BoolVar(&opt_allowweak, "weak-passphrase", false, "allow weak passphrase to protect the repository")
 	flags.BoolVar(&opt_noencryption, "no-encryption", false, "disable transparent encryption")
 	flags.BoolVar(&opt_nocompression, "no-compression", false, "disable transparent compression")

@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
-	"sort"
 	"strings"
 	"time"
 
@@ -110,6 +109,18 @@ func entryPoint() int {
 	flag.BoolVar(&opt_quiet, "quiet", false, "no output except errors")
 	flag.StringVar(&opt_keyfile, "keyfile", "", "use passphrase from key file when prompted")
 	flag.BoolVar(&opt_agentless, "no-agent", false, "run without agent")
+
+	flag.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [OPTIONS] COMMAND [COMMAND_OPTIONS]...\n", flag.CommandLine.Name())
+		fmt.Fprintf(flag.CommandLine.Output(), "\nOPTIONS:\n")
+		flag.PrintDefaults()
+
+		fmt.Fprintf(flag.CommandLine.Output(), "\nCOMMANDS:\n")
+		for _, k := range subcommands.List() {
+			fmt.Fprintf(flag.CommandLine.Output(), "  %s\n", k)
+		}
+		fmt.Fprintf(flag.CommandLine.Output(), "\nFor more information on a command, use '%s help COMMAND'.\n", flag.CommandLine.Name())
+	}
 	flag.Parse()
 
 	ctx := appcontext.NewAppContext()
@@ -198,9 +209,7 @@ func entryPoint() int {
 
 	if flag.NArg() == 0 {
 		fmt.Fprintf(os.Stderr, "%s: a subcommand must be provided\n", filepath.Base(flag.CommandLine.Name()))
-		items := append(make([]string, 0, len(subcommands.List())), subcommands.List()...)
-		sort.Strings(items)
-		for _, k := range items {
+		for _, k := range subcommands.List() {
 			fmt.Fprintf(os.Stderr, "  %s\n", k)
 		}
 

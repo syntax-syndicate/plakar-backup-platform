@@ -40,6 +40,12 @@ func parse_cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, 
 	var opt_quiet bool
 
 	flags := flag.NewFlagSet("restore", flag.ExitOnError)
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] [SNAPSHOT[:PATH]]...\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "\nOPTIONS:\n")
+		flags.PrintDefaults()
+	}
+
 	flags.Uint64Var(&opt_concurrency, "concurrency", uint64(ctx.MaxConcurrency), "maximum number of parallel tasks")
 	flags.StringVar(&pullPath, "to", ctx.CWD, "base directory where pull will restore")
 	flags.BoolVar(&pullRebase, "rebase", false, "strip pathname when pulling")

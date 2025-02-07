@@ -39,9 +39,15 @@ func parse_cmd_archive(ctx *appcontext.AppContext, repo *repository.Repository, 
 	var opt_format string
 
 	flags := flag.NewFlagSet("archive", flag.ExitOnError)
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] [SNAPSHOT[:PATH]]\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "\nOPTIONS:\n")
+		flags.PrintDefaults()
+	}
+
 	flags.StringVar(&opt_output, "output", "", "archive pathname")
 	flags.BoolVar(&opt_rebase, "rebase", false, "strip pathname when pulling")
-	flags.StringVar(&opt_format, "format", "tarball", "archive format")
+	flags.StringVar(&opt_format, "format", "tarball", "archive format: tar, tarball, zip")
 	flags.Parse(args)
 
 	if flags.NArg() == 0 {
