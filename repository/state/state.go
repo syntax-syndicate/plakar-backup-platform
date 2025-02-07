@@ -63,11 +63,12 @@ const LocationSerializedSize = 32 + 8 + 4
 
 type DeltaEntry struct {
 	Type     resources.Type
+	Version  versioning.Version
 	Blob     objects.Checksum
 	Location Location
 }
 
-const DeltaEntrySerializedSize = 1 + 32 + LocationSerializedSize
+const DeltaEntrySerializedSize = 1 + 4 + 32 + LocationSerializedSize
 
 type DeletedEntry struct {
 	Type resources.Type
@@ -288,6 +289,7 @@ func DeltaEntryFromBytes(buf []byte) (de DeltaEntry, err error) {
 	}
 
 	de.Type = resources.Type(typ)
+	de.Version = versioning.Version(binary.LittleEndian.Uint32(bbuf.Next(4)))
 
 	n, err := bbuf.Read(de.Blob[:])
 	if err != nil {
@@ -315,6 +317,8 @@ func (de *DeltaEntry) _toBytes(buf []byte) {
 	pos := 0
 	buf[pos] = byte(de.Type)
 	pos++
+	binary.LittleEndian.PutUint32(buf[pos:], uint32(de.Version))
+	pos += 4
 
 	pos += copy(buf[pos:], de.Blob[:])
 	pos += copy(buf[pos:], de.Location.Packfile[:])
@@ -328,6 +332,7 @@ func (de *DeltaEntry) ToBytes() (ret []byte) {
 	de._toBytes(ret)
 	return
 }
+
 func PackfileEntryFromBytes(buf []byte) (pe PackfileEntry, err error) {
 	bbuf := bytes.NewBuffer(buf)
 
@@ -531,21 +536,6 @@ func (ls *LocalState) DelState(stateID objects.Checksum) error {
 
 func (ls *LocalState) PutDelta(de DeltaEntry) error {
 	return ls.cache.PutDelta(de.Type, de.Blob, de.ToBytes())
-}
-
-// XXX: Keeping those to minimize the diff, but this should get refactored into using PutDelta.
-func (ls *LocalState) SetPackfileForBlob(Type resources.Type, packfileChecksum objects.Checksum, blobChecksum objects.Checksum, packfileOffset uint64, chunkLength uint32) {
-	de := DeltaEntry{
-		Type: Type,
-		Blob: blobChecksum,
-		Location: Location{
-			Packfile: packfileChecksum,
-			Offset:   packfileOffset,
-			Length:   chunkLength,
-		},
-	}
-
-	ls.PutDelta(de)
 }
 
 func (ls *LocalState) BlobExists(Type resources.Type, blobChecksum objects.Checksum) bool {

@@ -575,15 +575,6 @@ func (r *Repository) ListSnapshots() iter.Seq[objects.Checksum] {
 	return r.state.ListSnapshots()
 }
 
-func (r *Repository) SetPackfileForBlob(Type resources.Type, packfileChecksum objects.Checksum, chunkChecksum objects.Checksum, offset uint64, length uint32) {
-	t0 := time.Now()
-	defer func() {
-		r.Logger().Trace("repository", "SetPackfileForBlob(%x, %x, %d, %d): %s", packfileChecksum, chunkChecksum, offset, length, time.Since(t0))
-	}()
-
-	r.state.SetPackfileForBlob(Type, packfileChecksum, chunkChecksum, offset, length)
-}
-
 func (r *Repository) Logger() *logging.Logger {
 	return r.AppContext().GetLogger()
 }

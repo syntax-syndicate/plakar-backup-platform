@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	versioning.Register(resources.RT_VFS, versioning.FromString(btree.BTREE_VERSION))
+	versioning.Register(resources.RT_VFS_BTREE, versioning.FromString(btree.BTREE_VERSION))
 }
 
 type Score struct {
@@ -45,8 +45,8 @@ type AlternateDataStream struct {
 }
 
 type Filesystem struct {
-	tree    *btree.BTree[string, objects.Checksum, objects.Checksum]
-	repo    *repository.Repository
+	tree *btree.BTree[string, objects.Checksum, objects.Checksum]
+	repo *repository.Repository
 }
 
 func PathCmp(a, b string) int {
@@ -73,20 +73,20 @@ func isEntryBelow(parent, entry string) bool {
 }
 
 func NewFilesystem(repo *repository.Repository, root objects.Checksum) (*Filesystem, error) {
-	rd, err := repo.GetBlob(resources.RT_VFS, root)
+	rd, err := repo.GetBlob(resources.RT_VFS_BTREE, root)
 	if err != nil {
 		return nil, err
 	}
 
-	storage := repository.NewRepositoryStore[string, objects.Checksum](repo, resources.RT_VFS)
+	storage := repository.NewRepositoryStore[string, objects.Checksum](repo, resources.RT_VFS_BTREE)
 	tree, err := btree.Deserialize(rd, storage, PathCmp)
 	if err != nil {
 		return nil, err
 	}
 
 	fs := &Filesystem{
-		tree:    tree,
-		repo:    repo,
+		tree: tree,
+		repo: repo,
 	}
 
 	return fs, nil
@@ -124,7 +124,28 @@ func (fsc *Filesystem) resolveEntry(csum objects.Checksum) (*Entry, error) {
 		return nil, err
 	}
 
-	return EntryFromBytes(bytes)
+	entry, err := EntryFromBytes(bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	if entry.HasObject() {
+		rd, err := fsc.repo.GetBlob(resources.RT_OBJECT, entry.Object)
+		bytes, err := io.ReadAll(rd)
+		if err != nil {
+			return nil, err
+		}
+
+		obj, err := objects.NewObjectFromBytes(bytes)
+		if err != nil {
+			return nil, err
+		}
+
+		entry.ResolvedObject = obj
+	}
+
+	return entry, nil
+
 }
 
 func (fsc *Filesystem) Open(path string) (fs.File, error) {

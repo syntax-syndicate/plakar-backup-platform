@@ -17,7 +17,7 @@ var (
 const BTREE_VERSION = "1.0.0"
 
 func init() {
-	versioning.Register(resources.RT_INDEX, versioning.FromString(BTREE_VERSION))
+	versioning.Register(resources.RT_BTREE, versioning.FromString(BTREE_VERSION))
 }
 
 type Storer[K any, P any, V any] interface {
