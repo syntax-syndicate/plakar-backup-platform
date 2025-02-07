@@ -2,6 +2,7 @@ package snapshot
 
 import (
 	"bytes"
+	"encoding/binary"
 	"io"
 	"math"
 	"mime"
@@ -771,11 +772,13 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 		return err
 	}
 
-	encryptedFooterLength := uint8(len(encryptedFooter))
-
 	serializedPackfile := append(serializedData, encryptedIndex...)
 	serializedPackfile = append(serializedPackfile, encryptedFooter...)
-	serializedPackfile = append(serializedPackfile, byte(encryptedFooterLength))
+
+	/* it is necessary to track the footer _encrypted_ length */
+	encryptedFooterLength := make([]byte, 4)
+	binary.LittleEndian.PutUint32(encryptedFooterLength, uint32(len(encryptedFooter)))
+	serializedPackfile = append(serializedPackfile, encryptedFooterLength...)
 
 	checksum := snap.repository.Checksum(serializedPackfile)
 

@@ -337,6 +337,9 @@ func (p *PackFile) SerializeFooter() ([]byte, error) {
 		if err := binary.Write(&buffer, binary.LittleEndian, blob.Type); err != nil {
 			return nil, err
 		}
+		if err := binary.Write(&buffer, binary.LittleEndian, blob.Version); err != nil {
+			return nil, err
+		}
 		if err := binary.Write(&buffer, binary.LittleEndian, blob.HMAC); err != nil {
 			return nil, err
 		}
@@ -348,6 +351,9 @@ func (p *PackFile) SerializeFooter() ([]byte, error) {
 		}
 
 		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Type); err != nil {
+			return nil, err
+		}
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Version); err != nil {
 			return nil, err
 		}
 		if err := binary.Write(p.hasher, binary.LittleEndian, blob.HMAC); err != nil {

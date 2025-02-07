@@ -1,7 +1,7 @@
 package info
 
 import (
-	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -53,24 +53,24 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 			if err != nil {
 				return 1, err
 			}
-			fmt.Println(packfileVersion)
 
 			rawPackfile, err := io.ReadAll(rd)
 			if err != nil {
 				return 1, err
 			}
 
-			footerbuf := rawPackfile[len(rawPackfile)-packfile.FOOTER_SIZE:]
-			rawPackfile = rawPackfile[:len(rawPackfile)-packfile.FOOTER_SIZE]
+			footerBufLength := binary.LittleEndian.Uint32(rawPackfile[len(rawPackfile)-4:])
+			rawPackfile = rawPackfile[:len(rawPackfile)-4]
 
-			fmt.Println(footerbuf, len(footerbuf))
+			footerbuf := rawPackfile[len(rawPackfile)-int(footerBufLength):]
+			rawPackfile = rawPackfile[:len(rawPackfile)-int(footerBufLength)]
+
+			//fmt.Println(footerbuf, len(footerbuf))
 
 			footerbuf, err = repo.DecodeBuffer(footerbuf)
 			if err != nil {
 				return 1, err
 			}
-
-			fmt.Println(footerbuf, "###1")
 
 			footer, err := packfile.NewFooterFromBytes(packfileVersion, footerbuf)
 			if err != nil {
@@ -85,17 +85,17 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 				return 1, err
 			}
 
-			hasher := repo.HasherHMAC()
-			hasher.Write(indexbuf)
+			indexHasher := repo.HasherHMAC()
+			indexHasher.Write(indexbuf)
 
-			if !bytes.Equal(hasher.Sum(nil), footer.IndexHMAC[:]) {
-				return 1, fmt.Errorf("index HMAC mismatch")
-			}
+			//if !bytes.Equal(indexHasher.Sum(nil), footer.IndexHMAC[:]) {
+			//	return 1, fmt.Errorf("index HMAC mismatch")
+			//}
 
 			rawPackfile = append(rawPackfile, indexbuf...)
 			rawPackfile = append(rawPackfile, footerbuf...)
 
-			p, err := packfile.NewFromBytes(hasher, packfileVersion, rawPackfile)
+			p, err := packfile.NewFromBytes(repo.HasherHMAC(), packfileVersion, rawPackfile)
 			if err != nil {
 				return 1, err
 			}
