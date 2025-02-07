@@ -118,9 +118,8 @@ func NewLocalState(cache caching.StateCache) *LocalState {
 	}
 }
 
-func FromStream(rd io.Reader, cache caching.StateCache) (*LocalState, error) {
+func FromStream(version versioning.Version, rd io.Reader, cache caching.StateCache) (*LocalState, error) {
 	st := &LocalState{cache: cache}
-
 	if err := st.deserializeFromStream(rd); err != nil {
 		return nil, err
 	} else {
@@ -171,7 +170,7 @@ func (ls *LocalState) UpdateSerialOr(serial uuid.UUID) error {
 }
 
 /* Insert the state denotated by stateID and its associated delta entries read from rd */
-func (ls *LocalState) InsertState(stateID objects.Checksum, rd io.Reader) error {
+func (ls *LocalState) InsertState(version versioning.Version, stateID objects.Checksum, rd io.Reader) error {
 	has, err := ls.HasState(stateID)
 	if err != nil {
 		return err

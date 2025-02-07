@@ -33,28 +33,28 @@ type deserializeReader struct {
 	eof bool
 }
 
-func newDeserializeReader(hasher hash.Hash, resourceType resources.Type, inner io.Reader) (*deserializeReader, error) {
+func newDeserializeReader(hasher hash.Hash, resourceType resources.Type, inner io.Reader) (versioning.Version, *deserializeReader, error) {
 	buf := make([]byte, STORAGE_HEADER_SIZE)
 	_, err := io.ReadFull(inner, buf)
 	if err != nil {
-		return nil, err
+		return versioning.Version(0), nil, err
 	}
 
 	magic := buf[0:8]
 	if !bytes.Equal(magic, []byte("_PLAKAR_")) {
-		return nil, fmt.Errorf("invalid magic")
+		return versioning.Version(0), nil, fmt.Errorf("invalid magic")
 	}
 	parsedResourceType := resources.Type(binary.LittleEndian.Uint32(buf[8:12]))
-	_ = versioning.Version(binary.LittleEndian.Uint32(buf[12:16]))
+	parsedResourceVersion := versioning.Version(binary.LittleEndian.Uint32(buf[12:16]))
 
 	if parsedResourceType != resourceType {
-		return nil, fmt.Errorf("invalid resource type")
+		return versioning.Version(0), nil, fmt.Errorf("invalid resource type")
 	}
 
 	hasher.Reset()
 	hasher.Write(buf)
 
-	return &deserializeReader{
+	return parsedResourceVersion, &deserializeReader{
 		inner:  inner,
 		hasher: hasher,
 		hmac:   [32]byte{},
@@ -119,7 +119,7 @@ func (s *deserializeReader) Read(p []byte) (int, error) {
 	return total, nil
 }
 
-func Deserialize(hasher hash.Hash, resourceType resources.Type, input io.Reader) (io.Reader, error) {
+func Deserialize(hasher hash.Hash, resourceType resources.Type, input io.Reader) (versioning.Version, io.Reader, error) {
 	return newDeserializeReader(hasher, resourceType, input)
 }
 

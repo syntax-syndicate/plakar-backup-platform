@@ -2,7 +2,6 @@ package info
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -50,33 +49,30 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 			var byteArray [32]byte
 			copy(byteArray[:], b)
 
-			rd, err := repo.GetPackfile(byteArray)
+			packfileVersion, rd, err := repo.GetPackfile(byteArray)
 			if err != nil {
 				return 1, err
 			}
+			fmt.Println(packfileVersion)
 
 			rawPackfile, err := io.ReadAll(rd)
 			if err != nil {
 				return 1, err
 			}
 
-			versionBytes := rawPackfile[len(rawPackfile)-5 : len(rawPackfile)-5+4]
-			version := binary.LittleEndian.Uint32(versionBytes)
+			footerbuf := rawPackfile[len(rawPackfile)-packfile.FOOTER_SIZE:]
+			rawPackfile = rawPackfile[:len(rawPackfile)-packfile.FOOTER_SIZE]
 
-			//			version := rawPackfile[len(rawPackfile)-2]
-			footerOffset := rawPackfile[len(rawPackfile)-1]
-			rawPackfile = rawPackfile[:len(rawPackfile)-5]
-
-			_ = version
-
-			footerbuf := rawPackfile[len(rawPackfile)-int(footerOffset):]
-			rawPackfile = rawPackfile[:len(rawPackfile)-int(footerOffset)]
+			fmt.Println(footerbuf, len(footerbuf))
 
 			footerbuf, err = repo.DecodeBuffer(footerbuf)
 			if err != nil {
 				return 1, err
 			}
-			footer, err := packfile.NewFooterFromBytes(footerbuf)
+
+			fmt.Println(footerbuf, "###1")
+
+			footer, err := packfile.NewFooterFromBytes(packfileVersion, footerbuf)
 			if err != nil {
 				return 1, err
 			}
@@ -99,7 +95,7 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 			rawPackfile = append(rawPackfile, indexbuf...)
 			rawPackfile = append(rawPackfile, footerbuf...)
 
-			p, err := packfile.NewFromBytes(hasher, rawPackfile)
+			p, err := packfile.NewFromBytes(hasher, packfileVersion, rawPackfile)
 			if err != nil {
 				return 1, err
 			}

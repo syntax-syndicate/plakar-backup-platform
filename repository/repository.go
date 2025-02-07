@@ -54,7 +54,7 @@ func New(ctx *appcontext.AppContext, store storage.Store, config []byte, secret 
 		hasher = hashing.GetHasher(storage.DEFAULT_HASHING_ALGORITHM)
 	}
 
-	unwrappedConfigRd, err := storage.Deserialize(hasher, resources.RT_CONFIG, bytes.NewReader(config))
+	version, unwrappedConfigRd, err := storage.Deserialize(hasher, resources.RT_CONFIG, bytes.NewReader(config))
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func New(ctx *appcontext.AppContext, store storage.Store, config []byte, secret 
 		return nil, err
 	}
 
-	configInstance, err := storage.NewConfigurationFromBytes(unwrappedConfig)
+	configInstance, err := storage.NewConfigurationFromBytes(version, unwrappedConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func NewNoRebuild(ctx *appcontext.AppContext, store storage.Store, config []byte
 		hasher = hashing.GetHasher(storage.DEFAULT_HASHING_ALGORITHM)
 	}
 
-	unwrappedConfigRd, err := storage.Deserialize(hasher, resources.RT_CONFIG, bytes.NewReader(config))
+	version, unwrappedConfigRd, err := storage.Deserialize(hasher, resources.RT_CONFIG, bytes.NewReader(config))
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func NewNoRebuild(ctx *appcontext.AppContext, store storage.Store, config []byte
 		return nil, err
 	}
 
-	configInstance, err := storage.NewConfigurationFromBytes(unwrappedConfig)
+	configInstance, err := storage.NewConfigurationFromBytes(version, unwrappedConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -171,12 +171,12 @@ func (r *Repository) RebuildState() error {
 	}
 
 	for _, stateID := range missingStates {
-		remoteStateRd, err := r.GetState(stateID)
+		version, remoteStateRd, err := r.GetState(stateID)
 		if err != nil {
 			return err
 		}
 
-		if err := aggregatedState.InsertState(stateID, remoteStateRd); err != nil {
+		if err := aggregatedState.InsertState(version, stateID, remoteStateRd); err != nil {
 			return err
 		}
 	}
@@ -417,7 +417,7 @@ func (r *Repository) GetStates() ([]objects.Checksum, error) {
 	return r.store.GetStates()
 }
 
-func (r *Repository) GetState(checksum objects.Checksum) (io.Reader, error) {
+func (r *Repository) GetState(checksum objects.Checksum) (versioning.Version, io.Reader, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "GetState(%x): %s", checksum, time.Since(t0))
@@ -425,15 +425,19 @@ func (r *Repository) GetState(checksum objects.Checksum) (io.Reader, error) {
 
 	rd, err := r.store.GetState(checksum)
 	if err != nil {
-		return nil, err
+		return versioning.Version(0), nil, err
 	}
 
-	rd, err = storage.Deserialize(r.HasherHMAC(), resources.RT_STATE, rd)
+	version, rd, err := storage.Deserialize(r.HasherHMAC(), resources.RT_STATE, rd)
 	if err != nil {
-		return nil, err
+		return versioning.Version(0), nil, err
 	}
 
-	return r.Decode(rd)
+	rd, err = r.Decode(rd)
+	if err != nil {
+		return versioning.Version(0), nil, err
+	}
+	return version, rd, err
 }
 
 func (r *Repository) PutState(checksum objects.Checksum, rd io.Reader) error {
@@ -473,7 +477,7 @@ func (r *Repository) GetPackfiles() ([]objects.Checksum, error) {
 	return r.store.GetPackfiles()
 }
 
-func (r *Repository) GetPackfile(checksum objects.Checksum) (io.Reader, error) {
+func (r *Repository) GetPackfile(checksum objects.Checksum) (versioning.Version, io.Reader, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "GetPackfile(%x, ...): %s", checksum, time.Since(t0))
@@ -481,7 +485,7 @@ func (r *Repository) GetPackfile(checksum objects.Checksum) (io.Reader, error) {
 
 	rd, err := r.store.GetPackfile(checksum)
 	if err != nil {
-		return nil, err
+		return versioning.Version(0), nil, err
 	}
 
 	return storage.Deserialize(r.HasherHMAC(), resources.RT_PACKFILE, rd)

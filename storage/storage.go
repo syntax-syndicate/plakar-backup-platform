@@ -17,6 +17,7 @@
 package storage
 
 import (
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"io"
@@ -47,7 +48,7 @@ func init() {
 }
 
 type Configuration struct {
-	Version      versioning.Version
+	Version      versioning.Version `msgpack:"-"`
 	Timestamp    time.Time
 	RepositoryID uuid.UUID
 
@@ -73,17 +74,20 @@ func NewConfiguration() *Configuration {
 	}
 }
 
-func NewConfigurationFromBytes(data []byte) (*Configuration, error) {
+func NewConfigurationFromBytes(version versioning.Version, data []byte) (*Configuration, error) {
 	var configuration Configuration
 	err := msgpack.Unmarshal(data, &configuration)
 	if err != nil {
 		return nil, err
 	}
+	configuration.Version = version
 	return &configuration, nil
 }
 
 func NewConfigurationFromWrappedBytes(data []byte) (*Configuration, error) {
 	var configuration Configuration
+
+	version := versioning.Version(binary.LittleEndian.Uint32(data[12:16]))
 
 	data = data[:len(data)-int(STORAGE_FOOTER_SIZE)]
 	data = data[STORAGE_HEADER_SIZE:]
@@ -92,6 +96,7 @@ func NewConfigurationFromWrappedBytes(data []byte) (*Configuration, error) {
 	if err != nil {
 		return nil, err
 	}
+	configuration.Version = version
 	return &configuration, nil
 }
 
