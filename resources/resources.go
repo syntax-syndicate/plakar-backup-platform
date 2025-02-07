@@ -20,7 +20,7 @@ const (
 func Types() []Type {
 	return []Type{
 		RT_CONFIG,
-   	RT_LOCK,
+		RT_LOCK,
 		RT_STATE,
 		RT_PACKFILE,
 		RT_SNAPSHOT,
@@ -38,7 +38,7 @@ func (r Type) String() string {
 	switch r {
 	case RT_CONFIG:
 		return "config"
-  case RT_LOCK:
+	case RT_LOCK:
 		return "config"
 	case RT_STATE:
 		return "state"
