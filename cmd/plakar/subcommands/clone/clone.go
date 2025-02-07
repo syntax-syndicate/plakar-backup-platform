@@ -74,14 +74,12 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 
 	cloneStore, err := storage.Create(cmd.Dest, configuration)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: could not create repository: %s\n", cmd.Dest, err)
-		return 1, err
+		return 1, fmt.Errorf("could not create repository: %w", err)
 	}
 
 	packfileChecksums, err := sourceStore.GetPackfiles()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: could not get packfiles list from repository: %s\n", sourceStore.Location(), err)
-		return 1, err
+		return 1, fmt.Errorf("could not get packfiles list from repository: %w", err)
 	}
 
 	wg := sync.WaitGroup{}
@@ -92,13 +90,13 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 
 			rd, err := sourceStore.GetPackfile(packfileChecksum)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: could not get packfile from repository: %s\n", sourceStore.Location(), err)
+				fmt.Fprintf(os.Stderr, "could not get packfile from repository: %w\n", err)
 				return
 			}
 
 			err = cloneStore.PutPackfile(packfileChecksum, rd)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: could not put packfile to repository: %s\n", cloneStore.Location(), err)
+				fmt.Fprintf(os.Stderr, "could not put packfile to repository: %w\n", err)
 				return
 			}
 		}(_packfileChecksum)
@@ -107,8 +105,7 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 
 	indexesChecksums, err := sourceStore.GetStates()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: could not get paclfiles list from repository: %s\n", sourceStore.Location(), err)
-		return 1, err
+		return 1, fmt.Errorf("could not get packfiles list from repository: %w", err)
 	}
 
 	wg = sync.WaitGroup{}
@@ -119,13 +116,13 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 
 			data, err := sourceStore.GetState(indexChecksum)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: could not get index from repository: %s\n", sourceStore.Location(), err)
+				fmt.Fprintf(os.Stderr, "could not get index from repository: %w\n", err)
 				return
 			}
 
 			err = cloneStore.PutState(indexChecksum, data)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: could not put packfile to repository: %s\n", cloneStore.Location(), err)
+				fmt.Fprintf(os.Stderr, "could not put packfile to repository: %w\n", err)
 				return
 			}
 		}(_indexChecksum)
