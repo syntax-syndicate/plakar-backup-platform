@@ -3,7 +3,7 @@ package resources
 type Type uint32
 
 const (
-  RT_CONFIG    Type = 1
+	RT_CONFIG    Type = 1
 	RT_LOCK      Type = 2
 	RT_STATE     Type = 3
 	RT_PACKFILE  Type = 4
