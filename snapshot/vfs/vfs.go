@@ -254,8 +254,8 @@ func (fsc *Filesystem) Children(path string) (iter.Seq2[string, error], error) {
 	}, nil
 }
 
-func (fsc *Filesystem) VisitNodes(cb func(objects.Checksum, *btree.Node[string, objects.Checksum, objects.Checksum]) error) error {
-	return fsc.tree.VisitDFS(cb)
+func (fsc *Filesystem) IterNodes() btree.Iterator[objects.Checksum, *btree.Node[string, objects.Checksum, objects.Checksum]] {
+	return fsc.tree.IterDFS()
 }
 
 func (fsc *Filesystem) FileChecksums() (iter.Seq2[objects.Checksum, error], error) {
