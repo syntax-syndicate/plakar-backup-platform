@@ -21,7 +21,6 @@ func (cmd *InfoRepository) Name() string {
 func (cmd *InfoRepository) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	metadatas, err := utils.GetHeaders(repo, nil)
 	if err != nil {
-		repo.Logger().Warn("%s", err)
 		return 1, err
 	}
 
