@@ -795,8 +795,9 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 			for idx, blob := range packer.Packfile.Index {
 				if blob.HMAC == blobHMAC && blob.Type == Type {
 					delta := state.DeltaEntry{
-						Type: blob.Type,
-						Blob: blobHMAC,
+						Type:    blob.Type,
+						Version: packer.Packfile.Index[idx].Version,
+						Blob:    blobHMAC,
 						Location: state.Location{
 							Packfile: checksum,
 							Offset:   packer.Packfile.Index[idx].Offset,
