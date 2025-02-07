@@ -52,7 +52,7 @@ decode(key, input) = return decompress(decrypt(key, input))
 
 User creating the repository is prompted for a passphrase that is passed through an entropy-based strength-check to refuse weak ones:
 
-```go
+```
 https://github.com/PlakarKorp/plakar/pull/413/files#diff-27daab5a56d87beab7cb5ede5778b561c3e712c9a6c8b56a2ddda3eb0d88dc00R110-R119
 ```
 
