@@ -134,7 +134,7 @@ func (repository *Repository) Open(location string) error {
 
 	exists, err := repository.minioClient.BucketExists(context.Background(), repository.bucketName)
 	if err != nil {
-		return err
+		return fmt.Errorf("error checking if bucket exists: %w", err)
 	}
 	if !exists {
 		return fmt.Errorf("bucket does not exist")
@@ -142,36 +142,36 @@ func (repository *Repository) Open(location string) error {
 
 	object, err := repository.minioClient.GetObject(context.Background(), repository.bucketName, "CONFIG", minio.GetObjectOptions{})
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting object: %w", err)
 	}
 	stat, err := object.Stat()
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting object stat: %w", err)
 	}
 
 	compressed := make([]byte, stat.Size)
 	_, err = object.Read(compressed)
 	if err != nil {
 		if err != io.EOF {
-			return err
+			return fmt.Errorf("error reading object: %w", err)
 		}
 	}
 	object.Close()
 
 	jconfig, err := compression.InflateStream("GZIP", bytes.NewReader(compressed))
 	if err != nil {
-		return err
+		return fmt.Errorf("error inflating stream: %w", err)
 	}
 
 	data, err := io.ReadAll(jconfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("error reading inflated stream: %w", err)
 	}
 
 	var config storage.Configuration
 	err = msgpack.Unmarshal(data, &config)
 	if err != nil {
-		return err
+		return fmt.Errorf("error unmarshalling configuration: %w", err)
 	}
 
 	repository.config = config
