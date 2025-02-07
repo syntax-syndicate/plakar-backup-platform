@@ -37,8 +37,8 @@ func init() {
 func parse_cmd_clone(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	flags := flag.NewFlagSet("clone", flag.ExitOnError)
 	flags.Usage = func() {
-		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] to /path/to/repository\n", flags.Name())
-		fmt.Fprintf(flags.Output(), "       %s [OPTIONS] to s3://bucket/path\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "Usage: %s to /path/to/repository\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s to s3://bucket/path\n", flags.Name())
 		flags.PrintDefaults()
 	}
 
