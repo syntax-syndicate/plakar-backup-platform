@@ -83,14 +83,17 @@ func handleConnection(ctx *appcontext.AppContext, repo *repository.Repository, r
 				}
 
 				repo.Logger().Trace("server", "%s: Create(%s, %s)", clientUuid, dirPath, request.Payload.(network.ReqCreate).Configuration)
-				st, err := storage.Create(dirPath, request.Payload.(network.ReqCreate).Configuration)
+
 				retErr := ""
+
+				st, err := storage.Create(dirPath, request.Payload.(network.ReqCreate).Configuration)
 				if err != nil {
 					retErr = err.Error()
-				}
-				lrepository, err = repository.New(ctx, st, nil)
-				if err != nil {
-					retErr = err.Error()
+				} else {
+					lrepository, err = repository.New(ctx, st, request.Payload.(network.ReqCreate).Configuration, nil)
+					if err != nil {
+						retErr = err.Error()
+					}
 				}
 				result := network.Request{
 					Uuid:    request.Uuid,
@@ -111,23 +114,18 @@ func handleConnection(ctx *appcontext.AppContext, repo *repository.Repository, r
 				repo.Logger().Trace("server", "%s: Open()", clientUuid)
 
 				location := request.Payload.(network.ReqOpen).Repository
-				st, err := storage.Open(location)
+				st, serializedConfig, err := storage.Open(location)
 				retErr := ""
-				if err != nil {
-					retErr = err.Error()
-				}
-				lrepository, err = repository.New(ctx, st, nil)
-				if err != nil {
-					retErr = err.Error()
-				}
 				var payload network.ResOpen
 				if err != nil {
-					payload = network.ResOpen{Configuration: nil, Err: retErr}
+					retErr = err.Error()
 				} else {
-					config := repo.Configuration()
-					payload = network.ResOpen{Configuration: &config, Err: retErr}
+					lrepository, err = repository.New(ctx, st, serializedConfig, nil)
+					if err != nil {
+						retErr = err.Error()
+					}
 				}
-
+				payload = network.ResOpen{Configuration: serializedConfig, Err: retErr}
 				result := network.Request{
 					Uuid:    request.Uuid,
 					Type:    "ResOpen",

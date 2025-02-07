@@ -62,7 +62,7 @@ type storedeData struct {
 }
 
 type localCache struct {
-	configuration storage.Configuration
+	configuration []byte
 	states        []storedeData
 	packfiles     []storedeData
 }
@@ -115,7 +115,7 @@ func _TestPlakardBackendTCP(t *testing.T) {
 						defer wg.Done()
 						var payload network.ResOpen
 						config := c.configuration
-						payload = network.ResOpen{Configuration: &config, Err: ""}
+						payload = network.ResOpen{Configuration: config, Err: ""}
 
 						result := network.Request{
 							Uuid:    request.Uuid,
@@ -375,12 +375,21 @@ func _TestPlakardBackendTCP(t *testing.T) {
 
 	require.Equal(t, location, repo.Location())
 
-	err := repo.Create(location, *storage.NewConfiguration())
+	config := storage.NewConfiguration()
+	serializedConfig, err := config.ToBytes()
 	require.NoError(t, err)
 
-	err = repo.Open(location)
+	err = repo.Create(location, serializedConfig)
 	require.NoError(t, err)
-	require.Equal(t, repo.Configuration().Version, storage.VERSION)
+
+	serializedConfig, err = repo.Open(location)
+	require.NoError(t, err)
+
+	repoConfig, err := storage.NewConfigurationFromBytes(serializedConfig)
+	require.NoError(t, err)
+
+	require.NoError(t, err)
+	require.Equal(t, repoConfig.Version, storage.VERSION)
 
 	err = repo.Close()
 	require.NoError(t, err)

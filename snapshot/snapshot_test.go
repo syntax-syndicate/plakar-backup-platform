@@ -41,11 +41,17 @@ func generateSnapshot(t *testing.T, keyPair *keypair.KeyPair) *Snapshot {
 	r := bfs.NewRepository("fs://" + tmpRepoDir)
 	require.NotNil(t, r)
 	config := storage.NewConfiguration()
-	err = r.Create("fs://"+tmpRepoDir, *config)
+	serialized, err := config.ToBytes()
+	require.NoError(t, err)
+
+	err = r.Create("fs://"+tmpRepoDir, serialized)
 	require.NoError(t, err)
 
 	// open the storage to load the configuration
-	err = r.Open("fs://" + tmpRepoDir)
+	r, serializedConfig, err := storage.Open("fs://" + tmpRepoDir)
+	require.NoError(t, err)
+
+	stConfig, err := storage.NewConfigurationFromBytes(serializedConfig)
 	require.NoError(t, err)
 
 	// create a repository
@@ -59,7 +65,7 @@ func generateSnapshot(t *testing.T, keyPair *keypair.KeyPair) *Snapshot {
 	logger := logging.NewLogger(os.Stdout, os.Stderr)
 	logger.EnableTrace("all")
 	ctx.SetLogger(logger)
-	repo, err := repository.New(ctx, r, nil)
+	repo, err := repository.New(ctx, r, *stConfig, nil)
 	require.NoError(t, err, "creating repository")
 
 	// create a snapshot

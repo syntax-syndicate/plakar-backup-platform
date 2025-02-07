@@ -19,7 +19,6 @@ package database
 import (
 	"bytes"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -35,8 +34,6 @@ import (
 )
 
 type Repository struct {
-	config storage.Configuration
-
 	backend string
 
 	conn    *sql.DB
@@ -90,7 +87,7 @@ func (repo *Repository) connect(addr string) error {
 	return nil
 }
 
-func (repo *Repository) Create(location string, config storage.Configuration) error {
+func (repo *Repository) Create(location string, config []byte) error {
 	err := repo.connect(location)
 	if err != nil {
 		return err
@@ -125,18 +122,13 @@ func (repo *Repository) Create(location string, config storage.Configuration) er
 	defer statement.Close()
 	statement.Exec()
 
-	jsonConfig, err := json.Marshal(config)
-	if err != nil {
-		return err
-	}
-
 	statement, err = repo.conn.Prepare(`INSERT INTO configuration(value) VALUES(?)`)
 	if err != nil {
 		return err
 	}
 	defer statement.Close()
 
-	_, err = statement.Exec(jsonConfig)
+	_, err = statement.Exec(config)
 	if err != nil {
 		return err
 	}
@@ -144,36 +136,23 @@ func (repo *Repository) Create(location string, config storage.Configuration) er
 	return nil
 }
 
-func (repo *Repository) Open(location string) error {
+func (repo *Repository) Open(location string) ([]byte, error) {
 	err := repo.connect(location)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var buffer []byte
-	var repositoryConfig storage.Configuration
 
 	err = repo.conn.QueryRow(`SELECT value FROM configuration`).Scan(&buffer)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	err = json.Unmarshal(buffer, &repositoryConfig)
-	if err != nil {
-		return err
-	}
-	repo.config = repositoryConfig
-
-	return nil
-
+	return buffer, nil
 }
 
 func (repo *Repository) Close() error {
 	return nil
-}
-
-func (repo *Repository) Configuration() storage.Configuration {
-	return repo.config
 }
 
 // states

@@ -35,7 +35,6 @@ import (
 )
 
 type Repository struct {
-	config   storage.Configuration
 	location string
 
 	encoder *gob.Encoder
@@ -169,7 +168,7 @@ func (repository *Repository) sendRequest(Type string, Payload interface{}) (*ne
 	return &result, nil
 }
 
-func (repository *Repository) Create(location string, config storage.Configuration) error {
+func (repository *Repository) Create(location string, config []byte) error {
 	parsed, err := giturls.Parse(location)
 	if err != nil {
 		return err
@@ -192,34 +191,32 @@ func (repository *Repository) Create(location string, config storage.Configurati
 		return fmt.Errorf("%s", result.Payload.(network.ResCreate).Err)
 	}
 
-	repository.config = config
 	return nil
 }
 
-func (repository *Repository) Open(location string) error {
+func (repository *Repository) Open(location string) ([]byte, error) {
 	parsed, err := giturls.Parse(location)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = repository.connect(parsed)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	result, err := repository.sendRequest("ReqOpen", network.ReqOpen{
 		Repository: parsed.Path,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if result.Payload.(network.ResOpen).Err != "" {
-		return fmt.Errorf("%s", result.Payload.(network.ResOpen).Err)
+		return nil, fmt.Errorf("%s", result.Payload.(network.ResOpen).Err)
 	}
 
-	repository.config = *result.Payload.(network.ResOpen).Configuration
-	return nil
+	return result.Payload.(network.ResOpen).Configuration, nil
 }
 
 func (repository *Repository) Close() error {
@@ -232,10 +229,6 @@ func (repository *Repository) Close() error {
 		return fmt.Errorf("%s", result.Payload.(network.ResClose).Err)
 	}
 	return nil
-}
-
-func (repository *Repository) Configuration() storage.Configuration {
-	return repository.config
 }
 
 // states

@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	STORAGE_HEADER_SIZE uint32 = 16
-	STORAGE_FOOTER_SIZE uint32 = 32
+	DEFAULT_HASHING_ALGORITHM        = "SHA256"
+	STORAGE_HEADER_SIZE       uint32 = 16
+	STORAGE_FOOTER_SIZE       uint32 = 32
 )
 
 const (

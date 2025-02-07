@@ -4,7 +4,6 @@ import (
 	"encoding/gob"
 
 	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/storage"
 	"github.com/google/uuid"
 )
 
@@ -16,7 +15,7 @@ type Request struct {
 
 type ReqCreate struct {
 	Repository    string
-	Configuration storage.Configuration
+	Configuration []byte
 }
 
 type ResCreate struct {
@@ -28,7 +27,7 @@ type ReqOpen struct {
 }
 
 type ResOpen struct {
-	Configuration *storage.Configuration
+	Configuration []byte
 	Err           string
 }
 

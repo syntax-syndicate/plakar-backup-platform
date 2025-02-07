@@ -26,11 +26,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/PlakarKorp/plakar/compression"
 	"github.com/PlakarKorp/plakar/network"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/storage"
-	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -78,7 +76,7 @@ func (repository *Repository) connect(location *url.URL) error {
 	return nil
 }
 
-func (repository *Repository) Create(location string, config storage.Configuration) error {
+func (repository *Repository) Create(location string, config []byte) error {
 	parsed, err := url.Parse(location)
 	if err != nil {
 		return err
@@ -95,96 +93,58 @@ func (repository *Repository) Create(location string, config storage.Configurati
 		return err
 	}
 
-	jconfig, err := msgpack.Marshal(config)
+	_, err = repository.minioClient.PutObject(context.Background(), repository.bucketName, "CONFIG", bytes.NewReader(config), int64(len(config)), minio.PutObjectOptions{})
 	if err != nil {
 		return err
 	}
 
-	compressedConfig, err := compression.DeflateStream("GZIP", bytes.NewReader(jconfig))
-	if err != nil {
-		return err
-	}
-
-	data, err := io.ReadAll(compressedConfig)
-	if err != nil {
-		return err
-	}
-
-	_, err = repository.minioClient.PutObject(context.Background(), repository.bucketName, "CONFIG", bytes.NewReader(data), int64(len(data)), minio.PutObjectOptions{})
-	if err != nil {
-		return err
-	}
-
-	repository.config = config
 	return nil
 }
 
-func (repository *Repository) Open(location string) error {
+func (repository *Repository) Open(location string) ([]byte, error) {
 	parsed, err := url.Parse(location)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = repository.connect(parsed)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	repository.bucketName = parsed.RequestURI()[1:]
 
 	exists, err := repository.minioClient.BucketExists(context.Background(), repository.bucketName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !exists {
-		return fmt.Errorf("bucket does not exist")
+		return nil, fmt.Errorf("bucket does not exist")
 	}
 
 	object, err := repository.minioClient.GetObject(context.Background(), repository.bucketName, "CONFIG", minio.GetObjectOptions{})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	stat, err := object.Stat()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	compressed := make([]byte, stat.Size)
-	_, err = object.Read(compressed)
+	data := make([]byte, stat.Size)
+	_, err = object.Read(data)
 	if err != nil {
 		if err != io.EOF {
-			return err
+			return nil, err
 		}
 	}
 	object.Close()
 
-	jconfig, err := compression.InflateStream("GZIP", bytes.NewReader(compressed))
-	if err != nil {
-		return err
-	}
-
-	data, err := io.ReadAll(jconfig)
-	if err != nil {
-		return err
-	}
-
-	var config storage.Configuration
-	err = msgpack.Unmarshal(data, &config)
-	if err != nil {
-		return err
-	}
-
-	repository.config = config
-
-	return nil
+	return data, nil
 }
 
 func (repository *Repository) Close() error {
 	return nil
-}
-
-func (repository *Repository) Configuration() storage.Configuration {
-	return repository.config
 }
 
 // states

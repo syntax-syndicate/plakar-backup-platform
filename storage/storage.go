@@ -82,14 +82,26 @@ func NewConfigurationFromBytes(data []byte) (*Configuration, error) {
 	return &configuration, nil
 }
 
+func NewConfigurationFromWrappedBytes(data []byte) (*Configuration, error) {
+	var configuration Configuration
+
+	data = data[:len(data)-int(STORAGE_FOOTER_SIZE)]
+	data = data[STORAGE_HEADER_SIZE:]
+
+	err := msgpack.Unmarshal(data, &configuration)
+	if err != nil {
+		return nil, err
+	}
+	return &configuration, nil
+}
+
 func (c *Configuration) ToBytes() ([]byte, error) {
 	return msgpack.Marshal(c)
 }
 
 type Store interface {
-	Create(repository string, configuration Configuration) error
-	Open(repository string) error
-	Configuration() Configuration
+	Create(repository string, config []byte) error
+	Open(repository string) ([]byte, error)
 	Location() string
 
 	GetStates() ([]objects.Checksum, error)
@@ -177,21 +189,22 @@ func New(location string) (Store, error) {
 	return NewStore(backendName, location)
 }
 
-func Open(location string) (Store, error) {
+func Open(location string) (Store, []byte, error) {
 	store, err := New(location)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-		return nil, err
+		return nil, nil, err
 	}
 
-	if err = store.Open(location); err != nil {
-		return nil, err
-	} else {
-		return store, nil
+	serializedConfig, err := store.Open(location)
+	if err != nil {
+		return nil, nil, err
 	}
+
+	return store, serializedConfig, nil
 }
 
-func Create(location string, configuration Configuration) (Store, error) {
+func Create(location string, configuration []byte) (Store, error) {
 	store, err := New(location)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)

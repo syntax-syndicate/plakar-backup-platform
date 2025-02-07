@@ -25,15 +25,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/PlakarKorp/plakar/compression"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/storage"
-	"github.com/vmihailenco/msgpack/v5"
 )
 
 type Repository struct {
-	config    storage.Configuration
 	location  string
 	packfiles Buckets
 	states    Buckets
@@ -66,7 +63,7 @@ func (repo *Repository) Path(args ...string) string {
 	return filepath.Join(args...)
 }
 
-func (repo *Repository) Create(location string, config storage.Configuration) error {
+func (repo *Repository) Create(location string, config []byte) error {
 
 	err := os.Mkdir(repo.Path(), 0700)
 	if err != nil {
@@ -83,52 +80,26 @@ func (repo *Repository) Create(location string, config storage.Configuration) er
 		return err
 	}
 
-	jconfig, err := msgpack.Marshal(config)
-	if err != nil {
-		return err
-	}
-	compressedConfig, err := compression.DeflateStream("GZIP", bytes.NewReader(jconfig))
-	if err != nil {
-		return err
-	}
-
-	return WriteToFileAtomic(repo.Path("CONFIG"), compressedConfig)
+	return WriteToFileAtomic(repo.Path("CONFIG"), bytes.NewReader(config))
 }
 
-func (repo *Repository) Open(location string) error {
+func (repo *Repository) Open(location string) ([]byte, error) {
 
 	repo.packfiles = NewBuckets(repo.Path("packfiles"))
 	repo.states = NewBuckets(repo.Path("states"))
 
 	rd, err := os.Open(repo.Path("CONFIG"))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer rd.Close() // do we care about err?
 
-	jconfig, err := compression.InflateStream("GZIP", rd)
+	data, err := io.ReadAll(rd)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	data, err := io.ReadAll(jconfig)
-	if err != nil {
-		return err
-	}
-
-	config := storage.Configuration{}
-	err = msgpack.Unmarshal(data, &config)
-	if err != nil {
-		return err
-	}
-
-	repo.config = config
-
-	return nil
-}
-
-func (repo *Repository) Configuration() storage.Configuration {
-	return repo.config
+	return data, nil
 }
 
 func (repo *Repository) GetPackfiles() ([]objects.Checksum, error) {

@@ -14,6 +14,7 @@ import (
 )
 
 var lstore storage.Store
+var lconfig storage.Configuration
 var lrepository *repository.Repository
 
 type Item[T any] struct {
@@ -92,6 +93,7 @@ func TokenAuthMiddleware(token string) func(http.Handler) http.Handler {
 
 func SetupRoutes(server *http.ServeMux, repo *repository.Repository, token string) {
 	lstore = repo.Store()
+	lconfig = repo.Configuration()
 	lrepository = repo
 
 	authToken := TokenAuthMiddleware(token)

@@ -17,8 +17,11 @@
 package create
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"hash"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -29,7 +32,9 @@ import (
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/plakar/versioning"
 	passwordvalidator "github.com/wagslane/go-password-validator"
 )
 
@@ -79,6 +84,7 @@ func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 	hashingConfiguration := hashing.DefaultConfiguration()
 	storageConfiguration.Hashing = *hashingConfiguration
 
+	var hasher hash.Hash
 	if !cmd.NoEncryption {
 		storageConfiguration.Encryption.Algorithm = encryption.DefaultConfiguration().Algorithm
 
@@ -132,18 +138,34 @@ func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 			return 1, err
 		}
 		storageConfiguration.Encryption.Canary = canary
+		hasher = hashing.GetHasherHMAC(storage.DEFAULT_HASHING_ALGORITHM, key)
 	} else {
 		storageConfiguration.Encryption = nil
+		hasher = hashing.GetHasher(storage.DEFAULT_HASHING_ALGORITHM)
+	}
+
+	serializedConfig, err := storageConfiguration.ToBytes()
+	if err != nil {
+		return 1, err
+	}
+
+	rd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
+	if err != nil {
+		return 1, err
+	}
+	wrappedConfig, err := io.ReadAll(rd)
+	if err != nil {
+		return 1, err
 	}
 
 	if cmd.Location == "" {
-		repo, err := storage.Create(filepath.Join(ctx.HomeDir, ".plakar"), *storageConfiguration)
+		repo, err := storage.Create(filepath.Join(ctx.HomeDir, ".plakar"), wrappedConfig)
 		if err != nil {
 			return 1, err
 		}
 		repo.Close()
 	} else {
-		repo, err := storage.Create(cmd.Location, *storageConfiguration)
+		repo, err := storage.Create(cmd.Location, wrappedConfig)
 		if err != nil {
 			return 1, err
 		}

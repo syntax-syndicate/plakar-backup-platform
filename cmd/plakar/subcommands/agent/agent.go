@@ -575,14 +575,14 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			var repo *repository.Repository
 
 			if repositoryLocation != "" {
-				store, err := storage.Open(repositoryLocation)
+				store, serializedConfig, err := storage.Open(repositoryLocation)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to open storage: %s\n", err)
 					return
 				}
 				defer store.Close()
 
-				repo, err = repository.New(clientContext, store, clientContext.GetSecret())
+				repo, err = repository.New(clientContext, store, serializedConfig, clientContext.GetSecret())
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to open repository: %s\n", err)
 					return

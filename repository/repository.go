@@ -41,15 +41,37 @@ type Repository struct {
 	secret []byte
 }
 
-func New(ctx *appcontext.AppContext, store storage.Store, secret []byte) (*Repository, error) {
+func New(ctx *appcontext.AppContext, store storage.Store, config []byte, secret []byte) (*Repository, error) {
 	t0 := time.Now()
 	defer func() {
 		ctx.GetLogger().Trace("repository", "New(store=%p): %s", store, time.Since(t0))
 	}()
 
+	var hasher hash.Hash
+	if ctx.GetSecret() != nil {
+		hasher = hashing.GetHasherHMAC(storage.DEFAULT_HASHING_ALGORITHM, ctx.GetSecret())
+	} else {
+		hasher = hashing.GetHasher(storage.DEFAULT_HASHING_ALGORITHM)
+	}
+
+	unwrappedConfigRd, err := storage.Deserialize(hasher, resources.RT_CONFIG, bytes.NewReader(config))
+	if err != nil {
+		return nil, err
+	}
+
+	unwrappedConfig, err := io.ReadAll(unwrappedConfigRd)
+	if err != nil {
+		return nil, err
+	}
+
+	configInstance, err := storage.NewConfigurationFromBytes(unwrappedConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	r := &Repository{
 		store:         store,
-		configuration: store.Configuration(),
+		configuration: *configInstance,
 		appContext:    ctx,
 		secret:        secret,
 	}
@@ -61,15 +83,37 @@ func New(ctx *appcontext.AppContext, store storage.Store, secret []byte) (*Repos
 	return r, nil
 }
 
-func NewNoRebuild(ctx *appcontext.AppContext, store storage.Store, secret []byte) (*Repository, error) {
+func NewNoRebuild(ctx *appcontext.AppContext, store storage.Store, config []byte, secret []byte) (*Repository, error) {
 	t0 := time.Now()
 	defer func() {
 		ctx.GetLogger().Trace("repository", "NewNoRebuild(store=%p): %s", store, time.Since(t0))
 	}()
 
+	var hasher hash.Hash
+	if ctx.GetSecret() != nil {
+		hasher = hashing.GetHasherHMAC(storage.DEFAULT_HASHING_ALGORITHM, ctx.GetSecret())
+	} else {
+		hasher = hashing.GetHasher(storage.DEFAULT_HASHING_ALGORITHM)
+	}
+
+	unwrappedConfigRd, err := storage.Deserialize(hasher, resources.RT_CONFIG, bytes.NewReader(config))
+	if err != nil {
+		return nil, err
+	}
+
+	unwrappedConfig, err := io.ReadAll(unwrappedConfigRd)
+	if err != nil {
+		return nil, err
+	}
+
+	configInstance, err := storage.NewConfigurationFromBytes(unwrappedConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	r := &Repository{
 		store:         store,
-		configuration: store.Configuration(),
+		configuration: *configInstance,
 		appContext:    ctx,
 		secret:        secret,
 	}
