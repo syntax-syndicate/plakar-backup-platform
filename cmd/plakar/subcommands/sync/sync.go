@@ -42,8 +42,8 @@ func init() {
 func parse_cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	flags := flag.NewFlagSet("sync", flag.ExitOnError)
 	flags.Usage = func() {
-		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] SNAPSHOT to REPOSITORY\n", flags.Name())
-		fmt.Fprintf(flags.Output(), "       %s [OPTIONS] SNAPSHOT from REPOSITORY\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "Usage: %s [SNAPSHOT] to REPOSITORY\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s [SNAPSHOT] from REPOSITORY\n", flags.Name())
 		flags.PrintDefaults()
 	}
 	flags.Parse(args)
@@ -80,7 +80,7 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		peerRepositoryPath = cmd.Args[2]
 
 	default:
-		return 1, fmt.Errorf("usage: sync [snapshotID] to|from repository")
+		return 1, fmt.Errorf("usage: sync [SNAPSHOT] to|from REPOSITORY")
 	}
 
 	peerStore, err := storage.Open(peerRepositoryPath)
