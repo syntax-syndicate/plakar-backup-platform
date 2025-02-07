@@ -33,11 +33,7 @@ func ErrorItemFromBytes(bytes []byte) (*ErrorItem, error) {
 	return e, err
 }
 
-func (snapshot *Snapshot) Errors(beneath string) (iter.Seq2[*ErrorItem, error], error) {
-	if !strings.HasSuffix(beneath, "/") {
-		beneath += "/"
-	}
-
+func (snapshot *Snapshot) erroridx() (*btree.BTree[string, objects.Checksum, objects.Checksum], error) {
 	rd, err := snapshot.repository.GetBlob(resources.RT_BTREE, snapshot.Header.GetSource(0).Errors)
 	if err != nil {
 		return nil, err
@@ -47,7 +43,15 @@ func (snapshot *Snapshot) Errors(beneath string) (iter.Seq2[*ErrorItem, error], 
 		blobtype: resources.RT_BTREE,
 		snap:     snapshot,
 	}
-	tree, err := btree.Deserialize(rd, &storage, strings.Compare)
+	return btree.Deserialize(rd, &storage, strings.Compare)
+}
+
+func (snapshot *Snapshot) Errors(beneath string) (iter.Seq2[*ErrorItem, error], error) {
+	if !strings.HasSuffix(beneath, "/") {
+		beneath += "/"
+	}
+
+	tree, err := snapshot.erroridx()
 	if err != nil {
 		return nil, err
 	}
@@ -86,4 +90,13 @@ func (snapshot *Snapshot) Errors(beneath string) (iter.Seq2[*ErrorItem, error], 
 			return
 		}
 	}, nil
+}
+
+func (snapshot *Snapshot) VisitErrorNodes(cb func(objects.Checksum, *btree.Node[string, objects.Checksum, objects.Checksum]) error) error {
+	tree, err := snapshot.erroridx()
+	if err != nil {
+		return err
+	}
+
+	return tree.VisitDFS(cb)
 }
