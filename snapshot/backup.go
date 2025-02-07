@@ -278,7 +278,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 					if cachedFileEntry.Stat().Equal(&record.FileInfo) {
 						fileEntry = cachedFileEntry
 						if fileEntry.RecordType == importer.RecordTypeFile {
-							data, err := vfsCache.GetObject(cachedFileEntry.Object.Checksum)
+							data, err := vfsCache.GetObject(cachedFileEntry.Object)
 							if err != nil {
 								snap.Logger().Warn("VFS CACHE: Error getting object: %v", err)
 							} else if data != nil {
@@ -337,7 +337,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			} else {
 				fileEntry = vfs.NewEntry(path.Dir(record.Pathname), &record)
 				if object != nil {
-					fileEntry.Object = object
+					fileEntry.Object = object.Checksum
 				}
 
 				classifications := cf.Processor(record.Pathname).File(fileEntry)
