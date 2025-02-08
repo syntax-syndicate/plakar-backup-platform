@@ -92,11 +92,11 @@ func (snapshot *Snapshot) Errors(beneath string) (iter.Seq2[*ErrorItem, error], 
 	}, nil
 }
 
-func (snapshot *Snapshot) VisitErrorNodes(cb func(objects.Checksum, *btree.Node[string, objects.Checksum, objects.Checksum]) error) error {
+func (snapshot *Snapshot) IterErrorNodes() (btree.Iterator[objects.Checksum, *btree.Node[string, objects.Checksum, objects.Checksum]], error) {
 	tree, err := snapshot.erroridx()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return tree.VisitDFS(cb)
+	return tree.IterDFS(), nil
 }
