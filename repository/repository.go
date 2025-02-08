@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"hash"
 	"io"
 	"iter"
@@ -478,7 +479,7 @@ func (r *Repository) GetBlob(Type resources.Type, checksum objects.Checksum) (io
 	}
 	packfileChecksum, offset, length, exists := r.state.GetSubpartForBlob(Type, checksum)
 	if !exists {
-		return nil, ErrPackfileNotFound
+		return nil, fmt.Errorf("%w: %s", ErrPackfileNotFound, checksum)
 	}
 
 	rd, err := r.GetPackfileBlob(packfileChecksum, offset, length)
