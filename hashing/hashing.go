@@ -16,7 +16,6 @@ type Configuration struct {
 
 func DefaultConfiguration() *Configuration {
 	configuration, _ := LookupDefaultConfiguration("SHA256")
-	//configuration, _ := LookupDefaultConfiguration("BLAKE3")
 	return configuration
 }
 
