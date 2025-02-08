@@ -48,7 +48,7 @@ func Salt() (salt [saltSize]byte, err error) {
 	return
 }
 
-// BuildSecretFromPassphrase generates a secret from a passphrase using scrypt
+// DeriveKey generates a secret from a passphrase using configured KDF parameters
 func DeriveKey(params KDFParams, passphrase []byte) ([]byte, error) {
 	return scrypt.Key(passphrase, params.Salt[:], params.N, params.R, params.P, params.KeyLen)
 }
