@@ -53,7 +53,7 @@ func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, a
 	}
 
 	flags.BoolVar(&opt_allowweak, "weak-passphrase", false, "allow weak passphrase to protect the repository")
-	flags.StringVar(&opt_hashing, "hashing", "BLAKE3", "hashing algorithm to use for checksums")
+	flags.StringVar(&opt_hashing, "hashing", "SHA256", "hashing algorithm to use for checksums")
 	flags.BoolVar(&opt_noencryption, "no-encryption", false, "disable transparent encryption")
 	flags.BoolVar(&opt_nocompression, "no-compression", false, "disable transparent compression")
 	flags.Parse(args)
