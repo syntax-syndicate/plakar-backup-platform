@@ -20,6 +20,10 @@ func init() {
 
 type Checksum [32]byte
 
+func (m Checksum) String() string {
+	return fmt.Sprintf("%0x", m[:])
+}
+
 func (m Checksum) MarshalJSON() ([]byte, error) {
 	return json.Marshal(fmt.Sprintf("%0x", m[:]))
 }
