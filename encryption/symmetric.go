@@ -5,41 +5,100 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"fmt"
+	"hash"
 	"io"
 
+	"github.com/PlakarKorp/plakar/hashing"
+	"golang.org/x/crypto/argon2"
+	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/crypto/scrypt"
 )
 
 const (
-	saltSize  = 16
-	chunkSize = 64 * 1024 // Size of each chunk for encryption/decryption
+	saltSize    = 16
+	chunkSize   = 64 * 1024 // Size of each chunk for encryption/decryption
+	DEFAULT_KDF = "ARGON2"
 )
 
 type Configuration struct {
-	Algorithm string
-	KDF       string
 	KDFParams KDFParams
+	Algorithm string
 	Canary    []byte
 }
 
 type KDFParams struct {
-	Salt   [saltSize]byte
+	KDF          string
+	Salt         [saltSize]byte
+	Argon2Params *Argon2Params `msgpack:"argon2,omitempty"`
+	ScryptParams *ScryptParams `msgpack:"scrypt,omitempty"`
+	Pbkdf2Params *PBKDF2Params `msgpack:"pbkdf2,omitempty"`
+}
+
+func DefaultKDFParams(KDF string) (*KDFParams, error) {
+	switch KDF {
+	case "ARGON2":
+		return &KDFParams{
+			KDF: "ARGON2",
+			Argon2Params: &Argon2Params{
+				Time:   1,
+				Memory: 64 * 1024,
+				Thread: 4,
+				KeyLen: 32,
+			},
+		}, nil
+	case "SCRYPT":
+		return &KDFParams{
+			KDF: "SCRYPT",
+			ScryptParams: &ScryptParams{
+				N:      1 << 15,
+				R:      8,
+				P:      1,
+				KeyLen: 32,
+			},
+		}, nil
+	case "PBKDF2":
+		return &KDFParams{
+			KDF: "PBKDF2",
+			Pbkdf2Params: &PBKDF2Params{
+				Iterations: 100000,
+				KeyLen:     32,
+				Hashing:    "SHA256",
+			},
+		}, nil
+	}
+	return nil, fmt.Errorf("unsupported KDF: %s", KDF)
+}
+
+type Argon2Params struct {
+	Time   uint32
+	Memory uint32
+	Thread uint8
+	KeyLen uint32
+}
+
+type ScryptParams struct {
 	N      int
 	R      int
 	P      int
 	KeyLen int
 }
 
+type PBKDF2Params struct {
+	Iterations int
+	KeyLen     int
+	Hashing    string
+}
+
 func DefaultConfiguration() *Configuration {
+	kdfParams, err := DefaultKDFParams(DEFAULT_KDF)
+	if err != nil {
+		panic(err)
+	}
+
 	return &Configuration{
 		Algorithm: "AES256-GCM",
-		KDF:       "SCRYPT",
-		KDFParams: KDFParams{
-			N:      1 << 15,
-			R:      8,
-			P:      1,
-			KeyLen: 32,
-		},
+		KDFParams: *kdfParams,
 	}
 }
 
@@ -50,7 +109,15 @@ func Salt() (salt [saltSize]byte, err error) {
 
 // BuildSecretFromPassphrase generates a secret from a passphrase using scrypt
 func DeriveKey(params KDFParams, passphrase []byte) ([]byte, error) {
-	return scrypt.Key(passphrase, params.Salt[:], params.N, params.R, params.P, params.KeyLen)
+	switch params.KDF {
+	case "ARGON2":
+		return argon2.Key(passphrase, params.Salt[:], params.Argon2Params.Time, params.Argon2Params.Memory, params.Argon2Params.Thread, params.Argon2Params.KeyLen), nil
+	case "SCRYPT":
+		return scrypt.Key(passphrase, params.Salt[:], params.ScryptParams.N, params.ScryptParams.R, params.ScryptParams.P, params.ScryptParams.KeyLen)
+	case "PBKDF2":
+		return pbkdf2.Key(passphrase, params.Salt[:], params.Pbkdf2Params.Iterations, params.Pbkdf2Params.KeyLen, func() hash.Hash { return hashing.GetHasher(params.Pbkdf2Params.Hashing) }), nil
+	}
+	return nil, fmt.Errorf("unsupported KDF: %s", params.KDF)
 }
 
 func DeriveCanary(key []byte) ([]byte, error) {
