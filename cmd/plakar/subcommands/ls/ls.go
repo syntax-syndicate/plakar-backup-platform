@@ -138,7 +138,11 @@ func list_snapshots(ctx *appcontext.AppContext, repo *repository.Repository, use
 
 func list_snapshot(ctx *appcontext.AppContext, repo *repository.Repository, snapshotPath string, recursive bool) error {
 	prefix, pathname := utils.ParseSnapshotID(snapshotPath)
-	pathname = path.Clean(pathname)
+	if pathname == "" {
+		pathname = "/"
+	} else {
+		pathname = path.Clean(pathname)
+	}
 
 	snap, err := utils.OpenSnapshotByPrefix(repo, prefix)
 	if err != nil {

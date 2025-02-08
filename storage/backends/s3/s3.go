@@ -116,7 +116,7 @@ func (repository *Repository) Open(location string) ([]byte, error) {
 
 	exists, err := repository.minioClient.BucketExists(context.Background(), repository.bucketName)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("error checking if bucket exists: %w", err)
 	}
 	if !exists {
 		return nil, fmt.Errorf("bucket does not exist")
@@ -124,18 +124,18 @@ func (repository *Repository) Open(location string) ([]byte, error) {
 
 	object, err := repository.minioClient.GetObject(context.Background(), repository.bucketName, "CONFIG", minio.GetObjectOptions{})
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("error getting object: %w", err)
 	}
 	stat, err := object.Stat()
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("error getting object stat: %w", err)
 	}
 
 	data := make([]byte, stat.Size)
 	_, err = object.Read(data)
 	if err != nil {
 		if err != io.EOF {
-			return nil, err
+			return fmt.Errorf("error reading object: %w", err)
 		}
 	}
 	object.Close()
