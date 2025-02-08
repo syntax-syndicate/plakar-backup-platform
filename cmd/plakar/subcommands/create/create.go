@@ -79,15 +79,13 @@ func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 	if cmd.NoCompression {
 		storageConfiguration.Compression = nil
 	} else {
-		compressionConfiguration := compression.DefaultConfiguration()
-		storageConfiguration.Compression = compressionConfiguration
+		storageConfiguration.Compression = compression.NewDefaultConfiguration()
 	}
 
-	hashingConfiguration := hashing.DefaultConfiguration()
-	storageConfiguration.Hashing = *hashingConfiguration
+	storageConfiguration.Hashing = *hashing.NewDefaultConfiguration()
 
 	if !cmd.NoEncryption {
-		storageConfiguration.Encryption.Algorithm = encryption.DefaultConfiguration().Algorithm
+		storageConfiguration.Encryption = encryption.NewDefaultConfiguration()
 
 		var passphrase []byte
 
@@ -122,12 +120,6 @@ func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 				return 1, fmt.Errorf("passphrase is too weak: %s", err)
 			}
 		}
-
-		salt, err := encryption.Salt()
-		if err != nil {
-			return 1, err
-		}
-		storageConfiguration.Encryption.KDFParams.Salt = salt
 
 		key, err := encryption.DeriveKey(storageConfiguration.Encryption.KDFParams, passphrase)
 		if err != nil {

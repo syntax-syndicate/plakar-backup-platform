@@ -16,9 +16,8 @@ import (
 )
 
 const (
-	saltSize    = 16
 	chunkSize   = 64 * 1024 // Size of each chunk for encryption/decryption
-	DEFAULT_KDF = "ARGON2"
+	DEFAULT_KDF = "SCRYPT"
 )
 
 type Configuration struct {
@@ -29,38 +28,50 @@ type Configuration struct {
 
 type KDFParams struct {
 	KDF          string
-	Salt         [saltSize]byte
+	Salt         []byte
 	Argon2Params *Argon2Params `msgpack:"argon2,omitempty"`
 	ScryptParams *ScryptParams `msgpack:"scrypt,omitempty"`
 	Pbkdf2Params *PBKDF2Params `msgpack:"pbkdf2,omitempty"`
 }
 
-func DefaultKDFParams(KDF string) (*KDFParams, error) {
+func NewDefaultKDFParams(KDF string) (*KDFParams, error) {
+	saltSize := uint32(16)
+	salt := make([]byte, saltSize)
+	if _, err := rand.Read(salt); err != nil {
+		return nil, err
+	}
+
 	switch KDF {
 	case "ARGON2":
 		return &KDFParams{
-			KDF: "ARGON2",
+			KDF:  "ARGON2",
+			Salt: salt,
 			Argon2Params: &Argon2Params{
-				Time:   1,
-				Memory: 64 * 1024,
-				Thread: 4,
-				KeyLen: 32,
+				SaltSize: saltSize,
+				Time:     1,
+				Memory:   64 * 1024,
+				Thread:   4,
+				KeyLen:   32,
 			},
 		}, nil
 	case "SCRYPT":
 		return &KDFParams{
-			KDF: "SCRYPT",
+			KDF:  "SCRYPT",
+			Salt: salt,
 			ScryptParams: &ScryptParams{
-				N:      1 << 15,
-				R:      8,
-				P:      1,
-				KeyLen: 32,
+				SaltSize: saltSize,
+				N:        1 << 15,
+				R:        8,
+				P:        1,
+				KeyLen:   32,
 			},
 		}, nil
 	case "PBKDF2":
 		return &KDFParams{
-			KDF: "PBKDF2",
+			KDF:  "PBKDF2",
+			Salt: salt,
 			Pbkdf2Params: &PBKDF2Params{
+				SaltSize:   saltSize,
 				Iterations: 100000,
 				KeyLen:     32,
 				Hashing:    "SHA256",
@@ -71,27 +82,30 @@ func DefaultKDFParams(KDF string) (*KDFParams, error) {
 }
 
 type Argon2Params struct {
-	Time   uint32
-	Memory uint32
-	Thread uint8
-	KeyLen uint32
+	SaltSize uint32
+	Time     uint32
+	Memory   uint32
+	Thread   uint8
+	KeyLen   uint32
 }
 
 type ScryptParams struct {
-	N      int
-	R      int
-	P      int
-	KeyLen int
+	SaltSize uint32
+	N        int
+	R        int
+	P        int
+	KeyLen   int
 }
 
 type PBKDF2Params struct {
+	SaltSize   uint32
 	Iterations int
 	KeyLen     int
 	Hashing    string
 }
 
-func DefaultConfiguration() *Configuration {
-	kdfParams, err := DefaultKDFParams(DEFAULT_KDF)
+func NewDefaultConfiguration() *Configuration {
+	kdfParams, err := NewDefaultKDFParams(DEFAULT_KDF)
 	if err != nil {
 		panic(err)
 	}
@@ -102,7 +116,7 @@ func DefaultConfiguration() *Configuration {
 	}
 }
 
-func Salt() (salt [saltSize]byte, err error) {
+func Salt() (salt []byte, err error) {
 	_, err = rand.Read(salt[:])
 	return
 }
