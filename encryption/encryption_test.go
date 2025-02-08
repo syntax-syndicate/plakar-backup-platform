@@ -10,7 +10,7 @@ import (
 )
 
 func TestDeriveKey(t *testing.T) {
-	config := DefaultConfiguration()
+	config := NewDefaultConfiguration()
 
 	salt, err := Salt()
 	if err != nil {
@@ -31,7 +31,7 @@ func TestDeriveKey(t *testing.T) {
 }
 
 func TestEncryptDecryptStream(t *testing.T) {
-	config := DefaultConfiguration()
+	config := NewDefaultConfiguration()
 
 	salt, err := Salt()
 	if err != nil {
@@ -75,7 +75,7 @@ func TestEncryptDecryptStream(t *testing.T) {
 
 func TestEncryptDecryptEmptyStream(t *testing.T) {
 
-	config := DefaultConfiguration()
+	config := NewDefaultConfiguration()
 
 	salt, err := Salt()
 	if err != nil {
@@ -118,7 +118,7 @@ func TestEncryptDecryptEmptyStream(t *testing.T) {
 }
 
 func TestEncryptDecryptStreamWithIncorrectKey(t *testing.T) {
-	config := DefaultConfiguration()
+	config := NewDefaultConfiguration()
 
 	salt, err := Salt()
 	if err != nil {
@@ -161,7 +161,7 @@ func TestEncryptDecryptStreamWithIncorrectKey(t *testing.T) {
 }
 
 func TestCompressEncryptThenDecryptDecompressStream(t *testing.T) {
-	config := DefaultConfiguration()
+	config := NewDefaultConfiguration()
 
 	salt, err := Salt()
 	if err != nil {
