@@ -199,12 +199,12 @@ The index has its HMAC computed and stored in the footer for fast integrity chec
 The footer is a fixed-size structure which allows to locate the offset of the index, its size and its HMAC.
 
 It does not contain sensitive data but is encrypted as to not leak the index offset and make it harder to determine the number of blobs in a packfile:
-a packfile of ~20MB may contain only 2 x ~10MB blobs or may containt 20x ~1MB blobs, only the index provides this information.
+a packfile of ~20MB may contain only 2 x ~10MB blobs or may contain 20x ~1MB blobs, only the index provides this information.
 
 
 ### State files
  
-State files are immutable structured files that provide an event log of changes happening to a repository.
+State files are append-only structured files that provide an event log of changes happening to a repository.
 
 Every time a backup is done,
 a new state file is created that contains records describing which packfiles were created,
@@ -303,7 +303,7 @@ Each node of the virtual filesystem is either a structure that points to other s
 All these nodes are stored as blobs within packfiles,
 and pointers within the virtual filesystems are represented as checksums that can be looked up into packfiles to fetch related blobs.
 
-Each snapshot gets assigned a random 256-bits identifier that points to a virtual filesystem root,
+Each snapshot is assigned a random 256-bits identifier that points to a virtual filesystem root,
 and browsing the snapshot consists in resolving children nodes from there by performing the proper packfile lookups and fetches.
 
 ```
@@ -351,7 +351,7 @@ That blob identifier is then used as a key to query local cache:
 found = localCache.BlobExists(blobType, blobId)
 ```
 
-If blob is found, then a blob with the same checksum already exists in the repository and there is no need to push it again.
+If blob _id_ is found, then a blob with the same checksum already exists in the repository and there is no need to push it again.
 
 If blob is not found,
 then data is encoded:
