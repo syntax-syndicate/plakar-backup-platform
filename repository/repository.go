@@ -176,7 +176,7 @@ func (r *Repository) Decode(input io.Reader) (io.Reader, error) {
 
 	stream := input
 	if r.secret != nil {
-		tmp, err := encryption.DecryptStream(r.secret, stream)
+		tmp, err := encryption.DecryptStream(r.configuration.Encryption, r.secret, stream)
 		if err != nil {
 			return nil, err
 		}
@@ -210,7 +210,7 @@ func (r *Repository) Encode(input io.Reader) (io.Reader, error) {
 	}
 
 	if r.secret != nil {
-		tmp, err := encryption.EncryptStream(r.secret, stream)
+		tmp, err := encryption.EncryptStream(r.configuration.Encryption, r.secret, stream)
 		if err != nil {
 			return nil, err
 		}

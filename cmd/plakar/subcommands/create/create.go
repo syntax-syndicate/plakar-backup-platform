@@ -87,7 +87,7 @@ func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 	storageConfiguration.Hashing = *hashingConfiguration
 
 	if !cmd.NoEncryption {
-		storageConfiguration.Encryption.Algorithm = encryption.DefaultConfiguration().Algorithm
+		storageConfiguration.Encryption = encryption.DefaultConfiguration()
 
 		var passphrase []byte
 
@@ -134,7 +134,7 @@ func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 			return 1, err
 		}
 
-		canary, err := encryption.DeriveCanary(key)
+		canary, err := encryption.DeriveCanary(storageConfiguration.Encryption, key)
 		if err != nil {
 			return 1, err
 		}
