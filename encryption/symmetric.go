@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"runtime"
 
 	"github.com/PlakarKorp/plakar/hashing"
 	"golang.org/x/crypto/argon2"
@@ -17,7 +18,7 @@ import (
 
 const (
 	chunkSize   = 64 * 1024 // Size of each chunk for encryption/decryption
-	DEFAULT_KDF = "SCRYPT"
+	DEFAULT_KDF = "ARGON2ID"
 )
 
 type Configuration struct {
@@ -27,11 +28,11 @@ type Configuration struct {
 }
 
 type KDFParams struct {
-	KDF          string
-	Salt         []byte
-	Argon2Params *Argon2Params `msgpack:"argon2,omitempty"`
-	ScryptParams *ScryptParams `msgpack:"scrypt,omitempty"`
-	Pbkdf2Params *PBKDF2Params `msgpack:"pbkdf2,omitempty"`
+	KDF            string
+	Salt           []byte
+	Argon2IDParams *Argon2IDParams `msgpack:"argon2id,omitempty"`
+	ScryptParams   *ScryptParams   `msgpack:"scrypt,omitempty"`
+	Pbkdf2Params   *PBKDF2Params   `msgpack:"pbkdf2,omitempty"`
 }
 
 func NewDefaultKDFParams(KDF string) (*KDFParams, error) {
@@ -42,15 +43,15 @@ func NewDefaultKDFParams(KDF string) (*KDFParams, error) {
 	}
 
 	switch KDF {
-	case "ARGON2":
+	case "ARGON2ID":
 		return &KDFParams{
-			KDF:  "ARGON2",
+			KDF:  "ARGON2ID",
 			Salt: salt,
-			Argon2Params: &Argon2Params{
+			Argon2IDParams: &Argon2IDParams{
 				SaltSize: saltSize,
-				Time:     1,
-				Memory:   64 * 1024,
-				Thread:   4,
+				Time:     4,
+				Memory:   256 * 1024,
+				Threads:  uint8(runtime.NumCPU()),
 				KeyLen:   32,
 			},
 		}, nil
@@ -81,11 +82,11 @@ func NewDefaultKDFParams(KDF string) (*KDFParams, error) {
 	return nil, fmt.Errorf("unsupported KDF: %s", KDF)
 }
 
-type Argon2Params struct {
+type Argon2IDParams struct {
 	SaltSize uint32
 	Time     uint32
 	Memory   uint32
-	Thread   uint8
+	Threads  uint8
 	KeyLen   uint32
 }
 
@@ -124,8 +125,8 @@ func Salt() (salt []byte, err error) {
 // DeriveKey generates a secret from a passphrase using KDF parameters
 func DeriveKey(params KDFParams, passphrase []byte) ([]byte, error) {
 	switch params.KDF {
-	case "ARGON2":
-		return argon2.Key(passphrase, params.Salt[:], params.Argon2Params.Time, params.Argon2Params.Memory, params.Argon2Params.Thread, params.Argon2Params.KeyLen), nil
+	case "ARGON2ID":
+		return argon2.IDKey(passphrase, params.Salt[:], params.Argon2IDParams.Time, params.Argon2IDParams.Memory, params.Argon2IDParams.Threads, params.Argon2IDParams.KeyLen), nil
 	case "SCRYPT":
 		return scrypt.Key(passphrase, params.Salt[:], params.ScryptParams.N, params.ScryptParams.R, params.ScryptParams.P, params.ScryptParams.KeyLen)
 	case "PBKDF2":
