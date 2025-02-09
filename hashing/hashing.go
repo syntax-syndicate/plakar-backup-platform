@@ -38,7 +38,7 @@ func GetHasher(name string) hash.Hash {
 	}
 }
 
-func GetHasherHMAC(name string, secret []byte) hash.Hash {
+func GetMACHasher(name string, secret []byte) hash.Hash {
 	switch name {
 	case "SHA256":
 		return hmac.New(sha256.New, secret)

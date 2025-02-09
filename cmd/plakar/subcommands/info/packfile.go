@@ -89,11 +89,11 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 				return 1, err
 			}
 
-			hasher := repo.HasherHMAC()
+			hasher := repo.GetMACHasher()
 			hasher.Write(indexbuf)
 
-			if !bytes.Equal(hasher.Sum(nil), footer.IndexHMAC[:]) {
-				return 1, fmt.Errorf("index HMAC mismatch")
+			if !bytes.Equal(hasher.Sum(nil), footer.IndexMAC[:]) {
+				return 1, fmt.Errorf("index MAC mismatch")
 			}
 
 			rawPackfile = append(rawPackfile, indexbuf...)
@@ -106,11 +106,11 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 
 			fmt.Fprintf(ctx.Stdout, "Version: %d.%d.%d\n", p.Footer.Version/100, p.Footer.Version%100/10, p.Footer.Version%10)
 			fmt.Fprintf(ctx.Stdout, "Timestamp: %s\n", time.Unix(0, p.Footer.Timestamp))
-			fmt.Fprintf(ctx.Stdout, "Index HMAC: %x\n", p.Footer.IndexHMAC)
+			fmt.Fprintf(ctx.Stdout, "Index MAC: %x\n", p.Footer.IndexMAC)
 			fmt.Fprintln(ctx.Stdout)
 
 			for i, entry := range p.Index {
-				fmt.Fprintf(ctx.Stdout, "blob[%d]: %x %d %d %s\n", i, entry.HMAC, entry.Offset, entry.Length, entry.Type)
+				fmt.Fprintf(ctx.Stdout, "blob[%d]: %x %d %d %s\n", i, entry.MAC, entry.Offset, entry.Length, entry.Type)
 			}
 		}
 	}

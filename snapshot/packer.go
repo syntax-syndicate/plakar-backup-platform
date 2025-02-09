@@ -68,7 +68,7 @@ func packerJob(snap *Snapshot) {
 
 			for msg := range snap.packerChan {
 				if packer == nil {
-					packer = NewPacker(snap.Repository().HasherHMAC())
+					packer = NewPacker(snap.Repository().GetMACHasher())
 				}
 
 				if msg, ok := msg.(*PackerMsg); !ok {

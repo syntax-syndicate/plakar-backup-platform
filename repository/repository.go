@@ -265,16 +265,16 @@ func (r *Repository) Checksum(data []byte) objects.Checksum {
 	return checksum
 }
 
-func (r *Repository) HasherHMAC() hash.Hash {
+func (r *Repository) GetMACHasher() hash.Hash {
 	secret := r.AppContext().GetSecret()
 	if secret == nil {
 		return r.Hasher()
 	}
-	return hashing.GetHasherHMAC(r.Configuration().Hashing.Algorithm, secret)
+	return hashing.GetMACHasher(r.Configuration().Hashing.Algorithm, secret)
 }
 
 func (r *Repository) ComputeMAC(data []byte) objects.Checksum {
-	hasher := r.HasherHMAC()
+	hasher := r.GetMACHasher()
 	hasher.Write(data)
 	result := hasher.Sum(nil)
 
