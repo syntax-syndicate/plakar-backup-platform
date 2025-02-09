@@ -115,7 +115,7 @@ func (snap *Snapshot) PutBlob(Type resources.Type, checksum [32]byte, data []byt
 	}
 
 	if Type != resources.RT_SNAPSHOT {
-		checksum = snap.repository.ChecksumHMAC(checksum[:])
+		checksum = snap.repository.ComputeMAC(checksum[:])
 	}
 	snap.packerChan <- &PackerMsg{Type: Type, Version: versioning.GetCurrentVersion(Type), Timestamp: time.Now(), Checksum: checksum, Data: encoded}
 	return nil
@@ -128,7 +128,7 @@ func (snap *Snapshot) GetBlob(Type resources.Type, checksum [32]byte) ([]byte, e
 	// we can remove this hack.
 	if snap.deltaState != nil {
 		if Type != resources.RT_SNAPSHOT {
-			checksum = snap.repository.ChecksumHMAC(checksum[:])
+			checksum = snap.repository.ComputeMAC(checksum[:])
 		}
 		packfileChecksum, offset, length, exists := snap.deltaState.GetSubpartForBlob(Type, checksum)
 		if exists {
@@ -157,7 +157,7 @@ func (snap *Snapshot) BlobExists(Type resources.Type, checksum [32]byte) bool {
 	if snap.deltaState != nil {
 		hmacsum := checksum
 		if Type != resources.RT_SNAPSHOT {
-			hmacsum = snap.repository.ChecksumHMAC(checksum[:])
+			hmacsum = snap.repository.ComputeMAC(checksum[:])
 		}
 		return snap.deltaState.BlobExists(Type, hmacsum) || snap.repository.BlobExists(Type, checksum)
 	} else {

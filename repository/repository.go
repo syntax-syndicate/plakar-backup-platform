@@ -273,7 +273,7 @@ func (r *Repository) HasherHMAC() hash.Hash {
 	return hashing.GetHasherHMAC(r.Configuration().Hashing.Algorithm, secret)
 }
 
-func (r *Repository) ChecksumHMAC(data []byte) objects.Checksum {
+func (r *Repository) ComputeMAC(data []byte) objects.Checksum {
 	hasher := r.HasherHMAC()
 	hasher.Write(data)
 	result := hasher.Sum(nil)
@@ -474,7 +474,7 @@ func (r *Repository) GetBlob(Type resources.Type, checksum objects.Checksum) (io
 	}()
 
 	if Type != resources.RT_SNAPSHOT {
-		checksum = r.ChecksumHMAC(checksum[:])
+		checksum = r.ComputeMAC(checksum[:])
 	}
 	packfileChecksum, offset, length, exists := r.state.GetSubpartForBlob(Type, checksum)
 	if !exists {
@@ -496,7 +496,7 @@ func (r *Repository) BlobExists(Type resources.Type, checksum objects.Checksum) 
 	}()
 
 	if Type != resources.RT_SNAPSHOT {
-		checksum = r.ChecksumHMAC(checksum[:])
+		checksum = r.ComputeMAC(checksum[:])
 	}
 	return r.state.BlobExists(Type, checksum)
 }
