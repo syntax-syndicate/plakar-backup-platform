@@ -44,7 +44,7 @@ func (s *SnapshotStore[K, V]) Put(node *btree.Node[K, objects.Checksum, V]) (obj
 		return objects.Checksum{}, err
 	}
 
-	sum := s.snap.repository.Checksum(bytes)
+	sum := s.snap.repository.ComputeMAC(bytes)
 	if !s.snap.BlobExists(s.blobtype, sum) {
 		if err = s.snap.PutBlob(s.blobtype, sum, bytes); err != nil {
 			return objects.Checksum{}, err
@@ -73,7 +73,7 @@ func persistIndex[K, P, VA, VB any](snap *Snapshot, tree *btree.BTree[K, P, VA],
 		return
 	}
 
-	csum = snap.repository.Checksum(bytes)
+	csum = snap.repository.ComputeMAC(bytes)
 	if !snap.BlobExists(t, csum) {
 		err = snap.PutBlob(t, csum, bytes)
 	}
