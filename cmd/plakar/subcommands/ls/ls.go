@@ -137,14 +137,7 @@ func list_snapshots(ctx *appcontext.AppContext, repo *repository.Repository, use
 }
 
 func list_snapshot(ctx *appcontext.AppContext, repo *repository.Repository, snapshotPath string, recursive bool) error {
-	prefix, pathname := utils.ParseSnapshotID(snapshotPath)
-	if pathname == "" {
-		pathname = "/"
-	} else {
-		pathname = path.Clean(pathname)
-	}
-
-	snap, err := utils.OpenSnapshotByPrefix(repo, prefix)
+	snap, pathname, err := utils.ResolveSnapshotPath(repo, snapshotPath)
 	if err != nil {
 		return fmt.Errorf("ls: could not fetch snapshot: %w", err)
 	}

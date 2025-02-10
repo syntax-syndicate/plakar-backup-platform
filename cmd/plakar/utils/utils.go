@@ -60,6 +60,20 @@ func ParseSnapshotID(id string) (string, string) {
 	return prefix, pattern
 }
 
+func ResolveSnapshotPath(repo *repository.Repository, id string) (*snapshot.Snapshot, string, error) {
+	prefix, pathname := ParseSnapshotID(id)
+	snap, err := OpenSnapshotByPrefix(repo, prefix)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if !path.IsAbs(pathname) {
+		pathname = path.Join(snap.Header.GetSource(0).Importer.Directory)
+	}
+
+	return snap, pathname, nil
+}
+
 func LookupSnapshotByPrefix(repo *repository.Repository, prefix string) []objects.Checksum {
 	ret := make([]objects.Checksum, 0)
 	for snapshotID := range repo.ListSnapshots() {
