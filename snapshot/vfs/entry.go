@@ -193,7 +193,7 @@ func (e *Entry) Getdents(fsc *Filesystem) (iter.Seq2[*Entry, error], error) {
 			if !isEntryBelow(prefix, path) {
 				break
 			}
-			if !yield(fsc.resolveEntry(csum)) {
+			if !yield(fsc.ResolveEntry(csum)) {
 				return
 			}
 		}
@@ -460,7 +460,7 @@ func (vf *vdir) ReadDir(n int) (entries []fs.DirEntry, err error) {
 		}
 		path, csum := vf.iter.Current()
 
-		dirent, err := vf.fs.resolveEntry(csum)
+		dirent, err := vf.fs.ResolveEntry(csum)
 		if err != nil {
 			return nil, err
 		}
