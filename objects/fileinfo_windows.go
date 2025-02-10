@@ -133,6 +133,25 @@ func (fileinfo *FileInfo) Equal(fi *FileInfo) bool {
 		fileinfo.Lnlink == fi.Lnlink
 }
 
+func (fileinfo *FileInfo) Type() string {
+	switch mode := fileinfo.Mode(); {
+	case mode.IsRegular():
+		return "regular"
+	case mode.IsDir():
+		return "directory"
+	case mode&os.ModeSymlink != 0:
+		return "symlink"
+	case mode&os.ModeDevice != 0:
+		return "device"
+	case mode&os.ModeNamedPipe != 0:
+		return "pipe"
+	case mode&os.ModeSocket != 0:
+		return "socket"
+	default:
+		return "file"
+	}
+}
+
 var sortKeyMapping = map[string]string{
 	"Name":      "Lname",
 	"Size":      "Lsize",

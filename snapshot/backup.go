@@ -277,7 +277,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 					cachedFileEntryChecksum = snap.repository.ComputeMAC(data)
 					if cachedFileEntry.Stat().Equal(&record.FileInfo) {
 						fileEntry = cachedFileEntry
-						if fileEntry.RecordType == importer.RecordTypeFile {
+						if fileEntry.FileInfo.Mode().IsRegular() {
 							data, err := vfsCache.GetObject(cachedFileEntry.Object)
 							if err != nil {
 								snap.Logger().Warn("VFS CACHE: Error getting object: %v", err)
@@ -366,7 +366,6 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 				}
 
 				fileSummary := &vfs.FileSummary{
-					Type:    record.Type,
 					Size:    uint64(record.FileInfo.Size()),
 					Mode:    record.FileInfo.Mode(),
 					ModTime: record.FileInfo.ModTime().Unix(),

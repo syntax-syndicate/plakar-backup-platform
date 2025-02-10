@@ -28,10 +28,9 @@ func init() {
 // Entry implements FSEntry and fs.DirEntry, as well as some other
 // helper methods.
 type Entry struct {
-	Version    versioning.Version  `msgpack:"version" json:"version"`
-	ParentPath string              `msgpack:"parent_path" json:"parent_path"`
-	RecordType importer.RecordType `msgpack:"type" json:"type"`
-	FileInfo   objects.FileInfo    `msgpack:"file_info" json:"file_info"`
+	Version    versioning.Version `msgpack:"version" json:"version"`
+	ParentPath string             `msgpack:"parent_path" json:"parent_path"`
+	FileInfo   objects.FileInfo   `msgpack:"file_info" json:"file_info"`
 
 	/* Directory specific fields */
 	Summary *Summary `msgpack:"summary" json:"summary,omitempty"`
@@ -108,7 +107,6 @@ func NewEntry(parentPath string, record *importer.ScanRecord) *Entry {
 
 	entry := &Entry{
 		Version:            versioning.FromString(VFS_ENTRY_VERSION),
-		RecordType:         record.Type,
 		FileInfo:           record.FileInfo,
 		SymlinkTarget:      target,
 		ExtendedAttributes: ExtendedAttributes,
@@ -116,7 +114,7 @@ func NewEntry(parentPath string, record *importer.ScanRecord) *Entry {
 		ParentPath:         parentPath,
 	}
 
-	if record.Type == importer.RecordTypeDirectory {
+	if record.FileInfo.Mode().IsDir() {
 		entry.Summary = &Summary{}
 	}
 

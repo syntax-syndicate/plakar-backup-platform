@@ -50,7 +50,6 @@ func (cmd *InfoVFS) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 	fmt.Fprintf(ctx.Stdout, "Version: %d\n", entry.Version)
 	fmt.Fprintf(ctx.Stdout, "ParentPath: %s\n", entry.ParentPath)
 	fmt.Fprintf(ctx.Stdout, "Name: %s\n", entry.Stat().Name())
-	fmt.Fprintf(ctx.Stdout, "Type: %d\n", entry.RecordType)
 	fmt.Fprintf(ctx.Stdout, "Size: %s (%d bytes)\n", humanize.Bytes(uint64(entry.Stat().Size())), entry.Stat().Size())
 	fmt.Fprintf(ctx.Stdout, "Permissions: %s\n", entry.Stat().Mode())
 	fmt.Fprintf(ctx.Stdout, "ModTime: %s\n", entry.Stat().ModTime())
