@@ -1,6 +1,7 @@
 package vfs_test
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -11,14 +12,17 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/caching"
+	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/snapshot/importer/fs"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/PlakarKorp/plakar/storage"
 	bfs "github.com/PlakarKorp/plakar/storage/backends/fs"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/stretchr/testify/require"
 )
 
@@ -162,11 +166,21 @@ func generateSnapshot(t *testing.T) *snapshot.Snapshot {
 	r := bfs.NewRepository("fs://" + tmpRepoDir)
 	require.NotNil(t, r)
 	config := storage.NewConfiguration()
-	err = r.Create("fs://"+tmpRepoDir, *config)
+	serialized, err := config.ToBytes()
+	require.NoError(t, err)
+
+	hasher := hashing.GetHasher("SHA256")
+	wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serialized))
+	require.NoError(t, err)
+
+	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
+	require.NoError(t, err)
+
+	err = r.Create("fs://"+tmpRepoDir, wrappedConfig)
 	require.NoError(t, err)
 
 	// open the storage to load the configuration
-	err = r.Open("fs://" + tmpRepoDir)
+	r, serializedConfig, err := storage.Open("fs://" + tmpRepoDir)
 	require.NoError(t, err)
 
 	// create a repository
@@ -176,7 +190,7 @@ func generateSnapshot(t *testing.T) *snapshot.Snapshot {
 	logger := logging.NewLogger(os.Stdout, os.Stderr)
 	logger.EnableTrace("all")
 	ctx.SetLogger(logger)
-	repo, err := repository.New(ctx, r, nil)
+	repo, err := repository.New(ctx, r, serializedConfig, nil)
 	require.NoError(t, err, "creating repository")
 
 	// create a snapshot
