@@ -235,6 +235,7 @@ func decryptSubkey_AES256_KW(key []byte, r io.Reader) ([]byte, error) {
 		return nil, err
 	}
 
+	// 40 is the size of the wrapped key
 	subkeyBlock := make([]byte, 40)
 	if _, err := io.ReadFull(r, subkeyBlock); err != nil {
 		return nil, err
