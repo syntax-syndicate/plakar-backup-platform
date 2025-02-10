@@ -36,14 +36,17 @@ type Entry struct {
 	Summary *Summary `msgpack:"summary" json:"summary,omitempty"`
 
 	/* File specific fields */
-	SymlinkTarget  string           `msgpack:"symlinkTarget,omitempty" json:"symlink_target,omitempty"`
+	SymlinkTarget  string           `msgpack:"symlink_target,omitempty" json:"symlink_target,omitempty"`
 	Object         objects.Checksum `msgpack:"object,omitempty" json:"-"` // nil for !regular files
 	ResolvedObject *objects.Object  `msgpack:"-" json:"object,omitempty"` // This the true object, resolved when opening the entry. Beware we serialize it as "Object" only for json to not break API compat'
 
+	// /etc/passwd -> resolve datastreamms -/.
+	// /etc/passwd:stream
+
 	/* Windows specific fields */
-	AlternateDataStreams []AlternateDataStream `msgpack:"alternate_data_streams,omitempty" json:"alternate_data_streams"`
-	SecurityDescriptor   []byte                `msgpack:"security_descriptor,omitempty" json:"security_descriptor"`
-	FileAttributes       uint32                `msgpack:"file_attributes,omitempty" json:"file_attributes"`
+	AlternateDataStreams []string `msgpack:"alternate_data_streams,omitempty" json:"alternate_data_streams"`
+	SecurityDescriptor   []byte   `msgpack:"security_descriptor,omitempty" json:"security_descriptor"`
+	FileAttributes       uint32   `msgpack:"file_attributes,omitempty" json:"file_attributes"`
 
 	/* Unix fields */
 	ExtendedAttributes []ExtendedAttribute `msgpack:"extended_attributes,omitempty" json:"extended_attributes"`
@@ -66,7 +69,7 @@ func (e *Entry) MarshalJSON() ([]byte, error) {
 	ret := (*Alias)(e)
 
 	if ret.AlternateDataStreams == nil {
-		ret.AlternateDataStreams = []AlternateDataStream{}
+		ret.AlternateDataStreams = []string{}
 	}
 	if ret.SecurityDescriptor == nil {
 		ret.SecurityDescriptor = []byte{}

@@ -24,6 +24,9 @@ type FileInfo struct {
 	Lnlink     uint16      `json:"nlink" msgpack:"nlink"`
 	Lusername  string      `json:"username" msgpack:"username"`
 	Lgroupname string      `json:"groupname" msgpack:"groupname"`
+
+	// Windows specific fields
+	AlternateDataStream bool `json:"alternate_data_stream" msgpack:"alternate_data_stream"`
 }
 
 func (f FileInfo) Name() string {
