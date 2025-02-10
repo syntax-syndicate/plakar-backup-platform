@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
@@ -38,6 +39,7 @@ func init() {
 }
 
 func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+	var opt_hashing string
 	var opt_noencryption bool
 	var opt_nocompression bool
 	var opt_allowweak bool
@@ -51,6 +53,7 @@ func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, a
 	}
 
 	flags.BoolVar(&opt_allowweak, "weak-passphrase", false, "allow weak passphrase to protect the repository")
+	flags.StringVar(&opt_hashing, "hashing", "SHA256", "hashing algorithm to use for checksums")
 	flags.BoolVar(&opt_noencryption, "no-encryption", false, "disable transparent encryption")
 	flags.BoolVar(&opt_nocompression, "no-compression", false, "disable transparent compression")
 	flags.Parse(args)
@@ -61,6 +64,7 @@ func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, a
 
 	return &Create{
 		AllowWeak:     opt_allowweak,
+		Hashing:       opt_hashing,
 		NoEncryption:  opt_noencryption,
 		NoCompression: opt_nocompression,
 		Location:      flags.Arg(0),
@@ -69,6 +73,7 @@ func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, a
 
 type Create struct {
 	AllowWeak     bool
+	Hashing       string
 	NoEncryption  bool
 	NoCompression bool
 	Location      string
@@ -82,7 +87,11 @@ func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		storageConfiguration.Compression = compression.NewDefaultConfiguration()
 	}
 
-	storageConfiguration.Hashing = *hashing.NewDefaultConfiguration()
+	hashingConfiguration, err := hashing.LookupDefaultConfiguration(strings.ToUpper(cmd.Hashing))
+	if err != nil {
+		return 1, err
+	}
+	storageConfiguration.Hashing = *hashingConfiguration
 
 	if !cmd.NoEncryption {
 		storageConfiguration.Encryption = encryption.NewDefaultConfiguration()
