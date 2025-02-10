@@ -272,7 +272,7 @@ func (vf *vfile) Read(p []byte) (int, error) {
 	for vf.objoff < len(vf.entry.ResolvedObject.Chunks) {
 		if vf.rd == nil {
 			rd, err := vf.repo.GetBlob(resources.RT_CHUNK,
-				vf.entry.ResolvedObject.Chunks[vf.objoff].Checksum)
+				vf.entry.ResolvedObject.Chunks[vf.objoff].MAC)
 			if err != nil {
 				return -1, err
 			}
@@ -316,7 +316,7 @@ func (vf *vfile) Seek(offset int64, whence int) (int64, error) {
 			}
 			vf.off += offset
 			rd, err := vf.repo.GetBlob(resources.RT_CHUNK,
-				chunks[vf.objoff].Checksum)
+				chunks[vf.objoff].MAC)
 			if err != nil {
 				return 0, err
 			}
@@ -339,7 +339,7 @@ func (vf *vfile) Seek(offset int64, whence int) (int64, error) {
 			}
 			vf.off -= offset
 			rd, err := vf.repo.GetBlob(resources.RT_CHUNK,
-				chunks[vf.objoff].Checksum)
+				chunks[vf.objoff].MAC)
 			if err != nil {
 				return 0, err
 			}
@@ -374,7 +374,7 @@ func (vf *vfile) Seek(offset int64, whence int) (int64, error) {
 			}
 			vf.off += offset
 			rd, err := vf.repo.GetBlob(resources.RT_CHUNK,
-				chunks[vf.objoff].Checksum)
+				chunks[vf.objoff].MAC)
 			if err != nil {
 				return 0, err
 			}

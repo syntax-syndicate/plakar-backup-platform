@@ -74,35 +74,35 @@ func snapshotCheckPath(snap *Snapshot, fsc *vfs.Filesystem, pathname string, opt
 		snap.Event(events.ObjectEvent(snap.Header.Identifier, object.Checksum))
 		complete := true
 		for _, chunk := range object.Chunks {
-			snap.Event(events.ChunkEvent(snap.Header.Identifier, chunk.Checksum))
+			snap.Event(events.ChunkEvent(snap.Header.Identifier, chunk.MAC))
 			if opts.FastCheck {
-				exists := snap.BlobExists(resources.RT_CHUNK, chunk.Checksum)
+				exists := snap.BlobExists(resources.RT_CHUNK, chunk.MAC)
 				if !exists {
-					snap.Event(events.ChunkMissingEvent(snap.Header.Identifier, chunk.Checksum))
+					snap.Event(events.ChunkMissingEvent(snap.Header.Identifier, chunk.MAC))
 					complete = false
 					break
 				}
-				snap.Event(events.ChunkOKEvent(snap.Header.Identifier, chunk.Checksum))
+				snap.Event(events.ChunkOKEvent(snap.Header.Identifier, chunk.MAC))
 			} else {
-				exists := snap.BlobExists(resources.RT_CHUNK, chunk.Checksum)
+				exists := snap.BlobExists(resources.RT_CHUNK, chunk.MAC)
 				if !exists {
-					snap.Event(events.ChunkMissingEvent(snap.Header.Identifier, chunk.Checksum))
+					snap.Event(events.ChunkMissingEvent(snap.Header.Identifier, chunk.MAC))
 					complete = false
 					break
 				}
-				data, err := snap.GetBlob(resources.RT_CHUNK, chunk.Checksum)
+				data, err := snap.GetBlob(resources.RT_CHUNK, chunk.MAC)
 				if err != nil {
-					snap.Event(events.ChunkMissingEvent(snap.Header.Identifier, chunk.Checksum))
+					snap.Event(events.ChunkMissingEvent(snap.Header.Identifier, chunk.MAC))
 					complete = false
 					break
 				}
-				snap.Event(events.ChunkOKEvent(snap.Header.Identifier, chunk.Checksum))
+				snap.Event(events.ChunkOKEvent(snap.Header.Identifier, chunk.MAC))
 
 				hasher.Write(data)
 
 				checksum := snap.repository.ComputeMAC(data)
-				if !bytes.Equal(checksum[:], chunk.Checksum[:]) {
-					snap.Event(events.ChunkCorruptedEvent(snap.Header.Identifier, chunk.Checksum))
+				if !bytes.Equal(checksum[:], chunk.MAC[:]) {
+					snap.Event(events.ChunkCorruptedEvent(snap.Header.Identifier, chunk.MAC))
 					complete = false
 					break
 				}

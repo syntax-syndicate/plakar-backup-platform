@@ -681,7 +681,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 			}
 		}
 		chunk := objects.NewChunk()
-		chunk.Checksum = chunk_t32
+		chunk.MAC = chunk_t32
 		chunk.Length = uint32(len(data))
 		chunk.Entropy = entropyScore
 
@@ -691,8 +691,8 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 		totalEntropy += chunk.Entropy * float64(len(data))
 		totalDataSize += uint64(len(data))
 
-		if !snap.BlobExists(resources.RT_CHUNK, chunk.Checksum) {
-			return snap.PutBlob(resources.RT_CHUNK, chunk.Checksum, data)
+		if !snap.BlobExists(resources.RT_CHUNK, chunk.MAC) {
+			return snap.PutBlob(resources.RT_CHUNK, chunk.MAC, data)
 		}
 		return nil
 	}

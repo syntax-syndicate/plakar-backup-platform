@@ -85,11 +85,11 @@ func (o *Object) Serialize() ([]byte, error) {
 }
 
 type Chunk struct {
-	Version  versioning.Version `msgpack:"version" json:"version"`
-	Checksum Checksum           `msgpack:"checksum" json:"checksum"`
-	Length   uint32             `msgpack:"length" json:"length"`
-	Entropy  float64            `msgpack:"entropy" json:"entropy"`
-	Flags    uint64             `msgpack:"flags" json:"flags"`
+	Version versioning.Version `msgpack:"version" json:"version"`
+	MAC     Checksum           `msgpack:"MAC" json:"MAC"`
+	Length  uint32             `msgpack:"length" json:"length"`
+	Entropy float64            `msgpack:"entropy" json:"entropy"`
+	Flags   uint64             `msgpack:"flags" json:"flags"`
 }
 
 func NewChunk() *Chunk {

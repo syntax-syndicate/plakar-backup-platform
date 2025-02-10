@@ -55,7 +55,7 @@ func (cmd *InfoObject) Execute(ctx *appcontext.AppContext, repo *repository.Repo
 	fmt.Fprintln(ctx.Stdout, "  type:", object.ContentType)
 	fmt.Fprintln(ctx.Stdout, "  chunks:")
 	for _, chunk := range object.Chunks {
-		fmt.Fprintf(ctx.Stdout, "    checksum: %x\n", chunk.Checksum)
+		fmt.Fprintf(ctx.Stdout, "    MAC: %x\n", chunk.MAC)
 	}
 	return 0, nil
 }

@@ -223,7 +223,7 @@ func (snap *Snapshot) ListChunks() (iter.Seq2[objects.Checksum, error], error) {
 				continue
 			}
 			for _, chunk := range fsentry.ResolvedObject.Chunks {
-				if !yield(chunk.Checksum, nil) {
+				if !yield(chunk.MAC, nil) {
 					return
 				}
 			}
