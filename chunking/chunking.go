@@ -7,7 +7,7 @@ type Configuration struct {
 	MaxSize    uint32 // Maximum chunk size
 }
 
-func DefaultConfiguration() *Configuration {
+func NewDefaultConfiguration() *Configuration {
 	return &Configuration{
 		Algorithm:  "FASTCDC",
 		MinSize:    64 * 1024,

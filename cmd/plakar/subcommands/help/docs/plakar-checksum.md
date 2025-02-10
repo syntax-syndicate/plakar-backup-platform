@@ -62,4 +62,4 @@ The **plakar checksum** utility exits&#160;0 on success, and&#160;&gt;0 if an er
 
 plakar(1)
 
-Nixpkgs - February 3, 2025
+macOS 15.2 - February 3, 2025

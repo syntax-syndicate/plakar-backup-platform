@@ -54,8 +54,7 @@ func (cmd *InfoRepository) Execute(ctx *appcontext.AppContext, repo *repository.
 
 	if repo.Configuration().Encryption != nil {
 		fmt.Fprintln(ctx.Stdout, "Encryption:")
-		fmt.Fprintln(ctx.Stdout, " - Data Algorithm:", repo.Configuration().Encryption.DataAlgorithm)
-		fmt.Fprintln(ctx.Stdout, " - Subkey Algorithm:", repo.Configuration().Encryption.SubKeyAlgorithm)
+		fmt.Fprintln(ctx.Stdout, " - Algorithm:", repo.Configuration().Encryption.Algorithm)
 		fmt.Fprintf(ctx.Stdout, " - Canary: %x\n", repo.Configuration().Encryption.Canary)
 		fmt.Fprintln(ctx.Stdout, " - KDF:", repo.Configuration().Encryption.KDFParams.KDF)
 		fmt.Fprintf(ctx.Stdout, "   - Salt: %x\n", repo.Configuration().Encryption.KDFParams.Salt)

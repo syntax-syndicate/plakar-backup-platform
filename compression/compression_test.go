@@ -56,7 +56,7 @@ func TestCompression(t *testing.T) {
 
 func TestDefaultAlgorithm(t *testing.T) {
 	expected := "LZ4"
-	result := DefaultConfiguration().Algorithm
+	result := NewDefaultConfiguration().Algorithm
 
 	if result != expected {
 		t.Errorf("DefaultAlgorithm failed: expected %v, got %v", expected, result)
@@ -145,35 +145,35 @@ func TestLargeDataCompression(t *testing.T) {
 	}
 }
 
-func TestLookupDefaultConfigurationLZ4(t *testing.T) {
+func TestLookupNewDefaultConfigurationLZ4(t *testing.T) {
 	config, err := LookupDefaultConfiguration("LZ4")
 	if err != nil {
-		t.Errorf("LookupDefaultConfiguration(LZ4) returned an error: %v", err)
+		t.Errorf("LookupNewDefaultConfiguration(LZ4) returned an error: %v", err)
 	}
 	if config.Algorithm != "LZ4" {
-		t.Errorf("LookupDefaultConfiguration(LZ4) returned incorrect algorithm: %s", config.Algorithm)
+		t.Errorf("LookupNewDefaultConfiguration(LZ4) returned incorrect algorithm: %s", config.Algorithm)
 	}
 	if config.Level != int(lz4.Level9) {
-		t.Errorf("LookupDefaultConfiguration(LZ4) returned incorrect level: %d", config.Level)
+		t.Errorf("LookupNewDefaultConfiguration(LZ4) returned incorrect level: %d", config.Level)
 	}
 }
 
-func TestLookupDefaultConfigurationGZIP(t *testing.T) {
+func TestLookupNewDefaultConfigurationGZIP(t *testing.T) {
 	config, err := LookupDefaultConfiguration("GZIP")
 	if err != nil {
-		t.Errorf("LookupDefaultConfiguration(GZIP) returned an error: %v", err)
+		t.Errorf("LookupNewDefaultConfiguration(GZIP) returned an error: %v", err)
 	}
 	if config.Algorithm != "GZIP" {
-		t.Errorf("LookupDefaultConfiguration(GZIP) returned incorrect algorithm: %s", config.Algorithm)
+		t.Errorf("LookupNewDefaultConfiguration(GZIP) returned incorrect algorithm: %s", config.Algorithm)
 	}
 	if config.Level != -1 {
-		t.Errorf("LookupDefaultConfiguration(GZIP) returned incorrect level: %d", config.Level)
+		t.Errorf("LookupNewDefaultConfiguration(GZIP) returned incorrect level: %d", config.Level)
 	}
 }
 
-func TestLookupDefaultConfigurationUnknown(t *testing.T) {
+func TestLookupNewDefaultConfigurationUnknown(t *testing.T) {
 	_, err := LookupDefaultConfiguration("unknown")
 	if err == nil {
-		t.Errorf("LookupDefaultConfiguration(unknown) did not return an error")
+		t.Errorf("LookupNewDefaultConfiguration(unknown) did not return an error")
 	}
 }

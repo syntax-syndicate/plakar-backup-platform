@@ -17,7 +17,7 @@ type Configuration struct {
 	EnableCRC  bool // Enable/disable checksum (e.g., gzip CRC32, zstd)
 }
 
-func DefaultConfiguration() *Configuration {
+func NewDefaultConfiguration() *Configuration {
 	return &Configuration{
 		Algorithm:  "LZ4",
 		Level:      int(lz4.Level9),
