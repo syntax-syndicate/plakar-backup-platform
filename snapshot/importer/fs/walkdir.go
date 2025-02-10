@@ -50,25 +50,6 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 			continue
 		}
 
-		var recordType importer.RecordType
-		switch mode := info.Mode(); {
-		case mode.IsRegular():
-			recordType = importer.RecordTypeFile
-		case mode.IsDir():
-			recordType = importer.RecordTypeDirectory
-		case mode&os.ModeSymlink != 0:
-			recordType = importer.RecordTypeSymlink
-		case mode&os.ModeDevice != 0:
-			recordType = importer.RecordTypeDevice
-		case mode&os.ModeNamedPipe != 0:
-			recordType = importer.RecordTypePipe
-		case mode&os.ModeSocket != 0:
-			recordType = importer.RecordTypeSocket
-		default:
-			// Default to file if type is unknown
-			recordType = importer.RecordTypeFile
-		}
-
 		extendedAttributes, err := getExtendedAttributes(path)
 		if err != nil {
 			results <- importer.ScanError{Pathname: path, Err: err}
@@ -107,7 +88,7 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 		}
 		namecache.mu.RUnlock()
 
-		results <- importer.ScanRecord{Type: recordType, Pathname: filepath.ToSlash(path), FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
+		results <- importer.ScanRecord{Pathname: filepath.ToSlash(path), FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
 
 		if fileinfo.Mode()&os.ModeSymlink != 0 {
 			originFile, err := os.Readlink(path)
@@ -115,7 +96,7 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 				results <- importer.ScanError{Pathname: path, Err: err}
 				continue
 			}
-			results <- importer.ScanRecord{Type: recordType, Pathname: filepath.ToSlash(path), Target: originFile, FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
+			results <- importer.ScanRecord{Pathname: filepath.ToSlash(path), Target: originFile, FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
 		}
 	}
 }

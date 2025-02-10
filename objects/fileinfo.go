@@ -26,8 +26,11 @@ type FileInfo struct {
 	Luid       uint64      `json:"uid" msgpack:"uid"`
 	Lgid       uint64      `json:"gid" msgpack:"gid"`
 	Lnlink     uint16      `json:"nlink" msgpack:"nlink"`
-	Lusername  string      `json:"username" msgpack:"username"`
-	Lgroupname string      `json:"groupname" msgpack:"groupname"`
+	Lusername  string      `json:"username" msgpack:"username"`   // local addition
+	Lgroupname string      `json:"groupname" msgpack:"groupname"` // local addition
+
+	// Windows specific fields
+	AlternateDataStream bool `json:"alternate_data_stream" msgpack:"alternate_data_stream"`
 }
 
 func (f FileInfo) Name() string {
@@ -138,6 +141,25 @@ func (fileinfo *FileInfo) Equal(fi *FileInfo) bool {
 		fileinfo.Luid == fi.Luid &&
 		fileinfo.Lgid == fi.Lgid &&
 		fileinfo.Lnlink == fi.Lnlink
+}
+
+func (fileinfo *FileInfo) Type() string {
+	switch mode := fileinfo.Mode(); {
+	case mode.IsRegular():
+		return "regular"
+	case mode.IsDir():
+		return "directory"
+	case mode&os.ModeSymlink != 0:
+		return "symlink"
+	case mode&os.ModeDevice != 0:
+		return "device"
+	case mode&os.ModeNamedPipe != 0:
+		return "pipe"
+	case mode&os.ModeSocket != 0:
+		return "socket"
+	default:
+		return "file"
+	}
 }
 
 var sortKeyMapping = map[string]string{

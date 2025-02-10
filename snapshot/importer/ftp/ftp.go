@@ -82,27 +82,9 @@ func (p *FTPImporter) ftpWalker_worker(jobs <-chan string, results chan<- import
 			continue
 		}
 
-		// Use fs.DirEntry.Type() to avoid another stat call when possible
-		var recordType importer.RecordType
-		switch mode := info.Mode(); {
-		case mode.IsRegular():
-			recordType = importer.RecordTypeFile
-		case mode.IsDir():
-			recordType = importer.RecordTypeDirectory
-		case mode&os.ModeSymlink != 0:
-			recordType = importer.RecordTypeSymlink
-		case mode&os.ModeDevice != 0:
-			recordType = importer.RecordTypeDevice
-		case mode&os.ModeNamedPipe != 0:
-			recordType = importer.RecordTypePipe
-		case mode&os.ModeSocket != 0:
-			recordType = importer.RecordTypeSocket
-		default:
-			recordType = importer.RecordTypeFile // Default to file if type is unknown
-		}
 		fileinfo := objects.FileInfoFromStat(info)
 
-		results <- importer.ScanRecord{Type: recordType, Pathname: filepath.ToSlash(path), FileInfo: fileinfo}
+		results <- importer.ScanRecord{Pathname: filepath.ToSlash(path), FileInfo: fileinfo}
 
 		// Handle symlinks separately
 		if fileinfo.Mode()&os.ModeSymlink != 0 {
@@ -111,7 +93,7 @@ func (p *FTPImporter) ftpWalker_worker(jobs <-chan string, results chan<- import
 				results <- importer.ScanError{Pathname: path, Err: err}
 				continue
 			}
-			results <- importer.ScanRecord{Type: recordType, Pathname: filepath.ToSlash(path), Target: originFile, FileInfo: fileinfo}
+			results <- importer.ScanRecord{Pathname: filepath.ToSlash(path), Target: originFile, FileInfo: fileinfo}
 		}
 	}
 }

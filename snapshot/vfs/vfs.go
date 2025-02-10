@@ -39,11 +39,6 @@ type CustomMetadata struct {
 	Value []byte `msgpack:"value" json:"value"`
 }
 
-type AlternateDataStream struct {
-	Name    string `msgpack:"name" json:"name"`
-	Content []byte `msgpack:"content" json:"content"`
-}
-
 type Filesystem struct {
 	tree *btree.BTree[string, objects.Checksum, objects.Checksum]
 	repo *repository.Repository

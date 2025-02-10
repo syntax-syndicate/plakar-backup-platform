@@ -39,7 +39,7 @@ type Class struct {
 
 type Classification struct {
 	Analyzer string
-	Classes  []string
+	Classes  []Class
 }
 
 type KeyValue struct {

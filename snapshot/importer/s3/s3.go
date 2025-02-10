@@ -104,7 +104,7 @@ func (p *S3Importer) scanRecursive(prefix string, result chan importer.ScanResul
 				0,
 				0,
 			)
-			result <- importer.ScanRecord{Type: importer.RecordTypeFile, Pathname: "/" + object.Key, FileInfo: fi}
+			result <- importer.ScanRecord{Pathname: "/" + object.Key, FileInfo: fi}
 		}
 	}
 
@@ -115,7 +115,7 @@ func (p *S3Importer) scanRecursive(prefix string, result chan importer.ScanResul
 		currentName = filepath.Base(prefix)
 	}
 
-	result <- importer.ScanRecord{Type: importer.RecordTypeDirectory, Pathname: "/" + prefix, FileInfo: objects.NewFileInfo(
+	result <- importer.ScanRecord{Pathname: "/" + prefix, FileInfo: objects.NewFileInfo(
 		currentName,
 		0,
 		0700|os.ModeDir,
