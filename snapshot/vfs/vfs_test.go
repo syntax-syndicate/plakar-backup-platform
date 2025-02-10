@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	iofs "io/fs"
 	"log"
 	"os"
 	"slices"
@@ -313,6 +314,45 @@ func TestReadDir(t *testing.T) {
 	entry := entries[0]
 	require.Equal(t, "tmp", entry.Name())
 	require.True(t, entry.Type().IsDir())
+	require.True(t, entry.IsDir())
+
+	fileinfo, err := entry.Info()
+	require.NoError(t, err)
+	require.Implements(t, (*iofs.FileInfo)(nil), fileinfo)
+}
+
+func TestGetdents(t *testing.T) {
+	snap := generateSnapshot(t)
+	defer snap.Close()
+
+	err := snap.Repository().RebuildState()
+	require.NoError(t, err)
+
+	fs, err := snap.Filesystem()
+	require.NoError(t, err)
+
+	// search for the correct filepath as the path was mkdir temp we cannot hardcode it
+	var filepath string
+	for pathname, err := range fs.Pathnames() {
+		require.NoError(t, err)
+		if strings.Contains(pathname, "subdir") {
+			filepath = pathname
+			break
+		}
+	}
+	require.NotEmpty(t, filepath)
+
+	entry, err := fs.GetEntry(filepath)
+	require.NoError(t, err)
+	require.NotNil(t, entry)
+	require.True(t, entry.IsDir())
+
+	dents, err := entry.Getdents(fs)
+	require.NoError(t, err)
+	for d, err := range dents {
+		require.NoError(t, err)
+		require.Equal(t, "dummy.txt", d.Name())
+	}
 }
 
 func TestChildren(t *testing.T) {
