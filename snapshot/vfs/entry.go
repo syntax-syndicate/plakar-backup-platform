@@ -49,7 +49,7 @@ type Entry struct {
 	FileAttributes       uint32   `msgpack:"file_attributes,omitempty" json:"file_attributes"`
 
 	/* Unix fields */
-	ExtendedAttributes []ExtendedAttribute `msgpack:"extended_attributes,omitempty" json:"extended_attributes"`
+	ExtendedAttributes []string `msgpack:"extended_attributes,omitempty" json:"extended_attributes"`
 
 	/* Custom metadata and tags */
 	Classifications []Classification `msgpack:"classifications,omitempty" json:"classifications"`
@@ -75,7 +75,7 @@ func (e *Entry) MarshalJSON() ([]byte, error) {
 		ret.SecurityDescriptor = []byte{}
 	}
 	if ret.ExtendedAttributes == nil {
-		ret.ExtendedAttributes = []ExtendedAttribute{}
+		ret.ExtendedAttributes = []string{}
 	}
 	if ret.Classifications == nil {
 		ret.Classifications = []Classification{}
@@ -96,16 +96,9 @@ func NewEntry(parentPath string, record *importer.ScanRecord) *Entry {
 		target = record.Target
 	}
 
-	ExtendedAttributes := make([]ExtendedAttribute, 0, len(record.ExtendedAttributes))
-	for name, value := range record.ExtendedAttributes {
-		ExtendedAttributes = append(ExtendedAttributes, ExtendedAttribute{
-			Name:  name,
-			Value: value,
-		})
-	}
-
+	ExtendedAttributes := record.ExtendedAttributes
 	sort.Slice(ExtendedAttributes, func(i, j int) bool {
-		return ExtendedAttributes[i].Name < ExtendedAttributes[j].Name
+		return ExtendedAttributes[i] < ExtendedAttributes[j]
 	})
 
 	entry := &Entry{

@@ -25,8 +25,8 @@ type FileInfo struct {
 	Lusername  string      `json:"username" msgpack:"username"`
 	Lgroupname string      `json:"groupname" msgpack:"groupname"`
 
-	// Windows specific fields
 	AlternateDataStream bool `json:"alternate_data_stream" msgpack:"alternate_data_stream"`
+	ExtendedAttribute   bool `json:"extended_attribute" msgpack:"extended_attribute"`
 }
 
 func (f FileInfo) Name() string {

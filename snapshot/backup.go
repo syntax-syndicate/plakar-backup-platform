@@ -637,7 +637,18 @@ func entropy(data []byte) (float64, [256]float64) {
 }
 
 func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier, record importer.ScanRecord) (*objects.Object, error) {
-	rd, err := imp.NewReader(record.Pathname)
+	var rd io.ReadCloser
+	var err error
+
+	if record.FileInfo.ExtendedAttribute {
+		atoms := strings.Split(record.Pathname, ":")
+		attribute := atoms[len(atoms)-1]
+		pathname := strings.Join(atoms[:len(atoms)-1], ":")
+		rd, err = imp.NewExtendedAttributeReader(pathname, attribute)
+	} else {
+		rd, err = imp.NewReader(record.Pathname)
+	}
+
 	if err != nil {
 		return nil, err
 	}
