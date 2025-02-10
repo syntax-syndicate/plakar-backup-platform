@@ -8,7 +8,7 @@ import (
 
 func TestDefaultAlgorithm(t *testing.T) {
 	expected := "FASTCDC"
-	result := DefaultConfiguration().Algorithm
+	result := NewDefaultConfiguration().Algorithm
 
 	if result != expected {
 		t.Errorf("DefaultAlgorithm failed: expected %v, got %v", expected, result)
@@ -22,7 +22,7 @@ func TestDefaultConfiguration(t *testing.T) {
 		MaxSize:    4 * 1024 * 1024,
 	}
 
-	result := DefaultConfiguration()
+	result := NewDefaultConfiguration()
 
 	if int(result.MinSize) != expected.MinSize {
 		t.Errorf("DefaultConfiguration MinSize failed: expected %v, got %v", expected.MinSize, result.MinSize)

@@ -20,14 +20,9 @@ import (
 	"fmt"
 
 	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
 )
 
-func init() {
-	subcommands.Register("mount", parse_cmd_mount)
-}
-
-func parse_cmd_mount(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
-	return nil, fmt.Errorf("mount not supported on %s", ctx.OperatingSystem)
+func (cmd *Mount) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+	return 1, fmt.Errorf("mount not supported on %s", ctx.OperatingSystem)
 }
