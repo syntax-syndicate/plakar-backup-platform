@@ -14,7 +14,8 @@ import (
 const ERROR_VERSION = "1.0.0"
 
 func init() {
-	versioning.Register(resources.RT_ERROR, versioning.FromString(ERROR_VERSION))
+	versioning.Register(resources.RT_ERROR_BTREE, versioning.FromString(btree.BTREE_VERSION))
+	versioning.Register(resources.RT_ERROR_ENTRY, versioning.FromString(ERROR_VERSION))
 }
 
 type ErrorItem struct {
@@ -66,7 +67,7 @@ func (snapshot *Snapshot) Errors(beneath string) (iter.Seq2[*ErrorItem, error], 
 		for iter.Next() {
 			_, csum := iter.Current()
 
-			bytes, err := snapshot.GetBlob(resources.RT_ERROR, csum)
+			bytes, err := snapshot.GetBlob(resources.RT_ERROR_ENTRY, csum)
 			if err != nil {
 				yield(&ErrorItem{}, err)
 				return

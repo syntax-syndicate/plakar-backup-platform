@@ -176,7 +176,7 @@ func (c *ScanCache) HasDelta(blobType resources.Type, blobCsum objects.Checksum)
 }
 
 func (c *ScanCache) GetDeltaByCsum(blobCsum objects.Checksum) ([]byte, error) {
-	for typ := resources.RT_SNAPSHOT; typ <= resources.RT_ERROR; typ++ {
+	for typ := resources.RT_SNAPSHOT; typ <= resources.RT_ERROR_ENTRY; typ++ {
 		ret, err := c.GetDelta(typ, blobCsum)
 
 		if err != nil {

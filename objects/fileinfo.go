@@ -26,8 +26,8 @@ type FileInfo struct {
 	Luid       uint64      `json:"uid" msgpack:"uid"`
 	Lgid       uint64      `json:"gid" msgpack:"gid"`
 	Lnlink     uint16      `json:"nlink" msgpack:"nlink"`
-	Lusername  string      `json:"username" msgpack:"username"`
-	Lgroupname string      `json:"groupname" msgpack:"groupname"`
+	Lusername  string      `json:"username" msgpack:"username"`   // local addition
+	Lgroupname string      `json:"groupname" msgpack:"groupname"` // local addition
 }
 
 func (f FileInfo) Name() string {

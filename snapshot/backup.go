@@ -407,14 +407,14 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	}
 	scannerWg.Wait()
 
-	errcsum, err := persistIndex(snap, backupCtx.erridx, resources.RT_BTREE, func(e *ErrorItem) (csum objects.Checksum, err error) {
+	errcsum, err := persistIndex(snap, backupCtx.erridx, resources.RT_ERROR_BTREE, func(e *ErrorItem) (csum objects.Checksum, err error) {
 		serialized, err := e.ToBytes()
 		if err != nil {
 			return
 		}
 		csum = snap.repository.ComputeMAC(serialized)
-		if !snap.BlobExists(resources.RT_ERROR, csum) {
-			err = snap.PutBlob(resources.RT_ERROR, csum, serialized)
+		if !snap.BlobExists(resources.RT_ERROR_ENTRY, csum) {
+			err = snap.PutBlob(resources.RT_ERROR_ENTRY, csum, serialized)
 		}
 		return
 	})
