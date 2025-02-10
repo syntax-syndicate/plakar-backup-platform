@@ -19,6 +19,7 @@ func init() {
 }
 
 type Checksum [32]byte
+type MAC [32]byte
 
 func (m Checksum) MarshalJSON() ([]byte, error) {
 	return json.Marshal(fmt.Sprintf("%0x", m[:]))

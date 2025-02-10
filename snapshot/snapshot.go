@@ -118,7 +118,7 @@ func Clone(repo *repository.Repository, Identifier objects.Checksum) (*Snapshot,
 		return nil, err
 	}
 
-	snap.Header.Identifier = repo.Checksum(uuidBytes[:])
+	snap.Header.Identifier = repo.ComputeMAC(uuidBytes[:])
 	snap.packerChan = make(chan interface{}, runtime.NumCPU()*2+1)
 	snap.packerChanDone = make(chan bool)
 	go packerJob(snap)

@@ -246,35 +246,35 @@ func (r *Repository) EncodeBuffer(buffer []byte) ([]byte, error) {
 	return io.ReadAll(rd)
 }
 
-func (r *Repository) Hasher() hash.Hash {
-	return hashing.GetHasher(r.Configuration().Hashing.Algorithm)
-}
+//func (r *Repository) Hasher() hash.Hash {
+//	return hashing.GetHasher(r.Configuration().Hashing.Algorithm)
+//}
 
-func (r *Repository) Checksum(data []byte) objects.Checksum {
-	hasher := r.Hasher()
-	hasher.Write(data)
-	result := hasher.Sum(nil)
+//func (r *Repository) Checksum(data []byte) objects.Checksum {
+//	hasher := r.Hasher()
+//	hasher.Write(data)
+//	result := hasher.Sum(nil)
+//
+//	if len(result) != 32 {
+//		panic("hasher returned invalid length")
+//	}
+//
+//	var checksum objects.Checksum
+//	copy(checksum[:], result)
+//
+//	return checksum
+//}
 
-	if len(result) != 32 {
-		panic("hasher returned invalid length")
-	}
-
-	var checksum objects.Checksum
-	copy(checksum[:], result)
-
-	return checksum
-}
-
-func (r *Repository) HasherHMAC() hash.Hash {
+func (r *Repository) GetMACHasher() hash.Hash {
 	secret := r.AppContext().GetSecret()
 	if secret == nil {
-		return r.Hasher()
+		secret = r.configuration.RepositoryID[:]
 	}
-	return hashing.GetHasherHMAC(r.Configuration().Hashing.Algorithm, secret)
+	return hashing.GetMACHasher(r.Configuration().Hashing.Algorithm, secret)
 }
 
-func (r *Repository) ChecksumHMAC(data []byte) objects.Checksum {
-	hasher := r.HasherHMAC()
+func (r *Repository) ComputeMAC(data []byte) objects.Checksum {
+	hasher := r.GetMACHasher()
 	hasher.Write(data)
 	result := hasher.Sum(nil)
 
@@ -342,6 +342,9 @@ func (r *Repository) DeleteSnapshot(snapshotID objects.Checksum) error {
 	}
 
 	sc, err := r.AppContext().GetCache().Scan(identifier)
+	if err != nil {
+		return err
+	}
 	deltaState := r.state.Derive(sc)
 
 	ret := deltaState.DeleteSnapshot(snapshotID)
@@ -355,7 +358,7 @@ func (r *Repository) DeleteSnapshot(snapshotID objects.Checksum) error {
 		return err
 	}
 
-	checksum := r.Checksum(buffer.Bytes())
+	checksum := r.ComputeMAC(buffer.Bytes())
 	if err := r.PutState(checksum, buffer); err != nil {
 		return err
 	}
@@ -473,9 +476,9 @@ func (r *Repository) GetBlob(Type resources.Type, checksum objects.Checksum) (io
 		r.Logger().Trace("repository", "GetBlob(%s, %x): %s", Type, checksum, time.Since(t0))
 	}()
 
-	if Type != resources.RT_SNAPSHOT {
-		checksum = r.ChecksumHMAC(checksum[:])
-	}
+	//if Type != resources.RT_SNAPSHOT {
+	//	checksum = r.ComputeMAC(checksum[:])
+	//}
 	packfileChecksum, offset, length, exists := r.state.GetSubpartForBlob(Type, checksum)
 	if !exists {
 		return nil, ErrPackfileNotFound
@@ -495,9 +498,9 @@ func (r *Repository) BlobExists(Type resources.Type, checksum objects.Checksum) 
 		r.Logger().Trace("repository", "BlobExists(%s, %x): %s", Type, checksum, time.Since(t0))
 	}()
 
-	if Type != resources.RT_SNAPSHOT {
-		checksum = r.ChecksumHMAC(checksum[:])
-	}
+	//if Type != resources.RT_SNAPSHOT {
+	//	checksum = r.ComputeMAC(checksum[:])
+	//}
 	return r.state.BlobExists(Type, checksum)
 }
 
