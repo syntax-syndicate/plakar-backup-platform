@@ -18,7 +18,6 @@ package fs
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -82,8 +81,6 @@ func (p *FSImporter) NewExtendedAttributeReader(pathname string, attribute strin
 	if pathname[0] == '/' && runtime.GOOS == "windows" {
 		pathname = pathname[1:]
 	}
-
-	fmt.Println("NEW XATTR READER", pathname, attribute)
 
 	data, err := xattr.Get(pathname, attribute)
 	if err != nil {

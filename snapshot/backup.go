@@ -3,6 +3,7 @@ package snapshot
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math"
 	"mime"
@@ -136,18 +137,18 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 
 					if !record.FileInfo.Mode().IsDir() {
 						filesChannel <- record
-						atomic.AddUint64(&nFiles, +1)
-						if record.FileInfo.Mode().IsRegular() {
-							atomic.AddUint64(&size, uint64(record.FileInfo.Size()))
+						if !record.FileInfo.ExtendedAttribute {
+							atomic.AddUint64(&nFiles, +1)
+							if record.FileInfo.Mode().IsRegular() {
+								atomic.AddUint64(&size, uint64(record.FileInfo.Size()))
+							}
 						}
-
 						// if snapshot root is a file, then reset to the parent directory
 						if snap.Header.GetSource(0).Importer.Directory == record.Pathname {
 							snap.Header.GetSource(0).Importer.Directory = filepath.Dir(record.Pathname)
 						}
 					} else {
 						atomic.AddUint64(&nDirectories, +1)
-
 						entry := vfs.NewEntry(path.Dir(record.Pathname), &record)
 						if err := backupCtx.recordEntry(entry); err != nil {
 							backupCtx.recordError(record.Pathname, err)
@@ -332,7 +333,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			}
 
 			var fileEntryChecksum objects.Checksum
-			if fileEntry != nil && snap.BlobExists(resources.RT_VFS_BTREE, cachedFileEntryChecksum) {
+			if fileEntry != nil && snap.BlobExists(resources.RT_VFS_ENTRY, cachedFileEntryChecksum) {
 				fileEntryChecksum = cachedFileEntryChecksum
 			} else {
 				fileEntry = vfs.NewEntry(path.Dir(record.Pathname), &record)
@@ -352,7 +353,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 				}
 
 				fileEntryChecksum = snap.repository.ComputeMAC(serialized)
-				err = snap.PutBlob(resources.RT_VFS_BTREE, fileEntryChecksum, serialized)
+				err = snap.PutBlob(resources.RT_VFS_ENTRY, fileEntryChecksum, serialized)
 				if err != nil {
 					backupCtx.recordError(record.Pathname, err)
 					return
@@ -644,6 +645,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 		atoms := strings.Split(record.Pathname, ":")
 		attribute := atoms[len(atoms)-1]
 		pathname := strings.Join(atoms[:len(atoms)-1], ":")
+		fmt.Println("NEW XATTR READER", pathname, attribute)
 		rd, err = imp.NewExtendedAttributeReader(pathname, attribute)
 	} else {
 		rd, err = imp.NewReader(record.Pathname)
