@@ -14,7 +14,7 @@ type Configuration struct {
 	Bits      uint32
 }
 
-func DefaultConfiguration() *Configuration {
+func NewDefaultConfiguration() *Configuration {
 	configuration, _ := LookupDefaultConfiguration("SHA256")
 	return configuration
 }

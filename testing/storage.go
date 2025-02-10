@@ -31,12 +31,12 @@ func NewConfiguration(opts ...ConfigurationOptions) *storage.Configuration {
 		Timestamp:    time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 		RepositoryID: uuid.MustParse("00ff0000-0000-4000-a000-000000000001"),
 
-		Packfile: *packfile.DefaultConfiguration(),
-		Chunking: *chunking.DefaultConfiguration(),
-		Hashing:  *hashing.DefaultConfiguration(),
+		Packfile: *packfile.NewDefaultConfiguration(),
+		Chunking: *chunking.NewDefaultConfiguration(),
+		Hashing:  *hashing.NewDefaultConfiguration(),
 
-		Compression: compression.DefaultConfiguration(),
-		Encryption:  encryption.DefaultConfiguration(),
+		Compression: compression.NewDefaultConfiguration(),
+		Encryption:  encryption.NewDefaultConfiguration(),
 	}
 
 	for _, f := range opts {
