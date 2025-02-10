@@ -68,7 +68,7 @@ func packerJob(snap *Snapshot) {
 
 			for msg := range snap.packerChan {
 				if packer == nil {
-					packer = NewPacker(snap.Repository().HasherHMAC())
+					packer = NewPacker(snap.Repository().GetMACHasher())
 				}
 
 				if msg, ok := msg.(*PackerMsg); !ok {
@@ -114,9 +114,6 @@ func (snap *Snapshot) PutBlob(Type resources.Type, checksum [32]byte, data []byt
 		return err
 	}
 
-	if Type != resources.RT_SNAPSHOT {
-		checksum = snap.repository.ChecksumHMAC(checksum[:])
-	}
 	snap.packerChan <- &PackerMsg{Type: Type, Version: versioning.GetCurrentVersion(Type), Timestamp: time.Now(), Checksum: checksum, Data: encoded}
 	return nil
 }
@@ -127,9 +124,6 @@ func (snap *Snapshot) GetBlob(Type resources.Type, checksum [32]byte) ([]byte, e
 	// XXX: Temporary workaround, once the state API changes to get from both sources (delta+aggregated state)
 	// we can remove this hack.
 	if snap.deltaState != nil {
-		if Type != resources.RT_SNAPSHOT {
-			checksum = snap.repository.ChecksumHMAC(checksum[:])
-		}
 		packfileChecksum, offset, length, exists := snap.deltaState.GetSubpartForBlob(Type, checksum)
 		if exists {
 			rd, err := snap.repository.GetPackfileBlob(packfileChecksum, offset, length)
@@ -155,11 +149,7 @@ func (snap *Snapshot) BlobExists(Type resources.Type, checksum [32]byte) bool {
 
 	// XXX: Same here, remove this workaround when state API changes.
 	if snap.deltaState != nil {
-		hmacsum := checksum
-		if Type != resources.RT_SNAPSHOT {
-			hmacsum = snap.repository.ChecksumHMAC(checksum[:])
-		}
-		return snap.deltaState.BlobExists(Type, hmacsum) || snap.repository.BlobExists(Type, checksum)
+		return snap.deltaState.BlobExists(Type, checksum) || snap.repository.BlobExists(Type, checksum)
 	} else {
 		return snap.repository.BlobExists(Type, checksum)
 	}

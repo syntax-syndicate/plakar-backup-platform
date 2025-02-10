@@ -49,7 +49,7 @@ func New(ctx *appcontext.AppContext, store storage.Store, config []byte, secret 
 
 	var hasher hash.Hash
 	if ctx.GetSecret() != nil {
-		hasher = hashing.GetHasherHMAC(storage.DEFAULT_HASHING_ALGORITHM, ctx.GetSecret())
+		hasher = hashing.GetMACHasher(storage.DEFAULT_HASHING_ALGORITHM, ctx.GetSecret())
 	} else {
 		hasher = hashing.GetHasher(storage.DEFAULT_HASHING_ALGORITHM)
 	}
@@ -91,7 +91,7 @@ func NewNoRebuild(ctx *appcontext.AppContext, store storage.Store, config []byte
 
 	var hasher hash.Hash
 	if ctx.GetSecret() != nil {
-		hasher = hashing.GetHasherHMAC(storage.DEFAULT_HASHING_ALGORITHM, ctx.GetSecret())
+		hasher = hashing.GetMACHasher(storage.DEFAULT_HASHING_ALGORITHM, ctx.GetSecret())
 	} else {
 		hasher = hashing.GetHasher(storage.DEFAULT_HASHING_ALGORITHM)
 	}
@@ -221,7 +221,7 @@ func (r *Repository) Decode(input io.Reader) (io.Reader, error) {
 
 	stream := input
 	if r.secret != nil {
-		tmp, err := encryption.DecryptStream(r.secret, stream)
+		tmp, err := encryption.DecryptStream(r.configuration.Encryption, r.secret, stream)
 		if err != nil {
 			return nil, err
 		}
@@ -255,7 +255,7 @@ func (r *Repository) Encode(input io.Reader) (io.Reader, error) {
 	}
 
 	if r.secret != nil {
-		tmp, err := encryption.EncryptStream(r.secret, stream)
+		tmp, err := encryption.EncryptStream(r.configuration.Encryption, r.secret, stream)
 		if err != nil {
 			return nil, err
 		}
@@ -291,35 +291,35 @@ func (r *Repository) EncodeBuffer(buffer []byte) ([]byte, error) {
 	return io.ReadAll(rd)
 }
 
-func (r *Repository) Hasher() hash.Hash {
-	return hashing.GetHasher(r.Configuration().Hashing.Algorithm)
-}
+//func (r *Repository) Hasher() hash.Hash {
+//	return hashing.GetHasher(r.Configuration().Hashing.Algorithm)
+//}
 
-func (r *Repository) Checksum(data []byte) objects.Checksum {
-	hasher := r.Hasher()
-	hasher.Write(data)
-	result := hasher.Sum(nil)
+//func (r *Repository) Checksum(data []byte) objects.Checksum {
+//	hasher := r.Hasher()
+//	hasher.Write(data)
+//	result := hasher.Sum(nil)
+//
+//	if len(result) != 32 {
+//		panic("hasher returned invalid length")
+//	}
+//
+//	var checksum objects.Checksum
+//	copy(checksum[:], result)
+//
+//	return checksum
+//}
 
-	if len(result) != 32 {
-		panic("hasher returned invalid length")
-	}
-
-	var checksum objects.Checksum
-	copy(checksum[:], result)
-
-	return checksum
-}
-
-func (r *Repository) HasherHMAC() hash.Hash {
+func (r *Repository) GetMACHasher() hash.Hash {
 	secret := r.AppContext().GetSecret()
 	if secret == nil {
-		return r.Hasher()
+		secret = r.configuration.RepositoryID[:]
 	}
-	return hashing.GetHasherHMAC(r.Configuration().Hashing.Algorithm, secret)
+	return hashing.GetMACHasher(r.Configuration().Hashing.Algorithm, secret)
 }
 
-func (r *Repository) ChecksumHMAC(data []byte) objects.Checksum {
-	hasher := r.HasherHMAC()
+func (r *Repository) ComputeMAC(data []byte) objects.Checksum {
+	hasher := r.GetMACHasher()
 	hasher.Write(data)
 	result := hasher.Sum(nil)
 
@@ -387,6 +387,9 @@ func (r *Repository) DeleteSnapshot(snapshotID objects.Checksum) error {
 	}
 
 	sc, err := r.AppContext().GetCache().Scan(identifier)
+	if err != nil {
+		return err
+	}
 	deltaState := r.state.Derive(sc)
 
 	ret := deltaState.DeleteSnapshot(snapshotID)
@@ -400,7 +403,7 @@ func (r *Repository) DeleteSnapshot(snapshotID objects.Checksum) error {
 		return err
 	}
 
-	checksum := r.Checksum(buffer.Bytes())
+	checksum := r.ComputeMAC(buffer.Bytes())
 	if err := r.PutState(checksum, buffer); err != nil {
 		return err
 	}
@@ -428,7 +431,7 @@ func (r *Repository) GetState(checksum objects.Checksum) (versioning.Version, io
 		return versioning.Version(0), nil, err
 	}
 
-	version, rd, err := storage.Deserialize(r.HasherHMAC(), resources.RT_STATE, rd)
+	version, rd, err := storage.Deserialize(r.GetMACHasher(), resources.RT_STATE, rd)
 	if err != nil {
 		return versioning.Version(0), nil, err
 	}
@@ -451,7 +454,7 @@ func (r *Repository) PutState(checksum objects.Checksum, rd io.Reader) error {
 		return err
 	}
 
-	rd, err = storage.Serialize(r.HasherHMAC(), resources.RT_STATE, versioning.GetCurrentVersion(resources.RT_STATE), rd)
+	rd, err = storage.Serialize(r.GetMACHasher(), resources.RT_STATE, versioning.GetCurrentVersion(resources.RT_STATE), rd)
 	if err != nil {
 		return err
 	}
@@ -488,7 +491,7 @@ func (r *Repository) GetPackfile(checksum objects.Checksum) (versioning.Version,
 		return versioning.Version(0), nil, err
 	}
 
-	return storage.Deserialize(r.HasherHMAC(), resources.RT_PACKFILE, rd)
+	return storage.Deserialize(r.GetMACHasher(), resources.RT_PACKFILE, rd)
 }
 
 func (r *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint64, length uint32) (io.ReadSeeker, error) {
@@ -521,7 +524,7 @@ func (r *Repository) PutPackfile(checksum objects.Checksum, rd io.Reader) error 
 		r.Logger().Trace("repository", "PutPackfile(%x, ...): %s", checksum, time.Since(t0))
 	}()
 
-	rd, err := storage.Serialize(r.HasherHMAC(), resources.RT_PACKFILE, versioning.GetCurrentVersion(resources.RT_PACKFILE), rd)
+	rd, err := storage.Serialize(r.GetMACHasher(), resources.RT_PACKFILE, versioning.GetCurrentVersion(resources.RT_PACKFILE), rd)
 	if err != nil {
 		return err
 	}
@@ -543,9 +546,9 @@ func (r *Repository) GetBlob(Type resources.Type, checksum objects.Checksum) (io
 		r.Logger().Trace("repository", "GetBlob(%s, %x): %s", Type, checksum, time.Since(t0))
 	}()
 
-	if Type != resources.RT_SNAPSHOT {
-		checksum = r.ChecksumHMAC(checksum[:])
-	}
+	//if Type != resources.RT_SNAPSHOT {
+	//	checksum = r.ComputeMAC(checksum[:])
+	//}
 	packfileChecksum, offset, length, exists := r.state.GetSubpartForBlob(Type, checksum)
 	if !exists {
 		return nil, ErrPackfileNotFound
@@ -565,9 +568,9 @@ func (r *Repository) BlobExists(Type resources.Type, checksum objects.Checksum) 
 		r.Logger().Trace("repository", "BlobExists(%s, %x): %s", Type, checksum, time.Since(t0))
 	}()
 
-	if Type != resources.RT_SNAPSHOT {
-		checksum = r.ChecksumHMAC(checksum[:])
-	}
+	//if Type != resources.RT_SNAPSHOT {
+	//	checksum = r.ComputeMAC(checksum[:])
+	//}
 	return r.state.BlobExists(Type, checksum)
 }
 

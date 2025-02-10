@@ -307,7 +307,7 @@ func entryPoint() int {
 					if err != nil {
 						continue
 					}
-					if !encryption.VerifyCanary(key, storeConfig.Encryption.Canary) {
+					if !encryption.VerifyCanary(storeConfig.Encryption, key) {
 						if envPassphrase != "" {
 							break
 						}
@@ -320,7 +320,7 @@ func entryPoint() int {
 			} else {
 				key, err := encryption.DeriveKey(storeConfig.Encryption.KDFParams, []byte(ctx.KeyFromFile))
 				if err == nil {
-					if encryption.VerifyCanary(key, storeConfig.Encryption.Canary) {
+					if encryption.VerifyCanary(storeConfig.Encryption, key) {
 						secret = key
 						derived = true
 					}

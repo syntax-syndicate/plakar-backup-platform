@@ -1,6 +1,7 @@
 package info
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -85,28 +86,28 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 				return 1, err
 			}
 
-			indexHasher := repo.HasherHMAC()
-			indexHasher.Write(indexbuf)
+			hasher := repo.GetMACHasher()
+			hasher.Write(indexbuf)
 
-			//if !bytes.Equal(indexHasher.Sum(nil), footer.IndexHMAC[:]) {
-			//	return 1, fmt.Errorf("index HMAC mismatch")
-			//}
+			if !bytes.Equal(hasher.Sum(nil), footer.IndexMAC[:]) {
+				return 1, fmt.Errorf("index MAC mismatch")
+			}
 
 			rawPackfile = append(rawPackfile, indexbuf...)
 			rawPackfile = append(rawPackfile, footerbuf...)
 
-			p, err := packfile.NewFromBytes(repo.HasherHMAC(), packfileVersion, rawPackfile)
+			p, err := packfile.NewFromBytes(repo.GetMACHasher(), packfileVersion, rawPackfile)
 			if err != nil {
 				return 1, err
 			}
 
 			fmt.Fprintf(ctx.Stdout, "Version: %s\n", p.Footer.Version)
 			fmt.Fprintf(ctx.Stdout, "Timestamp: %s\n", time.Unix(0, p.Footer.Timestamp))
-			fmt.Fprintf(ctx.Stdout, "Index HMAC: %x\n", p.Footer.IndexHMAC)
+			fmt.Fprintf(ctx.Stdout, "Index MAC: %x\n", p.Footer.IndexMAC)
 			fmt.Fprintln(ctx.Stdout)
 
 			for i, entry := range p.Index {
-				fmt.Fprintf(ctx.Stdout, "blob[%d]: %x %d %d %s\n", i, entry.HMAC, entry.Offset, entry.Length, entry.Type)
+				fmt.Fprintf(ctx.Stdout, "blob[%d]: %x %d %d %s\n", i, entry.MAC, entry.Offset, entry.Length, entry.Type)
 			}
 		}
 	}

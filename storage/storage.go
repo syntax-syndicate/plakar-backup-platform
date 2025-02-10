@@ -65,12 +65,12 @@ func NewConfiguration() *Configuration {
 		Timestamp:    time.Now(),
 		RepositoryID: uuid.Must(uuid.NewRandom()),
 
-		Packfile: *packfile.DefaultConfiguration(),
-		Chunking: *chunking.DefaultConfiguration(),
-		Hashing:  *hashing.DefaultConfiguration(),
+		Packfile: *packfile.NewDefaultConfiguration(),
+		Chunking: *chunking.NewDefaultConfiguration(),
+		Hashing:  *hashing.NewDefaultConfiguration(),
 
-		Compression: compression.DefaultConfiguration(),
-		Encryption:  encryption.DefaultConfiguration(),
+		Compression: compression.NewDefaultConfiguration(),
+		Encryption:  encryption.NewDefaultConfiguration(),
 	}
 }
 

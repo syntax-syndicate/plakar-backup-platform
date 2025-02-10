@@ -20,6 +20,7 @@ require (
 	github.com/johannesboyne/gofakes3 v0.0.0-20250106100439-5c39aecd6999
 	github.com/minio/minio-go/v7 v7.0.61
 	github.com/muesli/termenv v0.15.3-0.20240618155329-98d742f6907a
+	github.com/nickball/go-aes-key-wrap v0.0.0-20170929221519-1c3aa3e4dfc5
 	github.com/pierrec/lz4/v4 v4.1.22
 	github.com/pkg/xattr v0.4.10
 	github.com/pmezard/go-difflib v1.0.0
@@ -30,6 +31,7 @@ require (
 	github.com/vmihailenco/msgpack/v5 v5.3.5
 	github.com/wagslane/go-password-validator v0.3.0
 	github.com/whilp/git-urls v1.0.0
+	github.com/zeebo/blake3 v0.2.4
 	go.omarpolo.com/ttlmap v0.0.0-20231012080932-0154c95c7516
 	golang.org/x/crypto v0.31.0
 	golang.org/x/mod v0.21.0
@@ -39,6 +41,7 @@ require (
 )
 
 require (
+	github.com/NickBall/go-aes-key-wrap v0.0.0-20170929221519-1c3aa3e4dfc5 // indirect
 	github.com/alecthomas/chroma/v2 v2.14.0 // indirect
 	github.com/aws/aws-sdk-go v1.44.256 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect

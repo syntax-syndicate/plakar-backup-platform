@@ -109,7 +109,7 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 				fmt.Fprintf(os.Stderr, "%s\n", err)
 				continue
 			}
-			if !encryption.VerifyCanary(key, peerStoreConfig.Encryption.Canary) {
+			if !encryption.VerifyCanary(peerStoreConfig.Encryption, key) {
 				fmt.Fprintf(os.Stderr, "invalid passphrase\n")
 				continue
 			}

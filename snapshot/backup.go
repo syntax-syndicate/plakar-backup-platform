@@ -274,7 +274,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 				if err != nil {
 					snap.Logger().Warn("VFS CACHE: Error unmarshaling filename: %v", err)
 				} else {
-					cachedFileEntryChecksum = snap.repository.Checksum(data)
+					cachedFileEntryChecksum = snap.repository.ComputeMAC(data)
 					if cachedFileEntry.Stat().Equal(&record.FileInfo) {
 						fileEntry = cachedFileEntry
 						if fileEntry.RecordType == importer.RecordTypeFile {
@@ -351,7 +351,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 					return
 				}
 
-				fileEntryChecksum = snap.repository.Checksum(serialized)
+				fileEntryChecksum = snap.repository.ComputeMAC(serialized)
 				err = snap.PutBlob(resources.RT_VFS_BTREE, fileEntryChecksum, serialized)
 				if err != nil {
 					backupCtx.recordError(record.Pathname, err)
@@ -412,7 +412,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		if err != nil {
 			return
 		}
-		csum = snap.repository.Checksum(serialized)
+		csum = snap.repository.ComputeMAC(serialized)
 		if !snap.BlobExists(resources.RT_ERROR, csum) {
 			err = snap.PutBlob(resources.RT_ERROR, csum, serialized)
 		}
@@ -562,7 +562,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		if err != nil {
 			return
 		}
-		csum = snap.repository.Checksum(serialized)
+		csum = snap.repository.ComputeMAC(serialized)
 		if !snap.BlobExists(resources.RT_VFS_ENTRY, csum) {
 			err = snap.PutBlob(resources.RT_VFS_ENTRY, csum, serialized)
 		}
@@ -647,7 +647,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 	object := objects.NewObject()
 	object.ContentType = mime.TypeByExtension(path.Ext(record.Pathname))
 
-	objectHasher := snap.repository.Hasher()
+	objectHasher := snap.repository.GetMACHasher()
 
 	var firstChunk = true
 	var cdcOffset uint64
@@ -660,7 +660,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 	// Helper function to process a chunk
 	processChunk := func(data []byte) error {
 		var chunk_t32 objects.Checksum
-		chunkHasher := snap.repository.Hasher()
+		chunkHasher := snap.repository.GetMACHasher()
 
 		if firstChunk {
 			if object.ContentType == "" {
@@ -780,7 +780,7 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 	binary.LittleEndian.PutUint32(encryptedFooterLength, uint32(len(encryptedFooter)))
 	serializedPackfile = append(serializedPackfile, encryptedFooterLength...)
 
-	checksum := snap.repository.Checksum(serializedPackfile)
+	checksum := snap.repository.ComputeMAC(serializedPackfile)
 
 	repo.Logger().Trace("snapshot", "%x: PutPackfile(%x, ...)", snap.Header.GetIndexShortID(), checksum)
 	err = snap.repository.PutPackfile(checksum, bytes.NewBuffer(serializedPackfile))
@@ -789,13 +789,13 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 	}
 
 	for _, Type := range packer.Types() {
-		for blobHMAC := range packer.Blobs[Type] {
+		for blobMAC := range packer.Blobs[Type] {
 			for idx, blob := range packer.Packfile.Index {
-				if blob.HMAC == blobHMAC && blob.Type == Type {
+				if blob.MAC == blobMAC && blob.Type == Type {
 					delta := state.DeltaEntry{
 						Type:    blob.Type,
 						Version: packer.Packfile.Index[idx].Version,
-						Blob:    blobHMAC,
+						Blob:    blobMAC,
 						Location: state.Location{
 							Packfile: checksum,
 							Offset:   packer.Packfile.Index[idx].Offset,
@@ -829,7 +829,7 @@ func (snap *Snapshot) Commit() error {
 	}
 
 	if kp := snap.AppContext().Keypair; kp != nil {
-		serializedHdrChecksum := snap.repository.Checksum(serializedHdr)
+		serializedHdrChecksum := snap.repository.ComputeMAC(serializedHdr)
 		signature := kp.Sign(serializedHdrChecksum[:])
 		if err := snap.PutBlob(resources.RT_SIGNATURE, snap.Header.Identifier, signature); err != nil {
 			return err

@@ -22,7 +22,7 @@ func init() {
 type Blob struct {
 	Type    resources.Type
 	Version versioning.Version
-	HMAC    objects.Checksum
+	MAC     objects.Checksum
 	Offset  uint64
 	Length  uint32
 }
@@ -41,7 +41,7 @@ type PackFileFooter struct {
 	Timestamp   int64
 	Count       uint32
 	IndexOffset uint64
-	IndexHMAC   objects.Checksum
+	IndexMAC    objects.Checksum
 }
 
 const FOOTER_SIZE = 52
@@ -52,7 +52,7 @@ type Configuration struct {
 	MaxSize uint64
 }
 
-func DefaultConfiguration() *Configuration {
+func NewDefaultConfiguration() *Configuration {
 	return &Configuration{
 		MaxSize: (20 << 10) << 10,
 	}
@@ -72,7 +72,7 @@ func NewFooterFromBytes(version versioning.Version, serialized []byte) (PackFile
 	if err := binary.Read(reader, binary.LittleEndian, &footer.IndexOffset); err != nil {
 		return footer, err
 	}
-	if err := binary.Read(reader, binary.LittleEndian, &footer.IndexHMAC); err != nil {
+	if err := binary.Read(reader, binary.LittleEndian, &footer.IndexMAC); err != nil {
 		return footer, err
 	}
 	return footer, nil
@@ -106,7 +106,7 @@ func NewIndexFromBytes(version versioning.Version, serialized []byte) ([]Blob, e
 		index = append(index, Blob{
 			Type:    resourceType,
 			Version: resourceVersion,
-			HMAC:    checksum,
+			MAC:     checksum,
 			Offset:  blobOffset,
 			Length:  blobLength,
 		})
@@ -146,7 +146,7 @@ func NewFromBytes(hasher hash.Hash, version versioning.Version, serialized []byt
 	if err := binary.Read(reader, binary.LittleEndian, &footer.IndexOffset); err != nil {
 		return nil, err
 	}
-	if err := binary.Read(reader, binary.LittleEndian, &footer.IndexHMAC); err != nil {
+	if err := binary.Read(reader, binary.LittleEndian, &footer.IndexMAC); err != nil {
 		return nil, err
 	}
 
@@ -211,14 +211,14 @@ func NewFromBytes(hasher hash.Hash, version versioning.Version, serialized []byt
 		p.Index = append(p.Index, Blob{
 			Type:    resourceType,
 			Version: resourceVersion,
-			HMAC:    checksum,
+			MAC:     checksum,
 			Offset:  blobOffset,
 			Length:  blobLength,
 		})
 		remaining -= BLOB_RECORD_SIZE
 	}
 	checksum := objects.Checksum(p.hasher.Sum(nil))
-	if checksum != p.Footer.IndexHMAC {
+	if checksum != p.Footer.IndexMAC {
 		return nil, fmt.Errorf("index checksum mismatch")
 	}
 
@@ -239,7 +239,7 @@ func (p *PackFile) Serialize() ([]byte, error) {
 		if err := binary.Write(&buffer, binary.LittleEndian, blob.Version); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(&buffer, binary.LittleEndian, blob.HMAC); err != nil {
+		if err := binary.Write(&buffer, binary.LittleEndian, blob.MAC); err != nil {
 			return nil, err
 		}
 		if err := binary.Write(&buffer, binary.LittleEndian, blob.Offset); err != nil {
@@ -255,7 +255,7 @@ func (p *PackFile) Serialize() ([]byte, error) {
 		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Version); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(p.hasher, binary.LittleEndian, blob.HMAC); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.MAC); err != nil {
 			return nil, err
 		}
 		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Offset); err != nil {
@@ -265,7 +265,7 @@ func (p *PackFile) Serialize() ([]byte, error) {
 			return nil, err
 		}
 	}
-	p.Footer.IndexHMAC = objects.Checksum(p.hasher.Sum(nil))
+	p.Footer.IndexMAC = objects.Checksum(p.hasher.Sum(nil))
 
 	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.Timestamp); err != nil {
 		return nil, err
@@ -276,7 +276,7 @@ func (p *PackFile) Serialize() ([]byte, error) {
 	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.IndexOffset); err != nil {
 		return nil, err
 	}
-	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.IndexHMAC); err != nil {
+	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.IndexMAC); err != nil {
 		return nil, err
 	}
 
@@ -301,7 +301,7 @@ func (p *PackFile) SerializeIndex() ([]byte, error) {
 		if err := binary.Write(&buffer, binary.LittleEndian, blob.Version); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(&buffer, binary.LittleEndian, blob.HMAC); err != nil {
+		if err := binary.Write(&buffer, binary.LittleEndian, blob.MAC); err != nil {
 			return nil, err
 		}
 		if err := binary.Write(&buffer, binary.LittleEndian, blob.Offset); err != nil {
@@ -317,7 +317,7 @@ func (p *PackFile) SerializeIndex() ([]byte, error) {
 		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Version); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(p.hasher, binary.LittleEndian, blob.HMAC); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.MAC); err != nil {
 			return nil, err
 		}
 		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Offset); err != nil {
@@ -340,7 +340,7 @@ func (p *PackFile) SerializeFooter() ([]byte, error) {
 		if err := binary.Write(&buffer, binary.LittleEndian, blob.Version); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(&buffer, binary.LittleEndian, blob.HMAC); err != nil {
+		if err := binary.Write(&buffer, binary.LittleEndian, blob.MAC); err != nil {
 			return nil, err
 		}
 		if err := binary.Write(&buffer, binary.LittleEndian, blob.Offset); err != nil {
@@ -356,7 +356,7 @@ func (p *PackFile) SerializeFooter() ([]byte, error) {
 		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Version); err != nil {
 			return nil, err
 		}
-		if err := binary.Write(p.hasher, binary.LittleEndian, blob.HMAC); err != nil {
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.MAC); err != nil {
 			return nil, err
 		}
 		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Offset); err != nil {
@@ -366,7 +366,7 @@ func (p *PackFile) SerializeFooter() ([]byte, error) {
 			return nil, err
 		}
 	}
-	p.Footer.IndexHMAC = objects.Checksum(p.hasher.Sum(nil))
+	p.Footer.IndexMAC = objects.Checksum(p.hasher.Sum(nil))
 
 	buffer.Reset()
 	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.Timestamp); err != nil {
@@ -378,7 +378,7 @@ func (p *PackFile) SerializeFooter() ([]byte, error) {
 	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.IndexOffset); err != nil {
 		return nil, err
 	}
-	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.IndexHMAC); err != nil {
+	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.IndexMAC); err != nil {
 		return nil, err
 	}
 
@@ -389,7 +389,7 @@ func (p *PackFile) AddBlob(resourceType resources.Type, version versioning.Versi
 	p.Index = append(p.Index, Blob{
 		Type:    resourceType,
 		Version: version,
-		HMAC:    checksum,
+		MAC:     checksum,
 		Offset:  uint64(len(p.Blobs)),
 		Length:  uint32(len(data)),
 	})
@@ -400,7 +400,7 @@ func (p *PackFile) AddBlob(resourceType resources.Type, version versioning.Versi
 
 func (p *PackFile) GetBlob(checksum objects.Checksum) ([]byte, bool) {
 	for _, blob := range p.Index {
-		if blob.HMAC == checksum {
+		if blob.MAC == checksum {
 			return p.Blobs[blob.Offset : blob.Offset+uint64(blob.Length)], true
 		}
 	}
