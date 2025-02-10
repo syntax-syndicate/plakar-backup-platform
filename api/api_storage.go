@@ -10,8 +10,7 @@ import (
 )
 
 func storageConfiguration(w http.ResponseWriter, r *http.Request) error {
-	configuration := lstore.Configuration()
-	return json.NewEncoder(w).Encode(configuration)
+	return json.NewEncoder(w).Encode(lconfig)
 }
 
 func storageStates(w http.ResponseWriter, r *http.Request) error {
@@ -90,7 +89,7 @@ func storagePackfile(w http.ResponseWriter, r *http.Request) error {
 
 	var rd io.Reader
 	if offsetExists && lengthExists {
-		rd, err = lstore.GetPackfileBlob(packfileBytes32, uint32(offset), uint32(length))
+		rd, err = lstore.GetPackfileBlob(packfileBytes32, uint64(offset), uint32(length))
 		if err != nil {
 			return err
 		}

@@ -19,6 +19,7 @@ func init() {
 }
 
 type Checksum [32]byte
+type MAC [32]byte
 
 func (m Checksum) MarshalJSON() ([]byte, error) {
 	return json.Marshal(fmt.Sprintf("%0x", m[:]))
@@ -45,7 +46,7 @@ func (m *Checksum) UnmarshalJSON(data []byte) error {
 
 type Object struct {
 	Version     versioning.Version `msgpack:"version" json:"version"`
-	Checksum    Checksum           `msgpack:"checksum" json:"checksum"`
+	MAC         Checksum           `msgpack:"MAC" json:"MAC"`
 	Chunks      []Chunk            `msgpack:"chunks" json:"chunks"`
 	ContentType string             `msgpack:"content_type,omitempty" json:"content_type"`
 	Entropy     float64            `msgpack:"entropy,omitempty" json:"entropy"`
@@ -84,11 +85,11 @@ func (o *Object) Serialize() ([]byte, error) {
 }
 
 type Chunk struct {
-	Version  versioning.Version `msgpack:"version" json:"version"`
-	Checksum Checksum           `msgpack:"checksum" json:"checksum"`
-	Length   uint32             `msgpack:"length" json:"length"`
-	Entropy  float64            `msgpack:"entropy" json:"entropy"`
-	Flags    uint64             `msgpack:"flags" json:"flags"`
+	Version versioning.Version `msgpack:"version" json:"version"`
+	MAC     Checksum           `msgpack:"MAC" json:"MAC"`
+	Length  uint32             `msgpack:"length" json:"length"`
+	Entropy float64            `msgpack:"entropy" json:"entropy"`
+	Flags   uint64             `msgpack:"flags" json:"flags"`
 }
 
 func NewChunk() *Chunk {

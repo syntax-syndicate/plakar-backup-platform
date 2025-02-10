@@ -17,6 +17,7 @@
 package storage
 
 import (
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"io"
@@ -34,14 +35,20 @@ import (
 	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/google/uuid"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 const VERSION string = "1.0.0"
 
+func init() {
+	versioning.Register(resources.RT_CONFIG, versioning.FromString(VERSION))
+}
+
 type Configuration struct {
-	Version      versioning.Version
+	Version      versioning.Version `msgpack:"-"`
 	Timestamp    time.Time
 	RepositoryID uuid.UUID
 
@@ -58,19 +65,48 @@ func NewConfiguration() *Configuration {
 		Timestamp:    time.Now(),
 		RepositoryID: uuid.Must(uuid.NewRandom()),
 
-		Packfile: *packfile.DefaultConfiguration(),
-		Chunking: *chunking.DefaultConfiguration(),
-		Hashing:  *hashing.DefaultConfiguration(),
+		Packfile: *packfile.NewDefaultConfiguration(),
+		Chunking: *chunking.NewDefaultConfiguration(),
+		Hashing:  *hashing.NewDefaultConfiguration(),
 
-		Compression: compression.DefaultConfiguration(),
-		Encryption:  encryption.DefaultConfiguration(),
+		Compression: compression.NewDefaultConfiguration(),
+		Encryption:  encryption.NewDefaultConfiguration(),
 	}
 }
 
+func NewConfigurationFromBytes(version versioning.Version, data []byte) (*Configuration, error) {
+	var configuration Configuration
+	err := msgpack.Unmarshal(data, &configuration)
+	if err != nil {
+		return nil, err
+	}
+	configuration.Version = version
+	return &configuration, nil
+}
+
+func NewConfigurationFromWrappedBytes(data []byte) (*Configuration, error) {
+	var configuration Configuration
+
+	version := versioning.Version(binary.LittleEndian.Uint32(data[12:16]))
+
+	data = data[:len(data)-int(STORAGE_FOOTER_SIZE)]
+	data = data[STORAGE_HEADER_SIZE:]
+
+	err := msgpack.Unmarshal(data, &configuration)
+	if err != nil {
+		return nil, err
+	}
+	configuration.Version = version
+	return &configuration, nil
+}
+
+func (c *Configuration) ToBytes() ([]byte, error) {
+	return msgpack.Marshal(c)
+}
+
 type Store interface {
-	Create(repository string, configuration Configuration) error
-	Open(repository string) error
-	Configuration() Configuration
+	Create(repository string, config []byte) error
+	Open(repository string) ([]byte, error)
 	Location() string
 
 	GetStates() ([]objects.Checksum, error)
@@ -81,7 +117,7 @@ type Store interface {
 	GetPackfiles() ([]objects.Checksum, error)
 	PutPackfile(checksum objects.Checksum, rd io.Reader) error
 	GetPackfile(checksum objects.Checksum) (io.Reader, error)
-	GetPackfileBlob(checksum objects.Checksum, offset uint32, length uint32) (io.Reader, error)
+	GetPackfileBlob(checksum objects.Checksum, offset uint64, length uint32) (io.Reader, error)
 	DeletePackfile(checksum objects.Checksum) error
 
 	Close() error
@@ -158,21 +194,22 @@ func New(location string) (Store, error) {
 	return NewStore(backendName, location)
 }
 
-func Open(location string) (Store, error) {
+func Open(location string) (Store, []byte, error) {
 	store, err := New(location)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-		return nil, err
+		return nil, nil, err
 	}
 
-	if err = store.Open(location); err != nil {
-		return nil, err
-	} else {
-		return store, nil
+	serializedConfig, err := store.Open(location)
+	if err != nil {
+		return nil, nil, err
 	}
+
+	return store, serializedConfig, nil
 }
 
-func Create(location string, configuration Configuration) (Store, error) {
+func Create(location string, configuration []byte) (Store, error) {
 	store, err := New(location)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)

@@ -25,6 +25,7 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
+	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
@@ -38,6 +39,12 @@ func parse_cmd_checksum(ctx *appcontext.AppContext, repo *repository.Repository,
 	var enableFastChecksum bool
 
 	flags := flag.NewFlagSet("checksum", flag.ExitOnError)
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] [SNAPSHOT[:PATH]]...\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "\nOPTIONS:\n")
+		flags.PrintDefaults()
+	}
+
 	flags.BoolVar(&enableFastChecksum, "fast", false, "enable fast checksum (return recorded checksum)")
 
 	flags.Parse(args)
@@ -118,12 +125,12 @@ func displayChecksums(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repo
 		return nil
 	}
 
-	object, err := snap.LookupObject(fsinfo.Object.Checksum)
+	object, err := snap.LookupObject(fsinfo.Object)
 	if err != nil {
 		return err
 	}
 
-	checksum := object.Checksum
+	checksum := object.MAC
 	if !fastcheck {
 		rd, err := snap.NewReader(pathname)
 		if err != nil {
@@ -131,11 +138,11 @@ func displayChecksums(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repo
 		}
 		defer rd.Close()
 
-		hasher := repo.Hasher()
+		hasher := hashing.GetHasher("SHA256")
 		if _, err := io.Copy(hasher, rd); err != nil {
 			return err
 		}
 	}
-	fmt.Fprintf(ctx.Stdout, "SHA256 (%s) = %x\n", pathname, checksum)
+	fmt.Fprintf(ctx.Stdout, "%s (%s) = %x\n", repo.Configuration().Hashing.Algorithm, pathname, checksum)
 	return nil
 }

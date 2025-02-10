@@ -131,7 +131,7 @@ func (c *_RepositoryCache) HasDelta(blobType resources.Type, blobCsum objects.Ch
 }
 
 func (c *_RepositoryCache) GetDeltaByCsum(blobCsum objects.Checksum) ([]byte, error) {
-	for typ := resources.RT_SNAPSHOT; typ <= resources.RT_ERROR; typ++ {
+	for typ := resources.RT_SNAPSHOT; typ <= resources.RT_ERROR_ENTRY; typ++ {
 		ret, err := c.GetDelta(typ, blobCsum)
 
 		if err != nil {
@@ -188,4 +188,16 @@ func (c *_RepositoryCache) HasDeleted(blobType resources.Type, blobCsum objects.
 
 func (c *_RepositoryCache) GetDeleteds() iter.Seq2[objects.Checksum, []byte] {
 	return c.getObjects("__deleted__:")
+}
+
+func (c *_RepositoryCache) PutPackfile(stateID, packfile objects.Checksum, data []byte) error {
+	return c.put("__packfile__", fmt.Sprintf("%x:%x", stateID, packfile), data)
+}
+
+func (c *_RepositoryCache) GetPackfiles() iter.Seq2[objects.Checksum, []byte] {
+	return c.getObjects("__packfile__:")
+}
+
+func (c *_RepositoryCache) GetPackfilesForState(stateID objects.Checksum) iter.Seq2[objects.Checksum, []byte] {
+	return c.getObjects(fmt.Sprintf("__packfile__:%x", stateID))
 }

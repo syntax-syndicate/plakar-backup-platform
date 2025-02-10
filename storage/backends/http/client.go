@@ -63,29 +63,27 @@ func (repo *Repository) sendRequest(method string, url string, requestType strin
 	return client.Do(req)
 }
 
-func (repo *Repository) Create(location string, config storage.Configuration) error {
+func (repo *Repository) Create(location string, config []byte) error {
 	return nil
 }
 
-func (repo *Repository) Open(location string) error {
+func (repo *Repository) Open(location string) ([]byte, error) {
 	repo.Repository = location
 	r, err := repo.sendRequest("GET", location, "/", network.ReqOpen{
 		Repository: "",
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var resOpen network.ResOpen
 	if err := json.NewDecoder(r.Body).Decode(&resOpen); err != nil {
-		return err
+		return nil, err
 	}
 	if resOpen.Err != "" {
-		return fmt.Errorf("%s", resOpen.Err)
+		return nil, fmt.Errorf("%s", resOpen.Err)
 	}
-
-	repo.config = *resOpen.Configuration
-	return nil
+	return resOpen.Configuration, nil
 }
 
 func (repo *Repository) Close() error {
@@ -256,7 +254,7 @@ func (repo *Repository) GetPackfile(checksum objects.Checksum) (io.Reader, error
 	return bytes.NewBuffer(resGetPackfile.Data), nil
 }
 
-func (repo *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint32, length uint32) (io.Reader, error) {
+func (repo *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint64, length uint32) (io.Reader, error) {
 	r, err := repo.sendRequest("GET", repo.Repository, "/packfile/blob", network.ReqGetPackfileBlob{
 		Checksum: checksum,
 		Offset:   offset,

@@ -3,12 +3,12 @@ package testing
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"net/url"
 	"strings"
 	"time"
 
-	"github.com/PlakarKorp/plakar/compression"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/header"
 	"github.com/PlakarKorp/plakar/storage"
@@ -35,7 +35,7 @@ var behaviors = map[string]mockedBackendBehavior{
 	},
 	"oneState": {
 		statesChecksums:    []objects.Checksum{{0x01}, {0x02}, {0x03}, {0x04}},
-		header:             header.Header{Timestamp: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC), Identifier: [32]byte{0x1}, Sources: []*header.Source{&header.Source{VFS: objects.Checksum{0x01}}}},
+		header:             header.Header{Timestamp: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC), Identifier: [32]byte{0x1}, Sources: []header.Source{{VFS: objects.Checksum{0x01}}}},
 		packfilesChecksums: []objects.Checksum{{0x04}, {0x05}, {0x06}},
 	},
 	"oneSnapshot": {
@@ -62,7 +62,7 @@ var behaviors = map[string]mockedBackendBehavior{
 
 // MockBackend implements the Backend interface for testing purposes
 type MockBackend struct {
-	configuration storage.Configuration
+	configuration []byte
 	location      string
 
 	// used to trigger different behaviors during tests
@@ -73,11 +73,12 @@ func NewMockBackend(location string) *MockBackend {
 	return &MockBackend{location: location}
 }
 
-func (mb *MockBackend) Create(repository string, configuration storage.Configuration) error {
+func (mb *MockBackend) Create(repository string, configuration []byte) error {
 	if strings.Contains(repository, "musterror") {
 		return errors.New("creating error")
 	}
 	mb.configuration = configuration
+	fmt.Println("CONFIG", mb.configuration)
 
 	mb.behavior = "default"
 
@@ -95,15 +96,12 @@ func (mb *MockBackend) Create(repository string, configuration storage.Configura
 	return nil
 }
 
-func (mb *MockBackend) Open(repository string) error {
+func (mb *MockBackend) Open(repository string) ([]byte, error) {
 	if strings.Contains(repository, "musterror") {
-		return errors.New("opening error")
+		return nil, errors.New("opening error")
 	}
-	return nil
-}
-
-func (mb *MockBackend) Configuration() storage.Configuration {
-	return mb.configuration
+	fmt.Println("CONFIG", mb.configuration)
+	return mb.configuration, nil
 }
 
 func (mb *MockBackend) Location() string {
@@ -128,9 +126,6 @@ func (mb *MockBackend) GetState(checksum objects.Checksum) (io.Reader, error) {
 	}
 
 	var buffer bytes.Buffer
-	if mb.configuration.Compression != nil {
-		return compression.DeflateStream(mb.configuration.Compression.Algorithm, &buffer)
-	}
 	return &buffer, nil
 }
 
@@ -161,14 +156,10 @@ func (mb *MockBackend) GetPackfile(checksum objects.Checksum) (io.Reader, error)
 		return bytes.NewReader([]byte("packfile data")), nil
 	}
 
-	if mb.configuration.Compression != nil {
-		return compression.DeflateStream(mb.configuration.Compression.Algorithm, bytes.NewReader([]byte(packfile)))
-	} else {
-		return bytes.NewReader([]byte(packfile)), nil
-	}
+	return bytes.NewReader([]byte(packfile)), nil
 }
 
-func (mb *MockBackend) GetPackfileBlob(checksum objects.Checksum, offset uint32, length uint32) (io.Reader, error) {
+func (mb *MockBackend) GetPackfileBlob(checksum objects.Checksum, offset uint64, length uint32) (io.Reader, error) {
 	if mb.behavior == "brokenGetPackfileBlob" {
 		return nil, errors.New("broken get packfile blob")
 	}
@@ -181,11 +172,7 @@ func (mb *MockBackend) GetPackfileBlob(checksum objects.Checksum, offset uint32,
 	if err != nil {
 		panic(err)
 	}
-	if mb.configuration.Compression != nil {
-		return compression.DeflateStream(mb.configuration.Compression.Algorithm, bytes.NewReader(data))
-	} else {
-		return bytes.NewReader(data), nil
-	}
+	return bytes.NewReader(data), nil
 }
 
 func (mb *MockBackend) DeletePackfile(checksum objects.Checksum) error {

@@ -2,14 +2,20 @@ package packfile
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/resources"
+	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPackFile(t *testing.T) {
-	p := New()
+	hasher := hmac.New(sha256.New, []byte("testkey"))
+
+	p := New(hasher)
 
 	// Define some sample chunks
 	chunk1 := []byte("This is chunk number 1")
@@ -18,8 +24,8 @@ func TestPackFile(t *testing.T) {
 	checksum2 := [32]byte{2} // Mock checksum for chunk2
 
 	// Test AddBlob
-	p.AddBlob(resources.RT_CHUNK, checksum1, chunk1)
-	p.AddBlob(resources.RT_CHUNK, checksum2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum1, chunk1)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum2, chunk2)
 
 	// Test GetBlob
 	retrievedChunk1, exists := p.GetBlob(checksum1)
@@ -40,13 +46,15 @@ func TestPackFile(t *testing.T) {
 	if p.Footer.Count != 2 {
 		t.Fatalf("Expected Footer.Count to be 2 but got %d", p.Footer.Count)
 	}
-	if p.Footer.IndexOffset != uint32(len(p.Blobs)) {
+	if p.Footer.IndexOffset != uint64(len(p.Blobs)) {
 		t.Fatalf("Expected Footer.Length to be %d but got %d", len(p.Blobs), p.Footer.IndexOffset)
 	}
 }
 
 func TestPackFileSerialization(t *testing.T) {
-	p := New()
+	hasher := hmac.New(sha256.New, []byte("testkey"))
+
+	p := New(hasher)
 
 	// Define some sample chunks
 	chunk1 := []byte("This is chunk number 1")
@@ -55,8 +63,8 @@ func TestPackFileSerialization(t *testing.T) {
 	checksum2 := [32]byte{2} // Mock checksum for chunk2
 
 	// Test AddBlob
-	p.AddBlob(resources.RT_CHUNK, checksum1, chunk1)
-	p.AddBlob(resources.RT_CHUNK, checksum2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum1, chunk1)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum2, chunk2)
 
 	// Test Serialize and NewFromBytes
 	serialized, err := p.Serialize()
@@ -64,7 +72,7 @@ func TestPackFileSerialization(t *testing.T) {
 		t.Fatalf("Failed to serialize PackFile: %v", err)
 	}
 
-	p2, err := NewFromBytes(serialized)
+	p2, err := NewFromBytes(hasher, versioning.GetCurrentVersion(resources.RT_PACKFILE), serialized)
 	if err != nil {
 		t.Fatalf("Failed to create PackFile from bytes: %v", err)
 	}
@@ -96,17 +104,19 @@ func TestPackFileSerialization(t *testing.T) {
 }
 
 func TestPackFileSerializeIndex(t *testing.T) {
-	p := New()
+	hasher := hmac.New(sha256.New, []byte("testkey"))
+
+	p := New(hasher)
 
 	// Define some sample chunks
 	chunk1 := []byte("This is chunk number 1")
 	chunk2 := []byte("This is chunk number 2")
-	checksum1 := [32]byte{1} // Mock checksum for chunk1
-	checksum2 := [32]byte{2} // Mock checksum for chunk2
+	checksum1 := objects.Checksum{1} // Mock checksum for chunk1
+	checksum2 := objects.Checksum{2} // Mock checksum for chunk2
 
 	// Test AddBlob
-	p.AddBlob(resources.RT_CHUNK, checksum1, chunk1)
-	p.AddBlob(resources.RT_CHUNK, checksum2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum1, chunk1)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum2, chunk2)
 
 	// Test packfile Size
 	require.Equal(t, p.Size(), uint32(44), "Expected 2 blobs but got %q", p.Size())
@@ -115,7 +125,7 @@ func TestPackFileSerializeIndex(t *testing.T) {
 	serialized, err := p.SerializeIndex()
 	require.NoError(t, err, "Failed to serialize PackFile index")
 
-	p2, err := NewIndexFromBytes(serialized)
+	p2, err := NewIndexFromBytes(versioning.GetCurrentVersion(resources.RT_PACKFILE), serialized)
 	require.NoError(t, err, "Failed to create PackFile index from bytes")
 
 	require.Equal(t, len(p2), 2, "Expected 2 blobs but got %d", len(p2))
@@ -126,15 +136,19 @@ func TestPackFileSerializeIndex(t *testing.T) {
 	require.Equal(t, blob1.Type, resources.RT_CHUNK)
 	require.Equal(t, blob2.Type, resources.RT_CHUNK)
 
+	require.Equal(t, blob1.Version, versioning.GetCurrentVersion(resources.RT_CHUNK))
+	require.Equal(t, blob2.Version, versioning.GetCurrentVersion(resources.RT_CHUNK))
+
 	require.Equal(t, blob1.Length, uint32(len(chunk1)))
 	require.Equal(t, blob2.Length, uint32(len(chunk2)))
 
-	require.Equal(t, blob1.Checksum, checksum1, "Expected %q but got %q", checksum1, blob1.Checksum)
-	require.Equal(t, blob2.Checksum, checksum2, "Expected %q but got %q", checksum1, blob2.Checksum)
+	require.Equal(t, blob1.MAC, checksum1, "Expected %q but got %q", checksum1, blob1.MAC)
+	require.Equal(t, blob2.MAC, checksum2, "Expected %q but got %q", checksum1, blob2.MAC)
 }
 
 func TestPackFileSerializeFooter(t *testing.T) {
-	p := New()
+	hasher := hmac.New(sha256.New, []byte("testkey"))
+	p := New(hasher)
 
 	// Define some sample chunks
 	chunk1 := []byte("This is chunk number 1")
@@ -143,23 +157,24 @@ func TestPackFileSerializeFooter(t *testing.T) {
 	checksum2 := [32]byte{2} // Mock checksum for chunk2
 
 	// Test AddBlob
-	p.AddBlob(resources.RT_CHUNK, checksum1, chunk1)
-	p.AddBlob(resources.RT_CHUNK, checksum2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum1, chunk1)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum2, chunk2)
 
 	// Test Serialize and NewFromBytes
 	serialized, err := p.SerializeFooter()
 	require.NoError(t, err, "Failed to serialize PackFile footer")
 
-	p2, err := NewFooterFromBytes(serialized)
+	p2, err := NewFooterFromBytes(versioning.GetCurrentVersion(resources.RT_PACKFILE), serialized)
 	require.NoError(t, err, "Failed to create PackFile footer from bytes")
 
 	require.Equal(t, p2.Count, uint32(2), "Expected 2 blobs but got %d", uint32(p2.Count))
 
-	require.Equal(t, p2.IndexOffset, uint32(len(chunk1)+len(chunk2)), "Expected IndexOffset to be %d but got %d", len(chunk1)+len(chunk2), p2.IndexOffset)
+	require.Equal(t, p2.IndexOffset, uint64(len(chunk1)+len(chunk2)), "Expected IndexOffset to be %d but got %d", len(chunk1)+len(chunk2), p2.IndexOffset)
 }
 
 func TestPackFileSerializeData(t *testing.T) {
-	p := New()
+	hasher := hmac.New(sha256.New, []byte("testkey"))
+	p := New(hasher)
 
 	// Define some sample chunks
 	chunk1 := []byte("This is chunk number 1")
@@ -168,8 +183,8 @@ func TestPackFileSerializeData(t *testing.T) {
 	checksum2 := [32]byte{2} // Mock checksum for chunk2
 
 	// Test AddBlob
-	p.AddBlob(resources.RT_CHUNK, checksum1, chunk1)
-	p.AddBlob(resources.RT_CHUNK, checksum2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum1, chunk1)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum2, chunk2)
 
 	// Test SerializeData
 	serialized, err := p.SerializeData()
@@ -181,7 +196,9 @@ func TestPackFileSerializeData(t *testing.T) {
 }
 
 func TestDefaultConfiguration(t *testing.T) {
-	c := DefaultConfiguration()
+	c := NewDefaultConfiguration()
 
-	require.Equal(t, c.MaxSize, uint32(20971520))
+	require.Equal(t, c.MinSize, uint64(0))
+	require.Equal(t, c.AvgSize, uint64(0))
+	require.Equal(t, c.MaxSize, uint64(20971520))
 }

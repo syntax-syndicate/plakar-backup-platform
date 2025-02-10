@@ -32,19 +32,7 @@ type ScanResult interface {
 	scanResult()
 }
 
-type RecordType int8
-
-const (
-	RecordTypeFile      RecordType = 0
-	RecordTypeDirectory RecordType = 1
-	RecordTypeSymlink   RecordType = 2
-	RecordTypeDevice    RecordType = 3
-	RecordTypePipe      RecordType = 4
-	RecordTypeSocket    RecordType = 5
-)
-
 type ScanRecord struct {
-	Type               RecordType
 	Pathname           string
 	Target             string
 	FileInfo           objects.FileInfo

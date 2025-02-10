@@ -24,7 +24,6 @@ import (
 	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/btree"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/encryption"
@@ -42,6 +41,11 @@ func init() {
 
 func parse_cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	flags := flag.NewFlagSet("sync", flag.ExitOnError)
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: %s [SNAPSHOT] to REPOSITORY\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s [SNAPSHOT] from REPOSITORY\n", flags.Name())
+		flags.PrintDefaults()
+	}
 	flags.Parse(args)
 	return &Sync{
 		RepositoryLocation: repo.Location(),
@@ -76,18 +80,23 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		peerRepositoryPath = cmd.Args[2]
 
 	default:
-		ctx.GetLogger().Error("usage: sync [snapshotID] to|from repository")
-		return 1, fmt.Errorf("usage: sync [snapshotID] to|from repository")
+		return 1, fmt.Errorf("usage: sync [SNAPSHOT] to|from REPOSITORY")
 	}
 
-	peerStore, err := storage.Open(peerRepositoryPath)
+	peerStore, peerStoreSerializedConfig, err := storage.Open(peerRepositoryPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not open repository: %s\n", peerRepositoryPath, err)
 		return 1, err
 	}
 
+	peerStoreConfig, err := storage.NewConfigurationFromWrappedBytes(peerStoreSerializedConfig)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: could not parse configuration: %s\n", peerStore.Location(), err)
+		return 1, err
+	}
+
 	var peerSecret []byte
-	if peerStore.Configuration().Encryption != nil {
+	if peerStoreConfig.Encryption != nil {
 		for {
 			passphrase, err := utils.GetPassphrase("destination repository")
 			if err != nil {
@@ -95,12 +104,12 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 				continue
 			}
 
-			key, err := encryption.DeriveKey(peerStore.Configuration().Encryption.KDFParams, passphrase)
+			key, err := encryption.DeriveKey(peerStoreConfig.Encryption.KDFParams, passphrase)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s\n", err)
 				continue
 			}
-			if !encryption.VerifyCanary(key, peerStore.Configuration().Encryption.Canary) {
+			if !encryption.VerifyCanary(peerStoreConfig.Encryption, key) {
 				fmt.Fprintf(os.Stderr, "invalid passphrase\n")
 				continue
 			}
@@ -108,7 +117,7 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 			break
 		}
 	}
-	peerRepository, err := repository.New(ctx, peerStore, peerSecret)
+	peerRepository, err := repository.New(ctx, peerStore, peerStoreSerializedConfig, peerSecret)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not open repository: %s\n", peerStore.Location(), err)
 		return 1, err
@@ -274,16 +283,20 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 		}
 	}
 
-	fs.VisitNodes(func(csum objects.Checksum, node *btree.Node[string, objects.Checksum, objects.Checksum]) error {
-		if !dstRepository.BlobExists(resources.RT_VFS, csum) {
+	fsiter := fs.IterNodes()
+	for fsiter.Next() {
+		csum, node := fsiter.Current()
+		if !dstRepository.BlobExists(resources.RT_VFS_BTREE, csum) {
 			bytes, err := msgpack.Marshal(node)
 			if err != nil {
 				return err
 			}
-			dstSnapshot.PutBlob(resources.RT_VFS, csum, bytes)
+			dstSnapshot.PutBlob(resources.RT_VFS_BTREE, csum, bytes)
 		}
-		return nil
-	})
+	}
+	if err := fsiter.Err(); err != nil {
+		return err
+	}
 
 	return dstSnapshot.Commit()
 }

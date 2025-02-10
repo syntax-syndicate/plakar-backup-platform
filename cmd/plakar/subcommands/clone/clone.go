@@ -36,11 +36,16 @@ func init() {
 
 func parse_cmd_clone(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	flags := flag.NewFlagSet("clone", flag.ExitOnError)
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: %s to /path/to/repository\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s to s3://bucket/path\n", flags.Name())
+		flags.PrintDefaults()
+	}
+
 	flags.Parse(args)
 
 	if flags.NArg() != 2 || flags.Arg(0) != "to" {
-		ctx.GetLogger().Error("usage: %s to repository", flags.Name())
-		return nil, fmt.Errorf("usage: %s to repository", flags.Name())
+		return nil, fmt.Errorf("usage: %s to <repository>. See '%s -h' or 'help %s'", flags.Name(), flags.Name(), flags.Name())
 	}
 
 	return &Clone{
@@ -64,19 +69,23 @@ func (cmd *Clone) Name() string {
 func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	sourceStore := repo.Store()
 
-	configuration := sourceStore.Configuration()
+	configuration := repo.Configuration()
 	configuration.RepositoryID = uuid.Must(uuid.NewRandom())
 
-	cloneStore, err := storage.Create(cmd.Dest, configuration)
+	serializedConfig, err := configuration.ToBytes()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: could not create repository: %s\n", cmd.Dest, err)
+		fmt.Fprintf(os.Stderr, "Failed to decode storage configuration: %s\n", err)
 		return 1, err
+	}
+
+	cloneStore, err := storage.Create(cmd.Dest, serializedConfig)
+	if err != nil {
+		return 1, fmt.Errorf("could not create repository: %w", err)
 	}
 
 	packfileChecksums, err := sourceStore.GetPackfiles()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: could not get packfiles list from repository: %s\n", sourceStore.Location(), err)
-		return 1, err
+		return 1, fmt.Errorf("could not get packfiles list from repository: %w", err)
 	}
 
 	wg := sync.WaitGroup{}
@@ -87,13 +96,13 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 
 			rd, err := sourceStore.GetPackfile(packfileChecksum)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: could not get packfile from repository: %s\n", sourceStore.Location(), err)
+				fmt.Fprintf(os.Stderr, "could not get packfile from repository: %s\n", err)
 				return
 			}
 
 			err = cloneStore.PutPackfile(packfileChecksum, rd)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: could not put packfile to repository: %s\n", cloneStore.Location(), err)
+				fmt.Fprintf(os.Stderr, "could not put packfile to repository: %s\n", err)
 				return
 			}
 		}(_packfileChecksum)
@@ -102,8 +111,7 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 
 	indexesChecksums, err := sourceStore.GetStates()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: could not get paclfiles list from repository: %s\n", sourceStore.Location(), err)
-		return 1, err
+		return 1, fmt.Errorf("could not get packfiles list from repository: %w", err)
 	}
 
 	wg = sync.WaitGroup{}
@@ -114,13 +122,13 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 
 			data, err := sourceStore.GetState(indexChecksum)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: could not get index from repository: %s\n", sourceStore.Location(), err)
+				fmt.Fprintf(os.Stderr, "could not get index from repository: %s\n", err)
 				return
 			}
 
 			err = cloneStore.PutState(indexChecksum, data)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: could not put packfile to repository: %s\n", cloneStore.Location(), err)
+				fmt.Fprintf(os.Stderr, "could not put packfile to repository: %s\n", err)
 				return
 			}
 		}(_indexChecksum)

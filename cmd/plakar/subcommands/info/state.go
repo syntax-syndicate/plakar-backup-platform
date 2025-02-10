@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
@@ -51,9 +50,9 @@ func (cmd *InfoState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 			var byteArray [32]byte
 			copy(byteArray[:], b)
 
-			rawStateRd, err := repo.GetState(byteArray)
+			version, rawStateRd, err := repo.GetState(byteArray)
 			if err != nil {
-				log.Fatal(err)
+				return 1, err
 			}
 
 			// Temporary scan cache to reconstruct that state.
@@ -69,12 +68,12 @@ func (cmd *InfoState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 			scanCache, err := repo.AppContext().GetCache().Scan(identifier)
 			defer scanCache.Close()
 
-			st, err := state.FromStream(rawStateRd, scanCache)
+			st, err := state.FromStream(version, rawStateRd, scanCache)
 			if err != nil {
 				return 1, err
 			}
 
-			fmt.Fprintf(ctx.Stdout, "Version: %d.%d.%d\n", st.Metadata.Version/100, (st.Metadata.Version/10)%10, st.Metadata.Version%10)
+			fmt.Fprintf(ctx.Stdout, "Version: %s\n", st.Metadata.Version)
 			fmt.Fprintf(ctx.Stdout, "Creation: %s\n", st.Metadata.Timestamp)
 			fmt.Fprintf(ctx.Stdout, "State serial: %s\n", st.Metadata.Serial)
 
@@ -96,7 +95,12 @@ func (cmd *InfoState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 			printBlobs("snapshot", resources.RT_SNAPSHOT)
 			printBlobs("chunk", resources.RT_CHUNK)
 			printBlobs("object", resources.RT_OBJECT)
-			printBlobs("file", resources.RT_VFS)
+			printBlobs("file", resources.RT_VFS_BTREE)
+
+			for packfile := range st.ListPackfiles(byteArray) {
+				fmt.Fprintf(ctx.Stdout, "Packfile: %x\n", packfile)
+
+			}
 		}
 	}
 	return 0, nil

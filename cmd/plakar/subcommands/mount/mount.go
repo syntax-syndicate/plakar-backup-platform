@@ -1,6 +1,3 @@
-//go:build linux || darwin
-// +build linux darwin
-
 /*
  * Copyright (c) 2021 Gilles Chehade <gilles@poolp.org>
  *
@@ -22,14 +19,10 @@ package mount
 import (
 	"flag"
 	"fmt"
-	"log"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/plakarfs"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/anacrolix/fuse"
-	"github.com/anacrolix/fuse/fs"
 )
 
 func init() {
@@ -38,6 +31,9 @@ func init() {
 
 func parse_cmd_mount(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	flags := flag.NewFlagSet("mount", flag.ExitOnError)
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: %s PATH\n", flags.Name())
+	}
 	flags.Parse(args)
 
 	if flags.NArg() != 1 {
@@ -60,29 +56,4 @@ type Mount struct {
 
 func (cmd *Mount) Name() string {
 	return "mount"
-}
-
-func (cmd *Mount) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	c, err := fuse.Mount(
-		cmd.Mountpoint,
-		fuse.FSName("plakar"),
-		fuse.Subtype("plakarfs"),
-		fuse.LocalVolume(),
-	)
-	if err != nil {
-		log.Fatalf("Mount: %v", err)
-	}
-	defer c.Close()
-	ctx.GetLogger().Info("mounted repository %s at %s", repo.Location(), cmd.Mountpoint)
-
-	err = fs.Serve(c, plakarfs.NewFS(repo, cmd.Mountpoint))
-	if err != nil {
-		return 1, err
-	}
-	<-c.Ready
-	if err := c.MountError; err != nil {
-		return 1, err
-	}
-	return 0, nil
-
 }

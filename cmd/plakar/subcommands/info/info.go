@@ -22,6 +22,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
 )
 
@@ -38,58 +39,30 @@ func parse_cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, arg
 	}
 
 	flags := flag.NewFlagSet("info", flag.ExitOnError)
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: %s [SNAPSHOT]\n", flags.Name())
+	}
 	flags.Parse(args)
 
-	// Determine which concept to show information for based on flags.Args()[0]
-	switch flags.Arg(0) {
-	case "snapshot":
-		if len(flags.Args()) < 2 {
-			return nil, fmt.Errorf("usage: %s snapshot snapshotID", flags.Name())
-		}
-		return &InfoSnapshot{
-			RepositoryLocation: repo.Location(),
-			RepositorySecret:   ctx.GetSecret(),
-			SnapshotID:         flags.Args()[1],
-		}, nil
-	case "errors":
-		if len(flags.Args()) < 2 {
-			return nil, fmt.Errorf("usage: %s errors snapshotID", flags.Name())
-		}
-		return &InfoErrors{
-			RepositoryLocation: repo.Location(),
-			RepositorySecret:   ctx.GetSecret(),
-			SnapshotID:         flags.Args()[1],
-		}, nil
-	case "state":
-		return &InfoState{
-			RepositoryLocation: repo.Location(),
-			RepositorySecret:   ctx.GetSecret(),
-			Args:               flags.Args()[1:],
-		}, nil
-	case "packfile":
-		return &InfoPackfile{
-			RepositoryLocation: repo.Location(),
-			RepositorySecret:   ctx.GetSecret(),
-			Args:               flags.Args()[1:],
-		}, nil
-	case "object":
-		if len(flags.Args()) < 2 {
-			return nil, fmt.Errorf("usage: %s object objectID", flags.Name())
-		}
-		return &InfoObject{
-			RepositoryLocation: repo.Location(),
-			RepositorySecret:   ctx.GetSecret(),
-			ObjectID:           flags.Args()[1],
-		}, nil
-	case "vfs":
-		if len(flags.Args()) < 2 {
-			return nil, fmt.Errorf("usage: %s vfs snapshotPathname", flags.Name())
-		}
+	if len(flags.Args()) > 1 {
+		return nil, fmt.Errorf("invalid parameter. usage: info [snapshot]")
+	}
+
+	snapshotID, path := utils.ParseSnapshotID(flags.Arg(0))
+	if snapshotID == "" {
+		return nil, fmt.Errorf("invalid snapshot ID")
+	}
+	if path != "" {
 		return &InfoVFS{
 			RepositoryLocation: repo.Location(),
 			RepositorySecret:   ctx.GetSecret(),
-			SnapshotPath:       flags.Args()[1],
+			SnapshotPath:       flags.Arg(0),
 		}, nil
 	}
-	return nil, fmt.Errorf("Invalid parameter. usage: info [snapshot|object|state|packfile|vfs|errors]")
+
+	return &InfoSnapshot{
+		RepositoryLocation: repo.Location(),
+		RepositorySecret:   ctx.GetSecret(),
+		SnapshotID:         flags.Args()[0],
+	}, nil
 }

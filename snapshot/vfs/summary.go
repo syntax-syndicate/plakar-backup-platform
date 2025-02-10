@@ -5,19 +5,17 @@ import (
 	"os"
 	"strings"
 
-	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
 type FileSummary struct {
-	Type        importer.RecordType `msgpack:"type" json:"type"`
-	Size        uint64              `msgpack:"size" json:"size"`
-	Objects     uint64              `msgpack:"objects" json:"objects"`
-	Chunks      uint64              `msgpack:"chunks" json:"chunks"`
-	Mode        fs.FileMode         `msgpack:"mode" json:"mode"`
-	ModTime     int64               `msgpack:"mod_time" json:"mod_time"`
-	ContentType string              `msgpack:"content_type" json:"content_type"`
-	Entropy     float64             `msgpack:"entropy" json:"entropy"`
+	Size        uint64      `msgpack:"size" json:"size"`
+	Objects     uint64      `msgpack:"objects" json:"objects"`
+	Chunks      uint64      `msgpack:"chunks" json:"chunks"`
+	Mode        fs.FileMode `msgpack:"mode" json:"mode"`
+	ModTime     int64       `msgpack:"mod_time" json:"mod_time"`
+	ContentType string      `msgpack:"content_type" json:"content_type"`
+	Entropy     float64     `msgpack:"entropy" json:"entropy"`
 }
 
 func FileSummaryFromBytes(data []byte) (*FileSummary, error) {
@@ -189,21 +187,22 @@ func (s *Summary) UpdateBelow(below *Summary) {
 }
 
 func (s *Summary) UpdateWithFileSummary(fileSummary *FileSummary) {
-	switch fileSummary.Type {
-	case importer.RecordTypeFile:
+
+	switch mode := fileSummary.Mode; {
+	case mode.IsRegular():
 		s.Directory.Files++
-	case importer.RecordTypeDirectory:
+	case mode.IsDir():
 		s.Directory.Directories++
-	case importer.RecordTypeSymlink:
+	case mode&os.ModeSymlink != 0:
 		s.Directory.Symlinks++
-	case importer.RecordTypeDevice:
+	case mode&os.ModeDevice != 0:
 		s.Directory.Devices++
-	case importer.RecordTypePipe:
+	case mode&os.ModeNamedPipe != 0:
 		s.Directory.Pipes++
-	case importer.RecordTypeSocket:
+	case mode&os.ModeSocket != 0:
 		s.Directory.Sockets++
 	default:
-		panic("unexpected record type")
+		s.Directory.Files++
 	}
 
 	if fileSummary.Mode&os.ModeSetuid != 0 {

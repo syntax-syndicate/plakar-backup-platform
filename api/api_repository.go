@@ -94,7 +94,7 @@ func repositoryState(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	rd, err := lrepository.GetState(stateBytes32)
+	_, rd, err := lrepository.GetState(stateBytes32)
 	if err != nil {
 		return err
 	}
@@ -148,12 +148,12 @@ func repositoryPackfile(w http.ResponseWriter, r *http.Request) error {
 
 	var rd io.Reader
 	if offsetExists && lengthExists {
-		rd, err = lrepository.GetPackfileBlob(packfileBytes32, offset, length)
+		rd, err = lrepository.GetPackfileBlob(packfileBytes32, uint64(offset), length)
 		if err != nil {
 			return err
 		}
 	} else {
-		rd, err = lrepository.GetPackfile(packfileBytes32)
+		_, rd, err = lrepository.GetPackfile(packfileBytes32)
 		if err != nil {
 			return err
 		}

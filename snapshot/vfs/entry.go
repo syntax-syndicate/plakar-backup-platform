@@ -28,22 +28,25 @@ func init() {
 // Entry implements FSEntry and fs.DirEntry, as well as some other
 // helper methods.
 type Entry struct {
-	Version    versioning.Version  `msgpack:"version" json:"version"`
-	ParentPath string              `msgpack:"parent_path" json:"parent_path"`
-	RecordType importer.RecordType `msgpack:"type" json:"type"`
-	FileInfo   objects.FileInfo    `msgpack:"file_info" json:"file_info"`
+	Version    versioning.Version `msgpack:"version" json:"version"`
+	ParentPath string             `msgpack:"parent_path" json:"parent_path"`
+	FileInfo   objects.FileInfo   `msgpack:"file_info" json:"file_info"`
 
 	/* Directory specific fields */
 	Summary *Summary `msgpack:"summary" json:"summary,omitempty"`
 
 	/* File specific fields */
-	SymlinkTarget string          `msgpack:"symlinkTarget,omitempty" json:"symlink_target,omitempty"`
-	Object        *objects.Object `msgpack:"object,omitempty" json:"object,omitempty"` // nil for !regular files
+	SymlinkTarget  string           `msgpack:"symlink_target,omitempty" json:"symlink_target,omitempty"`
+	Object         objects.Checksum `msgpack:"object,omitempty" json:"-"` // nil for !regular files
+	ResolvedObject *objects.Object  `msgpack:"-" json:"object,omitempty"` // This the true object, resolved when opening the entry. Beware we serialize it as "Object" only for json to not break API compat'
+
+	// /etc/passwd -> resolve datastreamms -/.
+	// /etc/passwd:stream
 
 	/* Windows specific fields */
-	AlternateDataStreams []AlternateDataStream `msgpack:"alternate_data_streams,omitempty" json:"alternate_data_streams"`
-	SecurityDescriptor   []byte                `msgpack:"security_descriptor,omitempty" json:"security_descriptor"`
-	FileAttributes       uint32                `msgpack:"file_attributes,omitempty" json:"file_attributes"`
+	AlternateDataStreams []string `msgpack:"alternate_data_streams,omitempty" json:"alternate_data_streams"`
+	SecurityDescriptor   []byte   `msgpack:"security_descriptor,omitempty" json:"security_descriptor"`
+	FileAttributes       uint32   `msgpack:"file_attributes,omitempty" json:"file_attributes"`
 
 	/* Unix fields */
 	ExtendedAttributes []ExtendedAttribute `msgpack:"extended_attributes,omitempty" json:"extended_attributes"`
@@ -54,6 +57,10 @@ type Entry struct {
 	Tags            []string         `msgpack:"tags,omitempty" json:"tags"`
 }
 
+func (e *Entry) HasObject() bool {
+	return e.Object != objects.Checksum{}
+}
+
 // Return empty lists for nil slices.
 func (e *Entry) MarshalJSON() ([]byte, error) {
 	// Create an alias to avoid recursive MarshalJSON calls
@@ -62,7 +69,7 @@ func (e *Entry) MarshalJSON() ([]byte, error) {
 	ret := (*Alias)(e)
 
 	if ret.AlternateDataStreams == nil {
-		ret.AlternateDataStreams = []AlternateDataStream{}
+		ret.AlternateDataStreams = []string{}
 	}
 	if ret.SecurityDescriptor == nil {
 		ret.SecurityDescriptor = []byte{}
@@ -103,7 +110,6 @@ func NewEntry(parentPath string, record *importer.ScanRecord) *Entry {
 
 	entry := &Entry{
 		Version:            versioning.FromString(VFS_ENTRY_VERSION),
-		RecordType:         record.Type,
 		FileInfo:           record.FileInfo,
 		SymlinkTarget:      target,
 		ExtendedAttributes: ExtendedAttributes,
@@ -111,7 +117,7 @@ func NewEntry(parentPath string, record *importer.ScanRecord) *Entry {
 		ParentPath:         parentPath,
 	}
 
-	if record.Type == importer.RecordTypeDirectory {
+	if record.FileInfo.Mode().IsDir() {
 		entry.Summary = &Summary{}
 	}
 
@@ -129,17 +135,17 @@ func (e *Entry) ToBytes() ([]byte, error) {
 }
 
 func (e *Entry) ContentType() string {
-	if e.Object == nil {
+	if e.ResolvedObject == nil {
 		return ""
 	}
-	return e.Object.ContentType
+	return e.ResolvedObject.ContentType
 }
 
 func (e *Entry) Entropy() float64 {
-	if e.Object == nil {
+	if e.ResolvedObject == nil {
 		return 0
 	}
-	return e.Object.Entropy
+	return e.ResolvedObject.Entropy
 }
 
 func (e *Entry) AddClassification(analyzer string, classes []string) {
@@ -260,14 +266,14 @@ func (vf *vfile) Read(p []byte) (int, error) {
 		return 0, fs.ErrClosed
 	}
 
-	if vf.entry.Object == nil {
+	if vf.entry.ResolvedObject == nil {
 		return 0, fs.ErrInvalid
 	}
 
-	for vf.objoff < len(vf.entry.Object.Chunks) {
+	for vf.objoff < len(vf.entry.ResolvedObject.Chunks) {
 		if vf.rd == nil {
 			rd, err := vf.repo.GetBlob(resources.RT_CHUNK,
-				vf.entry.Object.Chunks[vf.objoff].Checksum)
+				vf.entry.ResolvedObject.Chunks[vf.objoff].MAC)
 			if err != nil {
 				return -1, err
 			}
@@ -292,11 +298,11 @@ func (vf *vfile) Seek(offset int64, whence int) (int64, error) {
 		return 0, fs.ErrClosed
 	}
 
-	if vf.entry.Object == nil {
+	if vf.entry.ResolvedObject == nil {
 		return 0, fs.ErrInvalid
 	}
 
-	chunks := vf.entry.Object.Chunks
+	chunks := vf.entry.ResolvedObject.Chunks
 
 	switch whence {
 	case io.SeekStart:
@@ -311,7 +317,7 @@ func (vf *vfile) Seek(offset int64, whence int) (int64, error) {
 			}
 			vf.off += offset
 			rd, err := vf.repo.GetBlob(resources.RT_CHUNK,
-				chunks[vf.objoff].Checksum)
+				chunks[vf.objoff].MAC)
 			if err != nil {
 				return 0, err
 			}
@@ -334,7 +340,7 @@ func (vf *vfile) Seek(offset int64, whence int) (int64, error) {
 			}
 			vf.off -= offset
 			rd, err := vf.repo.GetBlob(resources.RT_CHUNK,
-				chunks[vf.objoff].Checksum)
+				chunks[vf.objoff].MAC)
 			if err != nil {
 				return 0, err
 			}
@@ -369,7 +375,7 @@ func (vf *vfile) Seek(offset int64, whence int) (int64, error) {
 			}
 			vf.off += offset
 			rd, err := vf.repo.GetBlob(resources.RT_CHUNK,
-				chunks[vf.objoff].Checksum)
+				chunks[vf.objoff].MAC)
 			if err != nil {
 				return 0, err
 			}

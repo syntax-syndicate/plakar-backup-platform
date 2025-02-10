@@ -2,7 +2,6 @@ package info
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -51,7 +50,7 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 			var byteArray [32]byte
 			copy(byteArray[:], b)
 
-			rd, err := repo.GetPackfile(byteArray)
+			packfileVersion, rd, err := repo.GetPackfile(byteArray)
 			if err != nil {
 				return 1, err
 			}
@@ -61,23 +60,20 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 				return 1, err
 			}
 
-			versionBytes := rawPackfile[len(rawPackfile)-5 : len(rawPackfile)-5+4]
-			version := binary.LittleEndian.Uint32(versionBytes)
+			footerBufLength := binary.LittleEndian.Uint32(rawPackfile[len(rawPackfile)-4:])
+			rawPackfile = rawPackfile[:len(rawPackfile)-4]
 
-			//			version := rawPackfile[len(rawPackfile)-2]
-			footerOffset := rawPackfile[len(rawPackfile)-1]
-			rawPackfile = rawPackfile[:len(rawPackfile)-5]
+			footerbuf := rawPackfile[len(rawPackfile)-int(footerBufLength):]
+			rawPackfile = rawPackfile[:len(rawPackfile)-int(footerBufLength)]
 
-			_ = version
-
-			footerbuf := rawPackfile[len(rawPackfile)-int(footerOffset):]
-			rawPackfile = rawPackfile[:len(rawPackfile)-int(footerOffset)]
+			//fmt.Println(footerbuf, len(footerbuf))
 
 			footerbuf, err = repo.DecodeBuffer(footerbuf)
 			if err != nil {
 				return 1, err
 			}
-			footer, err := packfile.NewFooterFromBytes(footerbuf)
+
+			footer, err := packfile.NewFooterFromBytes(packfileVersion, footerbuf)
 			if err != nil {
 				return 1, err
 			}
@@ -90,28 +86,28 @@ func (cmd *InfoPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 				return 1, err
 			}
 
-			hasher := sha256.New()
+			hasher := repo.GetMACHasher()
 			hasher.Write(indexbuf)
 
-			if !bytes.Equal(hasher.Sum(nil), footer.IndexChecksum[:]) {
-				return 1, fmt.Errorf("index checksum mismatch")
+			if !bytes.Equal(hasher.Sum(nil), footer.IndexMAC[:]) {
+				return 1, fmt.Errorf("index MAC mismatch")
 			}
 
 			rawPackfile = append(rawPackfile, indexbuf...)
 			rawPackfile = append(rawPackfile, footerbuf...)
 
-			p, err := packfile.NewFromBytes(rawPackfile)
+			p, err := packfile.NewFromBytes(repo.GetMACHasher(), packfileVersion, rawPackfile)
 			if err != nil {
 				return 1, err
 			}
 
-			fmt.Fprintf(ctx.Stdout, "Version: %d.%d.%d\n", p.Footer.Version/100, p.Footer.Version%100/10, p.Footer.Version%10)
+			fmt.Fprintf(ctx.Stdout, "Version: %s\n", p.Footer.Version)
 			fmt.Fprintf(ctx.Stdout, "Timestamp: %s\n", time.Unix(0, p.Footer.Timestamp))
-			fmt.Fprintf(ctx.Stdout, "Index checksum: %x\n", p.Footer.IndexChecksum)
+			fmt.Fprintf(ctx.Stdout, "Index MAC: %x\n", p.Footer.IndexMAC)
 			fmt.Fprintln(ctx.Stdout)
 
 			for i, entry := range p.Index {
-				fmt.Fprintf(ctx.Stdout, "blob[%d]: %x %d %d %s\n", i, entry.Checksum, entry.Offset, entry.Length, entry.Type)
+				fmt.Fprintf(ctx.Stdout, "blob[%d]: %x %d %d %s\n", i, entry.MAC, entry.Offset, entry.Length, entry.Type)
 			}
 		}
 	}

@@ -25,7 +25,7 @@ import (
 )
 
 type Repository struct {
-	config     storage.Configuration
+	config     []byte
 	Repository string
 	location   string
 }
@@ -44,23 +44,17 @@ func (repo *Repository) Location() string {
 	return repo.location
 }
 
-func (repository *Repository) Create(location string, config storage.Configuration) error {
+func (repository *Repository) Create(location string, config []byte) error {
+	repository.config = config
 	return nil
 }
 
-func (repository *Repository) Open(location string) error {
-	repositoryConfig := storage.NewConfiguration()
-	repository.config = *repositoryConfig
-
-	return nil
+func (repository *Repository) Open(location string) ([]byte, error) {
+	return repository.config, nil
 }
 
 func (repository *Repository) Close() error {
 	return nil
-}
-
-func (repository *Repository) Configuration() storage.Configuration {
-	return repository.config
 }
 
 // snapshots
@@ -110,7 +104,7 @@ func (repository *Repository) GetPackfile(checksum objects.Checksum) (io.Reader,
 	return bytes.NewBuffer([]byte{}), nil
 }
 
-func (repository *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint32, length uint32) (io.Reader, error) {
+func (repository *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint64, length uint32) (io.Reader, error) {
 	return bytes.NewBuffer([]byte{}), nil
 }
 

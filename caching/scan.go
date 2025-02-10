@@ -176,7 +176,7 @@ func (c *ScanCache) HasDelta(blobType resources.Type, blobCsum objects.Checksum)
 }
 
 func (c *ScanCache) GetDeltaByCsum(blobCsum objects.Checksum) ([]byte, error) {
-	for typ := resources.RT_SNAPSHOT; typ <= resources.RT_ERROR; typ++ {
+	for typ := resources.RT_SNAPSHOT; typ <= resources.RT_ERROR_ENTRY; typ++ {
 		ret, err := c.GetDelta(typ, blobCsum)
 
 		if err != nil {
@@ -233,6 +233,18 @@ func (c *ScanCache) HasDeleted(blobType resources.Type, blobCsum objects.Checksu
 
 func (c *ScanCache) GetDeleteds() iter.Seq2[objects.Checksum, []byte] {
 	return c.getObjects("__deleted__:")
+}
+
+func (c *ScanCache) PutPackfile(stateID, packfile objects.Checksum, data []byte) error {
+	return c.put("__packfile__", fmt.Sprintf("%x:%x", stateID, packfile), data)
+}
+
+func (c *ScanCache) GetPackfiles() iter.Seq2[objects.Checksum, []byte] {
+	return c.getObjects("__packfile__:")
+}
+
+func (c *ScanCache) GetPackfilesForState(stateID objects.Checksum) iter.Seq2[objects.Checksum, []byte] {
+	return c.getObjects(fmt.Sprintf("__packfile__:%x", stateID))
 }
 
 func (c *ScanCache) EnumerateKeysWithPrefix(prefix string, reverse bool) iter.Seq2[string, []byte] {
