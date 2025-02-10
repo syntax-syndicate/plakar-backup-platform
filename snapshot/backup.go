@@ -296,7 +296,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 
 			// Chunkify the file if it is a regular file and we don't have a cached object
 			if record.FileInfo.Mode().IsRegular() {
-				if object == nil || !snap.BlobExists(resources.RT_OBJECT, object.Checksum) {
+				if object == nil || !snap.BlobExists(resources.RT_OBJECT, object.MAC) {
 					object, err = snap.chunkify(imp, cf, record)
 					if err != nil {
 						backupCtx.recordError(record.Pathname, err)
@@ -309,7 +309,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 						return
 					}
 
-					if err := vfsCache.PutObject(object.Checksum, serializedObject); err != nil {
+					if err := vfsCache.PutObject(object.MAC, serializedObject); err != nil {
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
@@ -317,13 +317,13 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			}
 
 			if object != nil {
-				if !snap.BlobExists(resources.RT_OBJECT, object.Checksum) {
+				if !snap.BlobExists(resources.RT_OBJECT, object.MAC) {
 					data, err := object.Serialize()
 					if err != nil {
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
-					err = snap.PutBlob(resources.RT_OBJECT, object.Checksum, data)
+					err = snap.PutBlob(resources.RT_OBJECT, object.MAC, data)
 					if err != nil {
 						backupCtx.recordError(record.Pathname, err)
 						return
@@ -337,7 +337,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			} else {
 				fileEntry = vfs.NewEntry(path.Dir(record.Pathname), &record)
 				if object != nil {
-					fileEntry.Object = object.Checksum
+					fileEntry.Object = object.MAC
 				}
 
 				classifications := cf.Processor(record.Pathname).File(fileEntry)
@@ -741,7 +741,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 	}
 
 	copy(object_t32[:], objectHasher.Sum(nil))
-	object.Checksum = object_t32
+	object.MAC = object_t32
 	return object, nil
 }
 

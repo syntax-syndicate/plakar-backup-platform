@@ -46,7 +46,7 @@ func (m *Checksum) UnmarshalJSON(data []byte) error {
 
 type Object struct {
 	Version     versioning.Version `msgpack:"version" json:"version"`
-	Checksum    Checksum           `msgpack:"checksum" json:"checksum"`
+	MAC         Checksum           `msgpack:"MAC" json:"MAC"`
 	Chunks      []Chunk            `msgpack:"chunks" json:"chunks"`
 	ContentType string             `msgpack:"content_type,omitempty" json:"content_type"`
 	Entropy     float64            `msgpack:"entropy,omitempty" json:"entropy"`

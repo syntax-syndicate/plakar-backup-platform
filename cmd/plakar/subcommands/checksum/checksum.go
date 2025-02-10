@@ -130,7 +130,7 @@ func displayChecksums(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repo
 		return err
 	}
 
-	checksum := object.Checksum
+	checksum := object.MAC
 	if !fastcheck {
 		rd, err := snap.NewReader(pathname)
 		if err != nil {

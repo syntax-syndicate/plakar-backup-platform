@@ -71,7 +71,7 @@ func snapshotCheckPath(snap *Snapshot, fsc *vfs.Filesystem, pathname string, opt
 		}
 
 		hasher := snap.repository.GetMACHasher()
-		snap.Event(events.ObjectEvent(snap.Header.Identifier, object.Checksum))
+		snap.Event(events.ObjectEvent(snap.Header.Identifier, object.MAC))
 		complete := true
 		for _, chunk := range object.Chunks {
 			snap.Event(events.ChunkEvent(snap.Header.Identifier, chunk.MAC))
@@ -109,13 +109,13 @@ func snapshotCheckPath(snap *Snapshot, fsc *vfs.Filesystem, pathname string, opt
 			}
 		}
 		if !complete {
-			snap.Event(events.ObjectCorruptedEvent(snap.Header.Identifier, object.Checksum))
+			snap.Event(events.ObjectCorruptedEvent(snap.Header.Identifier, object.MAC))
 		} else {
-			snap.Event(events.ObjectOKEvent(snap.Header.Identifier, object.Checksum))
+			snap.Event(events.ObjectOKEvent(snap.Header.Identifier, object.MAC))
 		}
 
-		if !bytes.Equal(hasher.Sum(nil), object.Checksum[:]) {
-			snap.Event(events.ObjectCorruptedEvent(snap.Header.Identifier, object.Checksum))
+		if !bytes.Equal(hasher.Sum(nil), object.MAC[:]) {
+			snap.Event(events.ObjectCorruptedEvent(snap.Header.Identifier, object.MAC))
 			snap.Event(events.FileCorruptedEvent(snap.Header.Identifier, pathname))
 			return
 		}
