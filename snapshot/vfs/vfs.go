@@ -126,6 +126,10 @@ func (fsc *Filesystem) resolveEntry(csum objects.Checksum) (*Entry, error) {
 
 	if entry.HasObject() {
 		rd, err := fsc.repo.GetBlob(resources.RT_OBJECT, entry.Object)
+		if err != nil {
+			return nil, err
+		}
+
 		bytes, err := io.ReadAll(rd)
 		if err != nil {
 			return nil, err
