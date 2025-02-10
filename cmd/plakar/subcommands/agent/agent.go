@@ -348,54 +348,6 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case (&info.InfoErrors{}).Name():
-				var cmd struct {
-					Name       string
-					Subcommand info.InfoErrors
-				}
-				if err := msgpack.Unmarshal(request, &cmd); err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
-					return
-				}
-				subcommand = &cmd.Subcommand
-				repositoryLocation = cmd.Subcommand.RepositoryLocation
-				repositorySecret = cmd.Subcommand.RepositorySecret
-			case (&info.InfoState{}).Name():
-				var cmd struct {
-					Name       string
-					Subcommand info.InfoState
-				}
-				if err := msgpack.Unmarshal(request, &cmd); err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
-					return
-				}
-				subcommand = &cmd.Subcommand
-				repositoryLocation = cmd.Subcommand.RepositoryLocation
-				repositorySecret = cmd.Subcommand.RepositorySecret
-			case (&info.InfoPackfile{}).Name():
-				var cmd struct {
-					Name       string
-					Subcommand info.InfoPackfile
-				}
-				if err := msgpack.Unmarshal(request, &cmd); err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
-					return
-				}
-				subcommand = &cmd.Subcommand
-				repositoryLocation = cmd.Subcommand.RepositoryLocation
-				repositorySecret = cmd.Subcommand.RepositorySecret
-			case (&info.InfoObject{}).Name():
-				var cmd struct {
-					Name       string
-					Subcommand info.InfoObject
-				}
-				if err := msgpack.Unmarshal(request, &cmd); err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
-					return
-				}
-				subcommand = &cmd.Subcommand
-				repositoryLocation = cmd.Subcommand.RepositoryLocation
-				repositorySecret = cmd.Subcommand.RepositorySecret
 			case (&info.InfoVFS{}).Name():
 				var cmd struct {
 					Name       string
