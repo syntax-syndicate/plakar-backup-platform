@@ -6,7 +6,7 @@ import (
 
 func TestDefaultAlgorithm(t *testing.T) {
 	expected := "SHA256"
-	actual := DefaultConfiguration().Algorithm
+	actual := NewDefaultConfiguration().Algorithm
 	if actual != expected {
 		t.Errorf("Expected default algorithm %s, but got %s", expected, actual)
 	}
@@ -26,7 +26,7 @@ func TestGetHasher(t *testing.T) {
 	}
 }
 
-func TestLookupDefaultConfiguration(t *testing.T) {
+func TestLookupNewDefaultConfiguration(t *testing.T) {
 	// Test for SHA256 algorithm
 	config, err := LookupDefaultConfiguration("SHA256")
 	if err != nil {

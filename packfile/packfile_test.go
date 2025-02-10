@@ -196,7 +196,7 @@ func TestPackFileSerializeData(t *testing.T) {
 }
 
 func TestDefaultConfiguration(t *testing.T) {
-	c := DefaultConfiguration()
+	c := NewDefaultConfiguration()
 
 	require.Equal(t, c.MinSize, uint64(0))
 	require.Equal(t, c.AvgSize, uint64(0))
