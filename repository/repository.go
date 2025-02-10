@@ -23,6 +23,7 @@ import (
 	"github.com/PlakarKorp/plakar/repository/state"
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/plakar/versioning"
 )
 
 var (
@@ -40,15 +41,37 @@ type Repository struct {
 	secret []byte
 }
 
-func New(ctx *appcontext.AppContext, store storage.Store, secret []byte) (*Repository, error) {
+func New(ctx *appcontext.AppContext, store storage.Store, config []byte, secret []byte) (*Repository, error) {
 	t0 := time.Now()
 	defer func() {
 		ctx.GetLogger().Trace("repository", "New(store=%p): %s", store, time.Since(t0))
 	}()
 
+	var hasher hash.Hash
+	if ctx.GetSecret() != nil {
+		hasher = hashing.GetMACHasher(storage.DEFAULT_HASHING_ALGORITHM, ctx.GetSecret())
+	} else {
+		hasher = hashing.GetHasher(storage.DEFAULT_HASHING_ALGORITHM)
+	}
+
+	version, unwrappedConfigRd, err := storage.Deserialize(hasher, resources.RT_CONFIG, bytes.NewReader(config))
+	if err != nil {
+		return nil, err
+	}
+
+	unwrappedConfig, err := io.ReadAll(unwrappedConfigRd)
+	if err != nil {
+		return nil, err
+	}
+
+	configInstance, err := storage.NewConfigurationFromBytes(version, unwrappedConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	r := &Repository{
 		store:         store,
-		configuration: store.Configuration(),
+		configuration: *configInstance,
 		appContext:    ctx,
 		secret:        secret,
 	}
@@ -60,15 +83,37 @@ func New(ctx *appcontext.AppContext, store storage.Store, secret []byte) (*Repos
 	return r, nil
 }
 
-func NewNoRebuild(ctx *appcontext.AppContext, store storage.Store, secret []byte) (*Repository, error) {
+func NewNoRebuild(ctx *appcontext.AppContext, store storage.Store, config []byte, secret []byte) (*Repository, error) {
 	t0 := time.Now()
 	defer func() {
 		ctx.GetLogger().Trace("repository", "NewNoRebuild(store=%p): %s", store, time.Since(t0))
 	}()
 
+	var hasher hash.Hash
+	if ctx.GetSecret() != nil {
+		hasher = hashing.GetMACHasher(storage.DEFAULT_HASHING_ALGORITHM, ctx.GetSecret())
+	} else {
+		hasher = hashing.GetHasher(storage.DEFAULT_HASHING_ALGORITHM)
+	}
+
+	version, unwrappedConfigRd, err := storage.Deserialize(hasher, resources.RT_CONFIG, bytes.NewReader(config))
+	if err != nil {
+		return nil, err
+	}
+
+	unwrappedConfig, err := io.ReadAll(unwrappedConfigRd)
+	if err != nil {
+		return nil, err
+	}
+
+	configInstance, err := storage.NewConfigurationFromBytes(version, unwrappedConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	r := &Repository{
 		store:         store,
-		configuration: store.Configuration(),
+		configuration: *configInstance,
 		appContext:    ctx,
 		secret:        secret,
 	}
@@ -126,12 +171,12 @@ func (r *Repository) RebuildState() error {
 	}
 
 	for _, stateID := range missingStates {
-		remoteStateRd, err := r.GetState(stateID)
+		version, remoteStateRd, err := r.GetState(stateID)
 		if err != nil {
 			return err
 		}
 
-		if err := aggregatedState.InsertState(stateID, remoteStateRd); err != nil {
+		if err := aggregatedState.InsertState(version, stateID, remoteStateRd); err != nil {
 			return err
 		}
 	}
@@ -375,7 +420,7 @@ func (r *Repository) GetStates() ([]objects.Checksum, error) {
 	return r.store.GetStates()
 }
 
-func (r *Repository) GetState(checksum objects.Checksum) (io.Reader, error) {
+func (r *Repository) GetState(checksum objects.Checksum) (versioning.Version, io.Reader, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "GetState(%x): %s", checksum, time.Since(t0))
@@ -383,9 +428,19 @@ func (r *Repository) GetState(checksum objects.Checksum) (io.Reader, error) {
 
 	rd, err := r.store.GetState(checksum)
 	if err != nil {
-		return nil, err
+		return versioning.Version(0), nil, err
 	}
-	return r.Decode(rd)
+
+	version, rd, err := storage.Deserialize(r.GetMACHasher(), resources.RT_STATE, rd)
+	if err != nil {
+		return versioning.Version(0), nil, err
+	}
+
+	rd, err = r.Decode(rd)
+	if err != nil {
+		return versioning.Version(0), nil, err
+	}
+	return version, rd, err
 }
 
 func (r *Repository) PutState(checksum objects.Checksum, rd io.Reader) error {
@@ -398,6 +453,12 @@ func (r *Repository) PutState(checksum objects.Checksum, rd io.Reader) error {
 	if err != nil {
 		return err
 	}
+
+	rd, err = storage.Serialize(r.GetMACHasher(), resources.RT_STATE, versioning.GetCurrentVersion(resources.RT_STATE), rd)
+	if err != nil {
+		return err
+	}
+
 	return r.store.PutState(checksum, rd)
 }
 
@@ -419,13 +480,18 @@ func (r *Repository) GetPackfiles() ([]objects.Checksum, error) {
 	return r.store.GetPackfiles()
 }
 
-func (r *Repository) GetPackfile(checksum objects.Checksum) (io.Reader, error) {
+func (r *Repository) GetPackfile(checksum objects.Checksum) (versioning.Version, io.Reader, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "GetPackfile(%x, ...): %s", checksum, time.Since(t0))
 	}()
 
-	return r.store.GetPackfile(checksum)
+	rd, err := r.store.GetPackfile(checksum)
+	if err != nil {
+		return versioning.Version(0), nil, err
+	}
+
+	return storage.Deserialize(r.GetMACHasher(), resources.RT_PACKFILE, rd)
 }
 
 func (r *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint64, length uint32) (io.ReadSeeker, error) {
@@ -434,7 +500,7 @@ func (r *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint64, l
 		r.Logger().Trace("repository", "GetPackfileBlob(%x, %d, %d): %s", checksum, offset, length, time.Since(t0))
 	}()
 
-	rd, err := r.store.GetPackfileBlob(checksum, offset, length)
+	rd, err := r.store.GetPackfileBlob(checksum, offset+uint64(storage.STORAGE_HEADER_SIZE), length)
 	if err != nil {
 		return nil, err
 	}
@@ -458,6 +524,10 @@ func (r *Repository) PutPackfile(checksum objects.Checksum, rd io.Reader) error 
 		r.Logger().Trace("repository", "PutPackfile(%x, ...): %s", checksum, time.Since(t0))
 	}()
 
+	rd, err := storage.Serialize(r.GetMACHasher(), resources.RT_PACKFILE, versioning.GetCurrentVersion(resources.RT_PACKFILE), rd)
+	if err != nil {
+		return err
+	}
 	return r.store.PutPackfile(checksum, rd)
 }
 

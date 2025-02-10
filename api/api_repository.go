@@ -94,7 +94,7 @@ func repositoryState(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	rd, err := lrepository.GetState(stateBytes32)
+	_, rd, err := lrepository.GetState(stateBytes32)
 	if err != nil {
 		return err
 	}
@@ -153,7 +153,7 @@ func repositoryPackfile(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 	} else {
-		rd, err = lrepository.GetPackfile(packfileBytes32)
+		_, rd, err = lrepository.GetPackfile(packfileBytes32)
 		if err != nil {
 			return err
 		}

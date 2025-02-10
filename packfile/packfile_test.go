@@ -72,7 +72,7 @@ func TestPackFileSerialization(t *testing.T) {
 		t.Fatalf("Failed to serialize PackFile: %v", err)
 	}
 
-	p2, err := NewFromBytes(hasher, serialized)
+	p2, err := NewFromBytes(hasher, versioning.GetCurrentVersion(resources.RT_PACKFILE), serialized)
 	if err != nil {
 		t.Fatalf("Failed to create PackFile from bytes: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestPackFileSerializeIndex(t *testing.T) {
 	serialized, err := p.SerializeIndex()
 	require.NoError(t, err, "Failed to serialize PackFile index")
 
-	p2, err := NewIndexFromBytes(serialized)
+	p2, err := NewIndexFromBytes(versioning.GetCurrentVersion(resources.RT_PACKFILE), serialized)
 	require.NoError(t, err, "Failed to create PackFile index from bytes")
 
 	require.Equal(t, len(p2), 2, "Expected 2 blobs but got %d", len(p2))
@@ -164,7 +164,7 @@ func TestPackFileSerializeFooter(t *testing.T) {
 	serialized, err := p.SerializeFooter()
 	require.NoError(t, err, "Failed to serialize PackFile footer")
 
-	p2, err := NewFooterFromBytes(serialized)
+	p2, err := NewFooterFromBytes(versioning.GetCurrentVersion(resources.RT_PACKFILE), serialized)
 	require.NoError(t, err, "Failed to create PackFile footer from bytes")
 
 	require.Equal(t, p2.Count, uint32(2), "Expected 2 blobs but got %d", uint32(p2.Count))

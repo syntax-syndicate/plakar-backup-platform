@@ -50,7 +50,7 @@ func (cmd *InfoState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 			var byteArray [32]byte
 			copy(byteArray[:], b)
 
-			rawStateRd, err := repo.GetState(byteArray)
+			version, rawStateRd, err := repo.GetState(byteArray)
 			if err != nil {
 				return 1, err
 			}
@@ -66,9 +66,12 @@ func (cmd *InfoState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 			}
 
 			scanCache, err := repo.AppContext().GetCache().Scan(identifier)
+			if err != nil {
+				return 1, err
+			}
 			defer scanCache.Close()
 
-			st, err := state.FromStream(rawStateRd, scanCache)
+			st, err := state.FromStream(version, rawStateRd, scanCache)
 			if err != nil {
 				return 1, err
 			}

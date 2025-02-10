@@ -1,6 +1,8 @@
 package api
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -8,10 +10,14 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/caching"
+	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/storage"
 	ptesting "github.com/PlakarKorp/plakar/testing"
+	"github.com/PlakarKorp/plakar/versioning"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewRouter(t *testing.T) {
@@ -25,7 +31,18 @@ func TestNewRouter(t *testing.T) {
 
 func TestAuthMiddleware(t *testing.T) {
 	config := ptesting.NewConfiguration()
-	lstore, err := storage.Create("/test/location", *config)
+
+	serializedConfig, err := config.ToBytes()
+	require.NoError(t, err)
+
+	hasher := hashing.GetHasher("SHA256")
+	wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
+	require.NoError(t, err)
+
+	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
+	require.NoError(t, err)
+
+	lstore, err := storage.Create("/test/location", wrappedConfig)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -34,7 +51,7 @@ func TestAuthMiddleware(t *testing.T) {
 	defer cache.Close()
 	ctx.SetCache(cache)
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-	repo, err := repository.New(ctx, lstore, nil)
+	repo, err := repository.New(ctx, lstore, wrappedConfig, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +88,18 @@ func TestAuthMiddleware(t *testing.T) {
 
 func Test_UnknownEndpoint(t *testing.T) {
 	config := ptesting.NewConfiguration()
-	lstore, err := storage.Create("/test/location", *config)
+
+	serializedConfig, err := config.ToBytes()
+	require.NoError(t, err)
+
+	hasher := hashing.GetHasher("SHA256")
+	wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
+	require.NoError(t, err)
+
+	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
+	require.NoError(t, err)
+
+	lstore, err := storage.Create("/test/location", wrappedConfig)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -80,7 +108,7 @@ func Test_UnknownEndpoint(t *testing.T) {
 	defer cache.Close()
 	ctx.SetCache(cache)
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-	repo, err := repository.New(ctx, lstore, nil)
+	repo, err := repository.New(ctx, lstore, wrappedConfig, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

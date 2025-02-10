@@ -23,9 +23,14 @@ func openRepository(w http.ResponseWriter, r *http.Request) {
 	}
 
 	config := lrepository.Configuration()
+	serialized, err := config.ToBytes()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	var resOpen network.ResOpen
-	resOpen.Configuration = &config
+	resOpen.Configuration = serialized
 	resOpen.Err = ""
 	if err := json.NewEncoder(w).Encode(resOpen); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

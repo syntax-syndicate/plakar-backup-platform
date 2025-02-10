@@ -83,14 +83,20 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		return 1, fmt.Errorf("usage: sync [SNAPSHOT] to|from REPOSITORY")
 	}
 
-	peerStore, err := storage.Open(peerRepositoryPath)
+	peerStore, peerStoreSerializedConfig, err := storage.Open(peerRepositoryPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not open repository: %s\n", peerRepositoryPath, err)
 		return 1, err
 	}
 
+	peerStoreConfig, err := storage.NewConfigurationFromWrappedBytes(peerStoreSerializedConfig)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: could not parse configuration: %s\n", peerStore.Location(), err)
+		return 1, err
+	}
+
 	var peerSecret []byte
-	if peerStore.Configuration().Encryption != nil {
+	if peerStoreConfig.Encryption != nil {
 		for {
 			passphrase, err := utils.GetPassphrase("destination repository")
 			if err != nil {
@@ -98,12 +104,12 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 				continue
 			}
 
-			key, err := encryption.DeriveKey(peerStore.Configuration().Encryption.KDFParams, passphrase)
+			key, err := encryption.DeriveKey(peerStoreConfig.Encryption.KDFParams, passphrase)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s\n", err)
 				continue
 			}
-			if !encryption.VerifyCanary(peerStore.Configuration().Encryption, key) {
+			if !encryption.VerifyCanary(peerStoreConfig.Encryption, key) {
 				fmt.Fprintf(os.Stderr, "invalid passphrase\n")
 				continue
 			}
@@ -111,7 +117,7 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 			break
 		}
 	}
-	peerRepository, err := repository.New(ctx, peerStore, peerSecret)
+	peerRepository, err := repository.New(ctx, peerStore, peerStoreSerializedConfig, peerSecret)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not open repository: %s\n", peerStore.Location(), err)
 		return 1, err

@@ -37,14 +37,14 @@ type PackFile struct {
 }
 
 type PackFileFooter struct {
-	Version     versioning.Version
+	Version     versioning.Version `msgpack:"-"`
 	Timestamp   int64
 	Count       uint32
 	IndexOffset uint64
 	IndexMAC    objects.Checksum
 }
 
-const FOOTER_SIZE = 56
+const FOOTER_SIZE = 52
 
 type Configuration struct {
 	MinSize uint64
@@ -58,13 +58,11 @@ func NewDefaultConfiguration() *Configuration {
 	}
 }
 
-func NewFooterFromBytes(serialized []byte) (PackFileFooter, error) {
+func NewFooterFromBytes(version versioning.Version, serialized []byte) (PackFileFooter, error) {
 	var footer PackFileFooter
 
 	reader := bytes.NewReader(serialized)
-	if err := binary.Read(reader, binary.LittleEndian, &footer.Version); err != nil {
-		return footer, err
-	}
+	footer.Version = version
 	if err := binary.Read(reader, binary.LittleEndian, &footer.Timestamp); err != nil {
 		return footer, err
 	}
@@ -80,7 +78,7 @@ func NewFooterFromBytes(serialized []byte) (PackFileFooter, error) {
 	return footer, nil
 }
 
-func NewIndexFromBytes(serialized []byte) ([]Blob, error) {
+func NewIndexFromBytes(version versioning.Version, serialized []byte) ([]Blob, error) {
 	reader := bytes.NewReader(serialized)
 	index := make([]Blob, 0)
 	for reader.Len() > 0 {
@@ -129,16 +127,16 @@ func New(hasher hash.Hash) *PackFile {
 	}
 }
 
-func NewFromBytes(hasher hash.Hash, serialized []byte) (*PackFile, error) {
+func NewFromBytes(hasher hash.Hash, version versioning.Version, serialized []byte) (*PackFile, error) {
 	reader := bytes.NewReader(serialized)
 	var footer PackFileFooter
 	_, err := reader.Seek(-FOOTER_SIZE, io.SeekEnd)
 	if err != nil {
 		return nil, err
 	}
-	if err := binary.Read(reader, binary.LittleEndian, &footer.Version); err != nil {
-		return nil, err
-	}
+
+	footer.Version = version
+
 	if err := binary.Read(reader, binary.LittleEndian, &footer.Timestamp); err != nil {
 		return nil, err
 	}
@@ -269,9 +267,6 @@ func (p *PackFile) Serialize() ([]byte, error) {
 	}
 	p.Footer.IndexMAC = objects.Checksum(p.hasher.Sum(nil))
 
-	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.Version); err != nil {
-		return nil, err
-	}
 	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.Timestamp); err != nil {
 		return nil, err
 	}
@@ -374,9 +369,6 @@ func (p *PackFile) SerializeFooter() ([]byte, error) {
 	p.Footer.IndexMAC = objects.Checksum(p.hasher.Sum(nil))
 
 	buffer.Reset()
-	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.Version); err != nil {
-		return nil, err
-	}
 	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.Timestamp); err != nil {
 		return nil, err
 	}

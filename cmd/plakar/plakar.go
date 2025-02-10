@@ -268,21 +268,27 @@ func entryPoint() int {
 		skipPassphrase = true
 	}
 
-	store, err := storage.Open(repositoryPath)
+	store, serializedConfig, err := storage.Open(repositoryPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		return 1
 	}
 
-	if store.Configuration().Version != versioning.FromString(storage.VERSION) {
+	storeConfig, err := storage.NewConfigurationFromWrappedBytes(serializedConfig)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+		return 1
+	}
+
+	if storeConfig.Version != versioning.FromString(storage.VERSION) {
 		fmt.Fprintf(os.Stderr, "%s: incompatible repository version: %s != %s\n",
-			flag.CommandLine.Name(), store.Configuration().Version, storage.VERSION)
+			flag.CommandLine.Name(), storeConfig.Version, storage.VERSION)
 		return 1
 	}
 
 	var secret []byte
 	if !skipPassphrase {
-		if store.Configuration().Encryption != nil {
+		if storeConfig.Encryption != nil {
 			derived := false
 			envPassphrase := os.Getenv("PLAKAR_PASSPHRASE")
 			if ctx.KeyFromFile == "" {
@@ -297,11 +303,11 @@ func entryPoint() int {
 						passphrase = []byte(envPassphrase)
 					}
 
-					key, err := encryption.DeriveKey(store.Configuration().Encryption.KDFParams, passphrase)
+					key, err := encryption.DeriveKey(storeConfig.Encryption.KDFParams, passphrase)
 					if err != nil {
 						continue
 					}
-					if !encryption.VerifyCanary(store.Configuration().Encryption, key) {
+					if !encryption.VerifyCanary(storeConfig.Encryption, key) {
 						if envPassphrase != "" {
 							break
 						}
@@ -312,9 +318,9 @@ func entryPoint() int {
 					break
 				}
 			} else {
-				key, err := encryption.DeriveKey(store.Configuration().Encryption.KDFParams, []byte(ctx.KeyFromFile))
+				key, err := encryption.DeriveKey(storeConfig.Encryption.KDFParams, []byte(ctx.KeyFromFile))
 				if err == nil {
-					if encryption.VerifyCanary(store.Configuration().Encryption, key) {
+					if encryption.VerifyCanary(storeConfig.Encryption, key) {
 						secret = key
 						derived = true
 					}
@@ -330,13 +336,13 @@ func entryPoint() int {
 
 	var repo *repository.Repository
 	if opt_agentless && command != "server" {
-		repo, err = repository.New(ctx, store, secret)
+		repo, err = repository.New(ctx, store, serializedConfig, secret)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
 		}
 	} else {
-		repo, err = repository.NewNoRebuild(ctx, store, secret)
+		repo, err = repository.NewNoRebuild(ctx, store, serializedConfig, secret)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1

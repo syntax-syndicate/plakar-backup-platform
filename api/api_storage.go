@@ -10,8 +10,7 @@ import (
 )
 
 func storageConfiguration(w http.ResponseWriter, r *http.Request) error {
-	configuration := lstore.Configuration()
-	return json.NewEncoder(w).Encode(configuration)
+	return json.NewEncoder(w).Encode(lconfig)
 }
 
 func storageStates(w http.ResponseWriter, r *http.Request) error {

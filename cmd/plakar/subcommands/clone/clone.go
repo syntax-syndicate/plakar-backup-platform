@@ -69,10 +69,16 @@ func (cmd *Clone) Name() string {
 func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	sourceStore := repo.Store()
 
-	configuration := sourceStore.Configuration()
+	configuration := repo.Configuration()
 	configuration.RepositoryID = uuid.Must(uuid.NewRandom())
 
-	cloneStore, err := storage.Create(cmd.Dest, configuration)
+	serializedConfig, err := configuration.ToBytes()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to decode storage configuration: %s\n", err)
+		return 1, err
+	}
+
+	cloneStore, err := storage.Create(cmd.Dest, serializedConfig)
 	if err != nil {
 		return 1, fmt.Errorf("could not create repository: %w", err)
 	}
