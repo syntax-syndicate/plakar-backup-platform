@@ -630,7 +630,8 @@ func (r *Repository) GetBlob(Type resources.Type, mac objects.MAC) (io.ReadSeeke
 	}
 
 	if has {
-		panic(fmt.Sprintf("Cleanup was too eager, we have a referenced blob (%x) in a deleted packfile (%x)\n", mac, packfileMAC))
+		error := fmt.Errorf("Cleanup was too eager, we have a referenced blob (%x) in a deleted packfile (%x)\n", mac, packfileMAC)
+		r.Logger().Error("GetBlob(%s, %x): %s", Type, mac, error)
 	}
 
 	rd, err := r.GetPackfileBlob(packfileMAC, offset, length)
