@@ -19,6 +19,9 @@ which defaults to
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl hashing Ar algorithm
+Provide alternative hashing algorithm to replace the default.
+Supported algorithms are BLAKE3 and SHA256, default is BLAKE3.
 .It Fl no-encryption
 Disable transparent encryption for the repository.
 If specified, the repository will not use encryption.
