@@ -26,7 +26,6 @@ type Configuration struct {
 	DataAlgorithm   string
 	SubKeyAlgorithm string
 	KDFParams       KDFParams
-	Algorithm       string
 	Canary          []byte
 }
 
