@@ -83,7 +83,7 @@ func (snapshot *Snapshot) Errors(beneath string) (iter.Seq2[*ErrorItem, error], 
 				break
 			}
 			if !yield(item, nil) {
-				break
+				return
 			}
 		}
 		if err := iter.Err(); err != nil {
