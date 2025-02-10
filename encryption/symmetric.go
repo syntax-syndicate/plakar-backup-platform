@@ -10,8 +10,8 @@ import (
 	"io"
 	"runtime"
 
-	aeskw "github.com/nickball/go-aes-key-wrap"
 	"github.com/PlakarKorp/plakar/hashing"
+	aeskw "github.com/nickball/go-aes-key-wrap"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/crypto/scrypt"
@@ -25,9 +25,9 @@ const (
 type Configuration struct {
 	DataAlgorithm   string
 	SubKeyAlgorithm string
-	KDFParams KDFParams
-	Algorithm string
-	Canary    []byte
+	KDFParams       KDFParams
+	Algorithm       string
+	Canary          []byte
 }
 
 type KDFParams struct {
@@ -117,13 +117,7 @@ func NewDefaultConfiguration() *Configuration {
 	return &Configuration{
 		DataAlgorithm:   "AES256-GCM",
 		SubKeyAlgorithm: "AES256-KW",
-		KDF:             "SCRYPT",
-		KDFParams: KDFParams{
-			N:      1 << 15,
-			R:      8,
-			P:      1,
-			KeyLen: 32,
-		},
+		KDFParams:       *kdfParams,
 	}
 }
 
