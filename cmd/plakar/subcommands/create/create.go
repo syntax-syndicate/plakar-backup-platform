@@ -135,7 +135,7 @@ func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 			return 1, err
 		}
 
-		canary, err := encryption.DeriveCanary(key)
+		canary, err := encryption.DeriveCanary(storageConfiguration.Encryption, key)
 		if err != nil {
 			return 1, err
 		}
