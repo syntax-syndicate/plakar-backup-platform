@@ -52,7 +52,7 @@ type Configuration struct {
 	MaxSize uint64
 }
 
-func DefaultConfiguration() *Configuration {
+func NewDefaultConfiguration() *Configuration {
 	return &Configuration{
 		MaxSize: (20 << 10) << 10,
 	}
