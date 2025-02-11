@@ -14,7 +14,7 @@ Hashing algorithm, encryption algorithm and KDF are all technically configurable
 
 - **Digest**: BLAKE3
 - **MAC**: HMAC-BLAKE3
-- **Data encryption**: AES256-GCM  (with keySize=256bits)
+- **Data encryption**: AES256-GCM-SIV (with keySize=256bits)
 - **Subkey encryption**: AES256-KW (with keySize=256bits)
 - **KDF**: ARGON2ID (with time=4, Memory=256M, Threads=NumCPU, SaltSize=16, KeyLen=32)
 
@@ -63,7 +63,7 @@ KDF parameters, salt and encrypted block are then stored in the repository confi
 
 ```go
 type Configuration struct {
-	DataAlgorithm   string      // AES-GCM
+	DataAlgorithm   string      // AES-GCM-SIV
 	SubKeyAlgorithm string      // AES-KW
 	KDFParams       KDFParams
 	Canary          []byte
@@ -516,10 +516,10 @@ For that reason, plakar uses a subkey encryption algorithm and a data encryption
 The encryption works as follows:
 
     1- an encryption function takes a master key and an input buffer
-    2- it randomly generates a 256-bits subkey and data nonce
-    3- a subkey encryption function is called to produce an encrypted prefix block with subkey and data nonce protected by the master key
+    2- it randomly generates a 256-bits subkey
+    3- a subkey encryption function is called to produce an encrypted subkey block protected by the master key
     4- it prepends that encrypted prefix block to output
-    5- it then encrypts the data using the data encryption function with subkey and data nonce
+    5- it then encrypts the data using the data encryption function with subkey
 
     [encrypted prefix block] [encrypted data block]
      ^^^^^^^^^^^^^^^^^^^^^^   ^^^^^^^^^^^^^^^^^^^^
@@ -532,5 +532,5 @@ The decryption works as follows:
 
     1- a decryption function takes a master key and an input buffer
     2- the input buffer is split into two parts: the prefix block and the data block
-    3- the subkey block is decrypted so that subkey and data nonce are retrieved
-    4- the data block is decrypted with the subkey and data nonce, GCM integrity check validates subkey
+    3- the prefix block is decrypted so that subkey is retrieved
+    4- the data block is decrypted with the subkey, GCM integrity check validates subkey
