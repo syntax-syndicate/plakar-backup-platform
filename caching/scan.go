@@ -111,21 +111,21 @@ func (c *ScanCache) GetDirectory(directory string) ([]byte, error) {
 	return c.get("__directory__", directory)
 }
 
-func (c *ScanCache) PutChecksum(pathname string, checksum objects.MAC) error {
+func (c *ScanCache) PutMAC(pathname string, mac objects.MAC) error {
 	pathname = strings.TrimSuffix(pathname, "/")
 	if pathname == "" {
 		pathname = "/"
 	}
-	return c.put("__checksum__", pathname, checksum[:])
+	return c.put("__mac__", pathname, mac[:])
 }
 
-func (c *ScanCache) GetChecksum(pathname string) (objects.MAC, error) {
+func (c *ScanCache) GetMAC(pathname string) (objects.MAC, error) {
 	pathname = strings.TrimSuffix(pathname, "/")
 	if pathname == "" {
 		pathname = "/"
 	}
 
-	data, err := c.get("__checksum__", pathname)
+	data, err := c.get("__mac__", pathname)
 	if err != nil {
 		return objects.MAC{}, err
 	}
