@@ -362,6 +362,28 @@ func entryPoint() int {
 		status, err = cmd.Execute(ctx, repo)
 	} else {
 		status, err = agent.ExecuteRPC(ctx, repo, cmd)
+		if err == agent.ErrRetryAgentless {
+			err = nil
+			// Reopen using the agentless cache, and rebuild a repository
+			ctx.GetCache().Close()
+			cacheSubDir = "plakar-agentless"
+			cacheDir, err := utils.GetCacheDir(cacheSubDir)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: could not get cache directory: %s\n", flag.CommandLine.Name(), err)
+				return 1
+			}
+
+			ctx.CacheDir = cacheDir
+			ctx.SetCache(caching.NewManager(cacheDir))
+			defer ctx.GetCache().Close()
+
+			if err := repo.RebuildState(); err != nil {
+				fmt.Fprintf(os.Stderr, "%s: failed to rebuild state: %s\n", flag.CommandLine.Name(), err)
+				return 1
+			}
+
+			status, err = cmd.Execute(ctx, repo)
+		}
 	}
 
 	t1 := time.Since(t0)

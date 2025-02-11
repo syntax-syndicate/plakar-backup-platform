@@ -24,6 +24,8 @@ type Client struct {
 	conn net.Conn
 }
 
+var ErrRetryAgentless = fmt.Errorf("Failed to connect to agent, retry agentless")
+
 func ExecuteRPC(ctx *appcontext.AppContext, repo *repository.Repository, cmd subcommands.Subcommand) (int, error) {
 	rpcCmd, ok := cmd.(subcommands.RPC)
 	if !ok {
@@ -33,10 +35,7 @@ func ExecuteRPC(ctx *appcontext.AppContext, repo *repository.Repository, cmd sub
 	client, err := NewClient(filepath.Join(ctx.CacheDir, "agent.sock"))
 	if err != nil {
 		ctx.GetLogger().Warn("failed to connect to agent, falling back to -no-agent: %v", err)
-		if err := repo.RebuildState(); err != nil {
-			return 1, fmt.Errorf("failed to rebuild state: %v", err)
-		}
-		return cmd.Execute(ctx, repo)
+		return 1, ErrRetryAgentless
 	}
 	defer client.Close()
 	if status, err := client.SendCommand(ctx, rpcCmd, repo); err != nil {
