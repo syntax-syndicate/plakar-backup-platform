@@ -19,11 +19,11 @@ func SnapshotPathParam(r *http.Request, repo *repository.Repository, param strin
 		return objects.MAC{}, "", parameterError(param, MissingArgument, ErrMissingField)
 	}
 
-	checksum, err := utils.LocateSnapshotByPrefix(repo, idstr)
+	mac, err := utils.LocateSnapshotByPrefix(repo, idstr)
 	if err != nil {
 		return objects.MAC{}, "", parameterError(param, InvalidArgument, err)
 	}
-	return checksum, path, nil
+	return mac, path, nil
 }
 
 func PathParamToID(r *http.Request, param string) (id [32]byte, err error) {

@@ -131,7 +131,7 @@ func (c *ScanCache) GetMAC(pathname string) (objects.MAC, error) {
 	}
 
 	if len(data) != 32 {
-		return objects.MAC{}, fmt.Errorf("invalid checksum length: %d", len(data))
+		return objects.MAC{}, fmt.Errorf("invalid MAC length: %d", len(data))
 	}
 
 	return objects.MAC(data), nil

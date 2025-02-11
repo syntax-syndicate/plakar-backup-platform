@@ -43,7 +43,7 @@ import (
 	"golang.org/x/tools/blog/atom"
 )
 
-// ParseSnapshotID parses a string in the form checksum[:pattern] and
+// ParseSnapshotID parses a string in the form snapshotID[:pattern] and
 // returns the two strings.
 func ParseSnapshotID(id string) (string, string) {
 	tmp := strings.SplitN(id, ":", 2)
