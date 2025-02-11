@@ -71,7 +71,7 @@ func getStates(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		resGetStates.Err = err.Error()
 	} else {
-		resGetStates.Checksums = indexes
+		resGetStates.MACs = indexes
 	}
 	if err := json.NewEncoder(w).Encode(resGetStates); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -88,7 +88,7 @@ func putState(w http.ResponseWriter, r *http.Request) {
 
 	var resPutIndex network.ResPutState
 	data := reqPutState.Data
-	err := lrepository.Store().PutState(reqPutState.Checksum, bytes.NewBuffer(data))
+	err := lrepository.Store().PutState(reqPutState.MAC, bytes.NewBuffer(data))
 	if err != nil {
 		resPutIndex.Err = err.Error()
 	}
@@ -106,7 +106,7 @@ func getState(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var resGetState network.ResGetState
-	rd, err := lrepository.Store().GetState(reqGetState.Checksum)
+	rd, err := lrepository.Store().GetState(reqGetState.MAC)
 	if err != nil {
 		resGetState.Err = err.Error()
 	} else {
@@ -136,7 +136,7 @@ func deleteState(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var resDeleteState network.ResDeleteState
-	err := lrepository.Store().DeleteState(reqDeleteState.Checksum)
+	err := lrepository.Store().DeleteState(reqDeleteState.MAC)
 	if err != nil {
 		resDeleteState.Err = err.Error()
 	}
@@ -159,7 +159,7 @@ func getPackfiles(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		resGetPackfiles.Err = err.Error()
 	} else {
-		resGetPackfiles.Checksums = packfiles
+		resGetPackfiles.MACs = packfiles
 	}
 	if err := json.NewEncoder(w).Encode(resGetPackfiles); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -175,7 +175,7 @@ func putPackfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var resPutPackfile network.ResPutPackfile
-	err := lrepository.Store().PutPackfile(reqPutPackfile.Checksum, bytes.NewBuffer(reqPutPackfile.Data))
+	err := lrepository.Store().PutPackfile(reqPutPackfile.MAC, bytes.NewBuffer(reqPutPackfile.Data))
 	if err != nil {
 		resPutPackfile.Err = err.Error()
 	}
@@ -193,7 +193,7 @@ func getPackfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var resGetPackfile network.ResGetPackfile
-	rd, err := lrepository.Store().GetPackfile(reqGetPackfile.Checksum)
+	rd, err := lrepository.Store().GetPackfile(reqGetPackfile.MAC)
 	if err != nil {
 		resGetPackfile.Err = err.Error()
 	} else {
@@ -218,7 +218,7 @@ func GetPackfileBlob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var resGetPackfileBlob network.ResGetPackfileBlob
-	rd, err := lrepository.Store().GetPackfileBlob(reqGetPackfileBlob.Checksum, reqGetPackfileBlob.Offset, reqGetPackfileBlob.Length)
+	rd, err := lrepository.Store().GetPackfileBlob(reqGetPackfileBlob.MAC, reqGetPackfileBlob.Offset, reqGetPackfileBlob.Length)
 	if err != nil {
 		resGetPackfileBlob.Err = err.Error()
 	} else {
@@ -248,7 +248,7 @@ func deletePackfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var resDeletePackfile network.ResDeletePackfile
-	err := lrepository.Store().DeletePackfile(reqDeletePackfile.Checksum)
+	err := lrepository.Store().DeletePackfile(reqDeletePackfile.MAC)
 	if err != nil {
 		resDeletePackfile.Err = err.Error()
 	}

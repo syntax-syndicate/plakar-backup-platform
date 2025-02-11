@@ -172,7 +172,7 @@ func handleConnection(ctx *appcontext.AppContext, repo *repository.Repository, r
 			go func() {
 				defer wg.Done()
 				repo.Logger().Trace("server", "%s: GetStates()", clientUuid)
-				checksums, err := lrepository.GetStates()
+				MACs, err := lrepository.GetStates()
 				retErr := ""
 				if err != nil {
 					retErr = err.Error()
@@ -181,8 +181,8 @@ func handleConnection(ctx *appcontext.AppContext, repo *repository.Repository, r
 					Uuid: request.Uuid,
 					Type: "ResGetStates",
 					Payload: network.ResGetStates{
-						Checksums: checksums,
-						Err:       retErr,
+						MACs: MACs,
+						Err:  retErr,
 					},
 				}
 				err = encoder.Encode(&result)
@@ -195,9 +195,9 @@ func handleConnection(ctx *appcontext.AppContext, repo *repository.Repository, r
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				repo.Logger().Trace("server", "%s: PutState(%016x)", clientUuid, request.Payload.(network.ReqPutState).Checksum)
+				repo.Logger().Trace("server", "%s: PutState(%016x)", clientUuid, request.Payload.(network.ReqPutState).MAC)
 				data := request.Payload.(network.ReqPutState).Data
-				err := lrepository.Store().PutState(request.Payload.(network.ReqPutState).Checksum, bytes.NewBuffer(data))
+				err := lrepository.Store().PutState(request.Payload.(network.ReqPutState).MAC, bytes.NewBuffer(data))
 				retErr := ""
 				if err != nil {
 					retErr = err.Error()
@@ -219,8 +219,8 @@ func handleConnection(ctx *appcontext.AppContext, repo *repository.Repository, r
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				repo.Logger().Trace("server", "%s: GetState(%016x)", clientUuid, request.Payload.(network.ReqGetState).Checksum)
-				rd, err := lrepository.Store().GetState(request.Payload.(network.ReqGetState).Checksum)
+				repo.Logger().Trace("server", "%s: GetState(%016x)", clientUuid, request.Payload.(network.ReqGetState).MAC)
+				rd, err := lrepository.Store().GetState(request.Payload.(network.ReqGetState).MAC)
 				retErr := ""
 				var data []byte
 				if err != nil {
@@ -251,13 +251,13 @@ func handleConnection(ctx *appcontext.AppContext, repo *repository.Repository, r
 			go func() {
 				defer wg.Done()
 
-				repo.Logger().Trace("server", "%s: DeleteState(%s)", clientUuid, request.Payload.(network.ReqDeleteState).Checksum)
+				repo.Logger().Trace("server", "%s: DeleteState(%s)", clientUuid, request.Payload.(network.ReqDeleteState).MAC)
 
 				var err error
 				if options.NoDelete {
 					err = fmt.Errorf("not allowed to delete")
 				} else {
-					err = lrepository.Store().DeleteState(request.Payload.(network.ReqDeleteState).Checksum)
+					err = lrepository.Store().DeleteState(request.Payload.(network.ReqDeleteState).MAC)
 				}
 				retErr := ""
 				if err != nil {
@@ -282,7 +282,7 @@ func handleConnection(ctx *appcontext.AppContext, repo *repository.Repository, r
 			go func() {
 				defer wg.Done()
 				repo.Logger().Trace("server", "%s: GetPackfiles()", clientUuid)
-				checksums, err := lrepository.Store().GetPackfiles()
+				MACs, err := lrepository.Store().GetPackfiles()
 				retErr := ""
 				if err != nil {
 					retErr = err.Error()
@@ -291,8 +291,8 @@ func handleConnection(ctx *appcontext.AppContext, repo *repository.Repository, r
 					Uuid: request.Uuid,
 					Type: "ResGetPackfiles",
 					Payload: network.ResGetPackfiles{
-						Checksums: checksums,
-						Err:       retErr,
+						MACs: MACs,
+						Err:  retErr,
 					},
 				}
 				err = encoder.Encode(&result)
@@ -305,8 +305,8 @@ func handleConnection(ctx *appcontext.AppContext, repo *repository.Repository, r
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				repo.Logger().Trace("server", "%s: PutPackfile(%016x)", clientUuid, request.Payload.(network.ReqPutPackfile).Checksum)
-				err := lrepository.Store().PutPackfile(request.Payload.(network.ReqPutPackfile).Checksum,
+				repo.Logger().Trace("server", "%s: PutPackfile(%016x)", clientUuid, request.Payload.(network.ReqPutPackfile).MAC)
+				err := lrepository.Store().PutPackfile(request.Payload.(network.ReqPutPackfile).MAC,
 					bytes.NewBuffer(request.Payload.(network.ReqPutPackfile).Data))
 				retErr := ""
 				if err != nil {
@@ -329,8 +329,8 @@ func handleConnection(ctx *appcontext.AppContext, repo *repository.Repository, r
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				repo.Logger().Trace("server", "%s: GetPackfile(%016x)", clientUuid, request.Payload.(network.ReqGetPackfile).Checksum)
-				rd, err := lrepository.Store().GetPackfile(request.Payload.(network.ReqGetPackfile).Checksum)
+				repo.Logger().Trace("server", "%s: GetPackfile(%016x)", clientUuid, request.Payload.(network.ReqGetPackfile).MAC)
+				rd, err := lrepository.Store().GetPackfile(request.Payload.(network.ReqGetPackfile).MAC)
 				retErr := ""
 				if err != nil {
 					retErr = err.Error()
@@ -360,10 +360,10 @@ func handleConnection(ctx *appcontext.AppContext, repo *repository.Repository, r
 			go func() {
 				defer wg.Done()
 				repo.Logger().Trace("server", "%s: GetPackfileBlob(%016x, %d, %d)", clientUuid,
-					request.Payload.(network.ReqGetPackfileBlob).Checksum,
+					request.Payload.(network.ReqGetPackfileBlob).MAC,
 					request.Payload.(network.ReqGetPackfileBlob).Offset,
 					request.Payload.(network.ReqGetPackfileBlob).Length)
-				rd, err := lrepository.Store().GetPackfileBlob(request.Payload.(network.ReqGetPackfileBlob).Checksum,
+				rd, err := lrepository.Store().GetPackfileBlob(request.Payload.(network.ReqGetPackfileBlob).MAC,
 					request.Payload.(network.ReqGetPackfileBlob).Offset,
 					request.Payload.(network.ReqGetPackfileBlob).Length)
 				retErr := ""
@@ -396,13 +396,13 @@ func handleConnection(ctx *appcontext.AppContext, repo *repository.Repository, r
 			go func() {
 				defer wg.Done()
 
-				repo.Logger().Trace("server", "%s: DeletePackfile(%s)", clientUuid, request.Payload.(network.ReqDeletePackfile).Checksum)
+				repo.Logger().Trace("server", "%s: DeletePackfile(%s)", clientUuid, request.Payload.(network.ReqDeletePackfile).MAC)
 
 				var err error
 				if options.NoDelete {
 					err = fmt.Errorf("not allowed to delete")
 				} else {
-					err = lrepository.Store().DeletePackfile(request.Payload.(network.ReqDeletePackfile).Checksum)
+					err = lrepository.Store().DeletePackfile(request.Payload.(network.ReqDeletePackfile).MAC)
 				}
 				retErr := ""
 				if err != nil {

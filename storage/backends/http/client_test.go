@@ -16,8 +16,8 @@ import (
 )
 
 type storedeData struct {
-	checksum objects.MAC
-	data     []byte
+	MAC  objects.MAC
+	data []byte
 }
 
 type MyHandler struct {
@@ -51,7 +51,7 @@ func (h *MyHandler) PutState(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	h.states = append(h.states, storedeData{reqPutState.Checksum, reqPutState.Data})
+	h.states = append(h.states, storedeData{reqPutState.MAC, reqPutState.Data})
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{}`))
@@ -61,9 +61,9 @@ func (h *MyHandler) PutState(w http.ResponseWriter, r *http.Request) error {
 func (h *MyHandler) GetStates(w http.ResponseWriter, r *http.Request) error {
 	w.WriteHeader(http.StatusOK)
 	var resGetStates network.ResGetStates
-	resGetStates.Checksums = make([]objects.MAC, len(h.states))
+	resGetStates.MACs = make([]objects.MAC, len(h.states))
 	for i, state := range h.states {
-		resGetStates.Checksums[i] = state.checksum
+		resGetStates.MACs[i] = state.MAC
 	}
 
 	if err := json.NewEncoder(w).Encode(resGetStates); err != nil {
@@ -81,7 +81,7 @@ func (h *MyHandler) GetState(w http.ResponseWriter, r *http.Request) error {
 	w.WriteHeader(http.StatusOK)
 	var resGetState network.ResGetState
 	for _, state := range h.states {
-		if state.checksum == reqGetState.Checksum {
+		if state.MAC == reqGetState.MAC {
 			resGetState.Data = state.data
 			break
 		}
@@ -101,7 +101,7 @@ func (h *MyHandler) DeleteState(w http.ResponseWriter, r *http.Request) error {
 
 	var idxToDelete int
 	for idx, state := range h.states {
-		if state.checksum == reqDeleteState.Checksum {
+		if state.MAC == reqDeleteState.MAC {
 			idxToDelete = idx
 			break
 		}
@@ -119,7 +119,7 @@ func (h *MyHandler) PutPackfile(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	h.packfiles = append(h.packfiles, storedeData{reqPutPackfile.Checksum, reqPutPackfile.Data})
+	h.packfiles = append(h.packfiles, storedeData{reqPutPackfile.MAC, reqPutPackfile.Data})
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{}`))
@@ -129,9 +129,9 @@ func (h *MyHandler) PutPackfile(w http.ResponseWriter, r *http.Request) error {
 func (h *MyHandler) GetPackfiles(w http.ResponseWriter, r *http.Request) error {
 	w.WriteHeader(http.StatusOK)
 	var resGetPackfiles network.ResGetPackfiles
-	resGetPackfiles.Checksums = make([]objects.MAC, len(h.packfiles))
+	resGetPackfiles.MACs = make([]objects.MAC, len(h.packfiles))
 	for i, packfile := range h.packfiles {
-		resGetPackfiles.Checksums[i] = packfile.checksum
+		resGetPackfiles.MACs[i] = packfile.MAC
 	}
 
 	if err := json.NewEncoder(w).Encode(resGetPackfiles); err != nil {
@@ -149,7 +149,7 @@ func (h *MyHandler) GetPackfileBlob(w http.ResponseWriter, r *http.Request) erro
 	w.WriteHeader(http.StatusOK)
 	var resGetState network.ResGetState
 	for _, packfile := range h.packfiles {
-		if packfile.checksum == reqGetPackfileBlob.Checksum {
+		if packfile.MAC == reqGetPackfileBlob.MAC {
 			resGetState.Data = packfile.data[reqGetPackfileBlob.Offset : reqGetPackfileBlob.Offset+uint64(reqGetPackfileBlob.Length)]
 			break
 		}
@@ -169,7 +169,7 @@ func (h *MyHandler) DeletePackfile(w http.ResponseWriter, r *http.Request) error
 
 	var idxToDelete int
 	for idx, packfile := range h.packfiles {
-		if packfile.checksum == reqDeletePackfile.Checksum {
+		if packfile.MAC == reqDeletePackfile.MAC {
 			idxToDelete = idx
 			break
 		}
@@ -190,7 +190,7 @@ func (h *MyHandler) GetPackfile(w http.ResponseWriter, r *http.Request) error {
 	w.WriteHeader(http.StatusOK)
 	var resGetState network.ResGetPackfile
 	for _, packfile := range h.packfiles {
-		if packfile.checksum == reqGetPackfile.Checksum {
+		if packfile.MAC == reqGetPackfile.MAC {
 			resGetState.Data = packfile.data
 			break
 		}
@@ -247,11 +247,11 @@ func TestHttpBackend(t *testing.T) {
 	require.NoError(t, err)
 
 	// states
-	checksum1 := objects.MAC{0x10, 0x20}
-	checksum2 := objects.MAC{0x30, 0x40}
-	err = repo.PutState(checksum1, bytes.NewReader([]byte("test1")))
+	MAC1 := objects.MAC{0x10, 0x20}
+	MAC2 := objects.MAC{0x30, 0x40}
+	err = repo.PutState(MAC1, bytes.NewReader([]byte("test1")))
 	require.NoError(t, err)
-	err = repo.PutState(checksum2, bytes.NewReader([]byte("test2")))
+	err = repo.PutState(MAC2, bytes.NewReader([]byte("test2")))
 	require.NoError(t, err)
 
 	states, err := repo.GetStates()
@@ -262,14 +262,14 @@ func TestHttpBackend(t *testing.T) {
 	}
 	require.Equal(t, expected, states)
 
-	rd, err := repo.GetState(checksum2)
+	rd, err := repo.GetState(MAC2)
 	require.NoError(t, err)
 	buf := new(bytes.Buffer)
 	_, err = io.Copy(buf, rd)
 	require.NoError(t, err)
 	require.Equal(t, "test2", buf.String())
 
-	err = repo.DeleteState(checksum1)
+	err = repo.DeleteState(MAC1)
 	require.NoError(t, err)
 
 	states, err = repo.GetStates()
@@ -278,11 +278,11 @@ func TestHttpBackend(t *testing.T) {
 	require.Equal(t, expected, states)
 
 	// packfiles
-	checksum3 := objects.MAC{0x50, 0x60}
-	checksum4 := objects.MAC{0x60, 0x70}
-	err = repo.PutPackfile(checksum3, bytes.NewReader([]byte("test3")))
+	MAC3 := objects.MAC{0x50, 0x60}
+	MAC4 := objects.MAC{0x60, 0x70}
+	err = repo.PutPackfile(MAC3, bytes.NewReader([]byte("test3")))
 	require.NoError(t, err)
-	err = repo.PutPackfile(checksum4, bytes.NewReader([]byte("test4")))
+	err = repo.PutPackfile(MAC4, bytes.NewReader([]byte("test4")))
 	require.NoError(t, err)
 
 	packfiles, err := repo.GetPackfiles()
@@ -293,13 +293,13 @@ func TestHttpBackend(t *testing.T) {
 	}
 	require.Equal(t, expected, packfiles)
 
-	rd, err = repo.GetPackfileBlob(checksum4, 0, 4)
+	rd, err = repo.GetPackfileBlob(MAC4, 0, 4)
 	buf = new(bytes.Buffer)
 	_, err = io.Copy(buf, rd)
 	require.NoError(t, err)
 	require.Equal(t, "test", buf.String())
 
-	err = repo.DeletePackfile(checksum3)
+	err = repo.DeletePackfile(MAC3)
 	require.NoError(t, err)
 
 	packfiles, err = repo.GetPackfiles()
@@ -307,7 +307,7 @@ func TestHttpBackend(t *testing.T) {
 	expected = []objects.MAC{{0x60, 0x70, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}}
 	require.Equal(t, expected, packfiles)
 
-	rd, err = repo.GetPackfile(checksum4)
+	rd, err = repo.GetPackfile(MAC4)
 	buf = new(bytes.Buffer)
 	_, err = io.Copy(buf, rd)
 	require.NoError(t, err)

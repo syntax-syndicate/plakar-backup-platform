@@ -124,22 +124,22 @@ func (repo *Repository) GetStates() ([]objects.MAC, error) {
 		return nil, fmt.Errorf("%s", resGetStates.Err)
 	}
 
-	ret := make([]objects.MAC, len(resGetStates.Checksums))
-	for i, checksum := range resGetStates.Checksums {
-		ret[i] = checksum
+	ret := make([]objects.MAC, len(resGetStates.MACs))
+	for i, MAC := range resGetStates.MACs {
+		ret[i] = MAC
 	}
 	return ret, nil
 }
 
-func (repo *Repository) PutState(checksum objects.MAC, rd io.Reader) error {
+func (repo *Repository) PutState(MAC objects.MAC, rd io.Reader) error {
 	data, err := io.ReadAll(rd)
 	if err != nil {
 		return err
 	}
 
 	r, err := repo.sendRequest("PUT", repo.Repository, "/state", network.ReqPutState{
-		Checksum: checksum,
-		Data:     data,
+		MAC:  MAC,
+		Data: data,
 	})
 	if err != nil {
 		return err
@@ -155,9 +155,9 @@ func (repo *Repository) PutState(checksum objects.MAC, rd io.Reader) error {
 	return nil
 }
 
-func (repo *Repository) GetState(checksum objects.MAC) (io.Reader, error) {
+func (repo *Repository) GetState(MAC objects.MAC) (io.Reader, error) {
 	r, err := repo.sendRequest("GET", repo.Repository, "/state", network.ReqGetState{
-		Checksum: checksum,
+		MAC: MAC,
 	})
 	if err != nil {
 		return nil, err
@@ -173,9 +173,9 @@ func (repo *Repository) GetState(checksum objects.MAC) (io.Reader, error) {
 	return bytes.NewBuffer(resGetState.Data), nil
 }
 
-func (repo *Repository) DeleteState(checksum objects.MAC) error {
+func (repo *Repository) DeleteState(MAC objects.MAC) error {
 	r, err := repo.sendRequest("DELETE", repo.Repository, "/state", network.ReqDeleteState{
-		Checksum: checksum,
+		MAC: MAC,
 	})
 	if err != nil {
 		return err
@@ -206,21 +206,21 @@ func (repo *Repository) GetPackfiles() ([]objects.MAC, error) {
 		return nil, fmt.Errorf("%s", resGetPackfiles.Err)
 	}
 
-	ret := make([]objects.MAC, len(resGetPackfiles.Checksums))
-	for i, checksum := range resGetPackfiles.Checksums {
-		ret[i] = checksum
+	ret := make([]objects.MAC, len(resGetPackfiles.MACs))
+	for i, MAC := range resGetPackfiles.MACs {
+		ret[i] = MAC
 	}
 	return ret, nil
 }
 
-func (repo *Repository) PutPackfile(checksum objects.MAC, rd io.Reader) error {
+func (repo *Repository) PutPackfile(MAC objects.MAC, rd io.Reader) error {
 	data, err := io.ReadAll(rd)
 	if err != nil {
 		return err
 	}
 	r, err := repo.sendRequest("PUT", repo.Repository, "/packfile", network.ReqPutPackfile{
-		Checksum: checksum,
-		Data:     data,
+		MAC:  MAC,
+		Data: data,
 	})
 	if err != nil {
 		return err
@@ -236,9 +236,9 @@ func (repo *Repository) PutPackfile(checksum objects.MAC, rd io.Reader) error {
 	return nil
 }
 
-func (repo *Repository) GetPackfile(checksum objects.MAC) (io.Reader, error) {
+func (repo *Repository) GetPackfile(MAC objects.MAC) (io.Reader, error) {
 	r, err := repo.sendRequest("GET", repo.Repository, "/packfile", network.ReqGetPackfile{
-		Checksum: checksum,
+		MAC: MAC,
 	})
 	if err != nil {
 		return nil, err
@@ -254,11 +254,11 @@ func (repo *Repository) GetPackfile(checksum objects.MAC) (io.Reader, error) {
 	return bytes.NewBuffer(resGetPackfile.Data), nil
 }
 
-func (repo *Repository) GetPackfileBlob(checksum objects.MAC, offset uint64, length uint32) (io.Reader, error) {
+func (repo *Repository) GetPackfileBlob(MAC objects.MAC, offset uint64, length uint32) (io.Reader, error) {
 	r, err := repo.sendRequest("GET", repo.Repository, "/packfile/blob", network.ReqGetPackfileBlob{
-		Checksum: checksum,
-		Offset:   offset,
-		Length:   length,
+		MAC:    MAC,
+		Offset: offset,
+		Length: length,
 	})
 	if err != nil {
 		return nil, err
@@ -274,9 +274,9 @@ func (repo *Repository) GetPackfileBlob(checksum objects.MAC, offset uint64, len
 	return bytes.NewBuffer(resGetPackfileBlob.Data), nil
 }
 
-func (repo *Repository) DeletePackfile(checksum objects.MAC) error {
+func (repo *Repository) DeletePackfile(MAC objects.MAC) error {
 	r, err := repo.sendRequest("DELETE", repo.Repository, "/packfile", network.ReqDeletePackfile{
-		Checksum: checksum,
+		MAC: MAC,
 	})
 	if err != nil {
 		return err

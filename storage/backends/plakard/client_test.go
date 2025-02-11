@@ -59,8 +59,8 @@ func MockTCPServer(t *testing.T, ctx context.Context, handler func(net.Conn, con
 }
 
 type storedeData struct {
-	checksum objects.MAC
-	data     []byte
+	MAC  objects.MAC
+	data []byte
 }
 
 type localCache struct {
@@ -152,7 +152,7 @@ func _TestPlakardBackendTCP(t *testing.T) {
 					wg.Add(1)
 					go func(c *localCache) {
 						defer wg.Done()
-						c.states = append(c.states, storedeData{request.Payload.(network.ReqPutState).Checksum, request.Payload.(network.ReqPutState).Data})
+						c.states = append(c.states, storedeData{request.Payload.(network.ReqPutState).MAC, request.Payload.(network.ReqPutState).Data})
 						result := network.Request{
 							Uuid: request.Uuid,
 							Type: "ResPutState",
@@ -170,17 +170,17 @@ func _TestPlakardBackendTCP(t *testing.T) {
 					wg.Add(1)
 					go func(c *localCache) {
 						defer wg.Done()
-						checksums := make([]objects.MAC, len(c.states))
+						MACs := make([]objects.MAC, len(c.states))
 						for i, state := range c.states {
-							checksums[i] = state.checksum
+							MACs[i] = state.MAC
 						}
 
 						result := network.Request{
 							Uuid: request.Uuid,
 							Type: "ResGetStates",
 							Payload: network.ResGetStates{
-								Checksums: checksums,
-								Err:       "",
+								MACs: MACs,
+								Err:  "",
 							},
 						}
 						err = encoder.Encode(&result)
@@ -196,7 +196,7 @@ func _TestPlakardBackendTCP(t *testing.T) {
 
 						var data []byte
 						for _, state := range c.states {
-							if state.checksum == request.Payload.(network.ReqGetState).Checksum {
+							if state.MAC == request.Payload.(network.ReqGetState).MAC {
 								data = state.data
 								break
 							}
@@ -222,7 +222,7 @@ func _TestPlakardBackendTCP(t *testing.T) {
 
 						var idxToDelete int
 						for idx, state := range c.states {
-							if state.checksum == request.Payload.(network.ReqDeleteState).Checksum {
+							if state.MAC == request.Payload.(network.ReqDeleteState).MAC {
 								idxToDelete = idx
 								break
 							}
@@ -246,7 +246,7 @@ func _TestPlakardBackendTCP(t *testing.T) {
 					wg.Add(1)
 					go func(c *localCache) {
 						defer wg.Done()
-						c.packfiles = append(c.packfiles, storedeData{request.Payload.(network.ReqPutPackfile).Checksum, request.Payload.(network.ReqPutPackfile).Data})
+						c.packfiles = append(c.packfiles, storedeData{request.Payload.(network.ReqPutPackfile).MAC, request.Payload.(network.ReqPutPackfile).Data})
 						result := network.Request{
 							Uuid: request.Uuid,
 							Type: "ResPutPackfile",
@@ -264,17 +264,17 @@ func _TestPlakardBackendTCP(t *testing.T) {
 					wg.Add(1)
 					go func(c *localCache) {
 						defer wg.Done()
-						checksums := make([]objects.MAC, len(c.packfiles))
+						MACs := make([]objects.MAC, len(c.packfiles))
 						for i, packfile := range c.packfiles {
-							checksums[i] = packfile.checksum
+							MACs[i] = packfile.MAC
 						}
 
 						result := network.Request{
 							Uuid: request.Uuid,
 							Type: "ResGetPackfiles",
 							Payload: network.ResGetPackfiles{
-								Checksums: checksums,
-								Err:       "",
+								MACs: MACs,
+								Err:  "",
 							},
 						}
 						err = encoder.Encode(&result)
@@ -290,7 +290,7 @@ func _TestPlakardBackendTCP(t *testing.T) {
 
 						var data []byte
 						for _, packfile := range c.packfiles {
-							if packfile.checksum == request.Payload.(network.ReqGetPackfileBlob).Checksum {
+							if packfile.MAC == request.Payload.(network.ReqGetPackfileBlob).MAC {
 								data = packfile.data[request.Payload.(network.ReqGetPackfileBlob).Offset : request.Payload.(network.ReqGetPackfileBlob).Offset+uint64(request.Payload.(network.ReqGetPackfileBlob).Length)]
 								break
 							}
@@ -317,7 +317,7 @@ func _TestPlakardBackendTCP(t *testing.T) {
 
 						var idxToDelete int
 						for idx, packfile := range c.packfiles {
-							if packfile.checksum == request.Payload.(network.ReqDeletePackfile).Checksum {
+							if packfile.MAC == request.Payload.(network.ReqDeletePackfile).MAC {
 								idxToDelete = idx
 								break
 							}
@@ -344,7 +344,7 @@ func _TestPlakardBackendTCP(t *testing.T) {
 
 						var data []byte
 						for _, packfile := range c.packfiles {
-							if packfile.checksum == request.Payload.(network.ReqGetPackfile).Checksum {
+							if packfile.MAC == request.Payload.(network.ReqGetPackfile).MAC {
 								data = packfile.data
 								break
 							}
@@ -397,11 +397,11 @@ func _TestPlakardBackendTCP(t *testing.T) {
 	require.NoError(t, err)
 
 	// states
-	checksum1 := objects.MAC{0x10, 0x20}
-	checksum2 := objects.MAC{0x30, 0x40}
-	err = repo.PutState(checksum1, bytes.NewReader([]byte("test1")))
+	MAC1 := objects.MAC{0x10, 0x20}
+	MAC2 := objects.MAC{0x30, 0x40}
+	err = repo.PutState(MAC1, bytes.NewReader([]byte("test1")))
 	require.NoError(t, err)
-	err = repo.PutState(checksum2, bytes.NewReader([]byte("test2")))
+	err = repo.PutState(MAC2, bytes.NewReader([]byte("test2")))
 	require.NoError(t, err)
 
 	states, err := repo.GetStates()
@@ -412,14 +412,14 @@ func _TestPlakardBackendTCP(t *testing.T) {
 	}
 	require.Equal(t, expected, states)
 
-	rd, err := repo.GetState(checksum2)
+	rd, err := repo.GetState(MAC2)
 	require.NoError(t, err)
 	buf := new(bytes.Buffer)
 	_, err = io.Copy(buf, rd)
 	require.NoError(t, err)
 	require.Equal(t, "test2", buf.String())
 
-	err = repo.DeleteState(checksum1)
+	err = repo.DeleteState(MAC1)
 	require.NoError(t, err)
 
 	states, err = repo.GetStates()
@@ -428,11 +428,11 @@ func _TestPlakardBackendTCP(t *testing.T) {
 	require.Equal(t, expected, states)
 
 	// packfiles
-	checksum3 := objects.MAC{0x50, 0x60}
-	checksum4 := objects.MAC{0x60, 0x70}
-	err = repo.PutPackfile(checksum3, bytes.NewReader([]byte("test3")))
+	MAC3 := objects.MAC{0x50, 0x60}
+	MAC4 := objects.MAC{0x60, 0x70}
+	err = repo.PutPackfile(MAC3, bytes.NewReader([]byte("test3")))
 	require.NoError(t, err)
-	err = repo.PutPackfile(checksum4, bytes.NewReader([]byte("test4")))
+	err = repo.PutPackfile(MAC4, bytes.NewReader([]byte("test4")))
 	require.NoError(t, err)
 
 	packfiles, err := repo.GetPackfiles()
@@ -443,13 +443,13 @@ func _TestPlakardBackendTCP(t *testing.T) {
 	}
 	require.Equal(t, expected, packfiles)
 
-	rd, err = repo.GetPackfileBlob(checksum4, 0, 4)
+	rd, err = repo.GetPackfileBlob(MAC4, 0, 4)
 	buf = new(bytes.Buffer)
 	_, err = io.Copy(buf, rd)
 	require.NoError(t, err)
 	require.Equal(t, "test", buf.String())
 
-	err = repo.DeletePackfile(checksum3)
+	err = repo.DeletePackfile(MAC3)
 	require.NoError(t, err)
 
 	packfiles, err = repo.GetPackfiles()
@@ -457,7 +457,7 @@ func _TestPlakardBackendTCP(t *testing.T) {
 	expected = []objects.MAC{{0x60, 0x70, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}}
 	require.Equal(t, expected, packfiles)
 
-	rd, err = repo.GetPackfile(checksum4)
+	rd, err = repo.GetPackfile(MAC4)
 	buf = new(bytes.Buffer)
 	_, err = io.Copy(buf, rd)
 	require.NoError(t, err)
