@@ -50,4 +50,4 @@ The **plakar info** utility exits&#160;0 on success, and&#160;&gt;0 if an error 
 plakar(1),
 plakar-snapshot(1)
 
-macOS 15.2 - February 3, 2025
+Plakar - February 3, 2025

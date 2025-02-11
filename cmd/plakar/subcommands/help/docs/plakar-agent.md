@@ -46,4 +46,4 @@ The **plakar agent** utility exits&#160;0 on success, and&#160;&gt;0 if an error
 
 plakar(1)
 
-macOS 15.2 - February 1, 2025
+Plakar - February 1, 2025

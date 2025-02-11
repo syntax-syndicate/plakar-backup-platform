@@ -88,4 +88,4 @@ The **plakar restore** utility exits&#160;0 on success, and&#160;&gt;0 if an err
 plakar(1),
 plakar-backup(1)
 
-macOS 15.2 - February 3, 2025
+Plakar - February 3, 2025
