@@ -1,6 +1,7 @@
-package snapshot
+package vfs
 
 import (
+	"io"
 	"iter"
 	"strings"
 
@@ -11,11 +12,11 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-const ERROR_VERSION = "1.0.0"
+const VFS_ERROR_VERSION = "1.0.0"
 
 func init() {
 	versioning.Register(resources.RT_ERROR_BTREE, versioning.FromString(btree.BTREE_VERSION))
-	versioning.Register(resources.RT_ERROR_ENTRY, versioning.FromString(ERROR_VERSION))
+	versioning.Register(resources.RT_ERROR_ENTRY, versioning.FromString(VFS_ERROR_VERSION))
 }
 
 type ErrorItem struct {
@@ -34,31 +35,21 @@ func ErrorItemFromBytes(bytes []byte) (*ErrorItem, error) {
 	return e, err
 }
 
-func (snapshot *Snapshot) erroridx() (*btree.BTree[string, objects.Checksum, objects.Checksum], error) {
-	rd, err := snapshot.repository.GetBlob(resources.RT_ERROR_BTREE, snapshot.Header.GetSource(0).Errors)
-	if err != nil {
-		return nil, err
+func NewErrorItem(path, error string) *ErrorItem {
+	return &ErrorItem{
+		Version: versioning.FromString(VFS_ERROR_VERSION),
+		Name:    path,
+		Error:   error,
 	}
-
-	storage := SnapshotStore[string, objects.Checksum]{
-		blobtype: resources.RT_ERROR_BTREE,
-		snap:     snapshot,
-	}
-	return btree.Deserialize(rd, &storage, strings.Compare)
 }
 
-func (snapshot *Snapshot) Errors(beneath string) (iter.Seq2[*ErrorItem, error], error) {
+func (fsc *Filesystem) Errors(beneath string) (iter.Seq2[*ErrorItem, error], error) {
 	if !strings.HasSuffix(beneath, "/") {
 		beneath += "/"
 	}
 
-	tree, err := snapshot.erroridx()
-	if err != nil {
-		return nil, err
-	}
-
 	return func(yield func(*ErrorItem, error) bool) {
-		iter, err := tree.ScanFrom(beneath)
+		iter, err := fsc.errors.ScanFrom(beneath)
 		if err != nil {
 			yield(&ErrorItem{}, err)
 			return
@@ -67,7 +58,13 @@ func (snapshot *Snapshot) Errors(beneath string) (iter.Seq2[*ErrorItem, error], 
 		for iter.Next() {
 			_, csum := iter.Current()
 
-			bytes, err := snapshot.GetBlob(resources.RT_ERROR_ENTRY, csum)
+			rd, err := fsc.repo.GetBlob(resources.RT_ERROR_ENTRY, csum)
+			if err != nil {
+				yield(&ErrorItem{}, err)
+				return
+			}
+
+			bytes, err := io.ReadAll(rd)
 			if err != nil {
 				yield(&ErrorItem{}, err)
 				return
@@ -93,11 +90,6 @@ func (snapshot *Snapshot) Errors(beneath string) (iter.Seq2[*ErrorItem, error], 
 	}, nil
 }
 
-func (snapshot *Snapshot) IterErrorNodes() (btree.Iterator[objects.Checksum, *btree.Node[string, objects.Checksum, objects.Checksum]], error) {
-	tree, err := snapshot.erroridx()
-	if err != nil {
-		return nil, err
-	}
-
-	return tree.IterDFS(), nil
+func (fsc *Filesystem) IterErrorNodes() (btree.Iterator[objects.Checksum, *btree.Node[string, objects.Checksum, objects.Checksum]], error) {
+	return fsc.errors.IterDFS(), nil
 }

@@ -379,18 +379,23 @@ func snapshotVFSErrors(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	fs, err := snap.Filesystem()
+	if err != nil {
+		return err
+	}
+
 	if path == "" {
 		path = "/"
 	}
 
-	errorList, err := snap.Errors(path)
+	errorList, err := fs.Errors(path)
 	if err != nil {
 		return err
 	}
 
 	var i int64
-	items := Items[*snapshot.ErrorItem]{
-		Items: []*snapshot.ErrorItem{},
+	items := Items[*vfs.ErrorItem]{
+		Items: []*vfs.ErrorItem{},
 	}
 	for errorEntry := range errorList {
 		if i < offset {

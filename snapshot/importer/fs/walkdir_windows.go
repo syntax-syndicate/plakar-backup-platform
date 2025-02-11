@@ -28,6 +28,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
+	"github.com/pkg/xattr"
 )
 
 func toUnixPath(pathname string) string {
@@ -66,7 +67,7 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 			}
 		}
 
-		extendedAttributes, err := getExtendedAttributes(pathname)
+		extendedAttributes, err := xattr.List(pathname)
 		if err != nil {
 			results <- importer.ScanError{Pathname: unixPath, Err: err}
 			continue
@@ -79,15 +80,29 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 			fileinfo.Lgroupname = g.Name
 		}
 
-		results <- importer.ScanRecord{Pathname: unixPath, FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
-
+		var originFile string
 		if fileinfo.Mode()&os.ModeSymlink != 0 {
-			originFile, err := os.Readlink(pathname)
+			originFile, err = os.Readlink(pathname)
 			if err != nil {
 				results <- importer.ScanError{Pathname: unixPath, Err: err}
 				continue
 			}
-			results <- importer.ScanRecord{Pathname: unixPath, Target: originFile, FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
+		}
+		results <- importer.ScanRecord{Pathname: unixPath, Target: originFile, FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
+		for _, attr := range extendedAttributes {
+			bytes, err := xattr.Get(pathname, attr)
+			if err != nil {
+				results <- importer.ScanError{Pathname: pathname, Err: err}
+				continue
+			}
+
+			fileinfo := objects.FileInfo{
+				Lname:             filepath.Base(pathname) + ":" + attr,
+				Lsize:             int64(len(bytes)),
+				Lmode:             0,
+				ExtendedAttribute: true,
+			}
+			results <- importer.ScanRecord{Pathname: filepath.ToSlash(pathname) + ":" + attr, FileInfo: fileinfo}
 		}
 	}
 }

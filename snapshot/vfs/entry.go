@@ -2,7 +2,7 @@ package vfs
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"iter"
@@ -49,7 +49,7 @@ type Entry struct {
 	FileAttributes       uint32   `msgpack:"file_attributes,omitempty" json:"file_attributes"`
 
 	/* Unix fields */
-	ExtendedAttributes []ExtendedAttribute `msgpack:"extended_attributes,omitempty" json:"extended_attributes"`
+	ExtendedAttributes []string `msgpack:"extended_attributes,omitempty" json:"extended_attributes"`
 
 	/* Custom metadata and tags */
 	Classifications []Classification `msgpack:"classifications,omitempty" json:"classifications"`
@@ -75,7 +75,7 @@ func (e *Entry) MarshalJSON() ([]byte, error) {
 		ret.SecurityDescriptor = []byte{}
 	}
 	if ret.ExtendedAttributes == nil {
-		ret.ExtendedAttributes = []ExtendedAttribute{}
+		ret.ExtendedAttributes = []string{}
 	}
 	if ret.Classifications == nil {
 		ret.Classifications = []Classification{}
@@ -96,16 +96,9 @@ func NewEntry(parentPath string, record *importer.ScanRecord) *Entry {
 		target = record.Target
 	}
 
-	ExtendedAttributes := make([]ExtendedAttribute, 0, len(record.ExtendedAttributes))
-	for name, value := range record.ExtendedAttributes {
-		ExtendedAttributes = append(ExtendedAttributes, ExtendedAttribute{
-			Name:  name,
-			Value: value,
-		})
-	}
-
+	ExtendedAttributes := record.ExtendedAttributes
 	sort.Slice(ExtendedAttributes, func(i, j int) bool {
-		return ExtendedAttributes[i].Name < ExtendedAttributes[j].Name
+		return ExtendedAttributes[i] < ExtendedAttributes[j]
 	})
 
 	entry := &Entry{
@@ -168,6 +161,7 @@ func (e *Entry) Open(fs *Filesystem, path string) fs.File {
 		path:  path,
 		entry: e,
 		repo:  fs.repo,
+		rd:    NewObjectReader(fs.repo, e.ResolvedObject, e.Size()),
 	}
 }
 
@@ -231,15 +225,56 @@ func (e *Entry) Info() (fs.FileInfo, error) {
 	return e.FileInfo, nil
 }
 
+func (e *Entry) Xattr(fsc *Filesystem, xattrName string) (io.ReadSeeker, error) {
+	p := fmt.Sprintf("%s:%s", e.Path(), xattrName)
+	csum, found, err := fsc.xattrs.Find(p)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, fs.ErrNotExist
+	}
+
+	rd, err := fsc.repo.GetBlob(resources.RT_XATTR_ENTRY, csum)
+	if err != nil {
+		return nil, err
+	}
+
+	bytes, err := io.ReadAll(rd)
+	if err != nil {
+		return nil, err
+	}
+
+	xattr, err := XattrFromBytes(bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	rd, err = fsc.repo.GetBlob(resources.RT_OBJECT, xattr.Object)
+	if err != nil {
+		return nil, err
+	}
+
+	bytes, err = io.ReadAll(rd)
+	if err != nil {
+		return nil, err
+	}
+
+	xattr.ResolvedObject, err = objects.NewObjectFromBytes(bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewObjectReader(fsc.repo, xattr.ResolvedObject, xattr.Size), nil
+}
+
 // FileEntry implements fs.File, FSEntry and ReadSeeker
 type vfile struct {
 	path   string
 	entry  *Entry
 	repo   *repository.Repository
 	closed bool
-	objoff int
-	off    int64
-	rd     io.ReadSeeker
+	rd     *ObjectReader
 }
 
 func (vf *vfile) Stat() (fs.FileInfo, error) {
@@ -270,27 +305,7 @@ func (vf *vfile) Read(p []byte) (int, error) {
 		return 0, fs.ErrInvalid
 	}
 
-	for vf.objoff < len(vf.entry.ResolvedObject.Chunks) {
-		if vf.rd == nil {
-			rd, err := vf.repo.GetBlob(resources.RT_CHUNK,
-				vf.entry.ResolvedObject.Chunks[vf.objoff].MAC)
-			if err != nil {
-				return -1, err
-			}
-			vf.rd = rd
-		}
-
-		n, err := vf.rd.Read(p)
-		if errors.Is(err, io.EOF) {
-			vf.objoff++
-			vf.rd = nil
-			continue
-		}
-		vf.off += int64(n)
-		return n, err
-	}
-
-	return 0, io.EOF
+	return vf.rd.Read(p)
 }
 
 func (vf *vfile) Seek(offset int64, whence int) (int64, error) {
@@ -302,91 +317,7 @@ func (vf *vfile) Seek(offset int64, whence int) (int64, error) {
 		return 0, fs.ErrInvalid
 	}
 
-	chunks := vf.entry.ResolvedObject.Chunks
-
-	switch whence {
-	case io.SeekStart:
-		vf.rd = nil
-		vf.off = 0
-		for vf.objoff = 0; vf.objoff < len(chunks); vf.objoff++ {
-			clen := int64(chunks[vf.objoff].Length)
-			if offset > clen {
-				vf.off += clen
-				offset -= clen
-				continue
-			}
-			vf.off += offset
-			rd, err := vf.repo.GetBlob(resources.RT_CHUNK,
-				chunks[vf.objoff].MAC)
-			if err != nil {
-				return 0, err
-			}
-			if _, err := rd.Seek(offset, whence); err != nil {
-				return 0, err
-			}
-			vf.rd = rd
-			break
-		}
-
-	case io.SeekEnd:
-		vf.rd = nil
-		vf.off = vf.Size()
-		for vf.objoff = len(chunks) - 1; vf.objoff >= 0; vf.objoff-- {
-			clen := int64(chunks[vf.objoff].Length)
-			if offset > clen {
-				vf.off -= clen
-				offset -= clen
-				continue
-			}
-			vf.off -= offset
-			rd, err := vf.repo.GetBlob(resources.RT_CHUNK,
-				chunks[vf.objoff].MAC)
-			if err != nil {
-				return 0, err
-			}
-			if _, err := rd.Seek(offset, whence); err != nil {
-				return 0, err
-			}
-			vf.rd = rd
-			break
-		}
-
-	case io.SeekCurrent:
-		if vf.rd != nil {
-			n, err := vf.rd.Seek(offset, whence)
-			if err != nil {
-				return 0, err
-			}
-			diff := n - vf.off
-			vf.off += diff
-			offset -= diff
-		}
-
-		if offset == 0 {
-			break
-		}
-
-		vf.objoff++
-		for vf.objoff < len(chunks) {
-			clen := int64(chunks[vf.objoff].Length)
-			if offset > clen {
-				vf.off += clen
-				offset -= clen
-			}
-			vf.off += offset
-			rd, err := vf.repo.GetBlob(resources.RT_CHUNK,
-				chunks[vf.objoff].MAC)
-			if err != nil {
-				return 0, err
-			}
-			if _, err := rd.Seek(offset, whence); err != nil {
-				return 0, err
-			}
-			vf.rd = rd
-		}
-	}
-
-	return vf.off, nil
+	return vf.rd.Seek(offset, whence)
 }
 
 func (vf *vfile) Close() error {

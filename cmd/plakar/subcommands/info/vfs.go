@@ -154,7 +154,7 @@ func (cmd *InfoVFS) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 		offset++
 	}
 
-	errors, err := snap1.Errors(pathname)
+	errors, err := fs.Errors(pathname)
 	if err != nil {
 		return 1, err
 	}

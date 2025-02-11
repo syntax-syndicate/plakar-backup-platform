@@ -19,11 +19,13 @@ package fs
 import (
 	"os"
 
+	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/pkg/xattr"
 )
 
-func getExtendedAttributes(path string) (map[string][]byte, error) {
-	attrs := make(map[string][]byte)
+func getExtendedAttributes(path string) ([]importer.ExtendedAttributes, error) {
+
+	attrs := make([]importer.ExtendedAttributes, 0)
 
 	// Get the list of attribute names
 	attributes, err := xattr.List(path)
@@ -41,7 +43,7 @@ func getExtendedAttributes(path string) (map[string][]byte, error) {
 			}
 			return nil, err
 		}
-		attrs[attr] = value
+		attrs = append(attrs, importer.ExtendedAttributes{Name: attr, Value: value})
 	}
 
 	return attrs, nil

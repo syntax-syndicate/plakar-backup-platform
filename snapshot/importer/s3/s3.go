@@ -154,6 +154,14 @@ func (p *S3Importer) NewReader(pathname string) (io.ReadCloser, error) {
 	return obj, nil
 }
 
+func (p *S3Importer) NewExtendedAttributeReader(pathname string, attribute string) (io.ReadCloser, error) {
+	return nil, fmt.Errorf("extended attributes are not supported on S3")
+}
+
+func (p *S3Importer) GetExtendedAttributes(pathname string) ([]importer.ExtendedAttributes, error) {
+	return nil, fmt.Errorf("extended attributes are not supported on S3")
+}
+
 func (p *S3Importer) Close() error {
 	return nil
 }

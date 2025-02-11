@@ -32,11 +32,16 @@ type ScanResult interface {
 	scanResult()
 }
 
+type ExtendedAttributes struct {
+	Name  string
+	Value []byte
+}
+
 type ScanRecord struct {
 	Pathname           string
 	Target             string
 	FileInfo           objects.FileInfo
-	ExtendedAttributes map[string][]byte
+	ExtendedAttributes []string
 	FileAttributes     uint32
 }
 
@@ -58,6 +63,8 @@ type Importer interface {
 	Root() string
 	Scan() (<-chan ScanResult, error)
 	NewReader(string) (io.ReadCloser, error)
+	NewExtendedAttributeReader(string, string) (io.ReadCloser, error)
+	GetExtendedAttributes(string) ([]ExtendedAttributes, error)
 	Close() error
 }
 

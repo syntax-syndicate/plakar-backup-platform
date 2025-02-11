@@ -189,6 +189,14 @@ func (p *FTPImporter) NewReader(pathname string) (io.ReadCloser, error) {
 	return tmpfile, nil
 }
 
+func (p *FTPImporter) NewExtendedAttributeReader(pathname string, attribute string) (io.ReadCloser, error) {
+	return nil, fmt.Errorf("extended attributes are not supported on FTP")
+}
+
+func (p *FTPImporter) GetExtendedAttributes(pathname string) ([]importer.ExtendedAttributes, error) {
+	return nil, fmt.Errorf("extended attributes are not supported on FTP")
+}
+
 func (p *FTPImporter) Close() error {
 	if p.client != nil {
 		return p.client.Close()

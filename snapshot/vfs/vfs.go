@@ -40,8 +40,10 @@ type CustomMetadata struct {
 }
 
 type Filesystem struct {
-	tree *btree.BTree[string, objects.Checksum, objects.Checksum]
-	repo *repository.Repository
+	tree   *btree.BTree[string, objects.Checksum, objects.Checksum]
+	xattrs *btree.BTree[string, objects.Checksum, objects.Checksum]
+	errors *btree.BTree[string, objects.Checksum, objects.Checksum]
+	repo   *repository.Repository
 }
 
 func PathCmp(a, b string) int {
@@ -67,21 +69,45 @@ func isEntryBelow(parent, entry string) bool {
 	return true
 }
 
-func NewFilesystem(repo *repository.Repository, root objects.Checksum) (*Filesystem, error) {
+func NewFilesystem(repo *repository.Repository, root, xattrs, errors objects.Checksum) (*Filesystem, error) {
 	rd, err := repo.GetBlob(resources.RT_VFS_BTREE, root)
 	if err != nil {
 		return nil, err
 	}
 
-	storage := repository.NewRepositoryStore[string, objects.Checksum](repo, resources.RT_VFS_BTREE)
-	tree, err := btree.Deserialize(rd, storage, PathCmp)
+	fsstore := repository.NewRepositoryStore[string, objects.Checksum](repo, resources.RT_VFS_BTREE)
+	tree, err := btree.Deserialize(rd, fsstore, PathCmp)
+	if err != nil {
+		return nil, err
+	}
+
+	rd, err = repo.GetBlob(resources.RT_XATTR_BTREE, xattrs)
+	if err != nil {
+		return nil, err
+	}
+
+	xstore := repository.NewRepositoryStore[string, objects.Checksum](repo, resources.RT_XATTR_BTREE)
+	xtree, err := btree.Deserialize(rd, xstore, strings.Compare)
+	if err != nil {
+		return nil, err
+	}
+
+	rd, err = repo.GetBlob(resources.RT_ERROR_BTREE, errors)
+	if err != nil {
+		return nil, err
+	}
+
+	errstore := repository.NewRepositoryStore[string, objects.Checksum](repo, resources.RT_ERROR_BTREE)
+	errtree, err := btree.Deserialize(rd, errstore, strings.Compare)
 	if err != nil {
 		return nil, err
 	}
 
 	fs := &Filesystem{
-		tree: tree,
-		repo: repo,
+		tree:   tree,
+		xattrs: xtree,
+		errors: errtree,
+		repo:   repo,
 	}
 
 	return fs, nil
@@ -255,6 +281,10 @@ func (fsc *Filesystem) Children(path string) (iter.Seq2[string, error], error) {
 
 func (fsc *Filesystem) IterNodes() btree.Iterator[objects.Checksum, *btree.Node[string, objects.Checksum, objects.Checksum]] {
 	return fsc.tree.IterDFS()
+}
+
+func (fsc *Filesystem) XattrNodes() btree.Iterator[objects.Checksum, *btree.Node[string, objects.Checksum, objects.Checksum]] {
+	return fsc.xattrs.IterDFS()
 }
 
 func (fsc *Filesystem) FileChecksums() (iter.Seq2[objects.Checksum, error], error) {

@@ -95,6 +95,14 @@ func (c *ScanCache) GetFile(file string) ([]byte, error) {
 	return c.get("__file__", file)
 }
 
+func (c *ScanCache) PutXattr(xattr string, data []byte) error {
+	return c.put("__xattr__", xattr, data)
+}
+
+func (c *ScanCache) GetXattr(xattr string) ([]byte, error) {
+	return c.get("__xattr__", xattr)
+}
+
 func (c *ScanCache) PutDirectory(directory string, data []byte) error {
 	return c.put("__directory__", directory, data)
 }
