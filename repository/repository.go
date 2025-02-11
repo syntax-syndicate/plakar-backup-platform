@@ -308,10 +308,10 @@ func (r *Repository) ComputeMAC(data []byte) objects.MAC {
 		panic("hasher returned invalid length")
 	}
 
-	var checksum objects.MAC
-	copy(checksum[:], result)
+	var mac objects.MAC
+	copy(mac[:], result)
 
-	return checksum
+	return mac
 }
 
 func (r *Repository) Chunker(rd io.ReadCloser) (*chunkers.Chunker, error) {
@@ -384,8 +384,8 @@ func (r *Repository) DeleteSnapshot(snapshotID objects.MAC) error {
 		return err
 	}
 
-	checksum := r.ComputeMAC(buffer.Bytes())
-	if err := r.PutState(checksum, buffer); err != nil {
+	mac := r.ComputeMAC(buffer.Bytes())
+	if err := r.PutState(mac, buffer); err != nil {
 		return err
 	}
 
@@ -401,13 +401,13 @@ func (r *Repository) GetStates() ([]objects.MAC, error) {
 	return r.store.GetStates()
 }
 
-func (r *Repository) GetState(checksum objects.MAC) (versioning.Version, io.Reader, error) {
+func (r *Repository) GetState(mac objects.MAC) (versioning.Version, io.Reader, error) {
 	t0 := time.Now()
 	defer func() {
-		r.Logger().Trace("repository", "GetState(%x): %s", checksum, time.Since(t0))
+		r.Logger().Trace("repository", "GetState(%x): %s", mac, time.Since(t0))
 	}()
 
-	rd, err := r.store.GetState(checksum)
+	rd, err := r.store.GetState(mac)
 	if err != nil {
 		return versioning.Version(0), nil, err
 	}
@@ -424,10 +424,10 @@ func (r *Repository) GetState(checksum objects.MAC) (versioning.Version, io.Read
 	return version, rd, err
 }
 
-func (r *Repository) PutState(checksum objects.MAC, rd io.Reader) error {
+func (r *Repository) PutState(mac objects.MAC, rd io.Reader) error {
 	t0 := time.Now()
 	defer func() {
-		r.Logger().Trace("repository", "PutState(%x, ...): %s", checksum, time.Since(t0))
+		r.Logger().Trace("repository", "PutState(%x, ...): %s", mac, time.Since(t0))
 	}()
 
 	rd, err := r.Encode(rd)
@@ -440,16 +440,16 @@ func (r *Repository) PutState(checksum objects.MAC, rd io.Reader) error {
 		return err
 	}
 
-	return r.store.PutState(checksum, rd)
+	return r.store.PutState(mac, rd)
 }
 
-func (r *Repository) DeleteState(checksum objects.MAC) error {
+func (r *Repository) DeleteState(mac objects.MAC) error {
 	t0 := time.Now()
 	defer func() {
-		r.Logger().Trace("repository", "DeleteState(%x, ...): %s", checksum, time.Since(t0))
+		r.Logger().Trace("repository", "DeleteState(%x, ...): %s", mac, time.Since(t0))
 	}()
 
-	return r.store.DeleteState(checksum)
+	return r.store.DeleteState(mac)
 }
 
 func (r *Repository) GetPackfiles() ([]objects.MAC, error) {
@@ -461,13 +461,13 @@ func (r *Repository) GetPackfiles() ([]objects.MAC, error) {
 	return r.store.GetPackfiles()
 }
 
-func (r *Repository) GetPackfile(checksum objects.MAC) (versioning.Version, io.Reader, error) {
+func (r *Repository) GetPackfile(mac objects.MAC) (versioning.Version, io.Reader, error) {
 	t0 := time.Now()
 	defer func() {
-		r.Logger().Trace("repository", "GetPackfile(%x, ...): %s", checksum, time.Since(t0))
+		r.Logger().Trace("repository", "GetPackfile(%x, ...): %s", mac, time.Since(t0))
 	}()
 
-	rd, err := r.store.GetPackfile(checksum)
+	rd, err := r.store.GetPackfile(mac)
 	if err != nil {
 		return versioning.Version(0), nil, err
 	}
@@ -475,13 +475,13 @@ func (r *Repository) GetPackfile(checksum objects.MAC) (versioning.Version, io.R
 	return storage.Deserialize(r.GetMACHasher(), resources.RT_PACKFILE, rd)
 }
 
-func (r *Repository) GetPackfileBlob(checksum objects.MAC, offset uint64, length uint32) (io.ReadSeeker, error) {
+func (r *Repository) GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (io.ReadSeeker, error) {
 	t0 := time.Now()
 	defer func() {
-		r.Logger().Trace("repository", "GetPackfileBlob(%x, %d, %d): %s", checksum, offset, length, time.Since(t0))
+		r.Logger().Trace("repository", "GetPackfileBlob(%x, %d, %d): %s", mac, offset, length, time.Since(t0))
 	}()
 
-	rd, err := r.store.GetPackfileBlob(checksum, offset+uint64(storage.STORAGE_HEADER_SIZE), length)
+	rd, err := r.store.GetPackfileBlob(mac, offset+uint64(storage.STORAGE_HEADER_SIZE), length)
 	if err != nil {
 		return nil, err
 	}
@@ -499,43 +499,40 @@ func (r *Repository) GetPackfileBlob(checksum objects.MAC, offset uint64, length
 	return bytes.NewReader(decoded), nil
 }
 
-func (r *Repository) PutPackfile(checksum objects.MAC, rd io.Reader) error {
+func (r *Repository) PutPackfile(mac objects.MAC, rd io.Reader) error {
 	t0 := time.Now()
 	defer func() {
-		r.Logger().Trace("repository", "PutPackfile(%x, ...): %s", checksum, time.Since(t0))
+		r.Logger().Trace("repository", "PutPackfile(%x, ...): %s", mac, time.Since(t0))
 	}()
 
 	rd, err := storage.Serialize(r.GetMACHasher(), resources.RT_PACKFILE, versioning.GetCurrentVersion(resources.RT_PACKFILE), rd)
 	if err != nil {
 		return err
 	}
-	return r.store.PutPackfile(checksum, rd)
+	return r.store.PutPackfile(mac, rd)
 }
 
-func (r *Repository) DeletePackfile(checksum objects.MAC) error {
+func (r *Repository) DeletePackfile(mac objects.MAC) error {
 	t0 := time.Now()
 	defer func() {
-		r.Logger().Trace("repository", "DeletePackfile(%x): %s", checksum, time.Since(t0))
+		r.Logger().Trace("repository", "DeletePackfile(%x): %s", mac, time.Since(t0))
 	}()
 
-	return r.store.DeletePackfile(checksum)
+	return r.store.DeletePackfile(mac)
 }
 
-func (r *Repository) GetBlob(Type resources.Type, checksum objects.MAC) (io.ReadSeeker, error) {
+func (r *Repository) GetBlob(Type resources.Type, mac objects.MAC) (io.ReadSeeker, error) {
 	t0 := time.Now()
 	defer func() {
-		r.Logger().Trace("repository", "GetBlob(%s, %x): %s", Type, checksum, time.Since(t0))
+		r.Logger().Trace("repository", "GetBlob(%s, %x): %s", Type, mac, time.Since(t0))
 	}()
 
-	//if Type != resources.RT_SNAPSHOT {
-	//	checksum = r.ComputeMAC(checksum[:])
-	//}
-	packfileChecksum, offset, length, exists := r.state.GetSubpartForBlob(Type, checksum)
+	packfileMAC, offset, length, exists := r.state.GetSubpartForBlob(Type, mac)
 	if !exists {
 		return nil, ErrPackfileNotFound
 	}
 
-	rd, err := r.GetPackfileBlob(packfileChecksum, offset, length)
+	rd, err := r.GetPackfileBlob(packfileMAC, offset, length)
 	if err != nil {
 		return nil, err
 	}
@@ -543,16 +540,12 @@ func (r *Repository) GetBlob(Type resources.Type, checksum objects.MAC) (io.Read
 	return rd, nil
 }
 
-func (r *Repository) BlobExists(Type resources.Type, checksum objects.MAC) bool {
+func (r *Repository) BlobExists(Type resources.Type, mac objects.MAC) bool {
 	t0 := time.Now()
 	defer func() {
-		r.Logger().Trace("repository", "BlobExists(%s, %x): %s", Type, checksum, time.Since(t0))
+		r.Logger().Trace("repository", "BlobExists(%s, %x): %s", Type, mac, time.Since(t0))
 	}()
-
-	//if Type != resources.RT_SNAPSHOT {
-	//	checksum = r.ComputeMAC(checksum[:])
-	//}
-	return r.state.BlobExists(Type, checksum)
+	return r.state.BlobExists(Type, mac)
 }
 
 func (r *Repository) ListSnapshots() iter.Seq[objects.MAC] {
