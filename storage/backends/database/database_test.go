@@ -42,11 +42,11 @@ func TestDatabaseBackend(t *testing.T) {
 	require.NoError(t, err)
 
 	// states
-	checksum1 := objects.MAC{0x10, 0x20}
-	checksum2 := objects.MAC{0x30, 0x40}
-	err = repo.PutState(checksum1, bytes.NewReader([]byte("test1")))
+	mac1 := objects.MAC{0x10, 0x20}
+	mac2 := objects.MAC{0x30, 0x40}
+	err = repo.PutState(mac1, bytes.NewReader([]byte("test1")))
 	require.NoError(t, err)
-	err = repo.PutState(checksum2, bytes.NewReader([]byte("test2")))
+	err = repo.PutState(mac2, bytes.NewReader([]byte("test2")))
 	require.NoError(t, err)
 
 	states, err := repo.GetStates()
@@ -57,14 +57,14 @@ func TestDatabaseBackend(t *testing.T) {
 	}
 	require.Equal(t, expected, states)
 
-	rd, err := repo.GetState(checksum2)
+	rd, err := repo.GetState(mac2)
 	require.NoError(t, err)
 	buf := new(bytes.Buffer)
 	_, err = io.Copy(buf, rd)
 	require.NoError(t, err)
 	require.Equal(t, "test2", buf.String())
 
-	err = repo.DeleteState(checksum1)
+	err = repo.DeleteState(mac1)
 	require.NoError(t, err)
 
 	states, err = repo.GetStates()
@@ -73,11 +73,11 @@ func TestDatabaseBackend(t *testing.T) {
 	require.Equal(t, expected, states)
 
 	// packfiles
-	checksum3 := objects.MAC{0x50, 0x60}
-	checksum4 := objects.MAC{0x60, 0x70}
-	err = repo.PutPackfile(checksum3, bytes.NewReader([]byte("test3")))
+	mac3 := objects.MAC{0x50, 0x60}
+	mac4 := objects.MAC{0x60, 0x70}
+	err = repo.PutPackfile(mac3, bytes.NewReader([]byte("test3")))
 	require.NoError(t, err)
-	err = repo.PutPackfile(checksum4, bytes.NewReader([]byte("test4")))
+	err = repo.PutPackfile(mac4, bytes.NewReader([]byte("test4")))
 	require.NoError(t, err)
 
 	packfiles, err := repo.GetPackfiles()
@@ -88,13 +88,13 @@ func TestDatabaseBackend(t *testing.T) {
 	}
 	require.Equal(t, expected, packfiles)
 
-	rd, err = repo.GetPackfileBlob(checksum4, 0, 4)
+	rd, err = repo.GetPackfileBlob(mac4, 0, 4)
 	buf = new(bytes.Buffer)
 	_, err = io.Copy(buf, rd)
 	require.NoError(t, err)
 	require.Equal(t, "test", buf.String())
 
-	err = repo.DeletePackfile(checksum3)
+	err = repo.DeletePackfile(mac3)
 	require.NoError(t, err)
 
 	packfiles, err = repo.GetPackfiles()
@@ -102,7 +102,7 @@ func TestDatabaseBackend(t *testing.T) {
 	expected = []objects.MAC{{0x60, 0x70, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}}
 	require.Equal(t, expected, packfiles)
 
-	rd, err = repo.GetPackfile(checksum4)
+	rd, err = repo.GetPackfile(mac4)
 	buf = new(bytes.Buffer)
 	_, err = io.Copy(buf, rd)
 	require.NoError(t, err)

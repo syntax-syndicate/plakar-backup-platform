@@ -90,32 +90,32 @@ func (buckets *Buckets) List() ([]objects.MAC, error) {
 	return ret, nil
 }
 
-func (buckets *Buckets) Path(checksum objects.MAC) string {
+func (buckets *Buckets) Path(mac objects.MAC) string {
 	return filepath.Join(buckets.path,
-		fmt.Sprintf("%02x", checksum[0]),
-		fmt.Sprintf("%064x", checksum))
+		fmt.Sprintf("%02x", mac[0]),
+		fmt.Sprintf("%064x", mac))
 }
 
-func (buckets *Buckets) Get(checksum objects.MAC) (io.Reader, error) {
-	fp, err := os.Open(buckets.Path(checksum))
+func (buckets *Buckets) Get(mac objects.MAC) (io.Reader, error) {
+	fp, err := os.Open(buckets.Path(mac))
 	if err != nil {
 		return nil, err
 	}
 	return ClosingReader(fp)
 }
 
-func (buckets *Buckets) GetBlob(checksum objects.MAC, offset uint64, length uint32) (io.Reader, error) {
-	fp, err := os.Open(buckets.Path(checksum))
+func (buckets *Buckets) GetBlob(mac objects.MAC, offset uint64, length uint32) (io.Reader, error) {
+	fp, err := os.Open(buckets.Path(mac))
 	if err != nil {
 		return nil, err
 	}
 	return ClosingLimitedReaderFromOffset(fp, int64(offset), int64(length))
 }
 
-func (buckets *Buckets) Remove(checksum objects.MAC) error {
-	return os.Remove(buckets.Path(checksum))
+func (buckets *Buckets) Remove(mac objects.MAC) error {
+	return os.Remove(buckets.Path(mac))
 }
 
-func (buckets *Buckets) Put(checksum objects.MAC, rd io.Reader) error {
-	return WriteToFileAtomicTempDir(buckets.Path(checksum), rd, buckets.path)
+func (buckets *Buckets) Put(mac objects.MAC, rd io.Reader) error {
+	return WriteToFileAtomicTempDir(buckets.Path(mac), rd, buckets.path)
 }

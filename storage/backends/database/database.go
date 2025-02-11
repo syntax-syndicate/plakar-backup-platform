@@ -103,7 +103,7 @@ func (repo *Repository) Create(location string, config []byte) error {
 	statement.Exec()
 
 	statement, err = repo.conn.Prepare(`CREATE TABLE IF NOT EXISTS states (
-		checksum	VARCHAR(64) NOT NULL PRIMARY KEY,
+		mac	VARCHAR(64) NOT NULL PRIMARY KEY,
 		data		BLOB
 	);`)
 	if err != nil {
@@ -113,7 +113,7 @@ func (repo *Repository) Create(location string, config []byte) error {
 	statement.Exec()
 
 	statement, err = repo.conn.Prepare(`CREATE TABLE IF NOT EXISTS packfiles (
-		checksum	VARCHAR(64) NOT NULL PRIMARY KEY,
+		mac	VARCHAR(64) NOT NULL PRIMARY KEY,
 		data		BLOB
 	);`)
 	if err != nil {
@@ -157,40 +157,40 @@ func (repo *Repository) Close() error {
 
 // states
 func (repo *Repository) GetStates() ([]objects.MAC, error) {
-	rows, err := repo.conn.Query("SELECT checksum FROM states")
+	rows, err := repo.conn.Query("SELECT mac FROM states")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	checksums := make([]objects.MAC, 0)
+	macs := make([]objects.MAC, 0)
 	for rows.Next() {
-		var checksum []byte
-		err = rows.Scan(&checksum)
+		var mac []byte
+		err = rows.Scan(&mac)
 		if err != nil {
 			return nil, err
 		}
-		var checksum32 objects.MAC
-		copy(checksum32[:], checksum)
-		checksums = append(checksums, checksum32)
+		var mac32 objects.MAC
+		copy(mac32[:], mac)
+		macs = append(macs, mac32)
 	}
-	return checksums, nil
+	return macs, nil
 }
 
-func (repo *Repository) PutState(checksum objects.MAC, rd io.Reader) error {
+func (repo *Repository) PutState(mac objects.MAC, rd io.Reader) error {
 	data, err := io.ReadAll(rd)
 	if err != nil {
 		return err
 	}
 
-	statement, err := repo.conn.Prepare(`INSERT INTO states (checksum, data) VALUES(?, ?)`)
+	statement, err := repo.conn.Prepare(`INSERT INTO states (mac, data) VALUES(?, ?)`)
 	if err != nil {
 		return err
 	}
 	defer statement.Close()
 
 	repo.wrMutex.Lock()
-	_, err = statement.Exec(checksum[:], data)
+	_, err = statement.Exec(mac[:], data)
 	repo.wrMutex.Unlock()
 	if err != nil {
 		var sqliteErr *sqlite.Error
@@ -205,24 +205,24 @@ func (repo *Repository) PutState(checksum objects.MAC, rd io.Reader) error {
 	return nil
 }
 
-func (repo *Repository) GetState(checksum objects.MAC) (io.Reader, error) {
+func (repo *Repository) GetState(mac objects.MAC) (io.Reader, error) {
 	var data []byte
-	err := repo.conn.QueryRow(`SELECT data FROM states WHERE checksum=?`, checksum[:]).Scan(&data)
+	err := repo.conn.QueryRow(`SELECT data FROM states WHERE mac=?`, mac[:]).Scan(&data)
 	if err != nil {
 		return nil, err
 	}
 	return bytes.NewBuffer(data), nil
 }
 
-func (repo *Repository) DeleteState(checksum objects.MAC) error {
-	statement, err := repo.conn.Prepare(`DELETE FROM states WHERE checksum=?`)
+func (repo *Repository) DeleteState(mac objects.MAC) error {
+	statement, err := repo.conn.Prepare(`DELETE FROM states WHERE mac=?`)
 	if err != nil {
 		return err
 	}
 	defer statement.Close()
 
 	repo.wrMutex.Lock()
-	_, err = statement.Exec(checksum[:])
+	_, err = statement.Exec(mac[:])
 	repo.wrMutex.Unlock()
 	if err != nil {
 		// if err is that it's already present, we should discard err and assume a concurrent write
@@ -233,40 +233,40 @@ func (repo *Repository) DeleteState(checksum objects.MAC) error {
 
 // packfiles
 func (repo *Repository) GetPackfiles() ([]objects.MAC, error) {
-	rows, err := repo.conn.Query("SELECT checksum FROM packfiles")
+	rows, err := repo.conn.Query("SELECT mac FROM packfiles")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	checksums := make([]objects.MAC, 0)
+	macs := make([]objects.MAC, 0)
 	for rows.Next() {
-		var checksum []byte
-		err = rows.Scan(&checksum)
+		var mac []byte
+		err = rows.Scan(&mac)
 		if err != nil {
 			return nil, err
 		}
-		var checksum32 objects.MAC
-		copy(checksum32[:], checksum)
-		checksums = append(checksums, checksum32)
+		var mac32 objects.MAC
+		copy(mac32[:], mac)
+		macs = append(macs, mac32)
 	}
-	return checksums, nil
+	return macs, nil
 }
 
-func (repo *Repository) PutPackfile(checksum objects.MAC, rd io.Reader) error {
+func (repo *Repository) PutPackfile(mac objects.MAC, rd io.Reader) error {
 	data, err := io.ReadAll(rd)
 	if err != nil {
 		return err
 	}
 
-	statement, err := repo.conn.Prepare(`INSERT INTO packfiles (checksum, data) VALUES(?, ?)`)
+	statement, err := repo.conn.Prepare(`INSERT INTO packfiles (mac, data) VALUES(?, ?)`)
 	if err != nil {
 		return err
 	}
 	defer statement.Close()
 
 	repo.wrMutex.Lock()
-	_, err = statement.Exec(checksum[:], data)
+	_, err = statement.Exec(mac[:], data)
 	repo.wrMutex.Unlock()
 	if err != nil {
 		var sqliteErr *sqlite.Error
@@ -281,18 +281,18 @@ func (repo *Repository) PutPackfile(checksum objects.MAC, rd io.Reader) error {
 	return nil
 }
 
-func (repo *Repository) GetPackfile(checksum objects.MAC) (io.Reader, error) {
+func (repo *Repository) GetPackfile(mac objects.MAC) (io.Reader, error) {
 	var data []byte
-	err := repo.conn.QueryRow(`SELECT data FROM packfiles WHERE checksum=?`, checksum[:]).Scan(&data)
+	err := repo.conn.QueryRow(`SELECT data FROM packfiles WHERE mac=?`, mac[:]).Scan(&data)
 	if err != nil {
 		return nil, err
 	}
 	return bytes.NewReader(data), nil
 }
 
-func (repo *Repository) GetPackfileBlob(checksum objects.MAC, offset uint64, length uint32) (io.Reader, error) {
+func (repo *Repository) GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (io.Reader, error) {
 	var data []byte
-	err := repo.conn.QueryRow(`SELECT substr(data, ?, ?) FROM packfiles WHERE checksum=?`, offset+1, length, checksum[:]).Scan(&data)
+	err := repo.conn.QueryRow(`SELECT substr(data, ?, ?) FROM packfiles WHERE mac=?`, offset+1, length, mac[:]).Scan(&data)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			err = repository.ErrBlobNotFound
@@ -302,15 +302,15 @@ func (repo *Repository) GetPackfileBlob(checksum objects.MAC, offset uint64, len
 	return bytes.NewBuffer(data), nil
 }
 
-func (repo *Repository) DeletePackfile(checksum objects.MAC) error {
-	statement, err := repo.conn.Prepare(`DELETE FROM packfiles WHERE checksum=?`)
+func (repo *Repository) DeletePackfile(mac objects.MAC) error {
+	statement, err := repo.conn.Prepare(`DELETE FROM packfiles WHERE mac=?`)
 	if err != nil {
 		return err
 	}
 	defer statement.Close()
 
 	repo.wrMutex.Lock()
-	_, err = statement.Exec(checksum[:])
+	_, err = statement.Exec(mac[:])
 	repo.wrMutex.Unlock()
 	if err != nil {
 		// if err is that it's already present, we should discard err and assume a concurrent write

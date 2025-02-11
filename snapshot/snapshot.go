@@ -195,8 +195,8 @@ func (snap *Snapshot) Repository() *repository.Repository {
 	return snap.repository
 }
 
-func (snap *Snapshot) LookupObject(checksum objects.MAC) (*objects.Object, error) {
-	buffer, err := snap.GetBlob(resources.RT_OBJECT, checksum)
+func (snap *Snapshot) LookupObject(mac objects.MAC) (*objects.Object, error) {
+	buffer, err := snap.GetBlob(resources.RT_OBJECT, mac)
 	if err != nil {
 		return nil, err
 	}
