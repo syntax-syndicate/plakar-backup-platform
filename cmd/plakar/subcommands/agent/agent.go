@@ -520,6 +520,10 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			var repo *repository.Repository
 
 			if repositoryLocation != "" {
+				if repositorySecret != nil {
+					clientContext.SetSecret(repositorySecret)
+				}
+
 				store, serializedConfig, err := storage.Open(repositoryLocation)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to open storage: %s\n", err)
@@ -533,10 +537,6 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					return
 				}
 				defer repo.Close()
-			}
-
-			if repositorySecret != nil {
-				clientContext.SetSecret(repositorySecret)
 			}
 
 			eventsDone := make(chan struct{})
