@@ -5,8 +5,6 @@ import (
 	"io/fs"
 	"os"
 	"path"
-
-	"github.com/PlakarKorp/plakar/snapshot/vfs"
 )
 
 func (snapshot *Snapshot) NewReader(pathname string) (io.ReadCloser, error) {
@@ -16,7 +14,7 @@ func (snapshot *Snapshot) NewReader(pathname string) (io.ReadCloser, error) {
 func NewReader(snap *Snapshot, pathname string) (io.ReadCloser, error) {
 	pathname = path.Clean(pathname)
 
-	fsc, err := vfs.NewFilesystem(snap.Repository(), snap.Header.GetSource(0).VFS)
+	fsc, err := snap.Filesystem()
 	if err != nil {
 		return nil, err
 	}
