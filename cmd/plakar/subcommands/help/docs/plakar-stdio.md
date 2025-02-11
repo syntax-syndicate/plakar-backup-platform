@@ -43,4 +43,4 @@ The **plakar stdio** utility exits&#160;0 on success, and&#160;&gt;0 if an error
 
 plakar(1)
 
-macOS 15.2 - November 12, 2024
+Plakar - November 12, 2024

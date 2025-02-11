@@ -59,4 +59,4 @@ plakar-backup(1)
 The patterns may have to be quote to avoid the shell attempting to
 expand them.
 
-macOS 15.2 - February 1, 2025
+Plakar - February 1, 2025
