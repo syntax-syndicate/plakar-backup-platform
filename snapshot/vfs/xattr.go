@@ -19,6 +19,7 @@ func init() {
 type Xattr struct {
 	Version versioning.Version `msgpack:"version" json:"version"`
 	Name    string             `msgpack:"name" json:"name"`
+	Size    int64              `msgpack:"size" json:"size"`
 	Object  objects.Checksum   `msgpack:"object,omitempty" json:"-"`
 
 	// This the true object, resolved when opening the
@@ -27,11 +28,18 @@ type Xattr struct {
 	ResolvedObject *objects.Object `msgpack:"-" json:"object,omitempty"`
 }
 
-func NewXattr(record importer.ScanRecord, object objects.Checksum) *Xattr {
+func NewXattr(record importer.ScanRecord, object *objects.Object) *Xattr {
+	var size int64
+
+	for _, chunk := range object.Chunks {
+		size += int64(chunk.Length)
+	}
+
 	return &Xattr{
 		Version: versioning.FromString(VFS_XATTR_VERSION),
-		Name: record.FileInfo.Lname,
-		Object: object,
+		Name:    record.FileInfo.Lname,
+		Object:  object.MAC,
+		Size:    size,
 	}
 }
 

@@ -74,7 +74,7 @@ func (bc *BackupContext) recordError(path string, err error) error {
 	return e
 }
 
-func (bc *BackupContext) recordXattr(record importer.ScanRecord, object objects.Checksum) error {
+func (bc *BackupContext) recordXattr(record importer.ScanRecord, object *objects.Object) error {
 	bc.muxattridx.Lock()
 	err := bc.xattridx.Insert(record.Pathname, vfs.NewXattr(record, object))
 	bc.muxattridx.Unlock()
@@ -353,7 +353,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 
 			// xattrs are a special case
 			if record.FileInfo.ExtendedAttribute {
-				backupCtx.recordXattr(record, object.MAC)
+				backupCtx.recordXattr(record, object)
 				return
 			}
 
