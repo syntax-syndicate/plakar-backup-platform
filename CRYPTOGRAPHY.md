@@ -519,7 +519,7 @@ The encryption works as follows:
     2- it randomly generates a 256-bits subkey
     3- a subkey encryption function is called to produce an encrypted subkey block protected by the master key
     4- it prepends that encrypted prefix block to output
-    5- it then encrypts the data using the data encryption function with subkey
+    5- it then encrypts the data in chunks of 64K using the data encryption function with subkey
 
     [encrypted prefix block] [encrypted data block]
      ^^^^^^^^^^^^^^^^^^^^^^   ^^^^^^^^^^^^^^^^^^^^
@@ -533,4 +533,4 @@ The decryption works as follows:
     1- a decryption function takes a master key and an input buffer
     2- the input buffer is split into two parts: the prefix block and the data block
     3- the prefix block is decrypted so that subkey is retrieved
-    4- the data block is decrypted with the subkey, GCM integrity check validates subkey
+    4- the data block is decrypted in chunks of 64K with the subkey, GCM integrity check validates subkey
