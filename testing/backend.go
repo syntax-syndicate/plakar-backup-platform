@@ -20,43 +20,43 @@ func init() {
 }
 
 type mockedBackendBehavior struct {
-	statesChecksums    []objects.MAC
-	header             any
-	packfilesChecksums []objects.MAC
-	packfile           string
+	statesMACs    []objects.MAC
+	header        any
+	packfilesMACs []objects.MAC
+	packfile      string
 }
 
 var behaviors = map[string]mockedBackendBehavior{
 	"default": {
-		statesChecksums:    nil,
-		header:             "blob data",
-		packfilesChecksums: nil,
-		packfile:           `{"test": "data"}`,
+		statesMACs:    nil,
+		header:        "blob data",
+		packfilesMACs: nil,
+		packfile:      `{"test": "data"}`,
 	},
 	"oneState": {
-		statesChecksums:    []objects.MAC{{0x01}, {0x02}, {0x03}, {0x04}},
-		header:             header.Header{Timestamp: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC), Identifier: [32]byte{0x1}, Sources: []header.Source{{VFS: header.VFS{Root: objects.MAC{0x01}}}}},
-		packfilesChecksums: []objects.MAC{{0x04}, {0x05}, {0x06}},
+		statesMACs:    []objects.MAC{{0x01}, {0x02}, {0x03}, {0x04}},
+		header:        header.Header{Timestamp: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC), Identifier: [32]byte{0x1}, Sources: []header.Source{{VFS: header.VFS{Root: objects.MAC{0x01}}}}},
+		packfilesMACs: []objects.MAC{{0x04}, {0x05}, {0x06}},
 	},
 	"oneSnapshot": {
-		statesChecksums:    []objects.MAC{{0x01}, {0x02}, {0x03}},
-		header:             header.Header{Timestamp: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC), Identifier: [32]byte{0x1}},
-		packfilesChecksums: []objects.MAC{{0x01}, {0x04}, {0x05}, {0x06}},
+		statesMACs:    []objects.MAC{{0x01}, {0x02}, {0x03}},
+		header:        header.Header{Timestamp: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC), Identifier: [32]byte{0x1}},
+		packfilesMACs: []objects.MAC{{0x01}, {0x04}, {0x05}, {0x06}},
 	},
 	"brokenState": {
-		statesChecksums:    nil,
-		header:             nil,
-		packfilesChecksums: nil,
+		statesMACs:    nil,
+		header:        nil,
+		packfilesMACs: nil,
 	},
 	"brokenGetState": {
-		statesChecksums:    nil,
-		header:             nil,
-		packfilesChecksums: nil,
+		statesMACs:    nil,
+		header:        nil,
+		packfilesMACs: nil,
 	},
 	"nopackfile": {
-		statesChecksums:    []objects.MAC{{0x01}, {0x02}, {0x03}},
-		header:             nil,
-		packfilesChecksums: nil,
+		statesMACs:    []objects.MAC{{0x01}, {0x02}, {0x03}},
+		header:        nil,
+		packfilesMACs: nil,
 	},
 }
 
@@ -113,14 +113,14 @@ func (mb *MockBackend) GetStates() ([]objects.MAC, error) {
 	if mb.behavior == "brokenState" {
 		return ret, errors.New("broken state")
 	}
-	return behaviors[mb.behavior].statesChecksums, nil
+	return behaviors[mb.behavior].statesMACs, nil
 }
 
-func (mb *MockBackend) PutState(checksum objects.MAC, rd io.Reader) error {
+func (mb *MockBackend) PutState(MAC objects.MAC, rd io.Reader) error {
 	return nil
 }
 
-func (mb *MockBackend) GetState(checksum objects.MAC) (io.Reader, error) {
+func (mb *MockBackend) GetState(MAC objects.MAC) (io.Reader, error) {
 	if mb.behavior == "brokenGetState" {
 		return nil, errors.New("broken get state")
 	}
@@ -129,7 +129,7 @@ func (mb *MockBackend) GetState(checksum objects.MAC) (io.Reader, error) {
 	return &buffer, nil
 }
 
-func (mb *MockBackend) DeleteState(checksum objects.MAC) error {
+func (mb *MockBackend) DeleteState(MAC objects.MAC) error {
 	return nil
 }
 
@@ -138,15 +138,15 @@ func (mb *MockBackend) GetPackfiles() ([]objects.MAC, error) {
 		return nil, errors.New("broken get packfiles")
 	}
 
-	packfiles := behaviors[mb.behavior].packfilesChecksums
+	packfiles := behaviors[mb.behavior].packfilesMACs
 	return packfiles, nil
 }
 
-func (mb *MockBackend) PutPackfile(checksum objects.MAC, rd io.Reader) error {
+func (mb *MockBackend) PutPackfile(MAC objects.MAC, rd io.Reader) error {
 	return nil
 }
 
-func (mb *MockBackend) GetPackfile(checksum objects.MAC) (io.Reader, error) {
+func (mb *MockBackend) GetPackfile(MAC objects.MAC) (io.Reader, error) {
 	if mb.behavior == "brokenGetPackfile" {
 		return nil, errors.New("broken get packfile")
 	}
@@ -159,7 +159,7 @@ func (mb *MockBackend) GetPackfile(checksum objects.MAC) (io.Reader, error) {
 	return bytes.NewReader([]byte(packfile)), nil
 }
 
-func (mb *MockBackend) GetPackfileBlob(checksum objects.MAC, offset uint64, length uint32) (io.Reader, error) {
+func (mb *MockBackend) GetPackfileBlob(MAC objects.MAC, offset uint64, length uint32) (io.Reader, error) {
 	if mb.behavior == "brokenGetPackfileBlob" {
 		return nil, errors.New("broken get packfile blob")
 	}
@@ -175,7 +175,7 @@ func (mb *MockBackend) GetPackfileBlob(checksum objects.MAC, offset uint64, leng
 	return bytes.NewReader(data), nil
 }
 
-func (mb *MockBackend) DeletePackfile(checksum objects.MAC) error {
+func (mb *MockBackend) DeletePackfile(MAC objects.MAC) error {
 	return nil
 }
 
