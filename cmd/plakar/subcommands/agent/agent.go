@@ -181,8 +181,9 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 
 			mu := sync.Mutex{}
 
-			encoder := msgpack.NewEncoder(_conn)
 			var encodingErrorOccurred bool
+			encoder := msgpack.NewEncoder(_conn)
+			decoder := msgpack.NewDecoder(_conn)
 
 			// Create a context tied to the connection
 			cancelCtx, cancel := context.WithCancel(context.Background())
@@ -192,7 +193,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			clientContext.SetContext(cancelCtx)
 			defer clientContext.Close()
 
-			processStdout := func(data string) {
+			write := func(packet agent.Packet) {
 				if encodingErrorOccurred {
 					return
 				}
@@ -200,38 +201,36 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				case <-clientContext.GetContext().Done():
 					return
 				default:
-					response := agent.Packet{
-						Type: "stdout",
-						Data: []byte(data),
-					}
 					mu.Lock()
-					if err := encoder.Encode(&response); err != nil {
+					if err := encoder.Encode(&packet); err != nil {
 						encodingErrorOccurred = true
 					}
 					mu.Unlock()
 				}
 			}
+			read := func(v interface{}) (interface{}, error) {
+				if err := decoder.Decode(v); err != nil {
+					if isDisconnectError(err) {
+						handleDisconnect()
+						cancel()
+					}
+					return nil, err
+				}
+				return v, nil
+			}
+
+			processStdout := func(data string) {
+				write(agent.Packet{
+					Type: "stdout",
+					Data: []byte(data),
+				})
+			}
 
 			processStderr := func(data string) {
-				if encodingErrorOccurred {
-					return
-				}
-
-				select {
-				case <-clientContext.GetContext().Done():
-					return
-				default:
-					response := agent.Packet{
-						Type: "stderr",
-						Data: []byte(data),
-					}
-					mu.Lock()
-					if err := encoder.Encode(&response); err != nil {
-						encodingErrorOccurred = true
-					}
-					mu.Unlock()
-
-				}
+				write(agent.Packet{
+					Type: "stderr",
+					Data: []byte(data),
+				})
 			}
 
 			clientContext.Stdout = &CustomWriter{processFunc: processStdout}
@@ -240,12 +239,6 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			logger := logging.NewLogger(clientContext.Stdout, clientContext.Stderr)
 			logger.EnableInfo()
 			clientContext.SetLogger(logger)
-
-			decoder := msgpack.NewDecoder(conn)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Unable to initialize decoder\n")
-				return
-			}
 
 			name, request, err := subcommands.DecodeRPC(decoder)
 			if err != nil {
@@ -258,16 +251,10 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				return
 			}
 
-			// Monitor the connection for subsequent disconnection
+			// Attempt another decode to detect client disconnection during processing
 			go func() {
-				// Attempt another decode to detect client disconnection during processing
 				var tmp interface{}
-				if err := decoder.Decode(&tmp); err != nil {
-					if isDisconnectError(err) {
-						handleDisconnect()
-						cancel()
-					}
-				}
+				read(&tmp)
 			}()
 
 			var subcommand subcommands.RPC
@@ -549,22 +536,10 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 						return
 					}
 					// Send the event to the client
-					response := agent.Packet{
+					write(agent.Packet{
 						Type: "event",
 						Data: serialized,
-					}
-					select {
-					case <-clientContext.GetContext().Done():
-						return
-					default:
-						mu.Lock()
-						err = encoder.Encode(&response)
-						mu.Unlock()
-						if err != nil {
-							fmt.Fprintf(os.Stderr, "Failed to encode event: %s\n", err)
-							return
-						}
-					}
+					})
 				}
 				eventsDone <- struct{}{}
 			}()
@@ -574,25 +549,15 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			clientContext.Close()
 			<-eventsDone
 
-			select {
-			case <-clientContext.GetContext().Done():
-				return
-			default:
-				errStr := ""
-				if err != nil {
-					errStr = err.Error()
-				}
-				response := agent.Packet{
-					Type:     "exit",
-					ExitCode: status,
-					Err:      errStr,
-				}
-				mu.Lock()
-				if err := encoder.Encode(&response); err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to encode response: %s\n", err)
-				}
-				mu.Unlock()
+			errStr := ""
+			if err != nil {
+				errStr = err.Error()
 			}
+			write(agent.Packet{
+				Type:     "exit",
+				ExitCode: status,
+				Err:      errStr,
+			})
 
 		}(conn)
 	}
