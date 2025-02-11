@@ -2,11 +2,14 @@ package caching
 
 import (
 	"fmt"
+	"path/filepath"
 	"sync"
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/google/uuid"
 )
+
+const CACHE_VERSION = "1.0.0"
 
 type Manager struct {
 	cacheDir string
@@ -20,7 +23,7 @@ type Manager struct {
 
 func NewManager(cacheDir string) *Manager {
 	return &Manager{
-		cacheDir: cacheDir,
+		cacheDir: filepath.Join(cacheDir, CACHE_VERSION),
 
 		repositoryCache: make(map[uuid.UUID]*_RepositoryCache),
 		vfsCache:        make(map[string]*_VFSCache),
