@@ -239,7 +239,7 @@ func (fsc *Filesystem) GetEntry(path string) (*Entry, error) {
 	return fsc.lookup(path)
 }
 
-func (fsc *Filesystem) Xattr(entry *Entry, xattrName string) (*Xattr, error) {
+func (fsc *Filesystem) Xattr(entry *Entry, xattrName string) (io.ReadSeeker, error) {
 	p := fmt.Sprintf("%s:%s", entry.Path(), xattrName)
 	csum, found, err := fsc.xattrs.Find(p)
 	if err != nil {
@@ -275,7 +275,11 @@ func (fsc *Filesystem) Xattr(entry *Entry, xattrName string) (*Xattr, error) {
 	}
 
 	xattr.ResolvedObject, err = objects.NewObjectFromBytes(bytes)
-	return xattr, err
+	if err != nil {
+		return nil, err
+	}
+
+	return NewObjectReader(fsc.repo, xattr.ResolvedObject, xattr.Size), nil
 }
 
 func (fsc *Filesystem) Children(path string) (iter.Seq2[string, error], error) {
