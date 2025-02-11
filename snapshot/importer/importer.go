@@ -30,6 +30,7 @@ import (
 type ScanResult struct {
 	Record *ScanRecord
 	Error  *ScanError
+	Xattr  *ScanXattr
 }
 
 type ExtendedAttributes struct {
@@ -43,11 +44,17 @@ type ScanRecord struct {
 	FileInfo           objects.FileInfo
 	ExtendedAttributes []string
 	FileAttributes     uint32
+	IsXattr            bool
 }
 
 type ScanError struct {
 	Pathname string
 	Err      error
+}
+
+type ScanXattr struct {
+	Pathname  string
+	XattrName string
 }
 
 type Importer interface {
@@ -129,6 +136,16 @@ func NewScanRecord(pathname, target string, fileinfo objects.FileInfo, xattr []s
 			Target:             target,
 			FileInfo:           fileinfo,
 			ExtendedAttributes: xattr,
+		},
+	}
+}
+
+func NewScanXattr(pathname string, fileinfo objects.FileInfo) *ScanResult {
+	return &ScanResult{
+		Record: &ScanRecord{
+			Pathname: pathname,
+			FileInfo: fileinfo,
+			IsXattr:  true,
 		},
 	}
 }

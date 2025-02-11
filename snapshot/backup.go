@@ -144,7 +144,7 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 
 					if !record.FileInfo.Mode().IsDir() {
 						filesChannel <- record
-						if !record.FileInfo.ExtendedAttribute {
+						if !record.IsXattr {
 							atomic.AddUint64(&nFiles, +1)
 							if record.FileInfo.Mode().IsRegular() {
 								atomic.AddUint64(&size, uint64(record.FileInfo.Size()))
@@ -349,7 +349,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			}
 
 			// xattrs are a special case
-			if record.FileInfo.ExtendedAttribute {
+			if record.IsXattr {
 				backupCtx.recordXattr(record, object)
 				return
 			}
@@ -680,7 +680,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 	var rd io.ReadCloser
 	var err error
 
-	if record.FileInfo.ExtendedAttribute {
+	if record.IsXattr {
 		atoms := strings.Split(record.Pathname, ":")
 		attribute := atoms[len(atoms)-1]
 		pathname := strings.Join(atoms[:len(atoms)-1], ":")
