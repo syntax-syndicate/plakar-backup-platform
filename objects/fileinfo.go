@@ -28,6 +28,10 @@ type FileInfo struct {
 	Lnlink     uint16      `json:"nlink" msgpack:"nlink"`
 	Lusername  string      `json:"username" msgpack:"username"`   // local addition
 	Lgroupname string      `json:"groupname" msgpack:"groupname"` // local addition
+
+	// Just in case we need something special to handle special
+	// OSes.
+	Flags uint32 `json:"flags" msgpack:"flags"`
 }
 
 func (f FileInfo) Name() string {
