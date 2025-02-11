@@ -138,7 +138,7 @@ func displayChecksums(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repo
 		}
 		defer rd.Close()
 
-		hasher := hashing.GetHasher("SHA256")
+		hasher := hashing.GetHasher(repo.Configuration().Hashing.Algorithm)
 		if _, err := io.Copy(hasher, rd); err != nil {
 			return err
 		}
