@@ -30,7 +30,6 @@ import (
 type ScanResult struct {
 	Record *ScanRecord
 	Error  *ScanError
-	Xattr  *ScanXattr
 }
 
 type ExtendedAttributes struct {
@@ -50,11 +49,6 @@ type ScanRecord struct {
 type ScanError struct {
 	Pathname string
 	Err      error
-}
-
-type ScanXattr struct {
-	Pathname  string
-	XattrName string
 }
 
 type Importer interface {
