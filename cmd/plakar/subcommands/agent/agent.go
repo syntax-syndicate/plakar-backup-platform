@@ -36,10 +36,10 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/backup"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/cat"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/checksum"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/cleanup"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/clone"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/diff"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/digest"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/exec"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/info"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/locate"
@@ -372,10 +372,10 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case (&checksum.Checksum{}).Name():
+			case (&digest.Digest{}).Name():
 				var cmd struct {
 					Name       string
-					Subcommand checksum.Checksum
+					Subcommand digest.Digest
 				}
 				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
