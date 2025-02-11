@@ -32,7 +32,12 @@ func (cmd *InfoErrors) Execute(ctx *appcontext.AppContext, repo *repository.Repo
 	}
 	defer snap.Close()
 
-	errstream, err := snap.Errors(pathname)
+	fs, err := snap.Filesystem()
+	if err != nil {
+		return 1, err
+	}
+
+	errstream, err := fs.Errors(pathname)
 	if err != nil {
 		return 1, err
 	}

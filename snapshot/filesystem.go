@@ -9,7 +9,7 @@ func (s *Snapshot) Filesystem() (*vfs.Filesystem, error) {
 
 	if s.filesystem != nil {
 		return s.filesystem, nil
-	} else if fs, err := vfs.NewFilesystem(s.repository, v.Root, v.Xattrs); err != nil {
+	} else if fs, err := vfs.NewFilesystem(s.repository, v.Root, v.Xattrs, v.Errors); err != nil {
 		return nil, err
 	} else {
 		s.filesystem = fs
