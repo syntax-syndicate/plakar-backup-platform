@@ -19,8 +19,10 @@ package digest
 import (
 	"flag"
 	"fmt"
+	"hash"
 	"io"
 	"path"
+	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
@@ -37,6 +39,7 @@ func init() {
 
 func parse_cmd_digest(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	var enableFastChecksum bool
+	var opt_hashing string
 
 	flags := flag.NewFlagSet("digest", flag.ExitOnError)
 	flags.Usage = func() {
@@ -46,7 +49,7 @@ func parse_cmd_digest(ctx *appcontext.AppContext, repo *repository.Repository, a
 	}
 
 	flags.BoolVar(&enableFastChecksum, "fast", false, "enable fast digest (return recorded digest)")
-
+	flags.StringVar(&opt_hashing, "hashing", "BLAKE3", "hashing algorithm to use")
 	flags.Parse(args)
 
 	if flags.NArg() == 0 {
@@ -54,9 +57,16 @@ func parse_cmd_digest(ctx *appcontext.AppContext, repo *repository.Repository, a
 		return nil, fmt.Errorf("at least one parameter is required")
 	}
 
+	hashingFunction := strings.ToUpper(opt_hashing)
+	if hashing.GetHasher(strings.TrimPrefix(hashingFunction, "HMAC-")) == nil {
+		ctx.GetLogger().Error("%s: unsupported hashing algorithm: %s", flags.Name(), hashingFunction)
+		return nil, fmt.Errorf("unsupported hashing algorithm: %s", hashingFunction)
+	}
+
 	return &Digest{
 		RepositoryLocation: repo.Location(),
 		RepositorySecret:   ctx.GetSecret(),
+		HashingFunction:    hashingFunction,
 		Fast:               enableFastChecksum,
 		Targets:            flags.Args(),
 	}, nil
@@ -66,8 +76,9 @@ type Digest struct {
 	RepositoryLocation string
 	RepositorySecret   []byte
 
-	Fast    bool
-	Targets []string
+	HashingFunction string
+	Fast            bool
+	Targets         []string
 }
 
 func (cmd *Digest) Name() string {
@@ -97,13 +108,13 @@ func (cmd *Digest) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 			continue
 		}
 
-		displayDigests(ctx, fs, repo, snap, pathname, cmd.Fast)
+		cmd.displayDigests(ctx, fs, repo, snap, pathname, cmd.Fast)
 	}
 
 	return 0, nil
 }
 
-func displayDigests(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repository.Repository, snap *snapshot.Snapshot, pathname string, fastcheck bool) error {
+func (cmd *Digest) displayDigests(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repository.Repository, snap *snapshot.Snapshot, pathname string, fastcheck bool) error {
 	fsinfo, err := fs.GetEntry(pathname)
 	if err != nil {
 		return err
@@ -115,7 +126,7 @@ func displayDigests(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *reposi
 			return err
 		}
 		for child := range iter {
-			if err := displayDigests(ctx, fs, repo, snap, path.Join(pathname, child.Stat().Name()), fastcheck); err != nil {
+			if err := cmd.displayDigests(ctx, fs, repo, snap, path.Join(pathname, child.Stat().Name()), fastcheck); err != nil {
 				return err
 			}
 		}
@@ -138,7 +149,19 @@ func displayDigests(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *reposi
 		}
 		defer rd.Close()
 
-		hasher := hashing.GetHasher(repo.Configuration().Hashing.Algorithm)
+		var hasher hash.Hash
+
+		fmt.Println(cmd.HashingFunction)
+		if strings.HasPrefix(cmd.HashingFunction, "HMAC-") {
+			secret := repo.AppContext().GetSecret()
+			if secret == nil {
+				tmp := repo.Configuration().RepositoryID
+				secret = tmp[:]
+			}
+			hasher = hashing.GetMACHasher(strings.TrimPrefix(cmd.HashingFunction, "HMAC-"), secret)
+		} else {
+			hasher = hashing.GetHasher(repo.Configuration().Hashing.Algorithm)
+		}
 		if _, err := io.Copy(hasher, rd); err != nil {
 			return err
 		}
