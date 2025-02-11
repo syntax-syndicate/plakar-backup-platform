@@ -38,7 +38,7 @@ func init() {
 }
 
 func parse_cmd_digest(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
-	var enableFastChecksum bool
+	var opt_fastDigest bool
 	var opt_hashing string
 
 	flags := flag.NewFlagSet("digest", flag.ExitOnError)
@@ -48,7 +48,7 @@ func parse_cmd_digest(ctx *appcontext.AppContext, repo *repository.Repository, a
 		flags.PrintDefaults()
 	}
 
-	flags.BoolVar(&enableFastChecksum, "fast", false, "enable fast digest (return recorded digest)")
+	flags.BoolVar(&opt_fastDigest, "fast", false, "enable fast digest (return recorded digest)")
 	flags.StringVar(&opt_hashing, "hashing", "BLAKE3", "hashing algorithm to use")
 	flags.Parse(args)
 
@@ -67,7 +67,7 @@ func parse_cmd_digest(ctx *appcontext.AppContext, repo *repository.Repository, a
 		RepositoryLocation: repo.Location(),
 		RepositorySecret:   ctx.GetSecret(),
 		HashingFunction:    hashingFunction,
-		Fast:               enableFastChecksum,
+		Fast:               opt_fastDigest,
 		Targets:            flags.Args(),
 	}, nil
 }

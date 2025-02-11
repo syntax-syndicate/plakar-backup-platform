@@ -83,55 +83,55 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 		return 1, fmt.Errorf("could not create repository: %w", err)
 	}
 
-	packfileChecksums, err := sourceStore.GetPackfiles()
+	packfileMACs, err := sourceStore.GetPackfiles()
 	if err != nil {
 		return 1, fmt.Errorf("could not get packfiles list from repository: %w", err)
 	}
 
 	wg := sync.WaitGroup{}
-	for _, _packfileChecksum := range packfileChecksums {
+	for _, _packfileMAC := range packfileMACs {
 		wg.Add(1)
-		go func(packfileChecksum objects.MAC) {
+		go func(packfileMAC objects.MAC) {
 			defer wg.Done()
 
-			rd, err := sourceStore.GetPackfile(packfileChecksum)
+			rd, err := sourceStore.GetPackfile(packfileMAC)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "could not get packfile from repository: %s\n", err)
 				return
 			}
 
-			err = cloneStore.PutPackfile(packfileChecksum, rd)
+			err = cloneStore.PutPackfile(packfileMAC, rd)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "could not put packfile to repository: %s\n", err)
 				return
 			}
-		}(_packfileChecksum)
+		}(_packfileMAC)
 	}
 	wg.Wait()
 
-	indexesChecksums, err := sourceStore.GetStates()
+	indexesMACs, err := sourceStore.GetStates()
 	if err != nil {
 		return 1, fmt.Errorf("could not get packfiles list from repository: %w", err)
 	}
 
 	wg = sync.WaitGroup{}
-	for _, _indexChecksum := range indexesChecksums {
+	for _, _indexMAC := range indexesMACs {
 		wg.Add(1)
-		go func(indexChecksum objects.MAC) {
+		go func(indexMAC objects.MAC) {
 			defer wg.Done()
 
-			data, err := sourceStore.GetState(indexChecksum)
+			data, err := sourceStore.GetState(indexMAC)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "could not get index from repository: %s\n", err)
 				return
 			}
 
-			err = cloneStore.PutState(indexChecksum, data)
+			err = cloneStore.PutState(indexMAC, data)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "could not put packfile to repository: %s\n", err)
 				return
 			}
-		}(_indexChecksum)
+		}(_indexMAC)
 	}
 	wg.Wait()
 

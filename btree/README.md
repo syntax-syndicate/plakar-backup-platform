@@ -9,7 +9,7 @@ It doesn't even manage a cache of blocks or a freelist, these issues
 are relegated to the storage layer.
 
 A peculiar thing is that even the "pointer" type is parametrized,
-since it could be a disk sector, a checksum, or a key in a leveldb
+since it could be a disk sector, a mac, or a key in a leveldb
 cache.
 
 There is a way to "convert" one tree from one storage to another via

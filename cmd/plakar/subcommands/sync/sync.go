@@ -266,7 +266,7 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 		return err
 	}
 
-	iter, err = fs.FileChecksums()
+	iter, err = fs.FileMacs()
 	if err != nil {
 		return err
 	}
