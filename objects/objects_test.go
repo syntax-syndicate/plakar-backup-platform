@@ -44,7 +44,7 @@ func TestObjectNew(t *testing.T) {
 	require.Nil(t, object.Chunks)
 	require.Equal(t, "", object.ContentType)
 	require.Equal(t, float64(0), object.Entropy)
-	require.Equal(t, uint64(0), object.Flags)
+	require.Equal(t, uint32(0), object.Flags)
 }
 
 func _TestObjectNewFromBytes(t *testing.T) {
