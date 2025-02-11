@@ -90,9 +90,18 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 		}
 		results <- importer.ScanRecord{Pathname: unixPath, Target: originFile, FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
 		for _, attr := range extendedAttributes {
-			fileinfo.Lmode &= ^os.ModeDir
-			fileinfo.ExtendedAttribute = true
-			fileinfo.Lname = filepath.Base(pathname) + ":" + attr
+			bytes, err := xattr.Get(pathname, attr)
+			if err != nil {
+				results <- importer.ScanError{Pathname: pathname, Err: err}
+				continue
+			}
+
+			fileinfo := objects.FileInfo{
+				Lname:             filepath.Base(pathname) + ":" + attr,
+				Lsize:             int64(len(bytes)),
+				Lmode:             0,
+				ExtendedAttribute: true,
+			}
 			results <- importer.ScanRecord{Pathname: filepath.ToSlash(pathname) + ":" + attr, FileInfo: fileinfo}
 		}
 	}
