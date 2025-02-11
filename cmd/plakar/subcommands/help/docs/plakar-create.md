@@ -22,6 +22,11 @@ which defaults to
 
 The options are as follows:
 
+**-hashing** *algorithm*
+
+> Provide alternative hashing algorithm to replace the default.
+> Supported algorithms are BLAKE3 and SHA256, default is BLAKE3.
+
 **-no-encryption**
 
 > Disable transparent encryption for the repository.

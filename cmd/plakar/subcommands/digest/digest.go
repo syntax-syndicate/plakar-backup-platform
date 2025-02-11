@@ -14,13 +14,15 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-package checksum
+package digest
 
 import (
 	"flag"
 	"fmt"
+	"hash"
 	"io"
 	"path"
+	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
@@ -32,21 +34,22 @@ import (
 )
 
 func init() {
-	subcommands.Register("checksum", parse_cmd_checksum)
+	subcommands.Register("digest", parse_cmd_digest)
 }
 
-func parse_cmd_checksum(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_digest(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	var enableFastChecksum bool
+	var opt_hashing string
 
-	flags := flag.NewFlagSet("checksum", flag.ExitOnError)
+	flags := flag.NewFlagSet("digest", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] [SNAPSHOT[:PATH]]...\n", flags.Name())
 		fmt.Fprintf(flags.Output(), "\nOPTIONS:\n")
 		flags.PrintDefaults()
 	}
 
-	flags.BoolVar(&enableFastChecksum, "fast", false, "enable fast checksum (return recorded checksum)")
-
+	flags.BoolVar(&enableFastChecksum, "fast", false, "enable fast digest (return recorded digest)")
+	flags.StringVar(&opt_hashing, "hashing", "BLAKE3", "hashing algorithm to use")
 	flags.Parse(args)
 
 	if flags.NArg() == 0 {
@@ -54,30 +57,38 @@ func parse_cmd_checksum(ctx *appcontext.AppContext, repo *repository.Repository,
 		return nil, fmt.Errorf("at least one parameter is required")
 	}
 
-	return &Checksum{
+	hashingFunction := strings.ToUpper(opt_hashing)
+	if hashing.GetHasher(strings.TrimPrefix(hashingFunction, "HMAC-")) == nil {
+		ctx.GetLogger().Error("%s: unsupported hashing algorithm: %s", flags.Name(), hashingFunction)
+		return nil, fmt.Errorf("unsupported hashing algorithm: %s", hashingFunction)
+	}
+
+	return &Digest{
 		RepositoryLocation: repo.Location(),
 		RepositorySecret:   ctx.GetSecret(),
+		HashingFunction:    hashingFunction,
 		Fast:               enableFastChecksum,
 		Targets:            flags.Args(),
 	}, nil
 }
 
-type Checksum struct {
+type Digest struct {
 	RepositoryLocation string
 	RepositorySecret   []byte
 
-	Fast    bool
-	Targets []string
+	HashingFunction string
+	Fast            bool
+	Targets         []string
 }
 
-func (cmd *Checksum) Name() string {
-	return "checksum"
+func (cmd *Digest) Name() string {
+	return "digest"
 }
 
-func (cmd *Checksum) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+func (cmd *Digest) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	snapshots, err := utils.GetSnapshots(repo, cmd.Targets)
 	if err != nil {
-		ctx.GetLogger().Error("checksum: could not obtain snapshots list: %s", err)
+		ctx.GetLogger().Error("digest: could not obtain snapshots list: %s", err)
 		return 1, err
 	}
 
@@ -92,18 +103,18 @@ func (cmd *Checksum) Execute(ctx *appcontext.AppContext, repo *repository.Reposi
 
 		_, pathname := utils.ParseSnapshotID(cmd.Targets[offset])
 		if pathname == "" {
-			ctx.GetLogger().Error("checksum: missing filename for snapshot %x", snap.Header.GetIndexShortID())
+			ctx.GetLogger().Error("digest: missing filename for snapshot %x", snap.Header.GetIndexShortID())
 			errors++
 			continue
 		}
 
-		displayChecksums(ctx, fs, repo, snap, pathname, cmd.Fast)
+		cmd.displayDigests(ctx, fs, repo, snap, pathname, cmd.Fast)
 	}
 
 	return 0, nil
 }
 
-func displayChecksums(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repository.Repository, snap *snapshot.Snapshot, pathname string, fastcheck bool) error {
+func (cmd *Digest) displayDigests(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repository.Repository, snap *snapshot.Snapshot, pathname string, fastcheck bool) error {
 	fsinfo, err := fs.GetEntry(pathname)
 	if err != nil {
 		return err
@@ -115,7 +126,7 @@ func displayChecksums(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repo
 			return err
 		}
 		for child := range iter {
-			if err := displayChecksums(ctx, fs, repo, snap, path.Join(pathname, child.Stat().Name()), fastcheck); err != nil {
+			if err := cmd.displayDigests(ctx, fs, repo, snap, path.Join(pathname, child.Stat().Name()), fastcheck); err != nil {
 				return err
 			}
 		}
@@ -130,7 +141,7 @@ func displayChecksums(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repo
 		return err
 	}
 
-	checksum := []byte(object.MAC[:])
+	digest := []byte(object.MAC[:])
 	if !fastcheck {
 		rd, err := snap.NewReader(pathname)
 		if err != nil {
@@ -138,12 +149,24 @@ func displayChecksums(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repo
 		}
 		defer rd.Close()
 
-		hasher := hashing.GetHasher(repo.Configuration().Hashing.Algorithm)
+		var hasher hash.Hash
+
+		fmt.Println(cmd.HashingFunction)
+		if strings.HasPrefix(cmd.HashingFunction, "HMAC-") {
+			secret := repo.AppContext().GetSecret()
+			if secret == nil {
+				tmp := repo.Configuration().RepositoryID
+				secret = tmp[:]
+			}
+			hasher = hashing.GetMACHasher(strings.TrimPrefix(cmd.HashingFunction, "HMAC-"), secret)
+		} else {
+			hasher = hashing.GetHasher(repo.Configuration().Hashing.Algorithm)
+		}
 		if _, err := io.Copy(hasher, rd); err != nil {
 			return err
 		}
-		checksum = hasher.Sum(nil)
+		digest = hasher.Sum(nil)
 	}
-	fmt.Fprintf(ctx.Stdout, "%s (%s) = %x\n", repo.Configuration().Hashing.Algorithm, pathname, checksum)
+	fmt.Fprintf(ctx.Stdout, "%s (%s) = %x\n", repo.Configuration().Hashing.Algorithm, pathname, digest)
 	return nil
 }

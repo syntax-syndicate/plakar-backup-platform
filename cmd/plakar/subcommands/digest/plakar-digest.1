@@ -1,9 +1,9 @@
 .Dd February 3, 2025
-.Dt PLAKAR-CHECKSUM 1
+.Dt PLAKAR-DIGEST 1
 .Os
 .Sh NAME
-.Nm plakar checksum
-.Nd Calculate checksums for files in a Plakar snapshot
+.Nm plakar digest
+.Nd Calculate digests for files in a Plakar snapshot
 .Sh SYNOPSIS
 .Nm
 .Op Fl fast
@@ -11,7 +11,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-command calculates and displays checksums for specified
+command calculates and displays digests for specified
 .Ar filepath
 in a the given
 .Ar snapshotID .
@@ -20,26 +20,26 @@ Multiple
 and
 .Ar filepath
 may be given.
-By default, the command computes the checksum by reading the file
+By default, the command computes the digest by reading the file
 contents.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl fast
-Return the pre-recorded checksum for the file without re-computing it
+Return the pre-recorded digest for the file without re-computing it
 from the file contents.
 It's faster, but it does not verify the integrity against the current
 contents.
 .El
 .Sh EXAMPLES
-Calculate the checksum of a file within a snapshot:
+Calculate the digest of a file within a snapshot:
 .Bd -literal -offset indent
-$ plakar checksum abc123:/etc/passwd
+$ plakar digest abc123:/etc/passwd
 .Ed
 .Pp
-Retrieve the pre-recorded checksum for faster output:
+Retrieve the pre-recorded digest for faster output:
 .Bd -literal -offset indent
-$ plakar checksum -fast abc123:/etc/netstart
+$ plakar digest -fast abc123:/etc/netstart
 .Ed
 .Sh DIAGNOSTICS
 .Ex -std
@@ -47,7 +47,7 @@ $ plakar checksum -fast abc123:/etc/netstart
 .It 0
 Command completed successfully.
 .It >0
-An error occurred, such as failure to retrieve a file checksum or
+An error occurred, such as failure to retrieve a file digest or
 invalid snapshot ID.
 .El
 .Sh SEE ALSO
