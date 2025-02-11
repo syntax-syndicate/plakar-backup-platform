@@ -291,25 +291,6 @@ func (r *Repository) EncodeBuffer(buffer []byte) ([]byte, error) {
 	return io.ReadAll(rd)
 }
 
-//func (r *Repository) Hasher() hash.Hash {
-//	return hashing.objects.MACasher(r.Configuration().Hashing.Algorithm)
-//}
-
-//func (r *Repository) Checksum(data []byte) objects.MAC {
-//	hasher := r.Hasher()
-//	hasher.Write(data)
-//	result := hasher.Sum(nil)
-//
-//	if len(result) != 32 {
-//		panic("hasher returned invalid length")
-//	}
-//
-//	var checksum objects.MAC
-//	copy(checksum[:], result)
-//
-//	return checksum
-//}
-
 func (r *Repository) GetMACHasher() hash.Hash {
 	secret := r.AppContext().GetSecret()
 	if secret == nil {
