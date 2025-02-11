@@ -35,13 +35,13 @@ func ErrorItemFromBytes(bytes []byte) (*ErrorItem, error) {
 }
 
 func (snapshot *Snapshot) erroridx() (*btree.BTree[string, objects.Checksum, objects.Checksum], error) {
-	rd, err := snapshot.repository.GetBlob(resources.RT_BTREE, snapshot.Header.GetSource(0).Errors)
+	rd, err := snapshot.repository.GetBlob(resources.RT_ERROR_BTREE, snapshot.Header.GetSource(0).Errors)
 	if err != nil {
 		return nil, err
 	}
 
 	storage := SnapshotStore[string, objects.Checksum]{
-		blobtype: resources.RT_BTREE,
+		blobtype: resources.RT_ERROR_BTREE,
 		snap:     snapshot,
 	}
 	return btree.Deserialize(rd, &storage, strings.Compare)
