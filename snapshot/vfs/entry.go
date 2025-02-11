@@ -2,6 +2,7 @@ package vfs
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/fs"
 	"iter"
@@ -222,6 +223,49 @@ func (e *Entry) Type() fs.FileMode {
 
 func (e *Entry) Info() (fs.FileInfo, error) {
 	return e.FileInfo, nil
+}
+
+func (e *Entry) Xattr(fsc *Filesystem, xattrName string) (io.ReadSeeker, error) {
+	p := fmt.Sprintf("%s:%s", e.Path(), xattrName)
+	csum, found, err := fsc.xattrs.Find(p)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, fs.ErrNotExist
+	}
+
+	rd, err := fsc.repo.GetBlob(resources.RT_XATTR_ENTRY, csum)
+	if err != nil {
+		return nil, err
+	}
+
+	bytes, err := io.ReadAll(rd)
+	if err != nil {
+		return nil, err
+	}
+
+	xattr, err := XattrFromBytes(bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	rd, err = fsc.repo.GetBlob(resources.RT_OBJECT, xattr.Object)
+	if err != nil {
+		return nil, err
+	}
+
+	bytes, err = io.ReadAll(rd)
+	if err != nil {
+		return nil, err
+	}
+
+	xattr.ResolvedObject, err = objects.NewObjectFromBytes(bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewObjectReader(fsc.repo, xattr.ResolvedObject, xattr.Size), nil
 }
 
 // FileEntry implements fs.File, FSEntry and ReadSeeker
