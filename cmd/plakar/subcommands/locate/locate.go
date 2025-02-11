@@ -66,7 +66,7 @@ func (cmd *Locate) Name() string {
 }
 
 func (cmd *Locate) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	var snapshotIDs []objects.Checksum
+	var snapshotIDs []objects.MAC
 	if cmd.Snapshot != "" {
 		snapshotIDs = utils.LookupSnapshotByPrefix(repo, cmd.Snapshot)
 	} else {

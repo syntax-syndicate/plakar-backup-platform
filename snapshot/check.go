@@ -100,8 +100,8 @@ func snapshotCheckPath(snap *Snapshot, fsc *vfs.Filesystem, pathname string, opt
 
 				hasher.Write(data)
 
-				checksum := snap.repository.ComputeMAC(data)
-				if !bytes.Equal(checksum[:], chunk.MAC[:]) {
+				mac := snap.repository.ComputeMAC(data)
+				if !bytes.Equal(mac[:], chunk.MAC[:]) {
 					snap.Event(events.ChunkCorruptedEvent(snap.Header.Identifier, chunk.MAC))
 					complete = false
 					break

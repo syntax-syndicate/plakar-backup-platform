@@ -130,7 +130,7 @@ func displayChecksums(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repo
 		return err
 	}
 
-	checksum := object.MAC
+	checksum := []byte(object.MAC[:])
 	if !fastcheck {
 		rd, err := snap.NewReader(pathname)
 		if err != nil {
@@ -138,10 +138,11 @@ func displayChecksums(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repo
 		}
 		defer rd.Close()
 
-		hasher := hashing.GetHasher("SHA256")
+		hasher := hashing.GetHasher(repo.Configuration().Hashing.Algorithm)
 		if _, err := io.Copy(hasher, rd); err != nil {
 			return err
 		}
+		checksum = hasher.Sum(nil)
 	}
 	fmt.Fprintf(ctx.Stdout, "%s (%s) = %x\n", repo.Configuration().Hashing.Algorithm, pathname, checksum)
 	return nil

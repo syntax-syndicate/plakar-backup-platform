@@ -64,8 +64,8 @@ func (c *ScanCache) delete(prefix, key string) error {
 	return c.db.Delete([]byte(fmt.Sprintf("%s:%s", prefix, key)), nil)
 }
 
-func (c *ScanCache) getObjects(keyPrefix string) iter.Seq2[objects.Checksum, []byte] {
-	return func(yield func(objects.Checksum, []byte) bool) {
+func (c *ScanCache) getObjects(keyPrefix string) iter.Seq2[objects.MAC, []byte] {
+	return func(yield func(objects.MAC, []byte) bool) {
 		iter := c.db.NewIterator(nil, nil)
 		defer iter.Release()
 
@@ -80,7 +80,7 @@ func (c *ScanCache) getObjects(keyPrefix string) iter.Seq2[objects.Checksum, []b
 			hex_csum := string(key[bytes.LastIndexByte(key, byte(':'))+1:])
 			csum, _ := hex.DecodeString(hex_csum)
 
-			if !yield(objects.Checksum(csum), iter.Value()) {
+			if !yield(objects.MAC(csum), iter.Value()) {
 				return
 			}
 		}
@@ -111,30 +111,30 @@ func (c *ScanCache) GetDirectory(directory string) ([]byte, error) {
 	return c.get("__directory__", directory)
 }
 
-func (c *ScanCache) PutChecksum(pathname string, checksum objects.Checksum) error {
+func (c *ScanCache) PutMAC(pathname string, mac objects.MAC) error {
 	pathname = strings.TrimSuffix(pathname, "/")
 	if pathname == "" {
 		pathname = "/"
 	}
-	return c.put("__checksum__", pathname, checksum[:])
+	return c.put("__mac__", pathname, mac[:])
 }
 
-func (c *ScanCache) GetChecksum(pathname string) (objects.Checksum, error) {
+func (c *ScanCache) GetMAC(pathname string) (objects.MAC, error) {
 	pathname = strings.TrimSuffix(pathname, "/")
 	if pathname == "" {
 		pathname = "/"
 	}
 
-	data, err := c.get("__checksum__", pathname)
+	data, err := c.get("__mac__", pathname)
 	if err != nil {
-		return objects.Checksum{}, err
+		return objects.MAC{}, err
 	}
 
 	if len(data) != 32 {
-		return objects.Checksum{}, fmt.Errorf("invalid checksum length: %d", len(data))
+		return objects.MAC{}, fmt.Errorf("invalid MAC length: %d", len(data))
 	}
 
-	return objects.Checksum(data), nil
+	return objects.MAC(data), nil
 }
 
 func (c *ScanCache) PutSummary(pathname string, data []byte) error {
@@ -155,35 +155,35 @@ func (c *ScanCache) GetSummary(pathname string) ([]byte, error) {
 	return c.get("__summary__", pathname)
 }
 
-func (c *ScanCache) PutState(stateID objects.Checksum, data []byte) error {
+func (c *ScanCache) PutState(stateID objects.MAC, data []byte) error {
 	return c.put("__state__", fmt.Sprintf("%x", stateID), data)
 }
 
-func (c *ScanCache) HasState(stateID objects.Checksum) (bool, error) {
+func (c *ScanCache) HasState(stateID objects.MAC) (bool, error) {
 	panic("HasState should never be used on the ScanCache backend")
 }
 
-func (c *ScanCache) GetState(stateID objects.Checksum) ([]byte, error) {
+func (c *ScanCache) GetState(stateID objects.MAC) ([]byte, error) {
 	panic("GetState should never be used on the ScanCache backend")
 }
 
-func (c *ScanCache) GetStates() (map[objects.Checksum][]byte, error) {
+func (c *ScanCache) GetStates() (map[objects.MAC][]byte, error) {
 	panic("GetStates should never be used on the ScanCache backend")
 }
 
-func (c *ScanCache) DelState(stateID objects.Checksum) error {
+func (c *ScanCache) DelState(stateID objects.MAC) error {
 	panic("DelStates should never be used on the ScanCache backend")
 }
 
-func (c *ScanCache) GetDelta(blobType resources.Type, blobCsum objects.Checksum) ([]byte, error) {
+func (c *ScanCache) GetDelta(blobType resources.Type, blobCsum objects.MAC) ([]byte, error) {
 	return c.get("__delta__", fmt.Sprintf("%d:%x", blobType, blobCsum))
 }
 
-func (c *ScanCache) HasDelta(blobType resources.Type, blobCsum objects.Checksum) (bool, error) {
+func (c *ScanCache) HasDelta(blobType resources.Type, blobCsum objects.MAC) (bool, error) {
 	return c.has("__delta__", fmt.Sprintf("%d:%x", blobType, blobCsum))
 }
 
-func (c *ScanCache) GetDeltaByCsum(blobCsum objects.Checksum) ([]byte, error) {
+func (c *ScanCache) GetDeltaByCsum(blobCsum objects.MAC) ([]byte, error) {
 	for typ := resources.RT_SNAPSHOT; typ <= resources.RT_ERROR_ENTRY; typ++ {
 		ret, err := c.GetDelta(typ, blobCsum)
 
@@ -199,12 +199,12 @@ func (c *ScanCache) GetDeltaByCsum(blobCsum objects.Checksum) ([]byte, error) {
 	return nil, nil
 }
 
-func (c *ScanCache) PutDelta(blobType resources.Type, blobCsum objects.Checksum, data []byte) error {
+func (c *ScanCache) PutDelta(blobType resources.Type, blobCsum objects.MAC, data []byte) error {
 	return c.put("__delta__", fmt.Sprintf("%d:%x", blobType, blobCsum), data)
 }
 
-func (c *ScanCache) GetDeltasByType(blobType resources.Type) iter.Seq2[objects.Checksum, []byte] {
-	return func(yield func(objects.Checksum, []byte) bool) {
+func (c *ScanCache) GetDeltasByType(blobType resources.Type) iter.Seq2[objects.MAC, []byte] {
+	return func(yield func(objects.MAC, []byte) bool) {
 		iter := c.db.NewIterator(nil, nil)
 		defer iter.Release()
 
@@ -220,38 +220,38 @@ func (c *ScanCache) GetDeltasByType(blobType resources.Type) iter.Seq2[objects.C
 			hex_csum := string(key[bytes.LastIndexByte(key, byte(':'))+1:])
 			csum, _ := hex.DecodeString(hex_csum)
 
-			if !yield(objects.Checksum(csum), iter.Value()) {
+			if !yield(objects.MAC(csum), iter.Value()) {
 				return
 			}
 		}
 	}
 }
 
-func (c *ScanCache) GetDeltas() iter.Seq2[objects.Checksum, []byte] {
+func (c *ScanCache) GetDeltas() iter.Seq2[objects.MAC, []byte] {
 	return c.getObjects("__delta__:")
 }
 
-func (c *ScanCache) PutDeleted(blobType resources.Type, blobCsum objects.Checksum, data []byte) error {
+func (c *ScanCache) PutDeleted(blobType resources.Type, blobCsum objects.MAC, data []byte) error {
 	return c.put("__deleted__", fmt.Sprintf("%d:%x", blobType, blobCsum), data)
 }
 
-func (c *ScanCache) HasDeleted(blobType resources.Type, blobCsum objects.Checksum) (bool, error) {
+func (c *ScanCache) HasDeleted(blobType resources.Type, blobCsum objects.MAC) (bool, error) {
 	return c.has("__deleted__", fmt.Sprintf("%d:%x", blobType, blobCsum))
 }
 
-func (c *ScanCache) GetDeleteds() iter.Seq2[objects.Checksum, []byte] {
+func (c *ScanCache) GetDeleteds() iter.Seq2[objects.MAC, []byte] {
 	return c.getObjects("__deleted__:")
 }
 
-func (c *ScanCache) PutPackfile(stateID, packfile objects.Checksum, data []byte) error {
+func (c *ScanCache) PutPackfile(stateID, packfile objects.MAC, data []byte) error {
 	return c.put("__packfile__", fmt.Sprintf("%x:%x", stateID, packfile), data)
 }
 
-func (c *ScanCache) GetPackfiles() iter.Seq2[objects.Checksum, []byte] {
+func (c *ScanCache) GetPackfiles() iter.Seq2[objects.MAC, []byte] {
 	return c.getObjects("__packfile__:")
 }
 
-func (c *ScanCache) GetPackfilesForState(stateID objects.Checksum) iter.Seq2[objects.Checksum, []byte] {
+func (c *ScanCache) GetPackfilesForState(stateID objects.MAC) iter.Seq2[objects.MAC, []byte] {
 	return c.getObjects(fmt.Sprintf("__packfile__:%x", stateID))
 }
 

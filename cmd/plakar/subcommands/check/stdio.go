@@ -21,18 +21,18 @@ func eventsProcessorStdio(ctx *appcontext.AppContext, quiet bool) chan struct{} 
 			case events.FileMissing:
 				ctx.GetLogger().Warn("%x: %s %s: missing file", event.SnapshotID[:4], crossMark, event.Pathname)
 			case events.ObjectMissing:
-				ctx.GetLogger().Warn("%x: %s %x: missing object", event.SnapshotID[:4], crossMark, event.Checksum)
+				ctx.GetLogger().Warn("%x: %s %x: missing object", event.SnapshotID[:4], crossMark, event.MAC)
 			case events.ChunkMissing:
-				ctx.GetLogger().Warn("%x: %s %x: missing chunk", event.SnapshotID[:4], crossMark, event.Checksum)
+				ctx.GetLogger().Warn("%x: %s %x: missing chunk", event.SnapshotID[:4], crossMark, event.MAC)
 
 			case events.DirectoryCorrupted:
 				ctx.GetLogger().Warn("%x: %s %s: corrupted directory", event.SnapshotID[:4], crossMark, event.Pathname)
 			case events.FileCorrupted:
 				ctx.GetLogger().Warn("%x: %s %s: corrupted file", event.SnapshotID[:4], crossMark, event.Pathname)
 			case events.ObjectCorrupted:
-				ctx.GetLogger().Warn("%x: %s %x: corrupted object", event.SnapshotID[:4], crossMark, event.Checksum)
+				ctx.GetLogger().Warn("%x: %s %x: corrupted object", event.SnapshotID[:4], crossMark, event.MAC)
 			case events.ChunkCorrupted:
-				ctx.GetLogger().Warn("%x: %s %x: corrupted chunk", event.SnapshotID[:4], crossMark, event.Checksum)
+				ctx.GetLogger().Warn("%x: %s %x: corrupted chunk", event.SnapshotID[:4], crossMark, event.MAC)
 
 			case events.DirectoryOK:
 				if !quiet {

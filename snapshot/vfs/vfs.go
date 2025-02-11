@@ -40,9 +40,9 @@ type CustomMetadata struct {
 }
 
 type Filesystem struct {
-	tree   *btree.BTree[string, objects.Checksum, objects.Checksum]
-	xattrs *btree.BTree[string, objects.Checksum, objects.Checksum]
-	errors *btree.BTree[string, objects.Checksum, objects.Checksum]
+	tree   *btree.BTree[string, objects.MAC, objects.MAC]
+	xattrs *btree.BTree[string, objects.MAC, objects.MAC]
+	errors *btree.BTree[string, objects.MAC, objects.MAC]
 	repo   *repository.Repository
 }
 
@@ -69,13 +69,13 @@ func isEntryBelow(parent, entry string) bool {
 	return true
 }
 
-func NewFilesystem(repo *repository.Repository, root, xattrs, errors objects.Checksum) (*Filesystem, error) {
+func NewFilesystem(repo *repository.Repository, root, xattrs, errors objects.MAC) (*Filesystem, error) {
 	rd, err := repo.GetBlob(resources.RT_VFS_BTREE, root)
 	if err != nil {
 		return nil, err
 	}
 
-	fsstore := repository.NewRepositoryStore[string, objects.Checksum](repo, resources.RT_VFS_BTREE)
+	fsstore := repository.NewRepositoryStore[string, objects.MAC](repo, resources.RT_VFS_BTREE)
 	tree, err := btree.Deserialize(rd, fsstore, PathCmp)
 	if err != nil {
 		return nil, err
@@ -86,7 +86,7 @@ func NewFilesystem(repo *repository.Repository, root, xattrs, errors objects.Che
 		return nil, err
 	}
 
-	xstore := repository.NewRepositoryStore[string, objects.Checksum](repo, resources.RT_XATTR_BTREE)
+	xstore := repository.NewRepositoryStore[string, objects.MAC](repo, resources.RT_XATTR_BTREE)
 	xtree, err := btree.Deserialize(rd, xstore, strings.Compare)
 	if err != nil {
 		return nil, err
@@ -97,7 +97,7 @@ func NewFilesystem(repo *repository.Repository, root, xattrs, errors objects.Che
 		return nil, err
 	}
 
-	errstore := repository.NewRepositoryStore[string, objects.Checksum](repo, resources.RT_ERROR_BTREE)
+	errstore := repository.NewRepositoryStore[string, objects.MAC](repo, resources.RT_ERROR_BTREE)
 	errtree, err := btree.Deserialize(rd, errstore, strings.Compare)
 	if err != nil {
 		return nil, err
@@ -134,7 +134,7 @@ func (fsc *Filesystem) lookup(entrypath string) (*Entry, error) {
 	return fsc.ResolveEntry(csum)
 }
 
-func (fsc *Filesystem) ResolveEntry(csum objects.Checksum) (*Entry, error) {
+func (fsc *Filesystem) ResolveEntry(csum objects.MAC) (*Entry, error) {
 	rd, err := fsc.repo.GetBlob(resources.RT_VFS_ENTRY, csum)
 	if err != nil {
 		return nil, err
@@ -279,25 +279,25 @@ func (fsc *Filesystem) Children(path string) (iter.Seq2[string, error], error) {
 	}, nil
 }
 
-func (fsc *Filesystem) IterNodes() btree.Iterator[objects.Checksum, *btree.Node[string, objects.Checksum, objects.Checksum]] {
+func (fsc *Filesystem) IterNodes() btree.Iterator[objects.MAC, *btree.Node[string, objects.MAC, objects.MAC]] {
 	return fsc.tree.IterDFS()
 }
 
-func (fsc *Filesystem) XattrNodes() btree.Iterator[objects.Checksum, *btree.Node[string, objects.Checksum, objects.Checksum]] {
+func (fsc *Filesystem) XattrNodes() btree.Iterator[objects.MAC, *btree.Node[string, objects.MAC, objects.MAC]] {
 	return fsc.xattrs.IterDFS()
 }
 
-func (fsc *Filesystem) FileChecksums() (iter.Seq2[objects.Checksum, error], error) {
+func (fsc *Filesystem) FileChecksums() (iter.Seq2[objects.MAC, error], error) {
 	iter, err := fsc.tree.ScanAll()
 	if err != nil {
 		return nil, err
 	}
 
-	return func(yield func(objects.Checksum, error) bool) {
+	return func(yield func(objects.MAC, error) bool) {
 		for iter.Next() {
 			_, csum := iter.Current()
 			if err != nil {
-				yield(objects.Checksum{}, err)
+				yield(objects.MAC{}, err)
 				return
 			}
 			if !yield(csum, nil) {
@@ -305,7 +305,7 @@ func (fsc *Filesystem) FileChecksums() (iter.Seq2[objects.Checksum, error], erro
 			}
 		}
 		if err := iter.Err(); err != nil {
-			yield(objects.Checksum{}, err)
+			yield(objects.MAC{}, err)
 			return
 		}
 	}, nil

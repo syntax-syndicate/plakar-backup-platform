@@ -58,13 +58,17 @@ func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, a
 	}
 
 	flags.BoolVar(&opt_allowweak, "weak-passphrase", false, "allow weak passphrase to protect the repository")
-	flags.StringVar(&opt_hashing, "hashing", "SHA256", "hashing algorithm to use for checksums")
+	flags.StringVar(&opt_hashing, "hashing", "BLAKE3", "hashing algorithm to use for digests")
 	flags.BoolVar(&opt_noencryption, "no-encryption", false, "disable transparent encryption")
 	flags.BoolVar(&opt_nocompression, "no-compression", false, "disable transparent compression")
 	flags.Parse(args)
 
 	if flags.NArg() > 1 {
 		return nil, fmt.Errorf("%s: too many parameters", flag.CommandLine.Name())
+	}
+
+	if hashing.GetHasher(strings.ToUpper(opt_hashing)) == nil {
+		return nil, fmt.Errorf("%s: unknown hashing algorithm", flag.CommandLine.Name())
 	}
 
 	return &Create{

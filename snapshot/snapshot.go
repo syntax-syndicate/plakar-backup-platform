@@ -43,7 +43,7 @@ type Snapshot struct {
 }
 
 func New(repo *repository.Repository) (*Snapshot, error) {
-	var identifier objects.Checksum
+	var identifier objects.MAC
 
 	n, err := rand.Read(identifier[:])
 	if err != nil {
@@ -92,7 +92,7 @@ func New(repo *repository.Repository) (*Snapshot, error) {
 	return snap, nil
 }
 
-func Load(repo *repository.Repository, Identifier objects.Checksum) (*Snapshot, error) {
+func Load(repo *repository.Repository, Identifier objects.MAC) (*Snapshot, error) {
 	hdr, _, err := GetSnapshot(repo, Identifier)
 	if err != nil {
 		return nil, err
@@ -106,7 +106,7 @@ func Load(repo *repository.Repository, Identifier objects.Checksum) (*Snapshot, 
 	return snapshot, nil
 }
 
-func Clone(repo *repository.Repository, Identifier objects.Checksum) (*Snapshot, error) {
+func Clone(repo *repository.Repository, Identifier objects.MAC) (*Snapshot, error) {
 	snap, err := Load(repo, Identifier)
 	if err != nil {
 		return nil, err
@@ -127,8 +127,8 @@ func Clone(repo *repository.Repository, Identifier objects.Checksum) (*Snapshot,
 	return snap, nil
 }
 
-func Fork(repo *repository.Repository, Identifier objects.Checksum) (*Snapshot, error) {
-	var identifier objects.Checksum
+func Fork(repo *repository.Repository, Identifier objects.MAC) (*Snapshot, error) {
+	var identifier objects.MAC
 
 	n, err := rand.Read(identifier[:])
 	if err != nil {
@@ -167,7 +167,7 @@ func (snap *Snapshot) Event(evt events.Event) {
 	snap.AppContext().Events().Send(evt)
 }
 
-func GetSnapshot(repo *repository.Repository, Identifier objects.Checksum) (*header.Header, bool, error) {
+func GetSnapshot(repo *repository.Repository, Identifier objects.MAC) (*header.Header, bool, error) {
 	repo.Logger().Trace("snapshot", "repository.GetSnapshot(%x)", Identifier)
 
 	rd, err := repo.GetBlob(resources.RT_SNAPSHOT, Identifier)
@@ -195,28 +195,28 @@ func (snap *Snapshot) Repository() *repository.Repository {
 	return snap.repository
 }
 
-func (snap *Snapshot) LookupObject(checksum objects.Checksum) (*objects.Object, error) {
-	buffer, err := snap.GetBlob(resources.RT_OBJECT, checksum)
+func (snap *Snapshot) LookupObject(mac objects.MAC) (*objects.Object, error) {
+	buffer, err := snap.GetBlob(resources.RT_OBJECT, mac)
 	if err != nil {
 		return nil, err
 	}
 	return objects.NewObjectFromBytes(buffer)
 }
 
-func (snap *Snapshot) ListChunks() (iter.Seq2[objects.Checksum, error], error) {
+func (snap *Snapshot) ListChunks() (iter.Seq2[objects.MAC, error], error) {
 	fs, err := snap.Filesystem()
 	if err != nil {
 		return nil, err
 	}
-	return func(yield func(objects.Checksum, error) bool) {
+	return func(yield func(objects.MAC, error) bool) {
 		for filename, err := range fs.Files() {
 			if err != nil {
-				yield(objects.Checksum{}, err)
+				yield(objects.MAC{}, err)
 				return
 			}
 			fsentry, err := fs.GetEntry(filename)
 			if err != nil {
-				yield(objects.Checksum{}, err)
+				yield(objects.MAC{}, err)
 				return
 			}
 			if fsentry.ResolvedObject == nil {
@@ -231,20 +231,20 @@ func (snap *Snapshot) ListChunks() (iter.Seq2[objects.Checksum, error], error) {
 	}, nil
 }
 
-func (snap *Snapshot) ListObjects() (iter.Seq2[objects.Checksum, error], error) {
+func (snap *Snapshot) ListObjects() (iter.Seq2[objects.MAC, error], error) {
 	fs, err := snap.Filesystem()
 	if err != nil {
 		return nil, err
 	}
-	return func(yield func(objects.Checksum, error) bool) {
+	return func(yield func(objects.MAC, error) bool) {
 		for filename, err := range fs.Files() {
 			if err != nil {
-				yield(objects.Checksum{}, err)
+				yield(objects.MAC{}, err)
 				return
 			}
 			fsentry, err := fs.GetEntry(filename)
 			if err != nil {
-				yield(objects.Checksum{}, err)
+				yield(objects.MAC{}, err)
 				return
 			}
 			if fsentry.ResolvedObject == nil {

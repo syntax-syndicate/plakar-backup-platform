@@ -28,7 +28,7 @@ func (snap *Snapshot) Verify() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	serializedHdrChecksum := snap.repository.ComputeMAC(serializedHdr)
+	serializedHdrmac := snap.repository.ComputeMAC(serializedHdr)
 
-	return ed25519.Verify(snap.Header.Identity.PublicKey, serializedHdrChecksum[:], signature), nil
+	return ed25519.Verify(snap.Header.Identity.PublicKey, serializedHdrmac[:], signature), nil
 }

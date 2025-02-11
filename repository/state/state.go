@@ -54,7 +54,7 @@ type Metadata struct {
 }
 
 type Location struct {
-	Packfile objects.Checksum
+	Packfile objects.MAC
 	Offset   uint64
 	Length   uint32
 }
@@ -64,7 +64,7 @@ const LocationSerializedSize = 32 + 8 + 4
 type DeltaEntry struct {
 	Type     resources.Type
 	Version  versioning.Version
-	Blob     objects.Checksum
+	Blob     objects.MAC
 	Location Location
 }
 
@@ -72,15 +72,15 @@ const DeltaEntrySerializedSize = 1 + 4 + 32 + LocationSerializedSize
 
 type DeletedEntry struct {
 	Type resources.Type
-	Blob objects.Checksum
+	Blob objects.MAC
 	When time.Time
 }
 
 const DeletedEntrySerializedSize = 1 + 32 + 8
 
 type PackfileEntry struct {
-	Packfile  objects.Checksum
-	StateID   objects.Checksum
+	Packfile  objects.MAC
+	StateID   objects.MAC
 	Timestamp time.Time
 }
 
@@ -139,7 +139,7 @@ func (ls *LocalState) Derive(cache caching.StateCache) *LocalState {
 // Finds the latest (current) serial in the aggregate state, and if none sets
 // it to the provided one.
 func (ls *LocalState) UpdateSerialOr(serial uuid.UUID) error {
-	var latestID *objects.Checksum = nil
+	var latestID *objects.MAC = nil
 	var latestMT *Metadata = nil
 
 	states, err := ls.cache.GetStates()
@@ -170,7 +170,7 @@ func (ls *LocalState) UpdateSerialOr(serial uuid.UUID) error {
 }
 
 /* Insert the state denotated by stateID and its associated delta entries read from rd */
-func (ls *LocalState) InsertState(version versioning.Version, stateID objects.Checksum, rd io.Reader) error {
+func (ls *LocalState) InsertState(version versioning.Version, stateID objects.MAC, rd io.Reader) error {
 	has, err := ls.HasState(stateID)
 	if err != nil {
 		return err
@@ -294,7 +294,7 @@ func DeltaEntryFromBytes(buf []byte) (de DeltaEntry, err error) {
 	if err != nil {
 		return
 	}
-	if n < len(objects.Checksum{}) {
+	if n < len(objects.MAC{}) {
 		return de, fmt.Errorf("Short read while deserializing delta entry")
 	}
 
@@ -302,7 +302,7 @@ func DeltaEntryFromBytes(buf []byte) (de DeltaEntry, err error) {
 	if err != nil {
 		return
 	}
-	if n < len(objects.Checksum{}) {
+	if n < len(objects.MAC{}) {
 		return de, fmt.Errorf("Short read while deserializing delta entry")
 	}
 
@@ -339,7 +339,7 @@ func PackfileEntryFromBytes(buf []byte) (pe PackfileEntry, err error) {
 	if err != nil {
 		return
 	}
-	if n < len(objects.Checksum{}) {
+	if n < len(objects.MAC{}) {
 		return pe, fmt.Errorf("Short read while deserializing packfile entry")
 	}
 
@@ -347,7 +347,7 @@ func PackfileEntryFromBytes(buf []byte) (pe PackfileEntry, err error) {
 	if err != nil {
 		return
 	}
-	if n < len(objects.Checksum{}) {
+	if n < len(objects.MAC{}) {
 		return pe, fmt.Errorf("Short read while deserializing packfile entry")
 	}
 
@@ -384,7 +384,7 @@ func DeletedEntryFromBytes(buf []byte) (de DeletedEntry, err error) {
 	if err != nil {
 		return
 	}
-	if n < len(objects.Checksum{}) {
+	if n < len(objects.MAC{}) {
 		return de, fmt.Errorf("Short read while deserializing deleted entry")
 	}
 
@@ -525,11 +525,11 @@ func (ls *LocalState) deserializeFromStream(r io.Reader) error {
 	return nil
 }
 
-func (ls *LocalState) HasState(stateID objects.Checksum) (bool, error) {
+func (ls *LocalState) HasState(stateID objects.MAC) (bool, error) {
 	return ls.cache.HasState(stateID)
 }
 
-func (ls *LocalState) DelState(stateID objects.Checksum) error {
+func (ls *LocalState) DelState(stateID objects.MAC) error {
 	return ls.cache.DelState(stateID)
 }
 
@@ -537,23 +537,23 @@ func (ls *LocalState) PutDelta(de DeltaEntry) error {
 	return ls.cache.PutDelta(de.Type, de.Blob, de.ToBytes())
 }
 
-func (ls *LocalState) BlobExists(Type resources.Type, blobChecksum objects.Checksum) bool {
+func (ls *LocalState) BlobExists(Type resources.Type, blobChecksum objects.MAC) bool {
 	has, _ := ls.cache.HasDelta(Type, blobChecksum)
 	return has
 }
 
-func (ls *LocalState) GetSubpartForBlob(Type resources.Type, blobChecksum objects.Checksum) (objects.Checksum, uint64, uint32, bool) {
+func (ls *LocalState) GetSubpartForBlob(Type resources.Type, blobChecksum objects.MAC) (objects.MAC, uint64, uint32, bool) {
 	/* XXX: We treat an error as missing data. Checking calling code I assume it's safe .. */
 	delta, _ := ls.cache.GetDelta(Type, blobChecksum)
 	if delta == nil {
-		return objects.Checksum{}, 0, 0, false
+		return objects.MAC{}, 0, 0, false
 	} else {
 		de, _ := DeltaEntryFromBytes(delta)
 		return de.Location.Packfile, de.Location.Offset, de.Location.Length, true
 	}
 }
 
-func (ls *LocalState) PutPackfile(stateId, packfile objects.Checksum) error {
+func (ls *LocalState) PutPackfile(stateId, packfile objects.MAC) error {
 	pe := PackfileEntry{
 		StateID:   stateId,
 		Packfile:  packfile,
@@ -563,8 +563,8 @@ func (ls *LocalState) PutPackfile(stateId, packfile objects.Checksum) error {
 	return ls.cache.PutPackfile(pe.StateID, pe.Packfile, pe.ToBytes())
 }
 
-func (ls *LocalState) ListPackfiles(stateId objects.Checksum) iter.Seq[objects.Checksum] {
-	return func(yield func(objects.Checksum) bool) {
+func (ls *LocalState) ListPackfiles(stateId objects.MAC) iter.Seq[objects.MAC] {
+	return func(yield func(objects.MAC) bool) {
 		for st, _ := range ls.cache.GetPackfilesForState(stateId) {
 			if !yield(st) {
 				return
@@ -573,8 +573,8 @@ func (ls *LocalState) ListPackfiles(stateId objects.Checksum) iter.Seq[objects.C
 	}
 }
 
-func (ls *LocalState) ListSnapshots() iter.Seq[objects.Checksum] {
-	return func(yield func(objects.Checksum) bool) {
+func (ls *LocalState) ListSnapshots() iter.Seq[objects.MAC] {
+	return func(yield func(objects.MAC) bool) {
 		for csum, _ := range ls.cache.GetDeltasByType(resources.RT_SNAPSHOT) {
 			if has, _ := ls.cache.HasDeleted(resources.RT_SNAPSHOT, csum); has {
 				continue
@@ -600,7 +600,7 @@ func (ls *LocalState) ListObjectsOfType(Type resources.Type) iter.Seq2[DeltaEntr
 
 }
 
-func (ls *LocalState) DeleteSnapshot(snapshotID objects.Checksum) error {
+func (ls *LocalState) DeleteSnapshot(snapshotID objects.MAC) error {
 	de := DeletedEntry{
 		Type: resources.RT_SNAPSHOT,
 		Blob: snapshotID,

@@ -48,8 +48,8 @@ func (buckets *Buckets) Create() error {
 	return nil
 }
 
-func (buckets *Buckets) List() ([]objects.Checksum, error) {
-	ret := make([]objects.Checksum, 0)
+func (buckets *Buckets) List() ([]objects.MAC, error) {
+	ret := make([]objects.MAC, 0)
 
 	bucketsDir, err := os.ReadDir(buckets.path)
 	if err != nil {
@@ -82,7 +82,7 @@ func (buckets *Buckets) List() ([]objects.Checksum, error) {
 			if len(t) != 32 {
 				continue
 			}
-			var t32 objects.Checksum
+			var t32 objects.MAC
 			copy(t32[:], t)
 			ret = append(ret, t32)
 		}
@@ -90,32 +90,32 @@ func (buckets *Buckets) List() ([]objects.Checksum, error) {
 	return ret, nil
 }
 
-func (buckets *Buckets) Path(checksum objects.Checksum) string {
+func (buckets *Buckets) Path(mac objects.MAC) string {
 	return filepath.Join(buckets.path,
-		fmt.Sprintf("%02x", checksum[0]),
-		fmt.Sprintf("%064x", checksum))
+		fmt.Sprintf("%02x", mac[0]),
+		fmt.Sprintf("%064x", mac))
 }
 
-func (buckets *Buckets) Get(checksum objects.Checksum) (io.Reader, error) {
-	fp, err := os.Open(buckets.Path(checksum))
+func (buckets *Buckets) Get(mac objects.MAC) (io.Reader, error) {
+	fp, err := os.Open(buckets.Path(mac))
 	if err != nil {
 		return nil, err
 	}
 	return ClosingReader(fp)
 }
 
-func (buckets *Buckets) GetBlob(checksum objects.Checksum, offset uint64, length uint32) (io.Reader, error) {
-	fp, err := os.Open(buckets.Path(checksum))
+func (buckets *Buckets) GetBlob(mac objects.MAC, offset uint64, length uint32) (io.Reader, error) {
+	fp, err := os.Open(buckets.Path(mac))
 	if err != nil {
 		return nil, err
 	}
 	return ClosingLimitedReaderFromOffset(fp, int64(offset), int64(length))
 }
 
-func (buckets *Buckets) Remove(checksum objects.Checksum) error {
-	return os.Remove(buckets.Path(checksum))
+func (buckets *Buckets) Remove(mac objects.MAC) error {
+	return os.Remove(buckets.Path(mac))
 }
 
-func (buckets *Buckets) Put(checksum objects.Checksum, rd io.Reader) error {
-	return WriteToFileAtomicTempDir(buckets.Path(checksum), rd, buckets.path)
+func (buckets *Buckets) Put(mac objects.MAC, rd io.Reader) error {
+	return WriteToFileAtomicTempDir(buckets.Path(mac), rd, buckets.path)
 }

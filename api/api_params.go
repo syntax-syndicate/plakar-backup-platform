@@ -12,18 +12,18 @@ import (
 )
 
 // Parse a URL parameter with the format "snapshotID:path".
-func SnapshotPathParam(r *http.Request, repo *repository.Repository, param string) (objects.Checksum, string, error) {
+func SnapshotPathParam(r *http.Request, repo *repository.Repository, param string) (objects.MAC, string, error) {
 	idstr, path := utils.ParseSnapshotID(r.PathValue(param))
 
 	if idstr == "" {
-		return objects.Checksum{}, "", parameterError(param, MissingArgument, ErrMissingField)
+		return objects.MAC{}, "", parameterError(param, MissingArgument, ErrMissingField)
 	}
 
-	checksum, err := utils.LocateSnapshotByPrefix(repo, idstr)
+	mac, err := utils.LocateSnapshotByPrefix(repo, idstr)
 	if err != nil {
-		return objects.Checksum{}, "", parameterError(param, InvalidArgument, err)
+		return objects.MAC{}, "", parameterError(param, InvalidArgument, err)
 	}
-	return checksum, path, nil
+	return mac, path, nil
 }
 
 func PathParamToID(r *http.Request, param string) (id [32]byte, err error) {

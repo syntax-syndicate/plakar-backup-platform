@@ -148,8 +148,8 @@ func (repository *Repository) Close() error {
 }
 
 // states
-func (repository *Repository) GetStates() ([]objects.Checksum, error) {
-	ret := make([]objects.Checksum, 0)
+func (repository *Repository) GetStates() ([]objects.MAC, error) {
+	ret := make([]objects.MAC, 0)
 	for object := range repository.minioClient.ListObjects(context.Background(), repository.bucketName, minio.ListObjectsOptions{
 		Prefix:    "states/",
 		Recursive: true,
@@ -162,7 +162,7 @@ func (repository *Repository) GetStates() ([]objects.Checksum, error) {
 			if len(t) != 32 {
 				continue
 			}
-			var t32 objects.Checksum
+			var t32 objects.MAC
 			copy(t32[:], t)
 			ret = append(ret, t32)
 		}
@@ -170,16 +170,16 @@ func (repository *Repository) GetStates() ([]objects.Checksum, error) {
 	return ret, nil
 }
 
-func (repository *Repository) PutState(checksum objects.Checksum, rd io.Reader) error {
-	_, err := repository.minioClient.PutObject(context.Background(), repository.bucketName, fmt.Sprintf("states/%02x/%016x", checksum[0], checksum), rd, -1, minio.PutObjectOptions{})
+func (repository *Repository) PutState(mac objects.MAC, rd io.Reader) error {
+	_, err := repository.minioClient.PutObject(context.Background(), repository.bucketName, fmt.Sprintf("states/%02x/%016x", mac[0], mac), rd, -1, minio.PutObjectOptions{})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (repository *Repository) GetState(checksum objects.Checksum) (io.Reader, error) {
-	object, err := repository.minioClient.GetObject(context.Background(), repository.bucketName, fmt.Sprintf("states/%02x/%016x", checksum[0], checksum), minio.GetObjectOptions{})
+func (repository *Repository) GetState(mac objects.MAC) (io.Reader, error) {
+	object, err := repository.minioClient.GetObject(context.Background(), repository.bucketName, fmt.Sprintf("states/%02x/%016x", mac[0], mac), minio.GetObjectOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -187,8 +187,8 @@ func (repository *Repository) GetState(checksum objects.Checksum) (io.Reader, er
 	return object, nil
 }
 
-func (repository *Repository) DeleteState(checksum objects.Checksum) error {
-	err := repository.minioClient.RemoveObject(context.Background(), repository.bucketName, fmt.Sprintf("states/%02x/%016x", checksum[0], checksum), minio.RemoveObjectOptions{})
+func (repository *Repository) DeleteState(mac objects.MAC) error {
+	err := repository.minioClient.RemoveObject(context.Background(), repository.bucketName, fmt.Sprintf("states/%02x/%016x", mac[0], mac), minio.RemoveObjectOptions{})
 	if err != nil {
 		return err
 	}
@@ -196,8 +196,8 @@ func (repository *Repository) DeleteState(checksum objects.Checksum) error {
 }
 
 // packfiles
-func (repository *Repository) GetPackfiles() ([]objects.Checksum, error) {
-	ret := make([]objects.Checksum, 0)
+func (repository *Repository) GetPackfiles() ([]objects.MAC, error) {
+	ret := make([]objects.MAC, 0)
 	for object := range repository.minioClient.ListObjects(context.Background(), repository.bucketName, minio.ListObjectsOptions{
 		Prefix:    "packfiles/",
 		Recursive: true,
@@ -210,7 +210,7 @@ func (repository *Repository) GetPackfiles() ([]objects.Checksum, error) {
 			if len(t) != 32 {
 				continue
 			}
-			var t32 objects.Checksum
+			var t32 objects.MAC
 			copy(t32[:], t)
 			ret = append(ret, t32)
 		}
@@ -218,26 +218,26 @@ func (repository *Repository) GetPackfiles() ([]objects.Checksum, error) {
 	return ret, nil
 }
 
-func (repository *Repository) PutPackfile(checksum objects.Checksum, rd io.Reader) error {
-	_, err := repository.minioClient.PutObject(context.Background(), repository.bucketName, fmt.Sprintf("packfiles/%02x/%016x", checksum[0], checksum), rd, -1, minio.PutObjectOptions{})
+func (repository *Repository) PutPackfile(mac objects.MAC, rd io.Reader) error {
+	_, err := repository.minioClient.PutObject(context.Background(), repository.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), rd, -1, minio.PutObjectOptions{})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (repository *Repository) GetPackfile(checksum objects.Checksum) (io.Reader, error) {
-	object, err := repository.minioClient.GetObject(context.Background(), repository.bucketName, fmt.Sprintf("packfiles/%02x/%016x", checksum[0], checksum), minio.GetObjectOptions{})
+func (repository *Repository) GetPackfile(mac objects.MAC) (io.Reader, error) {
+	object, err := repository.minioClient.GetObject(context.Background(), repository.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), minio.GetObjectOptions{})
 	if err != nil {
 		return nil, err
 	}
 	return object, nil
 }
 
-func (repository *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint64, length uint32) (io.Reader, error) {
+func (repository *Repository) GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (io.Reader, error) {
 	opts := minio.GetObjectOptions{}
 	opts.SetRange(int64(offset), int64(offset+uint64(length)))
-	object, err := repository.minioClient.GetObject(context.Background(), repository.bucketName, fmt.Sprintf("packfiles/%02x/%016x", checksum[0], checksum), opts)
+	object, err := repository.minioClient.GetObject(context.Background(), repository.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -264,8 +264,8 @@ func (repository *Repository) GetPackfileBlob(checksum objects.Checksum, offset 
 	return bytes.NewBuffer(buffer), nil
 }
 
-func (repository *Repository) DeletePackfile(checksum objects.Checksum) error {
-	err := repository.minioClient.RemoveObject(context.Background(), repository.bucketName, fmt.Sprintf("packfiles/%02x/%016x", checksum[0], checksum), minio.RemoveObjectOptions{})
+func (repository *Repository) DeletePackfile(mac objects.MAC) error {
+	err := repository.minioClient.RemoveObject(context.Background(), repository.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), minio.RemoveObjectOptions{})
 	if err != nil {
 		return err
 	}

@@ -154,8 +154,8 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 
 	_ = syncSnapshotID
 
-	srcSnapshotsMap := make(map[objects.Checksum]struct{})
-	dstSnapshotsMap := make(map[objects.Checksum]struct{})
+	srcSnapshotsMap := make(map[objects.MAC]struct{})
+	dstSnapshotsMap := make(map[objects.MAC]struct{})
 
 	for _, snapshotID := range srcSnapshots {
 		srcSnapshotsMap[snapshotID] = struct{}{}
@@ -165,7 +165,7 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		dstSnapshotsMap[snapshotID] = struct{}{}
 	}
 
-	srcSyncList := make([]objects.Checksum, 0)
+	srcSyncList := make([]objects.MAC, 0)
 	for snapshotID := range srcSnapshotsMap {
 		if syncSnapshotID != "" {
 			hexSnapshotID := hex.EncodeToString(snapshotID[:])
@@ -188,7 +188,7 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	}
 
 	if direction == "with" {
-		dstSyncList := make([]objects.Checksum, 0)
+		dstSyncList := make([]objects.MAC, 0)
 		for snapshotID := range dstSnapshotsMap {
 			if syncSnapshotID != "" {
 				hexSnapshotID := hex.EncodeToString(snapshotID[:])
@@ -211,7 +211,7 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	return 0, nil
 }
 
-func synchronize(srcRepository *repository.Repository, dstRepository *repository.Repository, snapshotID objects.Checksum) error {
+func synchronize(srcRepository *repository.Repository, dstRepository *repository.Repository, snapshotID objects.MAC) error {
 	srcSnapshot, err := snapshot.Load(srcRepository, snapshotID)
 	if err != nil {
 		return err

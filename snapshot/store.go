@@ -20,42 +20,42 @@ type SnapshotStore[K any, V any] struct {
 	snap     *Snapshot
 }
 
-func (s *SnapshotStore[K, V]) Get(sum objects.Checksum) (*btree.Node[K, objects.Checksum, V], error) {
+func (s *SnapshotStore[K, V]) Get(sum objects.MAC) (*btree.Node[K, objects.MAC, V], error) {
 	bytes, err := s.snap.GetBlob(s.blobtype, sum)
 	if err != nil {
 		return nil, err
 	}
-	node := &btree.Node[K, objects.Checksum, V]{}
+	node := &btree.Node[K, objects.MAC, V]{}
 	err = msgpack.Unmarshal(bytes, node)
 	return node, err
 }
 
-func (s *SnapshotStore[K, V]) Update(sum objects.Checksum, node *btree.Node[K, objects.Checksum, V]) error {
+func (s *SnapshotStore[K, V]) Update(sum objects.MAC, node *btree.Node[K, objects.MAC, V]) error {
 	return ErrReadOnly
 }
 
-func (s *SnapshotStore[K, V]) Put(node *btree.Node[K, objects.Checksum, V]) (objects.Checksum, error) {
+func (s *SnapshotStore[K, V]) Put(node *btree.Node[K, objects.MAC, V]) (objects.MAC, error) {
 	if s.readonly {
-		return objects.Checksum{}, ErrReadOnly
+		return objects.MAC{}, ErrReadOnly
 	}
 
 	bytes, err := msgpack.Marshal(node)
 	if err != nil {
-		return objects.Checksum{}, err
+		return objects.MAC{}, err
 	}
 
 	sum := s.snap.repository.ComputeMAC(bytes)
 	if !s.snap.BlobExists(s.blobtype, sum) {
 		if err = s.snap.PutBlob(s.blobtype, sum, bytes); err != nil {
-			return objects.Checksum{}, err
+			return objects.MAC{}, err
 		}
 	}
 	return sum, nil
 }
 
 // persistIndex saves a btree[K, P, V] index to the snapshot.  The
-// pointer type P is converted to a checksum.
-func persistIndex[K, P, VA, VB any](snap *Snapshot, tree *btree.BTree[K, P, VA], t resources.Type, conv func(VA) (VB, error)) (csum objects.Checksum, err error) {
+// pointer type P is converted to a MAC.
+func persistIndex[K, P, VA, VB any](snap *Snapshot, tree *btree.BTree[K, P, VA], t resources.Type, conv func(VA) (VB, error)) (csum objects.MAC, err error) {
 	root, err := btree.Persist(tree, &SnapshotStore[K, VB]{
 		readonly: false,
 		blobtype: t,
@@ -65,7 +65,7 @@ func persistIndex[K, P, VA, VB any](snap *Snapshot, tree *btree.BTree[K, P, VA],
 		return
 	}
 
-	bytes, err := msgpack.Marshal(&btree.BTree[K, objects.Checksum, VB]{
+	bytes, err := msgpack.Marshal(&btree.BTree[K, objects.MAC, VB]{
 		Order: tree.Order,
 		Root:  root,
 	})

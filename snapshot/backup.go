@@ -279,7 +279,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			var object *objects.Object
 
 			var cachedFileEntry *vfs.Entry
-			var cachedFileEntryChecksum objects.Checksum
+			var cachedFileEntryMAC objects.MAC
 
 			// Check if the file entry and underlying objects are already in the cache
 			if data, err := vfsCache.GetFilename(record.Pathname); err != nil {
@@ -289,7 +289,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 				if err != nil {
 					snap.Logger().Warn("VFS CACHE: Error unmarshaling filename: %v", err)
 				} else {
-					cachedFileEntryChecksum = snap.repository.ComputeMAC(data)
+					cachedFileEntryMAC = snap.repository.ComputeMAC(data)
 					if cachedFileEntry.Stat().Equal(&record.FileInfo) {
 						fileEntry = cachedFileEntry
 						if fileEntry.FileInfo.Mode().IsRegular() {
@@ -352,9 +352,9 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 				return
 			}
 
-			var fileEntryChecksum objects.Checksum
-			if fileEntry != nil && snap.BlobExists(resources.RT_VFS_ENTRY, cachedFileEntryChecksum) {
-				fileEntryChecksum = cachedFileEntryChecksum
+			var fileEntryMAC objects.MAC
+			if fileEntry != nil && snap.BlobExists(resources.RT_VFS_ENTRY, cachedFileEntryMAC) {
+				fileEntryMAC = cachedFileEntryMAC
 			} else {
 				fileEntry = vfs.NewEntry(path.Dir(record.Pathname), &record)
 				if object != nil {
@@ -372,8 +372,8 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 					return
 				}
 
-				fileEntryChecksum = snap.repository.ComputeMAC(serialized)
-				err = snap.PutBlob(resources.RT_VFS_ENTRY, fileEntryChecksum, serialized)
+				fileEntryMAC = snap.repository.ComputeMAC(serialized)
+				err = snap.PutBlob(resources.RT_VFS_ENTRY, fileEntryMAC, serialized)
 				if err != nil {
 					backupCtx.recordError(record.Pathname, err)
 					return
@@ -416,8 +416,8 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 				return
 			}
 
-			// Record the checksum of the FileEntry in the cache
-			err = snap.scanCache.PutChecksum(record.Pathname, fileEntryChecksum)
+			// Record the MAC of the FileEntry in the cache
+			err = snap.scanCache.PutMAC(record.Pathname, fileEntryMAC)
 			if err != nil {
 				backupCtx.recordError(record.Pathname, err)
 				return
@@ -427,7 +427,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	}
 	scannerWg.Wait()
 
-	errcsum, err := persistIndex(snap, backupCtx.erridx, resources.RT_ERROR_BTREE, func(e *vfs.ErrorItem) (csum objects.Checksum, err error) {
+	errcsum, err := persistIndex(snap, backupCtx.erridx, resources.RT_ERROR_BTREE, func(e *vfs.ErrorItem) (csum objects.MAC, err error) {
 		serialized, err := e.ToBytes()
 		if err != nil {
 			return
@@ -577,7 +577,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		}
 	}
 
-	rootcsum, err := persistIndex(snap, fileidx, resources.RT_VFS_BTREE, func(entry *vfs.Entry) (csum objects.Checksum, err error) {
+	rootcsum, err := persistIndex(snap, fileidx, resources.RT_VFS_BTREE, func(entry *vfs.Entry) (csum objects.MAC, err error) {
 		serialized, err := entry.ToBytes()
 		if err != nil {
 			return
@@ -592,7 +592,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		return err
 	}
 
-	xattrcsum, err := persistIndex(snap, backupCtx.xattridx, resources.RT_XATTR_BTREE, func(xattr *vfs.Xattr) (csum objects.Checksum, err error) {
+	xattrcsum, err := persistIndex(snap, backupCtx.xattridx, resources.RT_XATTR_BTREE, func(xattr *vfs.Xattr) (csum objects.MAC, err error) {
 		serialized, err := xattr.ToBytes()
 		if err != nil {
 			return
@@ -616,7 +616,6 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		Xattrs: xattrcsum,
 		Errors: errcsum,
 	}
-	//snap.Header.Metadata = metadataChecksum
 	snap.Header.Duration = time.Since(beginTime)
 	snap.Header.GetSource(0).Summary = *rootSummary
 
@@ -700,7 +699,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 
 	var firstChunk = true
 	var cdcOffset uint64
-	var object_t32 objects.Checksum
+	var object_t32 objects.MAC
 
 	var totalEntropy float64
 	var totalFreq [256]float64
@@ -708,7 +707,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 
 	// Helper function to process a chunk
 	processChunk := func(data []byte) error {
-		var chunk_t32 objects.Checksum
+		var chunk_t32 objects.MAC
 		chunkHasher := snap.repository.GetMACHasher()
 
 		if firstChunk {
@@ -829,10 +828,10 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 	binary.LittleEndian.PutUint32(encryptedFooterLength, uint32(len(encryptedFooter)))
 	serializedPackfile = append(serializedPackfile, encryptedFooterLength...)
 
-	checksum := snap.repository.ComputeMAC(serializedPackfile)
+	mac := snap.repository.ComputeMAC(serializedPackfile)
 
-	repo.Logger().Trace("snapshot", "%x: PutPackfile(%x, ...)", snap.Header.GetIndexShortID(), checksum)
-	err = snap.repository.PutPackfile(checksum, bytes.NewBuffer(serializedPackfile))
+	repo.Logger().Trace("snapshot", "%x: PutPackfile(%x, ...)", snap.Header.GetIndexShortID(), mac)
+	err = snap.repository.PutPackfile(mac, bytes.NewBuffer(serializedPackfile))
 	if err != nil {
 		panic("could not write pack file")
 	}
@@ -846,7 +845,7 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 						Version: packer.Packfile.Index[idx].Version,
 						Blob:    blobMAC,
 						Location: state.Location{
-							Packfile: checksum,
+							Packfile: mac,
 							Offset:   packer.Packfile.Index[idx].Offset,
 							Length:   packer.Packfile.Index[idx].Length,
 						},
@@ -862,7 +861,7 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 		}
 	}
 
-	if err := snap.deltaState.PutPackfile(snap.Header.Identifier, checksum); err != nil {
+	if err := snap.deltaState.PutPackfile(snap.Header.Identifier, mac); err != nil {
 		return err
 	}
 
@@ -878,8 +877,8 @@ func (snap *Snapshot) Commit() error {
 	}
 
 	if kp := snap.AppContext().Keypair; kp != nil {
-		serializedHdrChecksum := snap.repository.ComputeMAC(serializedHdr)
-		signature := kp.Sign(serializedHdrChecksum[:])
+		serializedHdrMAC := snap.repository.ComputeMAC(serializedHdr)
+		signature := kp.Sign(serializedHdrMAC[:])
 		if err := snap.PutBlob(resources.RT_SIGNATURE, snap.Header.Identifier, signature); err != nil {
 			return err
 		}

@@ -91,7 +91,7 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 	wg := sync.WaitGroup{}
 	for _, _packfileChecksum := range packfileChecksums {
 		wg.Add(1)
-		go func(packfileChecksum objects.Checksum) {
+		go func(packfileChecksum objects.MAC) {
 			defer wg.Done()
 
 			rd, err := sourceStore.GetPackfile(packfileChecksum)
@@ -117,7 +117,7 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 	wg = sync.WaitGroup{}
 	for _, _indexChecksum := range indexesChecksums {
 		wg.Add(1)
-		go func(indexChecksum objects.Checksum) {
+		go func(indexChecksum objects.MAC) {
 			defer wg.Done()
 
 			data, err := sourceStore.GetState(indexChecksum)

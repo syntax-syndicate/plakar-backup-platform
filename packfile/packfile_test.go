@@ -111,8 +111,8 @@ func TestPackFileSerializeIndex(t *testing.T) {
 	// Define some sample chunks
 	chunk1 := []byte("This is chunk number 1")
 	chunk2 := []byte("This is chunk number 2")
-	checksum1 := objects.Checksum{1} // Mock checksum for chunk1
-	checksum2 := objects.Checksum{2} // Mock checksum for chunk2
+	checksum1 := objects.MAC{1} // Mock checksum for chunk1
+	checksum2 := objects.MAC{2} // Mock checksum for chunk2
 
 	// Test AddBlob
 	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), checksum1, chunk1)

@@ -58,56 +58,56 @@ func (repository *Repository) Close() error {
 }
 
 // snapshots
-func (repository *Repository) GetSnapshots() ([]objects.Checksum, error) {
-	return []objects.Checksum{}, nil
+func (repository *Repository) GetSnapshots() ([]objects.MAC, error) {
+	return []objects.MAC{}, nil
 }
 
-func (repository *Repository) PutSnapshot(snapshotID objects.Checksum, data []byte) error {
+func (repository *Repository) PutSnapshot(snapshotID objects.MAC, data []byte) error {
 	return nil
 }
 
-func (repository *Repository) GetSnapshot(snapshotID objects.Checksum) ([]byte, error) {
+func (repository *Repository) GetSnapshot(snapshotID objects.MAC) ([]byte, error) {
 	return []byte{}, nil
 }
 
-func (repository *Repository) DeleteSnapshot(snapshotID objects.Checksum) error {
+func (repository *Repository) DeleteSnapshot(snapshotID objects.MAC) error {
 	return nil
 }
 
 // states
-func (repository *Repository) GetStates() ([]objects.Checksum, error) {
-	return []objects.Checksum{}, nil
+func (repository *Repository) GetStates() ([]objects.MAC, error) {
+	return []objects.MAC{}, nil
 }
 
-func (repository *Repository) PutState(checksum objects.Checksum, rd io.Reader) error {
+func (repository *Repository) PutState(mac objects.MAC, rd io.Reader) error {
 	return nil
 }
 
-func (repository *Repository) GetState(checksum objects.Checksum) (io.Reader, error) {
+func (repository *Repository) GetState(mac objects.MAC) (io.Reader, error) {
 	return bytes.NewBuffer([]byte{}), nil
 }
 
-func (repository *Repository) DeleteState(checksum objects.Checksum) error {
+func (repository *Repository) DeleteState(mac objects.MAC) error {
 	return nil
 }
 
 // packfiles
-func (repository *Repository) GetPackfiles() ([]objects.Checksum, error) {
-	return []objects.Checksum{}, nil
+func (repository *Repository) GetPackfiles() ([]objects.MAC, error) {
+	return []objects.MAC{}, nil
 }
 
-func (repository *Repository) PutPackfile(checksum objects.Checksum, rd io.Reader) error {
+func (repository *Repository) PutPackfile(mac objects.MAC, rd io.Reader) error {
 	return nil
 }
 
-func (repository *Repository) GetPackfile(checksum objects.Checksum) (io.Reader, error) {
+func (repository *Repository) GetPackfile(mac objects.MAC) (io.Reader, error) {
 	return bytes.NewBuffer([]byte{}), nil
 }
 
-func (repository *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint64, length uint32) (io.Reader, error) {
+func (repository *Repository) GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (io.Reader, error) {
 	return bytes.NewBuffer([]byte{}), nil
 }
 
-func (repository *Repository) DeletePackfile(checksum objects.Checksum) error {
+func (repository *Repository) DeletePackfile(mac objects.MAC) error {
 	return nil
 }

@@ -19,9 +19,9 @@ func storageStates(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	items := Items[objects.Checksum]{
+	items := Items[objects.MAC]{
 		Total: len(states),
-		Items: make([]objects.Checksum, len(states)),
+		Items: make([]objects.MAC, len(states)),
 	}
 	for i, state := range states {
 		items.Items[i] = state
@@ -53,9 +53,9 @@ func storagePackfiles(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	items := Items[objects.Checksum]{
+	items := Items[objects.MAC]{
 		Total: len(packfiles),
-		Items: make([]objects.Checksum, len(packfiles)),
+		Items: make([]objects.MAC, len(packfiles)),
 	}
 	for i, packfile := range packfiles {
 		items.Items[i] = packfile

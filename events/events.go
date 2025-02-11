@@ -369,11 +369,11 @@ type Object struct {
 	Timestamp time.Time
 
 	SnapshotID [32]byte
-	Checksum   [32]byte
+	MAC        [32]byte
 }
 
-func ObjectEvent(snapshotID [32]byte, checksum [32]byte) Object {
-	return Object{Timestamp: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
+func ObjectEvent(snapshotID [32]byte, mac [32]byte) Object {
+	return Object{Timestamp: time.Now(), SnapshotID: snapshotID, MAC: mac}
 }
 
 /**/
@@ -381,11 +381,11 @@ type Chunk struct {
 	Timestamp time.Time
 
 	SnapshotID [32]byte
-	Checksum   [32]byte
+	MAC        [32]byte
 }
 
-func ChunkEvent(snapshotID [32]byte, checksum [32]byte) Chunk {
-	return Chunk{Timestamp: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
+func ChunkEvent(snapshotID [32]byte, mac [32]byte) Chunk {
+	return Chunk{Timestamp: time.Now(), SnapshotID: snapshotID, MAC: mac}
 }
 
 /**/
@@ -492,11 +492,11 @@ type ObjectOK struct {
 	Timestamp time.Time
 
 	SnapshotID [32]byte
-	Checksum   [32]byte
+	MAC        [32]byte
 }
 
-func ObjectOKEvent(snapshotID [32]byte, checksum [32]byte) ObjectOK {
-	return ObjectOK{Timestamp: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
+func ObjectOKEvent(snapshotID [32]byte, mac [32]byte) ObjectOK {
+	return ObjectOK{Timestamp: time.Now(), SnapshotID: snapshotID, MAC: mac}
 }
 
 /**/
@@ -504,11 +504,11 @@ type ObjectMissing struct {
 	Timestamp time.Time
 
 	SnapshotID [32]byte
-	Checksum   [32]byte
+	MAC        [32]byte
 }
 
-func ObjectMissingEvent(snapshotID [32]byte, checksum [32]byte) ObjectMissing {
-	return ObjectMissing{Timestamp: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
+func ObjectMissingEvent(snapshotID [32]byte, mac [32]byte) ObjectMissing {
+	return ObjectMissing{Timestamp: time.Now(), SnapshotID: snapshotID, MAC: mac}
 }
 
 /**/
@@ -516,11 +516,11 @@ type ObjectCorrupted struct {
 	Timestamp time.Time
 
 	SnapshotID [32]byte
-	Checksum   [32]byte
+	MAC        [32]byte
 }
 
-func ObjectCorruptedEvent(snapshotID [32]byte, checksum [32]byte) ObjectCorrupted {
-	return ObjectCorrupted{Timestamp: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
+func ObjectCorruptedEvent(snapshotID [32]byte, mac [32]byte) ObjectCorrupted {
+	return ObjectCorrupted{Timestamp: time.Now(), SnapshotID: snapshotID, MAC: mac}
 }
 
 /**/
@@ -528,11 +528,11 @@ type ChunkOK struct {
 	Timestamp time.Time
 
 	SnapshotID [32]byte
-	Checksum   [32]byte
+	MAC        [32]byte
 }
 
-func ChunkOKEvent(snapshotID [32]byte, checksum [32]byte) ChunkOK {
-	return ChunkOK{Timestamp: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
+func ChunkOKEvent(snapshotID [32]byte, mac [32]byte) ChunkOK {
+	return ChunkOK{Timestamp: time.Now(), SnapshotID: snapshotID, MAC: mac}
 }
 
 /**/
@@ -540,11 +540,11 @@ type ChunkMissing struct {
 	Timestamp time.Time
 
 	SnapshotID [32]byte
-	Checksum   [32]byte
+	MAC        [32]byte
 }
 
-func ChunkMissingEvent(snapshotID [32]byte, checksum [32]byte) ChunkMissing {
-	return ChunkMissing{Timestamp: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
+func ChunkMissingEvent(snapshotID [32]byte, mac [32]byte) ChunkMissing {
+	return ChunkMissing{Timestamp: time.Now(), SnapshotID: snapshotID, MAC: mac}
 }
 
 /**/
@@ -552,11 +552,11 @@ type ChunkCorrupted struct {
 	Timestamp time.Time
 
 	SnapshotID [32]byte
-	Checksum   [32]byte
+	MAC        [32]byte
 }
 
-func ChunkCorruptedEvent(snapshotID [32]byte, checksum [32]byte) ChunkCorrupted {
-	return ChunkCorrupted{Timestamp: time.Now(), SnapshotID: snapshotID, Checksum: checksum}
+func ChunkCorruptedEvent(snapshotID [32]byte, mac [32]byte) ChunkCorrupted {
+	return ChunkCorrupted{Timestamp: time.Now(), SnapshotID: snapshotID, MAC: mac}
 }
 
 /**/

@@ -56,8 +56,8 @@ func (c *_RepositoryCache) get(prefix, key string) ([]byte, error) {
 	return data, nil
 }
 
-func (c *_RepositoryCache) getObjects(keyPrefix string) iter.Seq2[objects.Checksum, []byte] {
-	return func(yield func(objects.Checksum, []byte) bool) {
+func (c *_RepositoryCache) getObjects(keyPrefix string) iter.Seq2[objects.MAC, []byte] {
+	return func(yield func(objects.MAC, []byte) bool) {
 		iter := c.db.NewIterator(nil, nil)
 		defer iter.Release()
 
@@ -72,7 +72,7 @@ func (c *_RepositoryCache) getObjects(keyPrefix string) iter.Seq2[objects.Checks
 			hex_csum := string(key[bytes.LastIndexByte(key, byte(':'))+1:])
 			csum, _ := hex.DecodeString(hex_csum)
 
-			if !yield(objects.Checksum(csum), iter.Value()) {
+			if !yield(objects.MAC(csum), iter.Value()) {
 				return
 			}
 		}
@@ -83,24 +83,24 @@ func (c *_RepositoryCache) delete(prefix, key string) error {
 	return c.db.Delete([]byte(fmt.Sprintf("%s:%s", prefix, key)), nil)
 }
 
-func (c *_RepositoryCache) PutState(stateID objects.Checksum, data []byte) error {
+func (c *_RepositoryCache) PutState(stateID objects.MAC, data []byte) error {
 	return c.put("__state__", fmt.Sprintf("%x", stateID), data)
 }
 
-func (c *_RepositoryCache) HasState(stateID objects.Checksum) (bool, error) {
+func (c *_RepositoryCache) HasState(stateID objects.MAC) (bool, error) {
 	return c.has("__state__", fmt.Sprintf("%x", stateID))
 }
 
-func (c *_RepositoryCache) GetState(stateID objects.Checksum) ([]byte, error) {
+func (c *_RepositoryCache) GetState(stateID objects.MAC) ([]byte, error) {
 	return c.get("__state__", fmt.Sprintf("%x", stateID))
 }
 
-func (c *_RepositoryCache) DelState(stateID objects.Checksum) error {
+func (c *_RepositoryCache) DelState(stateID objects.MAC) error {
 	return c.delete("__state__", fmt.Sprintf("%x", stateID))
 }
 
-func (c *_RepositoryCache) GetStates() (map[objects.Checksum][]byte, error) {
-	ret := make(map[objects.Checksum][]byte, 0)
+func (c *_RepositoryCache) GetStates() (map[objects.MAC][]byte, error) {
+	ret := make(map[objects.MAC][]byte, 0)
 	iter := c.db.NewIterator(nil, nil)
 	defer iter.Release()
 
@@ -110,7 +110,7 @@ func (c *_RepositoryCache) GetStates() (map[objects.Checksum][]byte, error) {
 			break
 		}
 
-		var stateID objects.Checksum
+		var stateID objects.MAC
 		_, err := hex.Decode(stateID[:], iter.Key()[len(keyPrefix):])
 		if err != nil {
 			fmt.Printf("Error decoding state ID: %v\n", err)
@@ -122,15 +122,15 @@ func (c *_RepositoryCache) GetStates() (map[objects.Checksum][]byte, error) {
 	return ret, nil
 }
 
-func (c *_RepositoryCache) GetDelta(blobType resources.Type, blobCsum objects.Checksum) ([]byte, error) {
+func (c *_RepositoryCache) GetDelta(blobType resources.Type, blobCsum objects.MAC) ([]byte, error) {
 	return c.get("__delta__", fmt.Sprintf("%d:%x", blobType, blobCsum))
 }
 
-func (c *_RepositoryCache) HasDelta(blobType resources.Type, blobCsum objects.Checksum) (bool, error) {
+func (c *_RepositoryCache) HasDelta(blobType resources.Type, blobCsum objects.MAC) (bool, error) {
 	return c.has("__delta__", fmt.Sprintf("%d:%x", blobType, blobCsum))
 }
 
-func (c *_RepositoryCache) GetDeltaByCsum(blobCsum objects.Checksum) ([]byte, error) {
+func (c *_RepositoryCache) GetDeltaByCsum(blobCsum objects.MAC) ([]byte, error) {
 	for typ := resources.RT_SNAPSHOT; typ <= resources.RT_ERROR_ENTRY; typ++ {
 		ret, err := c.GetDelta(typ, blobCsum)
 
@@ -146,12 +146,12 @@ func (c *_RepositoryCache) GetDeltaByCsum(blobCsum objects.Checksum) ([]byte, er
 	return nil, nil
 }
 
-func (c *_RepositoryCache) PutDelta(blobType resources.Type, blobCsum objects.Checksum, data []byte) error {
+func (c *_RepositoryCache) PutDelta(blobType resources.Type, blobCsum objects.MAC, data []byte) error {
 	return c.put("__delta__", fmt.Sprintf("%d:%x", blobType, blobCsum), data)
 }
 
-func (c *_RepositoryCache) GetDeltasByType(blobType resources.Type) iter.Seq2[objects.Checksum, []byte] {
-	return func(yield func(objects.Checksum, []byte) bool) {
+func (c *_RepositoryCache) GetDeltasByType(blobType resources.Type) iter.Seq2[objects.MAC, []byte] {
+	return func(yield func(objects.MAC, []byte) bool) {
 		iter := c.db.NewIterator(nil, nil)
 		defer iter.Release()
 
@@ -167,37 +167,37 @@ func (c *_RepositoryCache) GetDeltasByType(blobType resources.Type) iter.Seq2[ob
 			hex_csum := string(key[bytes.LastIndexByte(key, byte(':'))+1:])
 			csum, _ := hex.DecodeString(hex_csum)
 
-			if !yield(objects.Checksum(csum), iter.Value()) {
+			if !yield(objects.MAC(csum), iter.Value()) {
 				return
 			}
 		}
 	}
 }
 
-func (c *_RepositoryCache) GetDeltas() iter.Seq2[objects.Checksum, []byte] {
+func (c *_RepositoryCache) GetDeltas() iter.Seq2[objects.MAC, []byte] {
 	return c.getObjects("__delta__:")
 }
 
-func (c *_RepositoryCache) PutDeleted(blobType resources.Type, blobCsum objects.Checksum, data []byte) error {
+func (c *_RepositoryCache) PutDeleted(blobType resources.Type, blobCsum objects.MAC, data []byte) error {
 	return c.put("__deleted__", fmt.Sprintf("%d:%x", blobType, blobCsum), data)
 }
 
-func (c *_RepositoryCache) HasDeleted(blobType resources.Type, blobCsum objects.Checksum) (bool, error) {
+func (c *_RepositoryCache) HasDeleted(blobType resources.Type, blobCsum objects.MAC) (bool, error) {
 	return c.has("__deleted__", fmt.Sprintf("%d:%x", blobType, blobCsum))
 }
 
-func (c *_RepositoryCache) GetDeleteds() iter.Seq2[objects.Checksum, []byte] {
+func (c *_RepositoryCache) GetDeleteds() iter.Seq2[objects.MAC, []byte] {
 	return c.getObjects("__deleted__:")
 }
 
-func (c *_RepositoryCache) PutPackfile(stateID, packfile objects.Checksum, data []byte) error {
+func (c *_RepositoryCache) PutPackfile(stateID, packfile objects.MAC, data []byte) error {
 	return c.put("__packfile__", fmt.Sprintf("%x:%x", stateID, packfile), data)
 }
 
-func (c *_RepositoryCache) GetPackfiles() iter.Seq2[objects.Checksum, []byte] {
+func (c *_RepositoryCache) GetPackfiles() iter.Seq2[objects.MAC, []byte] {
 	return c.getObjects("__packfile__:")
 }
 
-func (c *_RepositoryCache) GetPackfilesForState(stateID objects.Checksum) iter.Seq2[objects.Checksum, []byte] {
+func (c *_RepositoryCache) GetPackfilesForState(stateID objects.MAC) iter.Seq2[objects.MAC, []byte] {
 	return c.getObjects(fmt.Sprintf("__packfile__:%x", stateID))
 }

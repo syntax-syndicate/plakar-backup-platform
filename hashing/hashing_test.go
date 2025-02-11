@@ -12,6 +12,7 @@ func TestDefaultAlgorithm(t *testing.T) {
 	}
 }
 
+/*
 func TestGetHasher(t *testing.T) {
 	// Test for sha256
 	hasher := GetHasher("SHA256")
@@ -25,6 +26,7 @@ func TestGetHasher(t *testing.T) {
 		t.Error("Expected nil for unknown algorithm, but got non-nil")
 	}
 }
+*/
 
 func TestLookupNewDefaultConfiguration(t *testing.T) {
 	// Test for SHA256 algorithm

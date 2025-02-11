@@ -40,57 +40,57 @@ func TestNullBackend(t *testing.T) {
 	require.True(t, ok)
 	snaps, err := r.GetSnapshots()
 	require.NoError(t, err)
-	require.Equal(t, snaps, []objects.Checksum{})
+	require.Equal(t, snaps, []objects.MAC{})
 
-	checksum := objects.Checksum{0x10}
-	err = r.PutSnapshot(checksum, []byte("test"))
+	mac := objects.MAC{0x10}
+	err = r.PutSnapshot(mac, []byte("test"))
 	require.NoError(t, err)
 
-	retrievedSnapshot, err := r.GetSnapshot(checksum)
+	retrievedSnapshot, err := r.GetSnapshot(mac)
 	require.NoError(t, err)
 	require.Equal(t, []byte(""), retrievedSnapshot)
 
-	err = r.DeleteSnapshot(checksum)
+	err = r.DeleteSnapshot(mac)
 	require.NoError(t, err)
 
 	// states
-	checksums, err := repo.GetStates()
+	macs, err := repo.GetStates()
 	require.NoError(t, err)
-	require.Equal(t, checksums, []objects.Checksum{})
+	require.Equal(t, macs, []objects.MAC{})
 
-	err = repo.PutState(checksum, bytes.NewReader([]byte("test")))
+	err = repo.PutState(mac, bytes.NewReader([]byte("test")))
 	require.NoError(t, err)
 
-	rd, err := repo.GetState(checksum)
+	rd, err := repo.GetState(mac)
 	require.NoError(t, err)
 	buf := new(bytes.Buffer)
 	_, err = io.Copy(buf, rd)
 	require.NoError(t, err)
 	require.Equal(t, "", buf.String())
 
-	err = repo.DeleteState(checksum)
+	err = repo.DeleteState(mac)
 	require.NoError(t, err)
 
 	// packfiles
-	checksums, err = repo.GetPackfiles()
+	macs, err = repo.GetPackfiles()
 	require.NoError(t, err)
-	require.Equal(t, checksums, []objects.Checksum{})
+	require.Equal(t, macs, []objects.MAC{})
 
-	err = repo.PutPackfile(checksum, bytes.NewReader([]byte("test")))
+	err = repo.PutPackfile(mac, bytes.NewReader([]byte("test")))
 	require.NoError(t, err)
 
-	rd, err = repo.GetPackfile(checksum)
+	rd, err = repo.GetPackfile(mac)
 	buf = new(bytes.Buffer)
 	_, err = io.Copy(buf, rd)
 	require.NoError(t, err)
 	require.Equal(t, "", buf.String())
 
-	rd, err = repo.GetPackfileBlob(checksum, 0, 0)
+	rd, err = repo.GetPackfileBlob(mac, 0, 0)
 	buf = new(bytes.Buffer)
 	_, err = io.Copy(buf, rd)
 	require.NoError(t, err)
 	require.Equal(t, "", buf.String())
 
-	err = repo.DeletePackfile(checksum)
+	err = repo.DeletePackfile(mac)
 	require.NoError(t, err)
 }

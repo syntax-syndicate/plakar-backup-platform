@@ -69,10 +69,10 @@ func (c *_VFSCache) GetFileSummary(pathname string) ([]byte, error) {
 	return c.get("__file_summary__", pathname)
 }
 
-func (c *_VFSCache) PutObject(checksum [32]byte, data []byte) error {
-	return c.put("__object__", fmt.Sprintf("%x", checksum), data)
+func (c *_VFSCache) PutObject(mac [32]byte, data []byte) error {
+	return c.put("__object__", fmt.Sprintf("%x", mac), data)
 }
 
-func (c *_VFSCache) GetObject(checksum [32]byte) ([]byte, error) {
-	return c.get("__object__", fmt.Sprintf("%x", checksum))
+func (c *_VFSCache) GetObject(mac [32]byte) ([]byte, error) {
+	return c.get("__object__", fmt.Sprintf("%x", mac))
 }

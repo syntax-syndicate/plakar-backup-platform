@@ -56,7 +56,7 @@ func (cmd *InfoState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 			}
 
 			// Temporary scan cache to reconstruct that state.
-			var identifier objects.Checksum
+			var identifier objects.MAC
 			n, err := rand.Read(identifier[:])
 			if err != nil {
 				return 1, err
