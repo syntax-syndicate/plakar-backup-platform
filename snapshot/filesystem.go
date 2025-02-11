@@ -5,9 +5,11 @@ import (
 )
 
 func (s *Snapshot) Filesystem() (*vfs.Filesystem, error) {
+	v := s.Header.GetSource(0).VFS
+
 	if s.filesystem != nil {
 		return s.filesystem, nil
-	} else if fs, err := vfs.NewFilesystem(s.repository, s.Header.GetSource(0).VFS); err != nil {
+	} else if fs, err := vfs.NewFilesystem(s.repository, v.Root, v.Xattrs); err != nil {
 		return nil, err
 	} else {
 		s.filesystem = fs

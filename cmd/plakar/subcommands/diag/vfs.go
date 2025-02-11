@@ -74,6 +74,7 @@ func (cmd *InfoVFS) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 	}
 	fmt.Fprintf(ctx.Stdout, "CustomMetadata: %s\n", entry.CustomMetadata)
 	fmt.Fprintf(ctx.Stdout, "Tags: %s\n", entry.Tags)
+	fmt.Fprintf(ctx.Stdout, "ExtendedAttributes: %v\n", entry.ExtendedAttributes)
 
 	if entry.Summary != nil {
 		fmt.Fprintf(ctx.Stdout, "Below.Directories: %d\n", entry.Summary.Below.Directories)
@@ -150,6 +151,7 @@ func (cmd *InfoVFS) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 		fmt.Fprintf(ctx.Stdout, "Child[%d].FileInfo.Username(): %s\n", offset, child.Stat().Username())
 		fmt.Fprintf(ctx.Stdout, "Child[%d].FileInfo.Groupname(): %s\n", offset, child.Stat().Groupname())
 		fmt.Fprintf(ctx.Stdout, "Child[%d].FileInfo.Nlink(): %d\n", offset, child.Stat().Nlink())
+		fmt.Fprintf(ctx.Stdout, "Child[%d].ExtendedAttributes(): %v\n", offset, child.ExtendedAttributes)
 		offset++
 	}
 

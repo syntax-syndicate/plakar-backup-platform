@@ -28,6 +28,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
+	"github.com/pkg/xattr"
 )
 
 func toUnixPath(pathname string) string {
@@ -66,7 +67,7 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 			}
 		}
 
-		extendedAttributes, err := getExtendedAttributes(pathname)
+		extendedAttributes, err := xattr.List(pathname)
 		if err != nil {
 			results <- importer.ScanError{Pathname: unixPath, Err: err}
 			continue

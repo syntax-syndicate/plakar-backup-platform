@@ -20,6 +20,7 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository/state"
 	"github.com/PlakarKorp/plakar/resources"
+	"github.com/PlakarKorp/plakar/snapshot/header"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/PlakarKorp/plakar/versioning"
@@ -36,6 +37,9 @@ type BackupContext struct {
 
 	erridx   *btree.BTree[string, int, *ErrorItem]
 	muerridx sync.Mutex
+
+	xattridx   *btree.BTree[string, int, *vfs.Xattr]
+	muxattridx sync.Mutex
 }
 
 type BackupOptions struct {
@@ -68,6 +72,13 @@ func (bc *BackupContext) recordError(path string, err error) error {
 	})
 	bc.muerridx.Unlock()
 	return e
+}
+
+func (bc *BackupContext) recordXattr(record importer.ScanRecord, object objects.Checksum) error {
+	bc.muxattridx.Lock()
+	err := bc.xattridx.Insert(record.Pathname, vfs.NewXattr(record, object))
+	bc.muxattridx.Unlock()
+	return err
 }
 
 func (snapshot *Snapshot) skipExcludedPathname(options *BackupOptions, record importer.ScanResult) bool {
@@ -136,18 +147,18 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 
 					if !record.FileInfo.Mode().IsDir() {
 						filesChannel <- record
-						atomic.AddUint64(&nFiles, +1)
-						if record.FileInfo.Mode().IsRegular() {
-							atomic.AddUint64(&size, uint64(record.FileInfo.Size()))
+						if !record.FileInfo.ExtendedAttribute {
+							atomic.AddUint64(&nFiles, +1)
+							if record.FileInfo.Mode().IsRegular() {
+								atomic.AddUint64(&size, uint64(record.FileInfo.Size()))
+							}
 						}
-
 						// if snapshot root is a file, then reset to the parent directory
 						if snap.Header.GetSource(0).Importer.Directory == record.Pathname {
 							snap.Header.GetSource(0).Importer.Directory = filepath.Dir(record.Pathname)
 						}
 					} else {
 						atomic.AddUint64(&nDirectories, +1)
-
 						entry := vfs.NewEntry(path.Dir(record.Pathname), &record)
 						if err := backupCtx.recordEntry(entry); err != nil {
 							backupCtx.recordError(record.Pathname, err)
@@ -228,6 +239,15 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		Cache:  snap.scanCache,
 	}
 	backupCtx.erridx, err = btree.New(&errstore, strings.Compare, 50)
+	if err != nil {
+		return err
+	}
+
+	xattrstore := caching.DBStore[string, *vfs.Xattr]{
+		Prefix: "__xattr__",
+		Cache:  snap.scanCache,
+	}
+	backupCtx.xattridx, err = btree.New(&xattrstore, vfs.PathCmp, 50)
 	if err != nil {
 		return err
 	}
@@ -331,8 +351,14 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 				}
 			}
 
+			// xattrs are a special case
+			if record.FileInfo.ExtendedAttribute {
+				backupCtx.recordXattr(record, object.MAC)
+				return
+			}
+
 			var fileEntryChecksum objects.Checksum
-			if fileEntry != nil && snap.BlobExists(resources.RT_VFS_BTREE, cachedFileEntryChecksum) {
+			if fileEntry != nil && snap.BlobExists(resources.RT_VFS_ENTRY, cachedFileEntryChecksum) {
 				fileEntryChecksum = cachedFileEntryChecksum
 			} else {
 				fileEntry = vfs.NewEntry(path.Dir(record.Pathname), &record)
@@ -352,7 +378,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 				}
 
 				fileEntryChecksum = snap.repository.ComputeMAC(serialized)
-				err = snap.PutBlob(resources.RT_VFS_BTREE, fileEntryChecksum, serialized)
+				err = snap.PutBlob(resources.RT_VFS_ENTRY, fileEntryChecksum, serialized)
 				if err != nil {
 					backupCtx.recordError(record.Pathname, err)
 					return
@@ -571,11 +597,29 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		return err
 	}
 
+	xattrcsum, err := persistIndex(snap, backupCtx.xattridx, resources.RT_XATTR_BTREE, func(xattr *vfs.Xattr) (csum objects.Checksum, err error) {
+		serialized, err := xattr.ToBytes()
+		if err != nil {
+			return
+		}
+		csum = snap.repository.ComputeMAC(serialized)
+		if !snap.BlobExists(resources.RT_XATTR_ENTRY, csum) {
+			err = snap.PutBlob(resources.RT_XATTR_ENTRY, csum, serialized)
+		}
+		return
+	})
+	if err != nil {
+		return err
+	}
+
 	if backupCtx.aborted.Load() {
 		return backupCtx.abortedReason
 	}
 
-	snap.Header.GetSource(0).VFS = rootcsum
+	snap.Header.GetSource(0).VFS = header.VFS{
+		Root:   rootcsum,
+		Xattrs: xattrcsum,
+	}
 	//snap.Header.Metadata = metadataChecksum
 	snap.Header.Duration = time.Since(beginTime)
 	snap.Header.GetSource(0).Summary = *rootSummary
@@ -637,7 +681,18 @@ func entropy(data []byte) (float64, [256]float64) {
 }
 
 func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier, record importer.ScanRecord) (*objects.Object, error) {
-	rd, err := imp.NewReader(record.Pathname)
+	var rd io.ReadCloser
+	var err error
+
+	if record.FileInfo.ExtendedAttribute {
+		atoms := strings.Split(record.Pathname, ":")
+		attribute := atoms[len(atoms)-1]
+		pathname := strings.Join(atoms[:len(atoms)-1], ":")
+		rd, err = imp.NewExtendedAttributeReader(pathname, attribute)
+	} else {
+		rd, err = imp.NewReader(record.Pathname)
+	}
+
 	if err != nil {
 		return nil, err
 	}

@@ -177,7 +177,7 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 	ctx.GetLogger().Info("created %s snapshot %x with root %s of size %s in %s",
 		"unsigned",
 		snap.Header.GetIndexShortID(),
-		base64.RawStdEncoding.EncodeToString(snap.Header.GetSource(0).VFS[:]),
+		base64.RawStdEncoding.EncodeToString(snap.Header.GetSource(0).VFS.Root[:]),
 		humanize.Bytes(snap.Header.GetSource(0).Summary.Directory.Size+snap.Header.GetSource(0).Summary.Below.Size),
 		snap.Header.Duration)
 	return 0, nil

@@ -15,7 +15,9 @@ const (
 	RT_VFS_ENTRY   Type = 11
 	RT_ERROR_BTREE Type = 12
 	RT_ERROR_ENTRY Type = 13
-	RT_BTREE       Type = 14
+	RT_XATTR_BTREE Type = 14
+	RT_XATTR_ENTRY Type = 15
+	RT_BTREE       Type = 16
 )
 
 func Types() []Type {
@@ -32,6 +34,8 @@ func Types() []Type {
 		RT_VFS_ENTRY,
 		RT_ERROR_BTREE,
 		RT_ERROR_ENTRY,
+		RT_XATTR_BTREE,
+		RT_XATTR_ENTRY,
 		RT_BTREE,
 	}
 }
@@ -62,6 +66,10 @@ func (r Type) String() string {
 		return "error btree"
 	case RT_ERROR_ENTRY:
 		return "error entry"
+	case RT_XATTR_BTREE:
+		return "xattr btree"
+	case RT_XATTR_ENTRY:
+		return "xattr entry"
 	case RT_BTREE:
 		return "btree"
 	default:

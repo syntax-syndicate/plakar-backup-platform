@@ -30,6 +30,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
+	"github.com/pkg/xattr"
 )
 
 type namecache struct {
@@ -50,7 +51,7 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 			continue
 		}
 
-		extendedAttributes, err := getExtendedAttributes(path)
+		extendedAttributes, err := xattr.List(path)
 		if err != nil {
 			results <- importer.ScanError{Pathname: path, Err: err}
 			continue
@@ -88,15 +89,20 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 		}
 		namecache.mu.RUnlock()
 
-		results <- importer.ScanRecord{Pathname: filepath.ToSlash(path), FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
-
+		var originFile string
 		if fileinfo.Mode()&os.ModeSymlink != 0 {
-			originFile, err := os.Readlink(path)
+			originFile, err = os.Readlink(path)
 			if err != nil {
 				results <- importer.ScanError{Pathname: path, Err: err}
 				continue
 			}
-			results <- importer.ScanRecord{Pathname: filepath.ToSlash(path), Target: originFile, FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
+		}
+		results <- importer.ScanRecord{Pathname: filepath.ToSlash(path), Target: originFile, FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
+		for _, attr := range extendedAttributes {
+			fileinfo.Lmode &= ^os.ModeDir
+			fileinfo.ExtendedAttribute = true
+			fileinfo.Lname = filepath.Base(path) + ":" + attr
+			results <- importer.ScanRecord{Pathname: filepath.ToSlash(path) + ":" + attr, FileInfo: fileinfo}
 		}
 	}
 }

@@ -53,9 +53,14 @@ type Index struct {
 	Value objects.Checksum `msgpack:"value" json:"value"`
 }
 
+type VFS struct {
+	Root   objects.Checksum `msgpack:"root" json:"root"`
+	Xattrs objects.Checksum `msgpack:"xattrs" json:"xattrs"`
+}
+
 type Source struct {
 	Importer Importer         `msgpack:"importer" json:"importer"`
-	VFS      objects.Checksum `msgpack:"root" json:"root"`
+	VFS      VFS `msgpack:"root" json:"root"`
 	Errors   objects.Checksum `msgpack:"errors" json:"errors"`
 	Indexes  []Index          `msgpack:"indexes" json:"indexes"`
 	Summary  vfs.Summary      `msgpack:"summary" json:"summary"`
@@ -64,7 +69,7 @@ type Source struct {
 func NewSource() Source {
 	return Source{
 		Importer: Importer{},
-		VFS:      objects.Checksum{},
+		VFS:      VFS{},
 		Errors:   objects.Checksum{},
 		Indexes:  []Index{},
 		Summary:  vfs.Summary{},

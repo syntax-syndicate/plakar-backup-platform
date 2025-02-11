@@ -1,6 +1,7 @@
 package vfs
 
 import (
+	"fmt"
 	"io"
 	"io/fs"
 	"iter"
@@ -40,8 +41,9 @@ type CustomMetadata struct {
 }
 
 type Filesystem struct {
-	tree *btree.BTree[string, objects.Checksum, objects.Checksum]
-	repo *repository.Repository
+	tree   *btree.BTree[string, objects.Checksum, objects.Checksum]
+	xattrs *btree.BTree[string, objects.Checksum, objects.Checksum]
+	repo   *repository.Repository
 }
 
 func PathCmp(a, b string) int {
@@ -67,21 +69,33 @@ func isEntryBelow(parent, entry string) bool {
 	return true
 }
 
-func NewFilesystem(repo *repository.Repository, root objects.Checksum) (*Filesystem, error) {
+func NewFilesystem(repo *repository.Repository, root, xattrs objects.Checksum) (*Filesystem, error) {
 	rd, err := repo.GetBlob(resources.RT_VFS_BTREE, root)
 	if err != nil {
 		return nil, err
 	}
 
-	storage := repository.NewRepositoryStore[string, objects.Checksum](repo, resources.RT_VFS_BTREE)
-	tree, err := btree.Deserialize(rd, storage, PathCmp)
+	fsstore := repository.NewRepositoryStore[string, objects.Checksum](repo, resources.RT_VFS_BTREE)
+	tree, err := btree.Deserialize(rd, fsstore, PathCmp)
+	if err != nil {
+		return nil, err
+	}
+
+	rd, err = repo.GetBlob(resources.RT_XATTR_BTREE, xattrs)
+	if err != nil {
+		return nil, err
+	}
+
+	xstore := repository.NewRepositoryStore[string, objects.Checksum](repo, resources.RT_XATTR_BTREE)
+	xtree, err := btree.Deserialize(rd, xstore, PathCmp)
 	if err != nil {
 		return nil, err
 	}
 
 	fs := &Filesystem{
-		tree: tree,
-		repo: repo,
+		tree:   tree,
+		xattrs: xtree,
+		repo:   repo,
 	}
 
 	return fs, nil
@@ -225,6 +239,45 @@ func (fsc *Filesystem) GetEntry(path string) (*Entry, error) {
 	return fsc.lookup(path)
 }
 
+func (fsc *Filesystem) Xattr(entry *Entry, xattrName string) (*Xattr, error) {
+	p := fmt.Sprintf("%s:%s", entry.Path(), xattrName)
+	csum, found, err := fsc.xattrs.Find(p)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, fs.ErrNotExist
+	}
+
+	rd, err := fsc.repo.GetBlob(resources.RT_XATTR_ENTRY, csum)
+	if err != nil {
+		return nil, err
+	}
+
+	bytes, err := io.ReadAll(rd)
+	if err != nil {
+		return nil, err
+	}
+
+	xattr, err := XattrFromBytes(bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	rd, err = fsc.repo.GetBlob(resources.RT_OBJECT, xattr.Object)
+	if err != nil {
+		return nil, err
+	}
+
+	bytes, err = io.ReadAll(rd)
+	if err != nil {
+		return nil, err
+	}
+
+	xattr.ResolvedObject, err = objects.NewObjectFromBytes(bytes)
+	return xattr, err
+}
+
 func (fsc *Filesystem) Children(path string) (iter.Seq2[string, error], error) {
 	fp, err := fsc.Open(path)
 	if err != nil {
@@ -255,6 +308,10 @@ func (fsc *Filesystem) Children(path string) (iter.Seq2[string, error], error) {
 
 func (fsc *Filesystem) IterNodes() btree.Iterator[objects.Checksum, *btree.Node[string, objects.Checksum, objects.Checksum]] {
 	return fsc.tree.IterDFS()
+}
+
+func (fsc *Filesystem) XattrNodes() btree.Iterator[objects.Checksum, *btree.Node[string, objects.Checksum, objects.Checksum]] {
+	return fsc.xattrs.IterDFS()
 }
 
 func (fsc *Filesystem) FileChecksums() (iter.Seq2[objects.Checksum, error], error) {
