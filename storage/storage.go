@@ -110,15 +110,15 @@ type Store interface {
 	Location() string
 
 	GetStates() ([]objects.MAC, error)
-	PutState(checksum objects.MAC, rd io.Reader) error
-	GetState(checksum objects.MAC) (io.Reader, error)
-	DeleteState(checksum objects.MAC) error
+	PutState(MAC objects.MAC, rd io.Reader) error
+	GetState(MAC objects.MAC) (io.Reader, error)
+	DeleteState(MAC objects.MAC) error
 
 	GetPackfiles() ([]objects.MAC, error)
-	PutPackfile(checksum objects.MAC, rd io.Reader) error
-	GetPackfile(checksum objects.MAC) (io.Reader, error)
-	GetPackfileBlob(checksum objects.MAC, offset uint64, length uint32) (io.Reader, error)
-	DeletePackfile(checksum objects.MAC) error
+	PutPackfile(MAC objects.MAC, rd io.Reader) error
+	GetPackfile(MAC objects.MAC) (io.Reader, error)
+	GetPackfileBlob(MAC objects.MAC, offset uint64, length uint32) (io.Reader, error)
+	DeletePackfile(MAC objects.MAC) error
 
 	Close() error
 }
