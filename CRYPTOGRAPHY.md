@@ -88,9 +88,9 @@ type Argon2IDParams struct {
 ```
 
 The configuration is stored in the repository using the **storage object wrapping format** described later in this document.
-That wrapping format essentially prepends a small header and appends the HMAC of header+content.
+That wrapping format essentially prepends a small header and appends the MAC of header+content.
 
-As such, the configuration is HMAC-protected and an HMAC mismatch leads to detection of a corruption:
+As such, the configuration is MAC-protected and a MAC mismatch leads to detection of a corruption:
 
 ```
 $ plakar ls
@@ -117,7 +117,7 @@ A repository consists of three main elements:
 - state files
 
 These are all wrapped in the **storage object wrapping format** described later in this document,
-providing HMAC integrity check.
+providing MAC integrity check.
 
 
 ### Configuration
@@ -238,7 +238,7 @@ The format wraps a repository object as follows:
 
     [OBJECT DATA]   = cleartext CONFIG | PACKFILE with encoded index and footer | encoded STATE
 
-[HMAC]              = MAC from all previous bytes including MAGIC, TYPE and VERSION
+[MAC]              = MAC from all previous bytes including MAGIC, TYPE and VERSION
 ```
 
 Whenever a wrapped object (config, packfiles and state files) is fetched from the repository,
