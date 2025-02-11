@@ -22,4 +22,4 @@ The **plakar version** utility exits&#160;0 on success, and&#160;&gt;0 if an err
 
 plakar(1)
 
-macOS 15.2 - January 29, 2025
+Plakar - January 29, 2025

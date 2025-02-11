@@ -37,4 +37,4 @@ doesn't exist.
 
 plakar(1)
 
-macOS 15.2 - February 3, 2025
+Plakar - February 3, 2025

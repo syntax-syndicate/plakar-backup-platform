@@ -49,7 +49,7 @@ type Object struct {
 	Chunks      []Chunk            `msgpack:"chunks" json:"chunks"`
 	ContentType string             `msgpack:"content_type,omitempty" json:"content_type"`
 	Entropy     float64            `msgpack:"entropy,omitempty" json:"entropy"`
-	Flags       uint64             `msgpack:"flags" json:"flags"`
+	Flags       uint32             `msgpack:"flags" json:"flags"`
 }
 
 // Return empty lists for nil slices.
@@ -88,7 +88,7 @@ type Chunk struct {
 	MAC     MAC                `msgpack:"MAC" json:"MAC"`
 	Length  uint32             `msgpack:"length" json:"length"`
 	Entropy float64            `msgpack:"entropy" json:"entropy"`
-	Flags   uint64             `msgpack:"flags" json:"flags"`
+	Flags   uint32             `msgpack:"flags" json:"flags"`
 }
 
 func NewChunk() *Chunk {
