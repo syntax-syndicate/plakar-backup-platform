@@ -10,7 +10,7 @@ import (
 	"io"
 	"runtime"
 
-	subtle "github.com/tink-crypto/tink-go/v2/aead/subtle"
+	"github.com/tink-crypto/tink-go/v2/aead/subtle"
 
 	"github.com/PlakarKorp/plakar/hashing"
 	aeskw "github.com/nickball/go-aes-key-wrap"
