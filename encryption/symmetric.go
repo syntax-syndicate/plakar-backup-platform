@@ -10,10 +10,9 @@ import (
 	"io"
 	"runtime"
 
-	"github.com/tink-crypto/tink-go/v2/aead/subtle"
-
 	"github.com/PlakarKorp/plakar/hashing"
 	aeskw "github.com/nickball/go-aes-key-wrap"
+	"github.com/tink-crypto/tink-go/v2/aead/subtle"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/crypto/scrypt"
