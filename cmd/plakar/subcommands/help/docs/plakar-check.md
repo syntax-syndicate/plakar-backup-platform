@@ -19,7 +19,7 @@ The
 **plakar check**
 command verifies the integrity of data in a Plakar repository.
 It checks the given paths inside the snapshots for consistency and
-validates file checksums to ensure no corruption has occurred, or all
+validates file macs to ensure no corruption has occurred, or all
 the data in the repository if no
 *snapshotID*
 is given.
@@ -34,7 +34,7 @@ The options are as follows:
 
 **-fast**
 
-> Enable a faster check that skips checksum verification.
+> Enable a faster check that skips mac verification.
 > This option performs only structural validation without confirming
 > data integrity.
 

@@ -537,14 +537,14 @@ func (ls *LocalState) PutDelta(de DeltaEntry) error {
 	return ls.cache.PutDelta(de.Type, de.Blob, de.ToBytes())
 }
 
-func (ls *LocalState) BlobExists(Type resources.Type, blobChecksum objects.MAC) bool {
-	has, _ := ls.cache.HasDelta(Type, blobChecksum)
+func (ls *LocalState) BlobExists(Type resources.Type, blobMAC objects.MAC) bool {
+	has, _ := ls.cache.HasDelta(Type, blobMAC)
 	return has
 }
 
-func (ls *LocalState) GetSubpartForBlob(Type resources.Type, blobChecksum objects.MAC) (objects.MAC, uint64, uint32, bool) {
+func (ls *LocalState) GetSubpartForBlob(Type resources.Type, blobMAC objects.MAC) (objects.MAC, uint64, uint32, bool) {
 	/* XXX: We treat an error as missing data. Checking calling code I assume it's safe .. */
-	delta, _ := ls.cache.GetDelta(Type, blobChecksum)
+	delta, _ := ls.cache.GetDelta(Type, blobMAC)
 	if delta == nil {
 		return objects.MAC{}, 0, 0, false
 	} else {
