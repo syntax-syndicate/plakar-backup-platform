@@ -279,7 +279,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			var object *objects.Object
 
 			var cachedFileEntry *vfs.Entry
-			var cachedFileEntryChecksum objects.Checksum
+			var cachedFileEntryChecksum objects.MAC
 
 			// Check if the file entry and underlying objects are already in the cache
 			if data, err := vfsCache.GetFilename(record.Pathname); err != nil {
@@ -352,7 +352,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 				return
 			}
 
-			var fileEntryChecksum objects.Checksum
+			var fileEntryChecksum objects.MAC
 			if fileEntry != nil && snap.BlobExists(resources.RT_VFS_ENTRY, cachedFileEntryChecksum) {
 				fileEntryChecksum = cachedFileEntryChecksum
 			} else {
@@ -427,7 +427,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	}
 	scannerWg.Wait()
 
-	errcsum, err := persistIndex(snap, backupCtx.erridx, resources.RT_ERROR_BTREE, func(e *vfs.ErrorItem) (csum objects.Checksum, err error) {
+	errcsum, err := persistIndex(snap, backupCtx.erridx, resources.RT_ERROR_BTREE, func(e *vfs.ErrorItem) (csum objects.MAC, err error) {
 		serialized, err := e.ToBytes()
 		if err != nil {
 			return
@@ -577,7 +577,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		}
 	}
 
-	rootcsum, err := persistIndex(snap, fileidx, resources.RT_VFS_BTREE, func(entry *vfs.Entry) (csum objects.Checksum, err error) {
+	rootcsum, err := persistIndex(snap, fileidx, resources.RT_VFS_BTREE, func(entry *vfs.Entry) (csum objects.MAC, err error) {
 		serialized, err := entry.ToBytes()
 		if err != nil {
 			return
@@ -592,7 +592,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		return err
 	}
 
-	xattrcsum, err := persistIndex(snap, backupCtx.xattridx, resources.RT_XATTR_BTREE, func(xattr *vfs.Xattr) (csum objects.Checksum, err error) {
+	xattrcsum, err := persistIndex(snap, backupCtx.xattridx, resources.RT_XATTR_BTREE, func(xattr *vfs.Xattr) (csum objects.MAC, err error) {
 		serialized, err := xattr.ToBytes()
 		if err != nil {
 			return
@@ -700,7 +700,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 
 	var firstChunk = true
 	var cdcOffset uint64
-	var object_t32 objects.Checksum
+	var object_t32 objects.MAC
 
 	var totalEntropy float64
 	var totalFreq [256]float64
@@ -708,7 +708,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 
 	// Helper function to process a chunk
 	processChunk := func(data []byte) error {
-		var chunk_t32 objects.Checksum
+		var chunk_t32 objects.MAC
 		chunkHasher := snap.repository.GetMACHasher()
 
 		if firstChunk {

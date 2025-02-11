@@ -41,7 +41,7 @@ func (d *Dir) Attr(ctx context.Context, a *fuse.Attr) error {
 		if len(snapshotID) != 32 {
 			return fmt.Errorf("invalid snapshot id length %d", len(snapshotID))
 		}
-		snap, err := snapshot.Load(d.repo, objects.Checksum(snapshotID))
+		snap, err := snapshot.Load(d.repo, objects.MAC(snapshotID))
 		if err != nil {
 			return err
 		}

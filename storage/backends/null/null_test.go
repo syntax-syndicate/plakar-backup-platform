@@ -40,9 +40,9 @@ func TestNullBackend(t *testing.T) {
 	require.True(t, ok)
 	snaps, err := r.GetSnapshots()
 	require.NoError(t, err)
-	require.Equal(t, snaps, []objects.Checksum{})
+	require.Equal(t, snaps, []objects.MAC{})
 
-	checksum := objects.Checksum{0x10}
+	checksum := objects.MAC{0x10}
 	err = r.PutSnapshot(checksum, []byte("test"))
 	require.NoError(t, err)
 
@@ -56,7 +56,7 @@ func TestNullBackend(t *testing.T) {
 	// states
 	checksums, err := repo.GetStates()
 	require.NoError(t, err)
-	require.Equal(t, checksums, []objects.Checksum{})
+	require.Equal(t, checksums, []objects.MAC{})
 
 	err = repo.PutState(checksum, bytes.NewReader([]byte("test")))
 	require.NoError(t, err)
@@ -74,7 +74,7 @@ func TestNullBackend(t *testing.T) {
 	// packfiles
 	checksums, err = repo.GetPackfiles()
 	require.NoError(t, err)
-	require.Equal(t, checksums, []objects.Checksum{})
+	require.Equal(t, checksums, []objects.MAC{})
 
 	err = repo.PutPackfile(checksum, bytes.NewReader([]byte("test")))
 	require.NoError(t, err)

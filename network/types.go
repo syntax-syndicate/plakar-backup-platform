@@ -44,12 +44,12 @@ type ReqGetStates struct {
 }
 
 type ResGetStates struct {
-	Checksums []objects.Checksum
+	Checksums []objects.MAC
 	Err       string
 }
 
 type ReqPutState struct {
-	Checksum objects.Checksum
+	Checksum objects.MAC
 	Data     []byte
 }
 
@@ -58,7 +58,7 @@ type ResPutState struct {
 }
 
 type ReqGetState struct {
-	Checksum objects.Checksum
+	Checksum objects.MAC
 }
 
 type ResGetState struct {
@@ -67,7 +67,7 @@ type ResGetState struct {
 }
 
 type ReqDeleteState struct {
-	Checksum objects.Checksum
+	Checksum objects.MAC
 }
 type ResDeleteState struct {
 	Err string
@@ -78,12 +78,12 @@ type ReqGetPackfiles struct {
 }
 
 type ResGetPackfiles struct {
-	Checksums []objects.Checksum
+	Checksums []objects.MAC
 	Err       string
 }
 
 type ReqPutPackfile struct {
-	Checksum objects.Checksum
+	Checksum objects.MAC
 	Data     []byte
 }
 
@@ -92,7 +92,7 @@ type ResPutPackfile struct {
 }
 
 type ReqGetPackfile struct {
-	Checksum objects.Checksum
+	Checksum objects.MAC
 }
 
 type ResGetPackfile struct {
@@ -101,7 +101,7 @@ type ResGetPackfile struct {
 }
 
 type ReqGetPackfileBlob struct {
-	Checksum objects.Checksum
+	Checksum objects.MAC
 	Offset   uint64
 	Length   uint32
 }
@@ -112,7 +112,7 @@ type ResGetPackfileBlob struct {
 }
 
 type ReqDeletePackfile struct {
-	Checksum objects.Checksum
+	Checksum objects.MAC
 }
 type ResDeletePackfile struct {
 	Err string

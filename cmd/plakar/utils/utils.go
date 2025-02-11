@@ -60,8 +60,8 @@ func ParseSnapshotID(id string) (string, string) {
 	return prefix, pattern
 }
 
-func LookupSnapshotByPrefix(repo *repository.Repository, prefix string) []objects.Checksum {
-	ret := make([]objects.Checksum, 0)
+func LookupSnapshotByPrefix(repo *repository.Repository, prefix string) []objects.MAC {
+	ret := make([]objects.MAC, 0)
 	for snapshotID := range repo.ListSnapshots() {
 		if strings.HasPrefix(hex.EncodeToString(snapshotID[:]), prefix) {
 			ret = append(ret, snapshotID)
@@ -71,7 +71,7 @@ func LookupSnapshotByPrefix(repo *repository.Repository, prefix string) []object
 }
 
 type snapshotIDandTimestamp struct {
-	snapshotID objects.Checksum
+	snapshotID objects.MAC
 	timestamp  time.Time
 }
 
@@ -85,7 +85,7 @@ type LookupCriterias struct {
 	Reverse bool
 }
 
-func LookupSnapshots(repo *repository.Repository, criterias *LookupCriterias) []objects.Checksum {
+func LookupSnapshots(repo *repository.Repository, criterias *LookupCriterias) []objects.MAC {
 
 	sortTable := make([]snapshotIDandTimestamp, 0)
 	for snapshotID := range repo.ListSnapshots() {
@@ -129,7 +129,7 @@ func LookupSnapshots(repo *repository.Repository, criterias *LookupCriterias) []
 		}
 	})
 
-	ret := make([]objects.Checksum, 0)
+	ret := make([]objects.MAC, 0)
 	for offset, entry := range sortTable {
 		if criterias.Offset != 0 && offset < criterias.Offset {
 			continue
@@ -142,13 +142,13 @@ func LookupSnapshots(repo *repository.Repository, criterias *LookupCriterias) []
 	return ret
 }
 
-func LocateSnapshotByPrefix(repo *repository.Repository, prefix string) (objects.Checksum, error) {
+func LocateSnapshotByPrefix(repo *repository.Repository, prefix string) (objects.MAC, error) {
 	snapshots := LookupSnapshotByPrefix(repo, prefix)
 	if len(snapshots) == 0 {
-		return objects.Checksum{}, fmt.Errorf("no snapshot has prefix: %s", prefix)
+		return objects.MAC{}, fmt.Errorf("no snapshot has prefix: %s", prefix)
 	}
 	if len(snapshots) > 1 {
-		return objects.Checksum{}, fmt.Errorf("snapshot ID is ambiguous: %s (matches %d snapshots)", prefix, len(snapshots))
+		return objects.MAC{}, fmt.Errorf("snapshot ID is ambiguous: %s (matches %d snapshots)", prefix, len(snapshots))
 	}
 	return snapshots[0], nil
 }
@@ -161,7 +161,7 @@ func OpenSnapshotByPrefix(repo *repository.Repository, prefix string) (*snapshot
 	return snapshot.Load(repo, snapshotID)
 }
 
-func GetSnapshotsList(repo *repository.Repository) ([]objects.Checksum, error) {
+func GetSnapshotsList(repo *repository.Repository) ([]objects.MAC, error) {
 	snapshots, err := repo.GetSnapshots()
 	if err != nil {
 		return nil, err
@@ -183,7 +183,7 @@ func GetHeaders(repo *repository.Repository, prefixes []string) ([]*header.Heade
 		mu := sync.Mutex{}
 		for _, snapshotID := range snapshotsList {
 			wg.Add(1)
-			go func(snapshotID objects.Checksum) {
+			go func(snapshotID objects.MAC) {
 				defer wg.Done()
 				hdr, _, err := snapshot.GetSnapshot(repo, snapshotID)
 				if err != nil {
@@ -202,7 +202,7 @@ func GetHeaders(repo *repository.Repository, prefixes []string) ([]*header.Heade
 		return result, nil
 	}
 
-	tags := make(map[string]objects.Checksum)
+	tags := make(map[string]objects.MAC)
 	tagsTimestamp := make(map[string]time.Time)
 
 	for _, snapshotID := range snapshotsList {
@@ -266,7 +266,7 @@ func GetSnapshots(repo *repository.Repository, prefixes []string) ([]*snapshot.S
 		mu := sync.Mutex{}
 		for _, snapshotID := range snapshotsList {
 			wg.Add(1)
-			go func(snapshotID objects.Checksum) {
+			go func(snapshotID objects.MAC) {
 				defer wg.Done()
 				snapshotInstance, err := snapshot.Load(repo, snapshotID)
 				if err != nil {
@@ -281,7 +281,7 @@ func GetSnapshots(repo *repository.Repository, prefixes []string) ([]*snapshot.S
 		return sortSnapshotsByDate(result), nil
 	}
 
-	tags := make(map[string]objects.Checksum)
+	tags := make(map[string]objects.MAC)
 	tagsTimestamp := make(map[string]time.Time)
 
 	for _, snapshotID := range snapshotsList {

@@ -23,20 +23,20 @@ func NewRepositoryStore[K, V any](repo *Repository, blobtype resources.Type) *Re
 	}
 }
 
-func (rs *RepositoryStore[K, V]) Get(sum objects.Checksum) (*btree.Node[K, objects.Checksum, V], error) {
+func (rs *RepositoryStore[K, V]) Get(sum objects.MAC) (*btree.Node[K, objects.MAC, V], error) {
 	rd, err := rs.repo.GetBlob(rs.blobtype, sum)
 	if err != nil {
 		return nil, err
 	}
-	node := &btree.Node[K, objects.Checksum, V]{}
+	node := &btree.Node[K, objects.MAC, V]{}
 	err = msgpack.NewDecoder(rd).Decode(node)
 	return node, nil
 }
 
-func (rs *RepositoryStore[K, V]) Update(sum objects.Checksum, node *btree.Node[K, objects.Checksum, V]) error {
+func (rs *RepositoryStore[K, V]) Update(sum objects.MAC, node *btree.Node[K, objects.MAC, V]) error {
 	return ErrStoreReadOnly
 }
 
-func (rs *RepositoryStore[K, V]) Put(node *btree.Node[K, objects.Checksum, V]) (csum objects.Checksum, err error) {
+func (rs *RepositoryStore[K, V]) Put(node *btree.Node[K, objects.MAC, V]) (csum objects.MAC, err error) {
 	return csum, ErrStoreReadOnly
 }

@@ -48,15 +48,15 @@ type KeyValue struct {
 }
 
 type Index struct {
-	Name  string           `msgpack:"name" json:"name"`
-	Type  string           `msgpack:"type" json:"type"`
-	Value objects.Checksum `msgpack:"value" json:"value"`
+	Name  string      `msgpack:"name" json:"name"`
+	Type  string      `msgpack:"type" json:"type"`
+	Value objects.MAC `msgpack:"value" json:"value"`
 }
 
 type VFS struct {
-	Root   objects.Checksum `msgpack:"root" json:"root"`
-	Xattrs objects.Checksum `msgpack:"xattrs" json:"xattrs"`
-	Errors objects.Checksum `msgpack:"errors" json:"errors"`
+	Root   objects.MAC `msgpack:"root" json:"root"`
+	Xattrs objects.MAC `msgpack:"xattrs" json:"xattrs"`
+	Errors objects.MAC `msgpack:"errors" json:"errors"`
 }
 
 type Source struct {
@@ -77,7 +77,7 @@ func NewSource() Source {
 
 type Header struct {
 	Version         versioning.Version `msgpack:"version" json:"version"`
-	Identifier      objects.Checksum   `msgpack:"identifier" json:"identifier"`
+	Identifier      objects.MAC        `msgpack:"identifier" json:"identifier"`
 	Timestamp       time.Time          `msgpack:"timestamp" json:"timestamp"`
 	Duration        time.Duration      `msgpack:"duration" json:"duration"`
 	Identity        Identity           `msgpack:"identity" json:"identity"`
@@ -93,7 +93,7 @@ type Header struct {
 	Sources         []Source           `msgpack:"sources" json:"sources"`
 }
 
-func NewHeader(name string, identifier objects.Checksum) *Header {
+func NewHeader(name string, identifier objects.MAC) *Header {
 	return &Header{
 		Identifier:      identifier,
 		Timestamp:       time.Now(),

@@ -109,16 +109,16 @@ type Store interface {
 	Open(repository string) ([]byte, error)
 	Location() string
 
-	GetStates() ([]objects.Checksum, error)
-	PutState(checksum objects.Checksum, rd io.Reader) error
-	GetState(checksum objects.Checksum) (io.Reader, error)
-	DeleteState(checksum objects.Checksum) error
+	GetStates() ([]objects.MAC, error)
+	PutState(checksum objects.MAC, rd io.Reader) error
+	GetState(checksum objects.MAC) (io.Reader, error)
+	DeleteState(checksum objects.MAC) error
 
-	GetPackfiles() ([]objects.Checksum, error)
-	PutPackfile(checksum objects.Checksum, rd io.Reader) error
-	GetPackfile(checksum objects.Checksum) (io.Reader, error)
-	GetPackfileBlob(checksum objects.Checksum, offset uint64, length uint32) (io.Reader, error)
-	DeletePackfile(checksum objects.Checksum) error
+	GetPackfiles() ([]objects.MAC, error)
+	PutPackfile(checksum objects.MAC, rd io.Reader) error
+	GetPackfile(checksum objects.MAC) (io.Reader, error)
+	GetPackfileBlob(checksum objects.MAC, offset uint64, length uint32) (io.Reader, error)
+	DeletePackfile(checksum objects.MAC) error
 
 	Close() error
 }

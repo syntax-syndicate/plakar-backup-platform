@@ -22,7 +22,7 @@ func init() {
 type Blob struct {
 	Type    resources.Type
 	Version versioning.Version
-	MAC     objects.Checksum
+	MAC     objects.MAC
 	Offset  uint64
 	Length  uint32
 }
@@ -41,7 +41,7 @@ type PackFileFooter struct {
 	Timestamp   int64
 	Count       uint32
 	IndexOffset uint64
-	IndexMAC    objects.Checksum
+	IndexMAC    objects.MAC
 }
 
 const FOOTER_SIZE = 52
@@ -84,7 +84,7 @@ func NewIndexFromBytes(version versioning.Version, serialized []byte) ([]Blob, e
 	for reader.Len() > 0 {
 		var resourceType resources.Type
 		var resourceVersion versioning.Version
-		var checksum objects.Checksum
+		var checksum objects.MAC
 		var blobOffset uint64
 		var blobLength uint32
 
@@ -169,7 +169,7 @@ func NewFromBytes(hasher hash.Hash, version versioning.Version, serialized []byt
 	for remaining > 0 {
 		var resourceType resources.Type
 		var resourceVersion versioning.Version
-		var checksum objects.Checksum
+		var checksum objects.MAC
 		var blobOffset uint64
 		var blobLength uint32
 
@@ -217,7 +217,7 @@ func NewFromBytes(hasher hash.Hash, version versioning.Version, serialized []byt
 		})
 		remaining -= BLOB_RECORD_SIZE
 	}
-	checksum := objects.Checksum(p.hasher.Sum(nil))
+	checksum := objects.MAC(p.hasher.Sum(nil))
 	if checksum != p.Footer.IndexMAC {
 		return nil, fmt.Errorf("index checksum mismatch")
 	}
@@ -265,7 +265,7 @@ func (p *PackFile) Serialize() ([]byte, error) {
 			return nil, err
 		}
 	}
-	p.Footer.IndexMAC = objects.Checksum(p.hasher.Sum(nil))
+	p.Footer.IndexMAC = objects.MAC(p.hasher.Sum(nil))
 
 	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.Timestamp); err != nil {
 		return nil, err
@@ -366,7 +366,7 @@ func (p *PackFile) SerializeFooter() ([]byte, error) {
 			return nil, err
 		}
 	}
-	p.Footer.IndexMAC = objects.Checksum(p.hasher.Sum(nil))
+	p.Footer.IndexMAC = objects.MAC(p.hasher.Sum(nil))
 
 	buffer.Reset()
 	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.Timestamp); err != nil {
@@ -385,7 +385,7 @@ func (p *PackFile) SerializeFooter() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (p *PackFile) AddBlob(resourceType resources.Type, version versioning.Version, checksum objects.Checksum, data []byte) {
+func (p *PackFile) AddBlob(resourceType resources.Type, version versioning.Version, checksum objects.MAC, data []byte) {
 	p.Index = append(p.Index, Blob{
 		Type:    resourceType,
 		Version: version,
@@ -398,7 +398,7 @@ func (p *PackFile) AddBlob(resourceType resources.Type, version versioning.Versi
 	p.Footer.IndexOffset = uint64(len(p.Blobs))
 }
 
-func (p *PackFile) GetBlob(checksum objects.Checksum) ([]byte, bool) {
+func (p *PackFile) GetBlob(checksum objects.MAC) ([]byte, bool) {
 	for _, blob := range p.Index {
 		if blob.MAC == checksum {
 			return p.Blobs[blob.Offset : blob.Offset+uint64(blob.Length)], true

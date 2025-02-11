@@ -18,7 +18,7 @@ type PackerMsg struct {
 	Timestamp time.Time
 	Type      resources.Type
 	Version   versioning.Version
-	Checksum  objects.Checksum
+	Checksum  objects.MAC
 	Data      []byte
 }
 

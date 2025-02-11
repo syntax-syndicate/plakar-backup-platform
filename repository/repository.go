@@ -147,14 +147,14 @@ func (r *Repository) RebuildState() error {
 		return err
 	}
 
-	remoteStatesMap := make(map[objects.Checksum]struct{})
+	remoteStatesMap := make(map[objects.MAC]struct{})
 	for _, stateID := range remoteStates {
 		remoteStatesMap[stateID] = struct{}{}
 	}
 
 	// build delta of local and remote states
-	localStatesMap := make(map[objects.Checksum]struct{})
-	outdatedStates := make([]objects.Checksum, 0)
+	localStatesMap := make(map[objects.MAC]struct{})
+	outdatedStates := make([]objects.MAC, 0)
 	for stateID := range localStates {
 		localStatesMap[stateID] = struct{}{}
 
@@ -163,7 +163,7 @@ func (r *Repository) RebuildState() error {
 		}
 	}
 
-	missingStates := make([]objects.Checksum, 0)
+	missingStates := make([]objects.MAC, 0)
 	for _, stateID := range remoteStates {
 		if _, exists := localStatesMap[stateID]; !exists {
 			missingStates = append(missingStates, stateID)
@@ -292,10 +292,10 @@ func (r *Repository) EncodeBuffer(buffer []byte) ([]byte, error) {
 }
 
 //func (r *Repository) Hasher() hash.Hash {
-//	return hashing.GetHasher(r.Configuration().Hashing.Algorithm)
+//	return hashing.objects.MACasher(r.Configuration().Hashing.Algorithm)
 //}
 
-//func (r *Repository) Checksum(data []byte) objects.Checksum {
+//func (r *Repository) Checksum(data []byte) objects.MAC {
 //	hasher := r.Hasher()
 //	hasher.Write(data)
 //	result := hasher.Sum(nil)
@@ -304,7 +304,7 @@ func (r *Repository) EncodeBuffer(buffer []byte) ([]byte, error) {
 //		panic("hasher returned invalid length")
 //	}
 //
-//	var checksum objects.Checksum
+//	var checksum objects.MAC
 //	copy(checksum[:], result)
 //
 //	return checksum
@@ -318,7 +318,7 @@ func (r *Repository) GetMACHasher() hash.Hash {
 	return hashing.GetMACHasher(r.Configuration().Hashing.Algorithm, secret)
 }
 
-func (r *Repository) ComputeMAC(data []byte) objects.Checksum {
+func (r *Repository) ComputeMAC(data []byte) objects.MAC {
 	hasher := r.GetMACHasher()
 	hasher.Write(data)
 	result := hasher.Sum(nil)
@@ -327,7 +327,7 @@ func (r *Repository) ComputeMAC(data []byte) objects.Checksum {
 		panic("hasher returned invalid length")
 	}
 
-	var checksum objects.Checksum
+	var checksum objects.MAC
 	copy(checksum[:], result)
 
 	return checksum
@@ -358,26 +358,26 @@ func (r *Repository) Configuration() storage.Configuration {
 	return r.configuration
 }
 
-func (r *Repository) GetSnapshots() ([]objects.Checksum, error) {
+func (r *Repository) GetSnapshots() ([]objects.MAC, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "GetSnapshots(): %s", time.Since(t0))
 	}()
 
-	ret := make([]objects.Checksum, 0)
+	ret := make([]objects.MAC, 0)
 	for snapshotID := range r.state.ListSnapshots() {
 		ret = append(ret, snapshotID)
 	}
 	return ret, nil
 }
 
-func (r *Repository) DeleteSnapshot(snapshotID objects.Checksum) error {
+func (r *Repository) DeleteSnapshot(snapshotID objects.MAC) error {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "DeleteSnapshot(%x): %s", snapshotID, time.Since(t0))
 	}()
 
-	var identifier objects.Checksum
+	var identifier objects.MAC
 	n, err := rand.Read(identifier[:])
 	if err != nil {
 		return err
@@ -411,7 +411,7 @@ func (r *Repository) DeleteSnapshot(snapshotID objects.Checksum) error {
 	return nil
 }
 
-func (r *Repository) GetStates() ([]objects.Checksum, error) {
+func (r *Repository) GetStates() ([]objects.MAC, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "GetStates(): %s", time.Since(t0))
@@ -420,7 +420,7 @@ func (r *Repository) GetStates() ([]objects.Checksum, error) {
 	return r.store.GetStates()
 }
 
-func (r *Repository) GetState(checksum objects.Checksum) (versioning.Version, io.Reader, error) {
+func (r *Repository) GetState(checksum objects.MAC) (versioning.Version, io.Reader, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "GetState(%x): %s", checksum, time.Since(t0))
@@ -443,7 +443,7 @@ func (r *Repository) GetState(checksum objects.Checksum) (versioning.Version, io
 	return version, rd, err
 }
 
-func (r *Repository) PutState(checksum objects.Checksum, rd io.Reader) error {
+func (r *Repository) PutState(checksum objects.MAC, rd io.Reader) error {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "PutState(%x, ...): %s", checksum, time.Since(t0))
@@ -462,7 +462,7 @@ func (r *Repository) PutState(checksum objects.Checksum, rd io.Reader) error {
 	return r.store.PutState(checksum, rd)
 }
 
-func (r *Repository) DeleteState(checksum objects.Checksum) error {
+func (r *Repository) DeleteState(checksum objects.MAC) error {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "DeleteState(%x, ...): %s", checksum, time.Since(t0))
@@ -471,7 +471,7 @@ func (r *Repository) DeleteState(checksum objects.Checksum) error {
 	return r.store.DeleteState(checksum)
 }
 
-func (r *Repository) GetPackfiles() ([]objects.Checksum, error) {
+func (r *Repository) GetPackfiles() ([]objects.MAC, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "GetPackfiles(): %s", time.Since(t0))
@@ -480,7 +480,7 @@ func (r *Repository) GetPackfiles() ([]objects.Checksum, error) {
 	return r.store.GetPackfiles()
 }
 
-func (r *Repository) GetPackfile(checksum objects.Checksum) (versioning.Version, io.Reader, error) {
+func (r *Repository) GetPackfile(checksum objects.MAC) (versioning.Version, io.Reader, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "GetPackfile(%x, ...): %s", checksum, time.Since(t0))
@@ -494,7 +494,7 @@ func (r *Repository) GetPackfile(checksum objects.Checksum) (versioning.Version,
 	return storage.Deserialize(r.GetMACHasher(), resources.RT_PACKFILE, rd)
 }
 
-func (r *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint64, length uint32) (io.ReadSeeker, error) {
+func (r *Repository) GetPackfileBlob(checksum objects.MAC, offset uint64, length uint32) (io.ReadSeeker, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "GetPackfileBlob(%x, %d, %d): %s", checksum, offset, length, time.Since(t0))
@@ -518,7 +518,7 @@ func (r *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint64, l
 	return bytes.NewReader(decoded), nil
 }
 
-func (r *Repository) PutPackfile(checksum objects.Checksum, rd io.Reader) error {
+func (r *Repository) PutPackfile(checksum objects.MAC, rd io.Reader) error {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "PutPackfile(%x, ...): %s", checksum, time.Since(t0))
@@ -531,7 +531,7 @@ func (r *Repository) PutPackfile(checksum objects.Checksum, rd io.Reader) error 
 	return r.store.PutPackfile(checksum, rd)
 }
 
-func (r *Repository) DeletePackfile(checksum objects.Checksum) error {
+func (r *Repository) DeletePackfile(checksum objects.MAC) error {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "DeletePackfile(%x): %s", checksum, time.Since(t0))
@@ -540,7 +540,7 @@ func (r *Repository) DeletePackfile(checksum objects.Checksum) error {
 	return r.store.DeletePackfile(checksum)
 }
 
-func (r *Repository) GetBlob(Type resources.Type, checksum objects.Checksum) (io.ReadSeeker, error) {
+func (r *Repository) GetBlob(Type resources.Type, checksum objects.MAC) (io.ReadSeeker, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "GetBlob(%s, %x): %s", Type, checksum, time.Since(t0))
@@ -562,7 +562,7 @@ func (r *Repository) GetBlob(Type resources.Type, checksum objects.Checksum) (io
 	return rd, nil
 }
 
-func (r *Repository) BlobExists(Type resources.Type, checksum objects.Checksum) bool {
+func (r *Repository) BlobExists(Type resources.Type, checksum objects.MAC) bool {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "BlobExists(%s, %x): %s", Type, checksum, time.Since(t0))
@@ -574,7 +574,7 @@ func (r *Repository) BlobExists(Type resources.Type, checksum objects.Checksum) 
 	return r.state.BlobExists(Type, checksum)
 }
 
-func (r *Repository) ListSnapshots() iter.Seq[objects.Checksum] {
+func (r *Repository) ListSnapshots() iter.Seq[objects.MAC] {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "ListSnapshots(): %s", time.Since(t0))

@@ -156,28 +156,28 @@ func (repo *Repository) Close() error {
 }
 
 // states
-func (repo *Repository) GetStates() ([]objects.Checksum, error) {
+func (repo *Repository) GetStates() ([]objects.MAC, error) {
 	rows, err := repo.conn.Query("SELECT checksum FROM states")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	checksums := make([]objects.Checksum, 0)
+	checksums := make([]objects.MAC, 0)
 	for rows.Next() {
 		var checksum []byte
 		err = rows.Scan(&checksum)
 		if err != nil {
 			return nil, err
 		}
-		var checksum32 objects.Checksum
+		var checksum32 objects.MAC
 		copy(checksum32[:], checksum)
 		checksums = append(checksums, checksum32)
 	}
 	return checksums, nil
 }
 
-func (repo *Repository) PutState(checksum objects.Checksum, rd io.Reader) error {
+func (repo *Repository) PutState(checksum objects.MAC, rd io.Reader) error {
 	data, err := io.ReadAll(rd)
 	if err != nil {
 		return err
@@ -205,7 +205,7 @@ func (repo *Repository) PutState(checksum objects.Checksum, rd io.Reader) error 
 	return nil
 }
 
-func (repo *Repository) GetState(checksum objects.Checksum) (io.Reader, error) {
+func (repo *Repository) GetState(checksum objects.MAC) (io.Reader, error) {
 	var data []byte
 	err := repo.conn.QueryRow(`SELECT data FROM states WHERE checksum=?`, checksum[:]).Scan(&data)
 	if err != nil {
@@ -214,7 +214,7 @@ func (repo *Repository) GetState(checksum objects.Checksum) (io.Reader, error) {
 	return bytes.NewBuffer(data), nil
 }
 
-func (repo *Repository) DeleteState(checksum objects.Checksum) error {
+func (repo *Repository) DeleteState(checksum objects.MAC) error {
 	statement, err := repo.conn.Prepare(`DELETE FROM states WHERE checksum=?`)
 	if err != nil {
 		return err
@@ -232,28 +232,28 @@ func (repo *Repository) DeleteState(checksum objects.Checksum) error {
 }
 
 // packfiles
-func (repo *Repository) GetPackfiles() ([]objects.Checksum, error) {
+func (repo *Repository) GetPackfiles() ([]objects.MAC, error) {
 	rows, err := repo.conn.Query("SELECT checksum FROM packfiles")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	checksums := make([]objects.Checksum, 0)
+	checksums := make([]objects.MAC, 0)
 	for rows.Next() {
 		var checksum []byte
 		err = rows.Scan(&checksum)
 		if err != nil {
 			return nil, err
 		}
-		var checksum32 objects.Checksum
+		var checksum32 objects.MAC
 		copy(checksum32[:], checksum)
 		checksums = append(checksums, checksum32)
 	}
 	return checksums, nil
 }
 
-func (repo *Repository) PutPackfile(checksum objects.Checksum, rd io.Reader) error {
+func (repo *Repository) PutPackfile(checksum objects.MAC, rd io.Reader) error {
 	data, err := io.ReadAll(rd)
 	if err != nil {
 		return err
@@ -281,7 +281,7 @@ func (repo *Repository) PutPackfile(checksum objects.Checksum, rd io.Reader) err
 	return nil
 }
 
-func (repo *Repository) GetPackfile(checksum objects.Checksum) (io.Reader, error) {
+func (repo *Repository) GetPackfile(checksum objects.MAC) (io.Reader, error) {
 	var data []byte
 	err := repo.conn.QueryRow(`SELECT data FROM packfiles WHERE checksum=?`, checksum[:]).Scan(&data)
 	if err != nil {
@@ -290,7 +290,7 @@ func (repo *Repository) GetPackfile(checksum objects.Checksum) (io.Reader, error
 	return bytes.NewReader(data), nil
 }
 
-func (repo *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint64, length uint32) (io.Reader, error) {
+func (repo *Repository) GetPackfileBlob(checksum objects.MAC, offset uint64, length uint32) (io.Reader, error) {
 	var data []byte
 	err := repo.conn.QueryRow(`SELECT substr(data, ?, ?) FROM packfiles WHERE checksum=?`, offset+1, length, checksum[:]).Scan(&data)
 	if err != nil {
@@ -302,7 +302,7 @@ func (repo *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint64
 	return bytes.NewBuffer(data), nil
 }
 
-func (repo *Repository) DeletePackfile(checksum objects.Checksum) error {
+func (repo *Repository) DeletePackfile(checksum objects.MAC) error {
 	statement, err := repo.conn.Prepare(`DELETE FROM packfiles WHERE checksum=?`)
 	if err != nil {
 		return err

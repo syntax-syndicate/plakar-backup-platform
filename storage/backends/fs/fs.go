@@ -102,11 +102,11 @@ func (repo *Repository) Open(location string) ([]byte, error) {
 	return data, nil
 }
 
-func (repo *Repository) GetPackfiles() ([]objects.Checksum, error) {
+func (repo *Repository) GetPackfiles() ([]objects.MAC, error) {
 	return repo.packfiles.List()
 }
 
-func (repo *Repository) GetPackfile(checksum objects.Checksum) (io.Reader, error) {
+func (repo *Repository) GetPackfile(checksum objects.MAC) (io.Reader, error) {
 	fp, err := repo.packfiles.Get(checksum)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -118,7 +118,7 @@ func (repo *Repository) GetPackfile(checksum objects.Checksum) (io.Reader, error
 	return fp, nil
 }
 
-func (repo *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint64, length uint32) (io.Reader, error) {
+func (repo *Repository) GetPackfileBlob(checksum objects.MAC, offset uint64, length uint32) (io.Reader, error) {
 	res, err := repo.packfiles.GetBlob(checksum, offset, length)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -129,11 +129,11 @@ func (repo *Repository) GetPackfileBlob(checksum objects.Checksum, offset uint64
 	return res, nil
 }
 
-func (repo *Repository) DeletePackfile(checksum objects.Checksum) error {
+func (repo *Repository) DeletePackfile(checksum objects.MAC) error {
 	return repo.packfiles.Remove(checksum)
 }
 
-func (repo *Repository) PutPackfile(checksum objects.Checksum, rd io.Reader) error {
+func (repo *Repository) PutPackfile(checksum objects.MAC, rd io.Reader) error {
 	return repo.packfiles.Put(checksum, rd)
 }
 
@@ -142,18 +142,18 @@ func (repo *Repository) Close() error {
 }
 
 /* Indexes */
-func (repo *Repository) GetStates() ([]objects.Checksum, error) {
+func (repo *Repository) GetStates() ([]objects.MAC, error) {
 	return repo.states.List()
 }
 
-func (repo *Repository) PutState(checksum objects.Checksum, rd io.Reader) error {
+func (repo *Repository) PutState(checksum objects.MAC, rd io.Reader) error {
 	return repo.states.Put(checksum, rd)
 }
 
-func (repo *Repository) GetState(checksum objects.Checksum) (io.Reader, error) {
+func (repo *Repository) GetState(checksum objects.MAC) (io.Reader, error) {
 	return repo.states.Get(checksum)
 }
 
-func (repo *Repository) DeleteState(checksum objects.Checksum) error {
+func (repo *Repository) DeleteState(checksum objects.MAC) error {
 	return repo.states.Remove(checksum)
 }

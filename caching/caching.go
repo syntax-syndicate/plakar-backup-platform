@@ -79,6 +79,6 @@ func (m *Manager) Repository(repositoryID uuid.UUID) (*_RepositoryCache, error) 
 }
 
 // XXX - beware that caller has responsibility to call Close() on the returned cache
-func (m *Manager) Scan(snapshotID objects.Checksum) (*ScanCache, error) {
+func (m *Manager) Scan(snapshotID objects.MAC) (*ScanCache, error) {
 	return newScanCache(m, snapshotID)
 }

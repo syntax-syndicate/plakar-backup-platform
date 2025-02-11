@@ -36,9 +36,9 @@ type Entry struct {
 	Summary *Summary `msgpack:"summary" json:"summary,omitempty"`
 
 	/* File specific fields */
-	SymlinkTarget  string           `msgpack:"symlink_target,omitempty" json:"symlink_target,omitempty"`
-	Object         objects.Checksum `msgpack:"object,omitempty" json:"-"` // nil for !regular files
-	ResolvedObject *objects.Object  `msgpack:"-" json:"object,omitempty"` // This the true object, resolved when opening the entry. Beware we serialize it as "Object" only for json to not break API compat'
+	SymlinkTarget  string          `msgpack:"symlink_target,omitempty" json:"symlink_target,omitempty"`
+	Object         objects.MAC     `msgpack:"object,omitempty" json:"-"` // nil for !regular files
+	ResolvedObject *objects.Object `msgpack:"-" json:"object,omitempty"` // This the true object, resolved when opening the entry. Beware we serialize it as "Object" only for json to not break API compat'
 
 	// /etc/passwd -> resolve datastreamms -/.
 	// /etc/passwd:stream
@@ -58,7 +58,7 @@ type Entry struct {
 }
 
 func (e *Entry) HasObject() bool {
-	return e.Object != objects.Checksum{}
+	return e.Object != objects.MAC{}
 }
 
 // Return empty lists for nil slices.
@@ -332,7 +332,7 @@ type vdir struct {
 	path   string
 	entry  *Entry
 	fs     *Filesystem
-	iter   btree.Iterator[string, objects.Checksum]
+	iter   btree.Iterator[string, objects.MAC]
 	closed bool
 }
 

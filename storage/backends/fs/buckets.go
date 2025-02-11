@@ -48,8 +48,8 @@ func (buckets *Buckets) Create() error {
 	return nil
 }
 
-func (buckets *Buckets) List() ([]objects.Checksum, error) {
-	ret := make([]objects.Checksum, 0)
+func (buckets *Buckets) List() ([]objects.MAC, error) {
+	ret := make([]objects.MAC, 0)
 
 	bucketsDir, err := os.ReadDir(buckets.path)
 	if err != nil {
@@ -82,7 +82,7 @@ func (buckets *Buckets) List() ([]objects.Checksum, error) {
 			if len(t) != 32 {
 				continue
 			}
-			var t32 objects.Checksum
+			var t32 objects.MAC
 			copy(t32[:], t)
 			ret = append(ret, t32)
 		}
@@ -90,13 +90,13 @@ func (buckets *Buckets) List() ([]objects.Checksum, error) {
 	return ret, nil
 }
 
-func (buckets *Buckets) Path(checksum objects.Checksum) string {
+func (buckets *Buckets) Path(checksum objects.MAC) string {
 	return filepath.Join(buckets.path,
 		fmt.Sprintf("%02x", checksum[0]),
 		fmt.Sprintf("%064x", checksum))
 }
 
-func (buckets *Buckets) Get(checksum objects.Checksum) (io.Reader, error) {
+func (buckets *Buckets) Get(checksum objects.MAC) (io.Reader, error) {
 	fp, err := os.Open(buckets.Path(checksum))
 	if err != nil {
 		return nil, err
@@ -104,7 +104,7 @@ func (buckets *Buckets) Get(checksum objects.Checksum) (io.Reader, error) {
 	return ClosingReader(fp)
 }
 
-func (buckets *Buckets) GetBlob(checksum objects.Checksum, offset uint64, length uint32) (io.Reader, error) {
+func (buckets *Buckets) GetBlob(checksum objects.MAC, offset uint64, length uint32) (io.Reader, error) {
 	fp, err := os.Open(buckets.Path(checksum))
 	if err != nil {
 		return nil, err
@@ -112,10 +112,10 @@ func (buckets *Buckets) GetBlob(checksum objects.Checksum, offset uint64, length
 	return ClosingLimitedReaderFromOffset(fp, int64(offset), int64(length))
 }
 
-func (buckets *Buckets) Remove(checksum objects.Checksum) error {
+func (buckets *Buckets) Remove(checksum objects.MAC) error {
 	return os.Remove(buckets.Path(checksum))
 }
 
-func (buckets *Buckets) Put(checksum objects.Checksum, rd io.Reader) error {
+func (buckets *Buckets) Put(checksum objects.MAC, rd io.Reader) error {
 	return WriteToFileAtomicTempDir(buckets.Path(checksum), rd, buckets.path)
 }

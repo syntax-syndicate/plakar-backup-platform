@@ -20,7 +20,7 @@ type Xattr struct {
 	Version versioning.Version `msgpack:"version" json:"version"`
 	Name    string             `msgpack:"name" json:"name"`
 	Size    int64              `msgpack:"size" json:"size"`
-	Object  objects.Checksum   `msgpack:"object,omitempty" json:"-"`
+	Object  objects.MAC        `msgpack:"object,omitempty" json:"-"`
 
 	// This the true object, resolved when opening the
 	// xattr. Beware we serialize it as "Object" only for json to
