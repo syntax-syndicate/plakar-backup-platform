@@ -25,8 +25,9 @@ const (
 )
 
 type Configuration struct {
-	DataAlgorithm   string
 	SubKeyAlgorithm string
+	DataAlgorithm   string
+	ChunkSize       int
 	KDFParams       KDFParams
 	Canary          []byte
 }
@@ -116,8 +117,9 @@ func NewDefaultConfiguration() *Configuration {
 	}
 
 	return &Configuration{
-		DataAlgorithm:   "AES256-GCM-SIV",
 		SubKeyAlgorithm: "AES256-KW",
+		DataAlgorithm:   "AES256-GCM-SIV",
+		ChunkSize:       chunkSize,
 		KDFParams:       *kdfParams,
 	}
 }
@@ -292,7 +294,7 @@ func EncryptStream(config *Configuration, key []byte, r io.Reader) (io.Reader, e
 		}
 
 		// Encrypt and write data chunks
-		chunk := make([]byte, chunkSize)
+		chunk := make([]byte, config.ChunkSize)
 		for {
 			// Use ReadFull to read exactly chunkSize or less at EOF
 			n, err := io.ReadFull(r, chunk)
@@ -346,7 +348,7 @@ func DecryptStream(config *Configuration, key []byte, r io.Reader) (io.Reader, e
 	go func() {
 		defer pw.Close()
 
-		buffer := make([]byte, chunkSize+AESGMSIV_OVERHEAD)
+		buffer := make([]byte, config.ChunkSize+AESGMSIV_OVERHEAD)
 		for {
 			n, err := r.Read(buffer)
 			if err != nil {
