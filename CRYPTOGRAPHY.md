@@ -12,17 +12,19 @@ if it leaks, content is no longer secret; if it is lost, content is no longer re
 
 Hashing algorithm, encryption algorithm and KDF are all technically configurable even though we froze sane defaults and do not allow configuration yet.
 
-- Hashing: SHA256
-- HMAC: HMAC-SHA256
-- Encryption: AES256-GCM
-- KDF: SCRYPT (we are considering ARGON2 as an alternative but are undecided)
+- **Digest**: BLAKE3
+- **MAC**: HMAC-BLAKE3
+- **Data encryption**: AES256-GCM-SIV (with keySize=256bits)
+- **Subkey encryption**: AES256-KW (with keySize=256bits)
+- **KDF**: ARGON2ID (with time=4, Memory=256M, Threads=NumCPU, SaltSize=16, KeyLen=32)
 
-Questions:
 
-- Q1: Should we switch to Argon2 or remain on Scrypt ?
-- Q2: If we remain on Scrypt, are these parameters still OK as of 2025 ?
-- Q3: If we switch to Argon2, do you have recommendations for parameters ?
-- Q4: Do you recommend switching to something else ?
+## Terminology
+
+- **Data** : raw data coming from structures or files
+- **Chunks** : cleartext file content is split into chunks of data by the use of a Content-Defined Chunking algorithm
+- **Blobs** : data that has been _encoded_ (compressed, encrypted, or compressed AND encrypted depending on configuration)
+
 
 ## Encryption and decryption
 
@@ -33,7 +35,7 @@ Questions:
 
 ## Encoding and decoding
 
-In practice, the software never calls the encryption function directly, instead it calls an encoding and decoding function.
+In practice, the software never calls the encryption function directly.
 
 Given an encryption key and an input stream of bytes, the encoding function streams the input into a compression function chained to the encryption function:
 
@@ -50,52 +52,45 @@ decode(key, input) = return decompress(decrypt(key, input))
 
 ## Initialization of an encrypted repository
 
-User creating the repository is prompted for a passphrase that is passed through an entropy-based strength-check to refuse weak ones:
+User creating the repository is prompted for a passphrase that is passed through an entropy-based strength-check to refuse weak ones.
 
-```
-https://github.com/PlakarKorp/plakar/pull/413/files#diff-27daab5a56d87beab7cb5ede5778b561c3e712c9a6c8b56a2ddda3eb0d88dc00R110-R119
-```
+We derive a **256-bits master key** for the repository from the supplied passphrase using the KDF.
 
-We derive a **256-bits master key** for the repository from the supplied passphrase using `scrypt` setup with a 128-bits randomly-generated salt and parameters `N=32768`, `r=8`, `p=1`,
-as it is suggested by the official Golang package documentation.
-
-In addition to the master key,
+In addition,
 **a 32-bytes random block** is generated and encrypted with the master key.
 
-The KDF parameters, salt and encrypted block are then stored in the repository configuration which has to remain unencrypted as it is used by clients to initialize their own local configuration:
+KDF parameters, salt and encrypted block are then stored in the repository configuration which remains unencrypted as it is used by clients to initialize:
 
 ```go
 type Configuration struct {
-	Algorithm string    // "AES256-GCM"
-	KDF       string    // "SCRYPT"
-	KDFParams KDFParams // KDF-dependant parameters (see below)
-	Canary    []byte    // random block for client passphrase validation
+	DataAlgorithm   string      // AES-GCM-SIV
+	SubKeyAlgorithm string      // AES-KW
+	KDFParams       KDFParams
+	Canary          []byte
 }
 
-// for SCRYPT
 type KDFParams struct {
-	Salt   [saltSize]byte
-	N      int
-	R      int
-	P      int
-	KeyLen int
+	KDF            string           // ARGON2ID by default, determines which params field is set below
+	Salt           []byte           // randomly-generated
+
+	Argon2IDParams *Argon2IDParams
+	ScryptParams   *ScryptParams
+	Pbkdf2Params   *PBKDF2Params
 }
 
-// for ARGON2 would be:
-type KDFParams struct {
-	Salt            [saltSize]byte
-	Memory          int
-	Iterations      int
-	Parallelism     int
-	KeyLen          int
+type Argon2IDParams struct {
+	SaltSize uint32     // 128-bits salt
+	Time     uint32     // 4
+	Memory   uint32     // 256M
+	Threads  uint8      // NumCPU
+	KeyLen   uint32     // 256-bits
 }
-
 ```
 
 The configuration is stored in the repository using the **storage object wrapping format** described later in this document.
-That wrapping format essentially prepends a small header and appends the HMAC of header+content.
+That wrapping format essentially prepends a small header and appends the MAC of header+content.
 
-As such, the configuration is HMAC-protected and an HMAC mismatch leads to detection of a corruption:
+As such, the configuration is MAC-protected and a MAC mismatch leads to detection of a corruption:
 
 ```
 $ plakar ls
@@ -122,13 +117,13 @@ A repository consists of three main elements:
 - state files
 
 These are all wrapped in the **storage object wrapping format** described later in this document,
-providing HMAC integrity check.
+providing MAC integrity check.
 
 
 ### Configuration
 The configuration supposedly contains no sensitive informations.
 
-In addition to the crypto parameters describe above,
+In addition to the crypto parameters described above,
 it contains a UUID, a timestamp, the chunking settings for deduplication, the settings for compression (algorithm, level, ...).
 
 ```go
@@ -159,44 +154,39 @@ Packfiles are immutable structured files that are created during the backup proc
     [...]
 
 [ENCODED INDEX]
-    [blob #1 type] [HMAC(HASH(data #1), masterKey)] [offset] [length]
-    [blob #2 type] [HMAC(HASH(data #2), masterKey)] [offset] [length]
-    [blob #3 type] [HMAC(HASH(data #3), masterKey)] [offset] [length]
+    [blob #1 type] [MAC(data #1, masterKey)] [offset] [length]
+    [blob #2 type] [MAC(data #2, masterKey)] [offset] [length]
+    [blob #3 type] [MAC(data #3, masterKey)] [offset] [length]
     [...]
 
 [ENCODED FOOTER]
-    Format version, creation timestamp, index HMAC, index offset and length
+    Format version, creation timestamp, index MAC, index offset and number of records
 ```
 
 #### Data section
 The data section contains a sequence of blobs that were created during the backup process by individually encoding chunks of data of varying types and sizes.
+
 These blobs are written one after the other in the packfile with no delimitation marker so that it's not possible to determine where they begin and where they end: the data section is just a stream of apparently random bytes.
-The blobs are individually encoded so it is possible to seek to a specific portion of the packfile and decode a blob without requiring the read of previous bytes to have the correct decompression or encryption state.
+They are individually encoded so it is possible to seek to a location in the packfile and decode a specific blob without requiring to read preceding blobs to build a compression or encryption state.
 
 Since blobs are created from a variety of data structures that are not only related to file content but also to filesystem structure and software internal structures,
 and because the backup process parallelizes packfiles filling, filesystem discovery and file content chunking,
-two contiguous blobs in a packfile almost never represent data that is contiguous in the data source being backed up.
+two contiguous blobs in a packfile almost never represent data that is contiguous in the original data source being backed up.
 A file content has blobs spread across multiple packfiles and two blobs from the same file content within a same packfile are almost always interlaced with unrelated blobs encoded from other data content.
 
 
 #### Index section
-The index section contains a sequence of fixed-length records that contain the blob type, the blob version, a HMAC of the original data checksum using the repository master key as secret, the offset of the blob in the data section and its length.
-
-The application uses regular checksums within snapshots so they can be compared to checksums on the live filesystem:
-a user can compute sha256 of /etc/passwd and match it with a checksum within the snapshot.
-However,
-whenever a checksum is used as a lookup key to a packfile,
-it is first converted to a HMAC using the master key so the original checksums are never referenced in the packfiles.
+The index section contains a sequence of fixed-length records that contain the blob type, the blob version, a MAC of the original data using the repository master key as secret, the offset of the blob in the data section and its length.
 
 The packfile index is individually encoded and not meant to be used as the repository state files provide a global index that aggregates all packfiles indexes.
 They are mainly used as a replica for disaster recovery should repository state end up corrupted:
 if really needed, we can locate the offset of the index thanks to the packfile footer and decode it to access its content and understand the structure of the packfile.
 
-The index has its HMAC computed and stored in the footer for fast integrity check without needing to read the entire packfile.
+The index has its MAC computed and stored in the footer for fast integrity check without needing to read the entire packfile.
 
 
 #### Footer section
-The footer is a fixed-size structure which allows to locate the offset of the index, its size and its HMAC.
+The footer is a fixed-size structure which allows to locate the offset of the index, its size and its MAC.
 
 It does not contain sensitive data but is encrypted as to not leak the index offset and make it harder to determine the number of blobs in a packfile:
 a packfile of ~20MB may contain only 2 x ~10MB blobs or may contain 20x ~1MB blobs, only the index provides this information.
@@ -208,16 +198,16 @@ State files are append-only structured files that provide an event log of change
 
 Every time a backup is done,
 a new state file is created that contains records describing which packfiles were created,
-which blob HMACs point to which locations (packfile, offset, length),
+which blob MACs point to which locations (packfile, offset, length),
 which snapshots were deleted (to allow a maintenance job to find orphaned packfiles to be removed).
 
 The state files contain fixed records that look as follow:
 
 ```
 [...]
-[ET_LOCATIONS] [RECORD SIZE] [HMAC(HASH(data #1), master key)] [packfile #3 identifier] [offset] [length]
-[ET_LOCATIONS] [RECORD SIZE] [HMAC(HASH(data #2), master key)] [packfile #1 identifier] [offset] [length]
-[ET_LOCATIONS] [RECORD SIZE] [HMAC(HASH(data #3), master key)] [packfile #2 identifier] [offset] [length]
+[ET_LOCATIONS] [RECORD SIZE] [MAC(data #1, masterKey)] [packfile #3 identifier] [offset] [length]
+[ET_LOCATIONS] [RECORD SIZE] [MAC(data #2, masterKey)] [packfile #1 identifier] [offset] [length]
+[ET_LOCATIONS] [RECORD SIZE] [MAC(data #3, masterKey)] [packfile #2 identifier] [offset] [length]
 [ET_PACKFILE]  [RECORD SIZE] [packfile #1 identifier]
 [ET_PACKFILE]  [RECORD SIZE] [packfile #2 identifier]
 [ET_PACKFILE]  [RECORD SIZE] [packfile #3 identifier]
@@ -237,7 +227,7 @@ The objects wrapping format is a structure format to wrap configuration, packfil
 The purpose is to provide the following features:
 - ability to detect the type of repository object in case state files and packfiles were accidentally mixed
 - ability to detect the version of an object to properly deserialize state files and packfiles should multiple versions coexist
-- ability to perform an HMAC validation of the content
+- ability to perform a MAC validation of the content
 
 The format wraps a repository object as follows:
 
@@ -248,12 +238,13 @@ The format wraps a repository object as follows:
 
     [OBJECT DATA]   = cleartext CONFIG | PACKFILE with encoded index and footer | encoded STATE
 
-[HMAC]              = HMAC from all previous bytes including MAGIC, TYPE and VERSION
+[MAC]              = MAC from all previous bytes including MAGIC, TYPE and VERSION
 ```
 
-Whenever an object is fetched from the repository,
-the wrapping is stripped and validated to ensure expectations are met:
-a packfile loading for exampole should have the proper magic and type, a recognized version and a valid HMAC.
+Whenever a wrapped object (config, packfiles and state files) is fetched from the repository,
+and before passing the object data to upper layer for deserialization,
+the wrapping is validated to ensure expectations are met:
+a packfile loading for exampole should have the proper magic and type, a recognized version and a valid MAC.
 
 
 ## Opening of an encrypted repository
@@ -262,16 +253,7 @@ a packfile loading for exampole should have the proper magic and type, a recogni
 
 - It prompts user for the passphrase and derives the master key using the KDF parameters and salt.
 
-- It verifies that the derived master key successfully decrypts the canary block using the `AES256-GCM` integrity check:
-
-```
-$ plakar ls
-repository passphrase: 
-repository passphrase: 
-repository passphrase: 
-./plakar: could not derive secret
-$ 
-```
+- It verifies that the derived master key successfully decrypts the canary block using the data encryption algorithm integrity check:
 
 - If decryption works, master key is used during the session, otherwise client errors out due to repository passphrase mismatch.
 
@@ -281,6 +263,16 @@ repository passphrase:
 2025-02-07T00:27:33Z   873441e1    3.1 MB        0s /private/etc
 $ 
 ```
+
+```
+$ plakar ls
+repository passphrase: 
+repository passphrase: 
+repository passphrase: 
+plakar: could not derive secret
+$ 
+```
+
 
 ## State synchronization
 
@@ -297,11 +289,11 @@ It is technically possible to check if a local filesystem exists within a reposi
 
 
 ## Snapshots
-A snapshot is essentially a virtual filesystem that describes the layout of directories entrie, file entries and file data among a few other things.
-Each node of the virtual filesystem is either a structure that points to other structures or to raw chunks of data.
+A snapshot is essentially a virtual filesystem that describes the layout of directories entries, file entries and file data among a few other things.
+Each node of the virtual filesystem is either a structure that points to other structures or to chunks of raw data.
 
 All these nodes are stored as blobs within packfiles,
-and pointers within the virtual filesystems are represented as checksums that can be looked up into packfiles to fetch related blobs.
+and pointers within the virtual filesystems are represented as MACs that can be looked up into packfiles to fetch related blobs.
 
 Each snapshot is assigned a random 256-bits identifier that points to a virtual filesystem root,
 and browsing the snapshot consists in resolving children nodes from there by performing the proper packfile lookups and fetches.
@@ -332,26 +324,15 @@ As backup progresses, chunks of data are produced from various sources:
 file content, filesystem structure, plakar internal structures, ...
 
 Each time a chunk is produced,
-a checksum of the data is computed for internal purposes and recording within the snapshot itself:
+a MAC of the data is computed from the chunk and master key.
+To determine if the chunk already exists in the repository or if it needs to be pushed,
+that MAC is then used as a key to query local cache:
 
 ```
-dataChecksum = HASH(data)
+found = localCache.BlobExists(blobType, MAC(chunk, masterKey))
 ```
 
-To determnine if the chunk already exists in the repository or if it needs to be pushed,
-a blob identifier is computed by performing an HMAC of the checksum with the master key:
-
-```
-blobId = HMAC(dataChecksum, masterKey)
-```
-
-That blob identifier is then used as a key to query local cache:
-
-```
-found = localCache.BlobExists(blobType, blobId)
-```
-
-If blob _id_ is found, then a blob with the same checksum already exists in the repository and there is no need to push it again.
+If found, then a blob with the same MAC already exists in the repository and there is no need to push it again.
 
 If blob is not found,
 then data is encoded:
@@ -428,7 +409,7 @@ $
 The packfile index is updated to track the new blob:
 
 ```
-[blob type] [blob version] [blobId] [data section offset] [blob length]
+[blob type] [blob version] [MAC(chunk, masterKey)] [blob offset] [blob length]
 ```
 
 When the packfile reaches a certain threshold (~20MB as of today's configuration), it is serialized as described previously and pushed to the repository with a random packfile identifier.
@@ -484,7 +465,7 @@ trace: repository: Decode(997 bytes): 97.917µs
 ```
 
 From there,
-the virtual filesystem tied to the snapshot can then be traversed with each node being fetched and decoded on the fly from the blob identifiers found in each node.
+the virtual filesystem tied to the snapshot can then be traversed with each node being fetched and decoded on the fly from the MAC found in each node.
 
 ```d
 trace: repository: GetPackfileBlob(6bbd59007dc25b5093c4cdbf994097560d327c4da7fb74e65740fd13943a4ea3, 282, 174): 891.875µs
@@ -518,37 +499,38 @@ info: e8b104b9: OK ✓ /private/etc/uucp
 $ 
 ```
 
-Integrity of a restore can be verified as checksums can be recomputed for each blob fetched from the repository and compared to the virtual filesystem recorded ones.
+Integrity of a restore can be verified as MACs can be recomputed for each blob fetched from the repository and compared to the virtual filesystem recorded ones.
 
 
 ## Encryption and decryption functions
 
-Encryption is performed using `AES256-GCM` with individual 256-bits subkeys randomly-generated and protected by the master key, so that in the event of one subkey leaking or being broken for any reason unrelated to the master key leaking, then not all data would be immediately at risk.
+Data is encrypted using individual 256-bits subkeys that are randomly-generated for each blob and encrypted themselves with the master key.
 
+The purpose is to ensure that should a subkey be broken or leak for reasons unrelated to the master key being compromised,
+only the related blob would be at risk and not the entire repository.
+
+For that reason, plakar uses a subkey encryption algorithm and a data encryption algorithm, each operating on a specific phase of the encryption/decryption process.
 
 ### Encryption
+
 The encryption works as follows:
 
     1- an encryption function takes a master key and an input buffer
-    2- it randomly generates a 256-bits subkey and a subkey nonce
-    3- it AES25-GCM encrypts the input buffer with that subkey into an output buffer
-    4- a random master key nonce is generated
-    5- subkey and subkey nonce are AES256-GCM encrypted with master key and master key nonce into a subkey block prepended to output buffer
+    2- it randomly generates a 256-bits subkey
+    3- a subkey encryption function is called to produce an encrypted subkey block protected by the master key
+    4- it prepends that encrypted prefix block to output
+    5- it then encrypts the data in chunks of 64K using the data encryption function with subkey
 
-    [encrypted subkey block] [encrypted data block]
+    [encrypted prefix block] [encrypted data block]
      ^^^^^^^^^^^^^^^^^^^^^^   ^^^^^^^^^^^^^^^^^^^^
      master key encrypted     subkey encrypted
 
 
-Q1: is it a safe scheme ?
-Q2: is AES256-GCM the most appropriate mode ?
-Q3: how to generate a safe nounce for the subkey block as to ensure there is no reuse ?
-
-
 ### Decryption
+
 The decryption works as follows:
 
     1- a decryption function takes a master key and an input buffer
-    2- the input buffer is split into two parts: the subkey block and the data block
-    3- the subkey block is decrypted so that subkey and subkey nonce are retrieved, GCM integrity check validates master key
-    4- the data block is decrypted with the subkey and subkey nonce, GCM integrity check validates subkey
+    2- the input buffer is split into two parts: the prefix block and the data block
+    3- the prefix block is decrypted so that subkey is retrieved
+    4- the data block is decrypted in chunks of 64K with the subkey, GCM integrity check validates subkey
