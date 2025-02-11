@@ -12,19 +12,22 @@ import (
 
 	"github.com/PlakarKorp/plakar/hashing"
 	aeskw "github.com/nickball/go-aes-key-wrap"
+	"github.com/tink-crypto/tink-go/v2/aead/subtle"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/crypto/scrypt"
 )
 
 const (
-	chunkSize   = 64 * 1024 // Size of each chunk for encryption/decryption
-	DEFAULT_KDF = "ARGON2ID"
+	chunkSize         = 64 * 1024 // Size of each chunk for encryption/decryption
+	DEFAULT_KDF       = "ARGON2ID"
+	AESGMSIV_OVERHEAD = subtle.AESGCMSIVNonceSize + aes.BlockSize
 )
 
 type Configuration struct {
-	DataAlgorithm   string
 	SubKeyAlgorithm string
+	DataAlgorithm   string
+	ChunkSize       int
 	KDFParams       KDFParams
 	Canary          []byte
 }
@@ -114,8 +117,9 @@ func NewDefaultConfiguration() *Configuration {
 	}
 
 	return &Configuration{
-		DataAlgorithm:   "AES256-GCM",
 		SubKeyAlgorithm: "AES256-KW",
+		DataAlgorithm:   "AES256-GCM-SIV",
+		ChunkSize:       chunkSize,
 		KDFParams:       *kdfParams,
 	}
 }
@@ -256,7 +260,7 @@ func DecryptSubkey(algorithm string, key []byte, r io.Reader) ([]byte, error) {
 
 // EncryptStream encrypts a stream using AES-GCM with a random session-specific subkey
 func EncryptStream(config *Configuration, key []byte, r io.Reader) (io.Reader, error) {
-	if config.DataAlgorithm != "AES256-GCM" {
+	if config.DataAlgorithm != "AES256-GCM-SIV" {
 		return nil, fmt.Errorf("unsupported data encryption algorithm: %s", config.DataAlgorithm)
 	}
 
@@ -271,12 +275,7 @@ func EncryptStream(config *Configuration, key []byte, r io.Reader) (io.Reader, e
 		return nil, err
 	}
 
-	// Set up AES-GCM for data encryption using the subkey
-	dataBlock, err := aes.NewCipher(subkey)
-	if err != nil {
-		return nil, err
-	}
-	dataGCM, err := cipher.NewGCM(dataBlock)
+	dataGCM, err := subtle.NewAESGCMSIV(subkey)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +294,7 @@ func EncryptStream(config *Configuration, key []byte, r io.Reader) (io.Reader, e
 		}
 
 		// Encrypt and write data chunks
-		chunk := make([]byte, chunkSize)
+		chunk := make([]byte, config.ChunkSize)
 		for {
 			// Use ReadFull to read exactly chunkSize or less at EOF
 			n, err := io.ReadFull(r, chunk)
@@ -305,18 +304,11 @@ func EncryptStream(config *Configuration, key []byte, r io.Reader) (io.Reader, e
 			}
 
 			if n > 0 {
-				// Generate nonce and encrypt the chunk
-				dataNonce := make([]byte, dataGCM.NonceSize())
-				if _, err := rand.Read(dataNonce); err != nil {
+				encryptedChunk, err := dataGCM.Encrypt(chunk[:n], nil)
+				if err != nil {
 					pw.CloseWithError(err)
 					return
 				}
-				if _, err := pw.Write(dataNonce); err != nil {
-					pw.CloseWithError(err)
-					return
-				}
-
-				encryptedChunk := dataGCM.Seal(nil, dataNonce, chunk[:n], nil)
 				if _, err := pw.Write(encryptedChunk); err != nil {
 					pw.CloseWithError(err)
 					return
@@ -335,7 +327,7 @@ func EncryptStream(config *Configuration, key []byte, r io.Reader) (io.Reader, e
 
 // DecryptStream decrypts a stream using AES-GCM with a random session-specific subkey
 func DecryptStream(config *Configuration, key []byte, r io.Reader) (io.Reader, error) {
-	if config.DataAlgorithm != "AES256-GCM" {
+	if config.DataAlgorithm != "AES256-GCM-SIV" {
 		return nil, fmt.Errorf("unsupported data encryption algorithm: %s", config.DataAlgorithm)
 	}
 
@@ -345,11 +337,7 @@ func DecryptStream(config *Configuration, key []byte, r io.Reader) (io.Reader, e
 	}
 
 	// Set up AES-GCM for actual data decryption using the subkey
-	dataBlock, err := aes.NewCipher(subkey)
-	if err != nil {
-		return nil, err
-	}
-	dataGCM, err := cipher.NewGCM(dataBlock)
+	dataGCM, err := subtle.NewAESGCMSIV(subkey)
 	if err != nil {
 		return nil, err
 	}
@@ -360,15 +348,8 @@ func DecryptStream(config *Configuration, key []byte, r io.Reader) (io.Reader, e
 	go func() {
 		defer pw.Close()
 
-		buffer := make([]byte, chunkSize+dataGCM.Overhead())
+		buffer := make([]byte, config.ChunkSize+AESGMSIV_OVERHEAD)
 		for {
-			// Read the data nonce from the input
-			dataNonce := make([]byte, dataGCM.NonceSize())
-			if _, err := io.ReadFull(r, dataNonce); err != nil {
-				pw.CloseWithError(err)
-				return
-			}
-
 			n, err := r.Read(buffer)
 			if err != nil {
 				if err != io.EOF {
@@ -382,7 +363,7 @@ func DecryptStream(config *Configuration, key []byte, r io.Reader) (io.Reader, e
 			}
 
 			// Decrypt each chunk and write it to the pipe
-			decryptedChunk, err := dataGCM.Open(nil, dataNonce, buffer[:n], nil)
+			decryptedChunk, err := dataGCM.Decrypt(buffer[:n], nil)
 			if err != nil {
 				pw.CloseWithError(err)
 				return
