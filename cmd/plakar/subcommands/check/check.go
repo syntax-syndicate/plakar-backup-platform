@@ -47,7 +47,7 @@ func parse_cmd_check(ctx *appcontext.AppContext, repo *repository.Repository, ar
 
 	flags.Uint64Var(&opt_concurrency, "concurrency", uint64(ctx.MaxConcurrency), "maximum number of parallel tasks")
 	flags.BoolVar(&opt_noVerify, "no-verify", false, "disable signature verification")
-	flags.BoolVar(&opt_fastCheck, "fast", false, "enable fast checking (no checksum verification)")
+	flags.BoolVar(&opt_fastCheck, "fast", false, "enable fast checking (no digest verification)")
 	flags.BoolVar(&opt_quiet, "quiet", false, "suppress output")
 	flags.Parse(args)
 

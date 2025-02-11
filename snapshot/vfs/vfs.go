@@ -287,7 +287,7 @@ func (fsc *Filesystem) XattrNodes() btree.Iterator[objects.MAC, *btree.Node[stri
 	return fsc.xattrs.IterDFS()
 }
 
-func (fsc *Filesystem) FileChecksums() (iter.Seq2[objects.MAC, error], error) {
+func (fsc *Filesystem) FileMacs() (iter.Seq2[objects.MAC, error], error) {
 	iter, err := fsc.tree.ScanAll()
 	if err != nil {
 		return nil, err
