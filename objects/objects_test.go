@@ -8,7 +8,7 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-func TestChecksumMarshalJSON(t *testing.T) {
+func TestMACMarshalJSON(t *testing.T) {
 	checksum := MAC{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 	expected := `"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"`
 
@@ -18,7 +18,7 @@ func TestChecksumMarshalJSON(t *testing.T) {
 	require.Equal(t, expected, string(jsonBytes))
 }
 
-func TestChecksumUnMarshalJSON(t *testing.T) {
+func TestMACUnMarshalJSON(t *testing.T) {
 	brokenValue := `"010203"`
 
 	var c MAC
