@@ -12,7 +12,6 @@ if it leaks, content is no longer secret; if it is lost, content is no longer re
 
 Hashing algorithm, encryption algorithm and KDF are all technically configurable even though we froze sane defaults and do not allow configuration yet.
 
-- **Digest**: BLAKE3
 - **MAC**: HMAC-BLAKE3
 - **Data encryption**: AES256-GCM-SIV (with keySize=256bits)
 - **Subkey encryption**: AES256-KW (with keySize=256bits)
@@ -335,10 +334,10 @@ found = localCache.BlobExists(blobType, MAC(chunk, masterKey))
 If found, then a blob with the same MAC already exists in the repository and there is no need to push it again.
 
 If blob is not found,
-then data is encoded:
+then chunk is encoded:
 
 ```
-blob = encode(masterKey, data)      // reminder: compress and encrypt with masterKey
+blob = encode(masterKey, chunk)      // reminder: compress and encrypt with masterKey
 ```
 
 and passed to a packing job that will append it to the data section of one of the packfiles currently being created, at random, using the blobId as its key:
@@ -467,7 +466,7 @@ trace: repository: Decode(997 bytes): 97.917µs
 From there,
 the virtual filesystem tied to the snapshot can then be traversed with each node being fetched and decoded on the fly from the MAC found in each node.
 
-```d
+```
 trace: repository: GetPackfileBlob(6bbd59007dc25b5093c4cdbf994097560d327c4da7fb74e65740fd13943a4ea3, 282, 174): 891.875µs
 trace: repository: GetBlob(vfs, 5fb6a97041326a45ca5811ee0da91e92dd016747cd52e6e8d5dd83b0d43018b4): 902.833µs
 trace: repository: Decode: 3.458µs
