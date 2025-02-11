@@ -105,10 +105,10 @@ func (fsc *Filesystem) lookup(entrypath string) (*Entry, error) {
 		return nil, fs.ErrNotExist
 	}
 
-	return fsc.resolveEntry(csum)
+	return fsc.ResolveEntry(csum)
 }
 
-func (fsc *Filesystem) resolveEntry(csum objects.Checksum) (*Entry, error) {
+func (fsc *Filesystem) ResolveEntry(csum objects.Checksum) (*Entry, error) {
 	rd, err := fsc.repo.GetBlob(resources.RT_VFS_ENTRY, csum)
 	if err != nil {
 		return nil, err
@@ -126,6 +126,10 @@ func (fsc *Filesystem) resolveEntry(csum objects.Checksum) (*Entry, error) {
 
 	if entry.HasObject() {
 		rd, err := fsc.repo.GetBlob(resources.RT_OBJECT, entry.Object)
+		if err != nil {
+			return nil, err
+		}
+
 		bytes, err := io.ReadAll(rd)
 		if err != nil {
 			return nil, err
@@ -175,7 +179,7 @@ func (fsc *Filesystem) Files() iter.Seq2[string, error] {
 
 		for iter.Next() {
 			path, csum := iter.Current()
-			entry, err := fsc.resolveEntry(csum)
+			entry, err := fsc.ResolveEntry(csum)
 			if err != nil {
 				if !yield(path, err) {
 					return
