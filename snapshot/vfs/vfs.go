@@ -87,7 +87,7 @@ func NewFilesystem(repo *repository.Repository, root, xattrs objects.Checksum) (
 	}
 
 	xstore := repository.NewRepositoryStore[string, objects.Checksum](repo, resources.RT_XATTR_BTREE)
-	xtree, err := btree.Deserialize(rd, xstore, PathCmp)
+	xtree, err := btree.Deserialize(rd, xstore, strings.Compare)
 	if err != nil {
 		return nil, err
 	}
