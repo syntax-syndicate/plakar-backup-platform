@@ -117,7 +117,10 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 			break
 		}
 	}
-	peerRepository, err := repository.New(ctx, peerStore, peerStoreSerializedConfig, peerSecret)
+
+	peerCtx := appcontext.NewAppContextFrom(ctx)
+	peerCtx.SetSecret(peerSecret)
+	peerRepository, err := repository.New(peerCtx, peerStore, peerStoreSerializedConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not open repository: %s\n", peerStore.Location(), err)
 		return 1, err

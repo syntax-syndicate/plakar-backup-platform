@@ -540,7 +540,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				}
 				defer store.Close()
 
-				repo, err = repository.New(clientContext, store, serializedConfig, clientContext.GetSecret())
+				repo, err = repository.New(clientContext, store, serializedConfig)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to open repository: %s\n", err)
 					return

@@ -90,7 +90,7 @@ func handleConnection(ctx *appcontext.AppContext, repo *repository.Repository, r
 				if err != nil {
 					retErr = err.Error()
 				} else {
-					lrepository, err = repository.New(ctx, st, request.Payload.(network.ReqCreate).Configuration, nil)
+					lrepository, err = repository.New(ctx, st, request.Payload.(network.ReqCreate).Configuration)
 					if err != nil {
 						retErr = err.Error()
 					}
@@ -120,7 +120,7 @@ func handleConnection(ctx *appcontext.AppContext, repo *repository.Repository, r
 				if err != nil {
 					retErr = err.Error()
 				} else {
-					lrepository, err = repository.New(ctx, st, serializedConfig, nil)
+					lrepository, err = repository.New(ctx, st, serializedConfig)
 					if err != nil {
 						retErr = err.Error()
 					}
