@@ -36,7 +36,7 @@ func (m *MAC) UnmarshalJSON(data []byte) error {
 	}
 
 	if len(decoded) != 32 {
-		return fmt.Errorf("invalid checksum length: %d", len(decoded))
+		return fmt.Errorf("invalid mac length: %d", len(decoded))
 	}
 
 	copy(m[:], decoded)

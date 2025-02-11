@@ -227,120 +227,120 @@ func TestDirectoryOKEvent(t *testing.T) {
 
 func TestObjectEvent(t *testing.T) {
 	snapshotId := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
-	checksum := [32]byte{32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
-	object := ObjectEvent(snapshotId, checksum)
+	mac := [32]byte{32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
+	object := ObjectEvent(snapshotId, mac)
 	if object.Timestamp.IsZero() {
 		t.Errorf("ObjectEvent().Timestamp returned a zero timestamp")
 	}
 	if len(object.SnapshotID) != 32 {
 		t.Errorf("ObjectEvent SnapshotID length is not 32")
 	}
-	if len(object.Checksum) != 32 {
-		t.Errorf("ObjectEvent Checksum length is not 32")
+	if len(object.MAC) != 32 {
+		t.Errorf("ObjectEvent MAC length is not 32")
 	}
 }
 
 func TestObjectOKEvent(t *testing.T) {
 	snapshotId := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
-	checksum := [32]byte{32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
-	objectOK := ObjectOKEvent(snapshotId, checksum)
+	mac := [32]byte{32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
+	objectOK := ObjectOKEvent(snapshotId, mac)
 	if objectOK.Timestamp.IsZero() {
 		t.Errorf("ObjectOKEvent().Timestamp returned a zero timestamp")
 	}
 	if len(objectOK.SnapshotID) != 32 {
 		t.Errorf("ObjectOKEvent SnapshotID length is not 32")
 	}
-	if len(objectOK.Checksum) != 32 {
-		t.Errorf("ObjectOKEvent Checksum length is not 32")
+	if len(objectOK.MAC) != 32 {
+		t.Errorf("ObjectOKEvent MAC length is not 32")
 	}
 }
 
 func TestObjectMissingEvent(t *testing.T) {
 	snapshotId := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
-	checksum := [32]byte{32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
-	objectMissing := ObjectMissingEvent(snapshotId, checksum)
+	mac := [32]byte{32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
+	objectMissing := ObjectMissingEvent(snapshotId, mac)
 	if objectMissing.Timestamp.IsZero() {
 		t.Errorf("ObjectMissingEvent().Timestamp returned a zero timestamp")
 	}
 	if len(objectMissing.SnapshotID) != 32 {
 		t.Errorf("ObjectMissingEvent SnapshotID length is not 32")
 	}
-	if len(objectMissing.Checksum) != 32 {
-		t.Errorf("ObjectMissingEvent Checksum length is not 32")
+	if len(objectMissing.MAC) != 32 {
+		t.Errorf("ObjectMissingEvent MAC length is not 32")
 	}
 }
 
 func TestObjectCorruptedEvent(t *testing.T) {
 	snapshotId := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
-	checksum := [32]byte{32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
-	objectCorrupted := ObjectCorruptedEvent(snapshotId, checksum)
+	mac := [32]byte{32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
+	objectCorrupted := ObjectCorruptedEvent(snapshotId, mac)
 	if objectCorrupted.Timestamp.IsZero() {
 		t.Errorf("ObjectCorruptedEvent().Timestamp returned a zero timestamp")
 	}
 	if len(objectCorrupted.SnapshotID) != 32 {
 		t.Errorf("ObjectCorruptedEvent SnapshotID length is not 32")
 	}
-	if len(objectCorrupted.Checksum) != 32 {
-		t.Errorf("ObjectCorruptedEvent Checksum length is not 32")
+	if len(objectCorrupted.MAC) != 32 {
+		t.Errorf("ObjectCorruptedEvent MAC length is not 32")
 	}
 }
 
 func TestChunkEvent(t *testing.T) {
 	snapshotId := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
-	checksum := [32]byte{32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
-	chunk := ChunkEvent(snapshotId, checksum)
+	mac := [32]byte{32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
+	chunk := ChunkEvent(snapshotId, mac)
 	if chunk.Timestamp.IsZero() {
 		t.Errorf("ChunkEvent().Timestamp returned a zero timestamp")
 	}
 	if len(chunk.SnapshotID) != 32 {
 		t.Errorf("ChunkEvent SnapshotID length is not 32")
 	}
-	if len(chunk.Checksum) != 32 {
-		t.Errorf("ChunkEvent Checksum length is not 32")
+	if len(chunk.MAC) != 32 {
+		t.Errorf("ChunkEvent MAC length is not 32")
 	}
 }
 
 func TestChunkOKEvent(t *testing.T) {
 	snapshotId := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
-	checksum := [32]byte{32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
-	chunkOK := ChunkOKEvent(snapshotId, checksum)
+	mac := [32]byte{32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
+	chunkOK := ChunkOKEvent(snapshotId, mac)
 	if chunkOK.Timestamp.IsZero() {
 		t.Errorf("ChunkOKEvent().Timestamp returned a zero timestamp")
 	}
 	if len(chunkOK.SnapshotID) != 32 {
 		t.Errorf("ChunkOKEvent SnapshotID length is not 32")
 	}
-	if len(chunkOK.Checksum) != 32 {
-		t.Errorf("ChunkOKEvent Checksum length is not 32")
+	if len(chunkOK.MAC) != 32 {
+		t.Errorf("ChunkOKEvent MAC length is not 32")
 	}
 }
 
 func TestChunkMissingEvent(t *testing.T) {
 	snapshotId := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
-	checksum := [32]byte{32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
-	chunkMissing := ChunkMissingEvent(snapshotId, checksum)
+	mac := [32]byte{32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
+	chunkMissing := ChunkMissingEvent(snapshotId, mac)
 	if chunkMissing.Timestamp.IsZero() {
 		t.Errorf("ChunkMissingEvent().Timestamp returned a zero timestamp")
 	}
 	if len(chunkMissing.SnapshotID) != 32 {
 		t.Errorf("ChunkMissingEvent SnapshotID length is not 32")
 	}
-	if len(chunkMissing.Checksum) != 32 {
-		t.Errorf("ChunkMissingEvent Checksum length is not 32")
+	if len(chunkMissing.MAC) != 32 {
+		t.Errorf("ChunkMissingEvent MAC length is not 32")
 	}
 }
 
 func TestChunkCorruptedEvent(t *testing.T) {
 	snapshotId := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
-	checksum := [32]byte{32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
-	chunkCorrupted := ChunkCorruptedEvent(snapshotId, checksum)
+	mac := [32]byte{32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
+	chunkCorrupted := ChunkCorruptedEvent(snapshotId, mac)
 	if chunkCorrupted.Timestamp.IsZero() {
 		t.Errorf("ChunkCorruptedEvent().Timestamp returned a zero timestamp")
 	}
 	if len(chunkCorrupted.SnapshotID) != 32 {
 		t.Errorf("ChunkCorruptedEvent SnapshotID length is not 32")
 	}
-	if len(chunkCorrupted.Checksum) != 32 {
-		t.Errorf("ChunkCorruptedEvent Checksum length is not 32")
+	if len(chunkCorrupted.MAC) != 32 {
+		t.Errorf("ChunkCorruptedEvent MAC length is not 32")
 	}
 }
