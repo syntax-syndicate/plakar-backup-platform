@@ -23,7 +23,6 @@ import (
 	"github.com/PlakarKorp/plakar/snapshot/header"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
-	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/gobwas/glob"
 )
@@ -35,7 +34,7 @@ type BackupContext struct {
 	maxConcurrency chan bool
 	scanCache      *caching.ScanCache
 
-	erridx   *btree.BTree[string, int, *ErrorItem]
+	erridx   *btree.BTree[string, int, *vfs.ErrorItem]
 	muerridx sync.Mutex
 
 	xattridx   *btree.BTree[string, int, *vfs.Xattr]
@@ -65,11 +64,7 @@ func (bc *BackupContext) recordEntry(entry *vfs.Entry) error {
 
 func (bc *BackupContext) recordError(path string, err error) error {
 	bc.muerridx.Lock()
-	e := bc.erridx.Insert(path, &ErrorItem{
-		Version: versioning.FromString(ERROR_VERSION),
-		Name:    path,
-		Error:   err.Error(),
-	})
+	e := bc.erridx.Insert(path, vfs.NewErrorItem(path, err.Error()))
 	bc.muerridx.Unlock()
 	return e
 }
@@ -234,7 +229,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		scanCache:      snap.scanCache,
 	}
 
-	errstore := caching.DBStore[string, *ErrorItem]{
+	errstore := caching.DBStore[string, *vfs.ErrorItem]{
 		Prefix: "__error__",
 		Cache:  snap.scanCache,
 	}
@@ -432,7 +427,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	}
 	scannerWg.Wait()
 
-	errcsum, err := persistIndex(snap, backupCtx.erridx, resources.RT_ERROR_BTREE, func(e *ErrorItem) (csum objects.Checksum, err error) {
+	errcsum, err := persistIndex(snap, backupCtx.erridx, resources.RT_ERROR_BTREE, func(e *vfs.ErrorItem) (csum objects.Checksum, err error) {
 		serialized, err := e.ToBytes()
 		if err != nil {
 			return
@@ -619,11 +614,11 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	snap.Header.GetSource(0).VFS = header.VFS{
 		Root:   rootcsum,
 		Xattrs: xattrcsum,
+		Errors: errcsum,
 	}
 	//snap.Header.Metadata = metadataChecksum
 	snap.Header.Duration = time.Since(beginTime)
 	snap.Header.GetSource(0).Summary = *rootSummary
-	snap.Header.GetSource(0).Errors = errcsum
 
 	/*
 		for _, key := range snap.Metadata.ListKeys() {

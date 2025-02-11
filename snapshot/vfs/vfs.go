@@ -42,6 +42,7 @@ type CustomMetadata struct {
 type Filesystem struct {
 	tree   *btree.BTree[string, objects.Checksum, objects.Checksum]
 	xattrs *btree.BTree[string, objects.Checksum, objects.Checksum]
+	errors *btree.BTree[string, objects.Checksum, objects.Checksum]
 	repo   *repository.Repository
 }
 
@@ -68,7 +69,7 @@ func isEntryBelow(parent, entry string) bool {
 	return true
 }
 
-func NewFilesystem(repo *repository.Repository, root, xattrs objects.Checksum) (*Filesystem, error) {
+func NewFilesystem(repo *repository.Repository, root, xattrs, errors objects.Checksum) (*Filesystem, error) {
 	rd, err := repo.GetBlob(resources.RT_VFS_BTREE, root)
 	if err != nil {
 		return nil, err
@@ -91,9 +92,21 @@ func NewFilesystem(repo *repository.Repository, root, xattrs objects.Checksum) (
 		return nil, err
 	}
 
+	rd, err = repo.GetBlob(resources.RT_ERROR_BTREE, errors)
+	if err != nil {
+		return nil, err
+	}
+
+	errstore := repository.NewRepositoryStore[string, objects.Checksum](repo, resources.RT_ERROR_BTREE)
+	errtree, err := btree.Deserialize(rd, errstore, strings.Compare)
+	if err != nil {
+		return nil, err
+	}
+
 	fs := &Filesystem{
 		tree:   tree,
 		xattrs: xtree,
+		errors: errtree,
 		repo:   repo,
 	}
 
