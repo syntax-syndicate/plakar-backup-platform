@@ -390,7 +390,7 @@ func TestChildren(t *testing.T) {
 	// require.ElementsMatch(t, expectedChildren, childNames)
 }
 
-func TestFileChecksums(t *testing.T) {
+func TestFileMacs(t *testing.T) {
 	snap := generateSnapshot(t)
 	defer snap.Close()
 
@@ -400,16 +400,16 @@ func TestFileChecksums(t *testing.T) {
 	fs, err := snap.Filesystem()
 	require.NoError(t, err)
 
-	iter, err := fs.FileChecksums()
+	iter, err := fs.FileMacs()
 	require.NoError(t, err)
 	require.NotNil(t, iter)
 
-	checksums := make(map[objects.Checksum]struct{})
-	for csum, err := range iter {
+	macs := make(map[objects.MAC]struct{})
+	for m, err := range iter {
 		require.NoError(t, err)
-		require.NotNil(t, csum)
-		checksums[csum] = struct{}{}
+		require.NotNil(t, m)
+		macs[m] = struct{}{}
 	}
 
-	require.Equal(t, 5, len(checksums))
+	require.Equal(t, 5, len(macs))
 }
