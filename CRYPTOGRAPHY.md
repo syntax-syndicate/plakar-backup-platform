@@ -12,7 +12,7 @@ if it leaks, content is no longer secret; if it is lost, content is no longer re
 
 Hashing algorithm, encryption algorithm and KDF are all technically configurable even though we froze sane defaults and do not allow configuration yet.
 
-- **MAC**: HMAC-BLAKE3
+- **MAC**: KEYED BLAKE3 (with masterKey)
 - **Data encryption**: AES256-GCM-SIV (with keySize=256bits)
 - **Subkey encryption**: AES256-KW (with keySize=256bits)
 - **KDF**: ARGON2ID (with time=4, Memory=256M, Threads=NumCPU, SaltSize=16, KeyLen=32)

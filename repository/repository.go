@@ -290,7 +290,9 @@ func (r *Repository) EncodeBuffer(buffer []byte) ([]byte, error) {
 func (r *Repository) GetMACHasher() hash.Hash {
 	secret := r.AppContext().GetSecret()
 	if secret == nil {
-		secret = r.configuration.RepositoryID[:]
+		hasher := hashing.GetHasher(r.Configuration().Hashing.Algorithm)
+		hasher.Write(r.configuration.RepositoryID[:])
+		secret = hasher.Sum(nil)
 	}
 	return hashing.GetMACHasher(r.Configuration().Hashing.Algorithm, secret)
 }
