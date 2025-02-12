@@ -501,6 +501,40 @@ func GetCacheDir(appName string) (string, error) {
 	return cacheDir, nil
 }
 
+func GetConfigDir(appName string) (string, error) {
+	var configDir string
+
+	switch runtime.GOOS {
+	case "windows":
+		// Use %LocalAppData%
+		configDir = os.Getenv("LocalAppData")
+		if configDir == "" {
+			return "", fmt.Errorf("LocalAppData environment variable not set")
+		}
+		configDir = filepath.Join(configDir, appName)
+	default:
+		// Use XDG_CACHE_HOME or default to ~/.cache
+		configDir = os.Getenv("XDG_CONFIG_HOME")
+		if configDir == "" {
+			homeDir, err := os.UserHomeDir()
+			if err != nil {
+				return "", err
+			}
+			configDir = filepath.Join(homeDir, ".config", appName)
+		} else {
+			configDir = filepath.Join(configDir, appName)
+		}
+	}
+
+	// Create the cache directory if it doesn't exist
+	err := os.MkdirAll(configDir, 0700)
+	if err != nil {
+		return "", err
+	}
+
+	return configDir, nil
+}
+
 const VERSION = "v0.4.24-alpha"
 
 func GetVersion() string {
