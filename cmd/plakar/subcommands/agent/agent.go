@@ -26,8 +26,10 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
+	"syscall"
 
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -40,7 +42,7 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/clone"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/diff"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/digest"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/exec"
+	cmd_exec "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/exec"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/info"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/locate"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ls"
@@ -62,7 +64,34 @@ func init() {
 	subcommands.Register("agent", parse_cmd_agent)
 }
 
+func daemonize(argv []string) error {
+	binary, err := exec.LookPath(os.Args[0])
+	if err != nil {
+		return err
+	}
+
+	procAttr := syscall.ProcAttr{}
+	procAttr.Files = []uintptr{
+		uintptr(syscall.Stdin),
+		uintptr(syscall.Stdout),
+		uintptr(syscall.Stderr),
+	}
+	procAttr.Env = append(os.Environ(),
+		"REEXEC=1",
+	)
+
+	pid, err := syscall.ForkExec(binary, argv, &procAttr)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("agent started with pid=%d\n", pid)
+	os.Exit(0)
+	return nil
+}
+
 func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+	var opt_foreground bool
+	var opt_stop bool
 	var opt_prometheus string
 
 	flags := flag.NewFlagSet("agent", flag.ExitOnError)
@@ -73,12 +102,42 @@ func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, ar
 	}
 
 	flags.StringVar(&opt_prometheus, "prometheus", "", "prometheus exporter interface, e.g. 127.0.0.1:9090")
+	flags.BoolVar(&opt_foreground, "foreground", false, "run in foreground")
+	flags.BoolVar(&opt_stop, "stop", false, "stop the agent")
 	flags.Parse(args)
+
+	if opt_stop {
+		client, err := agent.NewClient(filepath.Join(ctx.CacheDir, "agent.sock"))
+		if err != nil {
+			return nil, err
+		}
+		defer client.Close()
+
+		retval, err := client.SendCommand(ctx, &AgentStop{}, nil)
+		if err != nil {
+			return nil, err
+		}
+		os.Exit(retval)
+	}
+
+	if !opt_foreground && os.Getenv("REEXEC") == "" {
+		err := daemonize(os.Args)
+		return nil, err
+	}
 
 	return &Agent{
 		prometheus: opt_prometheus,
 		socketPath: filepath.Join(ctx.CacheDir, "agent.sock"),
 	}, nil
+}
+
+type AgentStop struct{}
+
+func (cmd *AgentStop) Name() string {
+	return "agent-stop"
+}
+func (cmd *AgentStop) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+	return 1, nil
 }
 
 type Agent struct {
@@ -262,6 +321,15 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			var repositorySecret []byte
 
 			switch name {
+			case (&AgentStop{}).Name():
+				var cmd struct {
+				}
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
+					return
+				}
+				subcommand = &AgentStop{}
+				os.Exit(0)
 			case (&cat.Cat{}).Name():
 				var cmd struct {
 					Name       string
@@ -430,10 +498,10 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case (&exec.Exec{}).Name():
+			case (&cmd_exec.Exec{}).Name():
 				var cmd struct {
 					Name       string
-					Subcommand exec.Exec
+					Subcommand cmd_exec.Exec
 				}
 				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
