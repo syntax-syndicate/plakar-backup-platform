@@ -28,7 +28,7 @@ type Xattr struct {
 	ResolvedObject *objects.Object `msgpack:"-" json:"object,omitempty"`
 }
 
-func NewXattr(record importer.ScanRecord, object *objects.Object) *Xattr {
+func NewXattr(record *importer.ScanRecord, object *objects.Object) *Xattr {
 	var size int64
 
 	for _, chunk := range object.Chunks {
