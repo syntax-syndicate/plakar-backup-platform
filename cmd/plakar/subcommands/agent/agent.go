@@ -26,7 +26,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 	"syscall"
@@ -65,7 +64,7 @@ func init() {
 }
 
 func daemonize(argv []string) error {
-	binary, err := exec.LookPath(os.Args[0])
+	binary, err := os.Executable()
 	if err != nil {
 		return err
 	}
