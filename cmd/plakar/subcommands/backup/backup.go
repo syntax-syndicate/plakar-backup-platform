@@ -55,6 +55,7 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 	var opt_exclude excludeFlags
 	var opt_concurrency uint64
 	var opt_quiet bool
+	var opt_silent bool
 	// var opt_stdio bool
 
 	excludes := []glob.Glob{}
@@ -72,6 +73,7 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 	flags.StringVar(&opt_excludes, "excludes", "", "file containing a list of exclusions")
 	flags.Var(&opt_exclude, "exclude", "file containing a list of exclusions")
 	flags.BoolVar(&opt_quiet, "quiet", false, "suppress output")
+	flags.BoolVar(&opt_silent, "silent", false, "suppress ALL output")
 	//flags.BoolVar(&opt_stdio, "stdio", false, "output one line per file to stdout instead of the default interactive output")
 	flags.Parse(args)
 
@@ -116,11 +118,13 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 type Backup struct {
 	RepositoryLocation string
 	RepositorySecret   []byte
+	Job                string
 
 	Concurrency uint64
 	Tags        string
 	Excludes    []glob.Glob
 	Exclude     []string
+	Silent      bool
 	Quiet       bool
 	Path        string
 }
@@ -136,6 +140,10 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		return 1, err
 	}
 	defer snap.Close()
+
+	if cmd.Job != "" {
+		snap.Header.Job = cmd.Job
+	}
 
 	var tags []string
 	if cmd.Tags == "" {
@@ -167,18 +175,23 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		}
 	}
 
-	ep := startEventsProcessor(ctx, imp.Root(), true, cmd.Quiet)
-	if err := snap.Backup(scanDir, imp, opts); err != nil {
+	if cmd.Silent {
+		if err := snap.Backup(scanDir, imp, opts); err != nil {
+			return 1, fmt.Errorf("failed to create snapshot: %w", err)
+		}
+	} else {
+		ep := startEventsProcessor(ctx, imp.Root(), true, cmd.Quiet)
+		if err := snap.Backup(scanDir, imp, opts); err != nil {
+			ep.Close()
+			return 1, fmt.Errorf("failed to create snapshot: %w", err)
+		}
 		ep.Close()
-		return 1, fmt.Errorf("failed to create snapshot: %w", err)
+		ctx.GetLogger().Info("created %s snapshot %x with root %s of size %s in %s",
+			"unsigned",
+			snap.Header.GetIndexShortID(),
+			base64.RawStdEncoding.EncodeToString(snap.Header.GetSource(0).VFS.Root[:]),
+			humanize.Bytes(snap.Header.GetSource(0).Summary.Directory.Size+snap.Header.GetSource(0).Summary.Below.Size),
+			snap.Header.Duration)
 	}
-	ep.Close()
-
-	ctx.GetLogger().Info("created %s snapshot %x with root %s of size %s in %s",
-		"unsigned",
-		snap.Header.GetIndexShortID(),
-		base64.RawStdEncoding.EncodeToString(snap.Header.GetSource(0).VFS.Root[:]),
-		humanize.Bytes(snap.Header.GetSource(0).Summary.Directory.Size+snap.Header.GetSource(0).Summary.Below.Size),
-		snap.Header.Duration)
 	return 0, nil
 }

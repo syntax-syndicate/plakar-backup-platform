@@ -37,6 +37,7 @@ func parse_cmd_check(ctx *appcontext.AppContext, repo *repository.Repository, ar
 	var opt_fastCheck bool
 	var opt_noVerify bool
 	var opt_quiet bool
+	var opt_silent bool
 
 	flags := flag.NewFlagSet("check", flag.ExitOnError)
 	flags.Usage = func() {
@@ -49,6 +50,7 @@ func parse_cmd_check(ctx *appcontext.AppContext, repo *repository.Repository, ar
 	flags.BoolVar(&opt_noVerify, "no-verify", false, "disable signature verification")
 	flags.BoolVar(&opt_fastCheck, "fast", false, "enable fast checking (no digest verification)")
 	flags.BoolVar(&opt_quiet, "quiet", false, "suppress output")
+	flags.BoolVar(&opt_quiet, "silent", false, "suppress ALL output")
 	flags.Parse(args)
 
 	return &Check{
@@ -59,18 +61,21 @@ func parse_cmd_check(ctx *appcontext.AppContext, repo *repository.Repository, ar
 		NoVerify:           opt_noVerify,
 		Quiet:              opt_quiet,
 		Snapshots:          flags.Args(),
+		Silent:             opt_silent,
 	}, nil
 }
 
 type Check struct {
 	RepositoryLocation string
 	RepositorySecret   []byte
+	Job                string
 
 	Concurrency uint64
 	FastCheck   bool
 	NoVerify    bool
 	Quiet       bool
 	Snapshots   []string
+	Silent      bool
 }
 
 func (cmd *Check) Name() string {
@@ -78,7 +83,9 @@ func (cmd *Check) Name() string {
 }
 
 func (cmd *Check) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	go eventsProcessorStdio(ctx, cmd.Quiet)
+	if !cmd.Silent {
+		go eventsProcessorStdio(ctx, cmd.Quiet)
+	}
 
 	var snapshots []string
 	if len(cmd.Snapshots) == 0 {

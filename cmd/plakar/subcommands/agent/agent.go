@@ -53,6 +53,7 @@ import (
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/scheduler"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vmihailenco/msgpack/v5"
@@ -64,6 +65,7 @@ func init() {
 
 func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	var opt_prometheus string
+	var opt_tasks string
 
 	flags := flag.NewFlagSet("agent", flag.ExitOnError)
 	flags.Usage = func() {
@@ -72,12 +74,23 @@ func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, ar
 		flags.PrintDefaults()
 	}
 
+	flags.StringVar(&opt_tasks, "tasks", "", "tasks configuration file")
 	flags.StringVar(&opt_prometheus, "prometheus", "", "prometheus exporter interface, e.g. 127.0.0.1:9090")
 	flags.Parse(args)
 
+	var schedConfig *scheduler.Configuration
+	if opt_tasks != "" {
+		tmp, err := scheduler.ParseConfigFile(opt_tasks)
+		if err != nil {
+			return nil, err
+		}
+		schedConfig = tmp
+	}
+
 	return &Agent{
-		prometheus: opt_prometheus,
-		socketPath: filepath.Join(ctx.CacheDir, "agent.sock"),
+		prometheus:  opt_prometheus,
+		socketPath:  filepath.Join(ctx.CacheDir, "agent.sock"),
+		schedConfig: schedConfig,
 	}, nil
 }
 
@@ -86,6 +99,8 @@ type Agent struct {
 	socketPath string
 
 	listener net.Listener
+
+	schedConfig *scheduler.Configuration
 }
 
 func (cmd *Agent) checkSocket() bool {
@@ -116,6 +131,12 @@ func isDisconnectError(err error) bool {
 }
 
 func (cmd *Agent) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+	if cmd.schedConfig != nil {
+		go func() {
+			scheduler.NewScheduler(ctx, cmd.schedConfig).Run()
+		}()
+	}
+
 	if err := cmd.ListenAndServe(ctx); err != nil {
 		return 1, err
 	}

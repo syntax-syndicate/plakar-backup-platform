@@ -131,6 +131,8 @@ type Rm struct {
 	Tag        string
 	BeforeDate time.Time
 	Prefixes   []string
+
+	Job string
 }
 
 func (cmd *Rm) Name() string {
@@ -174,6 +176,17 @@ func (cmd *Rm) Execute(ctx *appcontext.AppContext, repo *repository.Repository) 
 					found = true
 					break
 				}
+			}
+			if !found {
+				continue
+			}
+		}
+
+		if cmd.Job != "" {
+			found := false
+			if cmd.Job == snap.Header.Job {
+				found = true
+				break
 			}
 			if !found {
 				continue
