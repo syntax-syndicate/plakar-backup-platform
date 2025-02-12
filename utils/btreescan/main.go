@@ -9,7 +9,6 @@ import (
 	"runtime/pprof"
 
 	"github.com/PlakarKorp/plakar/btree"
-	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/PlakarKorp/plakar/snapshot/importer/fs"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -133,12 +132,12 @@ func main() {
 	var items uint64
 	log.Println("starting the scan")
 	for record := range scan {
-		switch record := record.(type) {
-		case importer.ScanError:
-			log.Print("failed to scan:", record.Pathname)
+		switch {
+		case record.Error != nil:
+			log.Print("failed to scan:", record.Error.Pathname)
 			continue
-		case importer.ScanRecord:
-			path := record.Pathname
+		case record.Record != nil:
+			path := record.Record.Pathname
 			if err := idx.Insert(path, empty{}); err != nil && err != btree.ErrExists {
 				log.Fatalf("failed to insert %s: %v", path, err)
 			}

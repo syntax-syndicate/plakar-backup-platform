@@ -72,33 +72,33 @@ func NewFTPImporter(location string) (importer.Importer, error) {
 	}, nil
 }
 
-func (p *FTPImporter) ftpWalker_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *sync.WaitGroup) {
+func (p *FTPImporter) ftpWalker_worker(jobs <-chan string, results chan<- *importer.ScanResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for path := range jobs {
 		info, err := p.client.Stat(path)
 		if err != nil {
-			results <- importer.ScanError{Pathname: path, Err: err}
+			results <- importer.NewScanError(path, err)
 			continue
 		}
 
 		fileinfo := objects.FileInfoFromStat(info)
 
-		results <- importer.ScanRecord{Pathname: filepath.ToSlash(path), FileInfo: fileinfo}
+		results <- importer.NewScanRecord(filepath.ToSlash(path), "", fileinfo, nil)
 
 		// Handle symlinks separately
 		if fileinfo.Mode()&os.ModeSymlink != 0 {
 			originFile, err := os.Readlink(path)
 			if err != nil {
-				results <- importer.ScanError{Pathname: path, Err: err}
+				results <- importer.NewScanError(path, err)
 				continue
 			}
-			results <- importer.ScanRecord{Pathname: filepath.ToSlash(path), Target: originFile, FileInfo: fileinfo}
+			results <- importer.NewScanRecord(filepath.ToSlash(path), originFile, fileinfo, nil)
 		}
 	}
 }
 
-func (p *FTPImporter) ftpWalker_addPrefixDirectories(jobs chan<- string, results chan<- importer.ScanResult) {
+func (p *FTPImporter) ftpWalker_addPrefixDirectories(jobs chan<- string, results chan<- *importer.ScanResult) {
 	directory := filepath.Clean(p.rootDir)
 	atoms := strings.Split(directory, string(os.PathSeparator))
 
@@ -110,7 +110,7 @@ func (p *FTPImporter) ftpWalker_addPrefixDirectories(jobs chan<- string, results
 		}
 
 		if _, err := p.client.Stat(path); err != nil {
-			results <- importer.ScanError{Pathname: path, Err: err}
+			results <- importer.NewScanError(path, err)
 			continue
 		}
 
@@ -141,7 +141,7 @@ func (p *FTPImporter) walkDir(root string, results chan<- string, wg *sync.WaitG
 	}
 }
 
-func (p *FTPImporter) Scan() (<-chan importer.ScanResult, error) {
+func (p *FTPImporter) Scan() (<-chan *importer.ScanResult, error) {
 	client, err := connectToFTP(p.host, "", "")
 	if err != nil {
 		fmt.Println(err)
@@ -149,8 +149,8 @@ func (p *FTPImporter) Scan() (<-chan importer.ScanResult, error) {
 	}
 	p.client = client
 
-	results := make(chan importer.ScanResult, 1000) // Larger buffer for results
-	jobs := make(chan string, 1000)                 // Buffered channel to feed paths to workers
+	results := make(chan *importer.ScanResult, 1000) // Larger buffer for results
+	jobs := make(chan string, 1000)                  // Buffered channel to feed paths to workers
 	var wg sync.WaitGroup
 	numWorkers := 256
 

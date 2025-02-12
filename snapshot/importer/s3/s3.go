@@ -83,7 +83,7 @@ func NewS3Importer(location string) (importer.Importer, error) {
 	}, nil
 }
 
-func (p *S3Importer) scanRecursive(prefix string, result chan importer.ScanResult) {
+func (p *S3Importer) scanRecursive(prefix string, result chan *importer.ScanResult) {
 	for object := range p.minioClient.ListObjects(context.Background(), p.bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: false}) {
 		objectPath := "/" + object.Key
 		if !strings.HasPrefix(objectPath, p.scanDir) && !strings.HasPrefix(p.scanDir, objectPath) {
@@ -104,7 +104,7 @@ func (p *S3Importer) scanRecursive(prefix string, result chan importer.ScanResul
 				0,
 				0,
 			)
-			result <- importer.ScanRecord{Pathname: "/" + object.Key, FileInfo: fi}
+			result <- importer.NewScanRecord("/" + object.Key, "", fi, nil)
 		}
 	}
 
@@ -115,7 +115,7 @@ func (p *S3Importer) scanRecursive(prefix string, result chan importer.ScanResul
 		currentName = filepath.Base(prefix)
 	}
 
-	result <- importer.ScanRecord{Pathname: "/" + prefix, FileInfo: objects.NewFileInfo(
+	fi := objects.NewFileInfo(
 		currentName,
 		0,
 		0700|os.ModeDir,
@@ -125,11 +125,12 @@ func (p *S3Importer) scanRecursive(prefix string, result chan importer.ScanResul
 		0,
 		0,
 		0,
-	)}
+	)
+	result <- importer.NewScanRecord("/" + prefix, "", fi, nil)
 }
 
-func (p *S3Importer) Scan() (<-chan importer.ScanResult, error) {
-	c := make(chan importer.ScanResult)
+func (p *S3Importer) Scan() (<-chan *importer.ScanResult, error) {
+	c := make(chan *importer.ScanResult)
 	go func() {
 		defer close(c)
 		p.scanRecursive("", c)
