@@ -66,9 +66,10 @@ type DeltaEntry struct {
 	Version  versioning.Version
 	Blob     objects.MAC
 	Location Location
+	Flags    uint32
 }
 
-const DeltaEntrySerializedSize = 1 + 4 + 32 + LocationSerializedSize
+const DeltaEntrySerializedSize = 1 + 4 + 32 + LocationSerializedSize + 4
 
 type DeletedEntry struct {
 	Type resources.Type
@@ -308,6 +309,7 @@ func DeltaEntryFromBytes(buf []byte) (de DeltaEntry, err error) {
 
 	de.Location.Offset = binary.LittleEndian.Uint64(bbuf.Next(8))
 	de.Location.Length = binary.LittleEndian.Uint32(bbuf.Next(4))
+	de.Flags = binary.LittleEndian.Uint32(bbuf.Next(4))
 
 	return
 }
@@ -324,6 +326,8 @@ func (de *DeltaEntry) _toBytes(buf []byte) {
 	binary.LittleEndian.PutUint64(buf[pos:], de.Location.Offset)
 	pos += 8
 	binary.LittleEndian.PutUint32(buf[pos:], de.Location.Length)
+	pos += 4
+	binary.LittleEndian.PutUint32(buf[pos:], de.Flags)
 }
 
 func (de *DeltaEntry) ToBytes() (ret []byte) {
