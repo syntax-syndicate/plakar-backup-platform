@@ -25,11 +25,11 @@ import (
 	"sync"
 
 	"github.com/PlakarKorp/plakar/objects"
-	"github.com/vmihailenco/msgpack/v5"
 )
 
-type ScanResult interface {
-	scanResult()
+type ScanResult struct {
+	Record *ScanRecord
+	Error  *ScanError
 }
 
 type ExtendedAttributes struct {
@@ -43,11 +43,7 @@ type ScanRecord struct {
 	FileInfo           objects.FileInfo
 	ExtendedAttributes []string
 	FileAttributes     uint32
-}
-
-func (r ScanRecord) scanResult() {}
-func (r ScanRecord) ToBytes() ([]byte, error) {
-	return msgpack.Marshal(r)
+	IsXattr            bool
 }
 
 type ScanError struct {
@@ -55,13 +51,11 @@ type ScanError struct {
 	Err      error
 }
 
-func (r ScanError) scanResult() {}
-
 type Importer interface {
 	Origin() string
 	Type() string
 	Root() string
-	Scan() (<-chan ScanResult, error)
+	Scan() (<-chan *ScanResult, error)
 	NewReader(string) (io.ReadCloser, error)
 	NewExtendedAttributeReader(string, string) (io.ReadCloser, error)
 	GetExtendedAttributes(string) ([]ExtendedAttributes, error)
@@ -126,5 +120,35 @@ func NewImporter(location string) (Importer, error) {
 			return nil, err
 		}
 		return backendInstance, nil
+	}
+}
+
+func NewScanRecord(pathname, target string, fileinfo objects.FileInfo, xattr []string) *ScanResult {
+	return &ScanResult{
+		Record: &ScanRecord{
+			Pathname:           pathname,
+			Target:             target,
+			FileInfo:           fileinfo,
+			ExtendedAttributes: xattr,
+		},
+	}
+}
+
+func NewScanXattr(pathname string, fileinfo objects.FileInfo) *ScanResult {
+	return &ScanResult{
+		Record: &ScanRecord{
+			Pathname: pathname,
+			FileInfo: fileinfo,
+			IsXattr:  true,
+		},
+	}
+}
+
+func NewScanError(pathname string, err error) *ScanResult {
+	return &ScanResult{
+		Error: &ScanError{
+			Pathname: pathname,
+			Err:      err,
+		},
 	}
 }
