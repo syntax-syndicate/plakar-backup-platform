@@ -151,7 +151,6 @@ func (cmd *Digest) displayDigests(ctx *appcontext.AppContext, fs *vfs.Filesystem
 
 		var hasher hash.Hash
 
-		fmt.Println(cmd.HashingFunction)
 		if strings.HasPrefix(cmd.HashingFunction, "HMAC-") {
 			secret := repo.AppContext().GetSecret()
 			if secret == nil {

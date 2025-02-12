@@ -290,7 +290,11 @@ func (r *Repository) EncodeBuffer(buffer []byte) ([]byte, error) {
 func (r *Repository) GetMACHasher() hash.Hash {
 	secret := r.AppContext().GetSecret()
 	if secret == nil {
-		secret = r.configuration.RepositoryID[:]
+		// unencrypted repo, derive 32-bytes "secret" from RepositoryID
+		// so ComputeMAC can be used similarly to encrypted repos
+		hasher := hashing.GetHasher(r.Configuration().Hashing.Algorithm)
+		hasher.Write(r.configuration.RepositoryID[:])
+		secret = hasher.Sum(nil)
 	}
 	return hashing.GetMACHasher(r.Configuration().Hashing.Algorithm, secret)
 }

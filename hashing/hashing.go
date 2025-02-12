@@ -52,7 +52,12 @@ func GetMACHasher(name string, secret []byte) hash.Hash {
 	case "SHA256":
 		return hmac.New(sha256.New, secret)
 	case "BLAKE3":
-		return hmac.New(func() hash.Hash { return blake3.New() }, secret)
+		// secret is guaranteed to be 32 bytes here
+		keyed, err := blake3.NewKeyed(secret)
+		if err != nil {
+			panic(err)
+		}
+		return keyed
 	default:
 		return nil
 	}
