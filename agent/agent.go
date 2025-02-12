@@ -34,7 +34,7 @@ func ExecuteRPC(ctx *appcontext.AppContext, repo *repository.Repository, cmd sub
 
 	client, err := NewClient(filepath.Join(ctx.CacheDir, "agent.sock"))
 	if err != nil {
-		ctx.GetLogger().Warn("failed to connect to agent, falling back to -no-agent: %v", err)
+		ctx.GetLogger().Warn("failed to connect to agent, falling back to -no-agent")
 		return 1, ErrRetryAgentless
 	}
 	defer client.Close()
