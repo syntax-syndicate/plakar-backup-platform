@@ -191,7 +191,7 @@ func generateSnapshot(t *testing.T) *snapshot.Snapshot {
 	logger := logging.NewLogger(os.Stdout, os.Stderr)
 	logger.EnableTrace("all")
 	ctx.SetLogger(logger)
-	repo, err := repository.New(ctx, r, serializedConfig, nil)
+	repo, err := repository.New(ctx, r, serializedConfig)
 	require.NoError(t, err, "creating repository")
 
 	// create a snapshot
