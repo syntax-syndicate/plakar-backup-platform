@@ -20,6 +20,7 @@ type PackerMsg struct {
 	Version   versioning.Version
 	MAC       objects.MAC
 	Data      []byte
+	Flags     uint32
 }
 
 type Packer struct {
@@ -38,12 +39,12 @@ func NewPacker(hasher hash.Hash) *Packer {
 	}
 }
 
-func (packer *Packer) AddBlob(Type resources.Type, version versioning.Version, mac [32]byte, data []byte) {
+func (packer *Packer) AddBlob(Type resources.Type, version versioning.Version, mac [32]byte, data []byte, flags uint32) {
 	if _, ok := packer.Blobs[Type]; !ok {
 		packer.Blobs[Type] = make(map[[32]byte][]byte)
 	}
 	packer.Blobs[Type][mac] = data
-	packer.Packfile.AddBlob(Type, version, mac, data)
+	packer.Packfile.AddBlob(Type, version, mac, data, flags)
 }
 
 func (packer *Packer) Size() uint32 {
@@ -75,7 +76,7 @@ func packerJob(snap *Snapshot) {
 					panic("received data with unexpected type")
 				} else {
 					snap.Logger().Trace("packer", "%x: PackerMsg(%d, %s, %064x), dt=%s", snap.Header.GetIndexShortID(), msg.Type, msg.Version, msg.MAC, time.Since(msg.Timestamp))
-					packer.AddBlob(msg.Type, msg.Version, msg.MAC, msg.Data)
+					packer.AddBlob(msg.Type, msg.Version, msg.MAC, msg.Data, msg.Flags)
 				}
 
 				if packer.Size() > uint32(snap.repository.Configuration().Packfile.MaxSize) {

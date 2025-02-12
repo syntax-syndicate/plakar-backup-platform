@@ -25,9 +25,10 @@ type Blob struct {
 	MAC     objects.MAC
 	Offset  uint64
 	Length  uint32
+	Flags   uint32
 }
 
-const BLOB_RECORD_SIZE = 52
+const BLOB_RECORD_SIZE = 56
 
 type PackFile struct {
 	hasher hash.Hash
@@ -42,9 +43,10 @@ type PackFileFooter struct {
 	Count       uint32
 	IndexOffset uint64
 	IndexMAC    objects.MAC
+	Flags       uint32
 }
 
-const FOOTER_SIZE = 52
+const FOOTER_SIZE = 56
 
 type Configuration struct {
 	MinSize uint64
@@ -75,6 +77,9 @@ func NewFooterFromBytes(version versioning.Version, serialized []byte) (PackFile
 	if err := binary.Read(reader, binary.LittleEndian, &footer.IndexMAC); err != nil {
 		return footer, err
 	}
+	if err := binary.Read(reader, binary.LittleEndian, &footer.Flags); err != nil {
+		return footer, err
+	}
 	return footer, nil
 }
 
@@ -87,6 +92,7 @@ func NewIndexFromBytes(version versioning.Version, serialized []byte) ([]Blob, e
 		var mac objects.MAC
 		var blobOffset uint64
 		var blobLength uint32
+		var blobFlags uint32
 
 		if err := binary.Read(reader, binary.LittleEndian, &resourceType); err != nil {
 			return nil, err
@@ -103,12 +109,16 @@ func NewIndexFromBytes(version versioning.Version, serialized []byte) ([]Blob, e
 		if err := binary.Read(reader, binary.LittleEndian, &blobLength); err != nil {
 			return nil, err
 		}
+		if err := binary.Read(reader, binary.LittleEndian, &blobFlags); err != nil {
+			return nil, err
+		}
 		index = append(index, Blob{
 			Type:    resourceType,
 			Version: resourceVersion,
 			MAC:     mac,
 			Offset:  blobOffset,
 			Length:  blobLength,
+			Flags:   blobFlags,
 		})
 	}
 	return index, nil
@@ -149,6 +159,9 @@ func NewFromBytes(hasher hash.Hash, version versioning.Version, serialized []byt
 	if err := binary.Read(reader, binary.LittleEndian, &footer.IndexMAC); err != nil {
 		return nil, err
 	}
+	if err := binary.Read(reader, binary.LittleEndian, &footer.Flags); err != nil {
+		return nil, err
+	}
 
 	_, err = reader.Seek(0, io.SeekStart)
 	if err != nil {
@@ -172,6 +185,7 @@ func NewFromBytes(hasher hash.Hash, version versioning.Version, serialized []byt
 		var mac objects.MAC
 		var blobOffset uint64
 		var blobLength uint32
+		var blobFlags uint32
 
 		if err := binary.Read(reader, binary.LittleEndian, &resourceType); err != nil {
 			return nil, err
@@ -186,6 +200,9 @@ func NewFromBytes(hasher hash.Hash, version versioning.Version, serialized []byt
 			return nil, err
 		}
 		if err := binary.Read(reader, binary.LittleEndian, &blobLength); err != nil {
+			return nil, err
+		}
+		if err := binary.Read(reader, binary.LittleEndian, &blobFlags); err != nil {
 			return nil, err
 		}
 
@@ -208,12 +225,16 @@ func NewFromBytes(hasher hash.Hash, version versioning.Version, serialized []byt
 		if err := binary.Write(p.hasher, binary.LittleEndian, blobLength); err != nil {
 			return nil, err
 		}
+		if err := binary.Write(p.hasher, binary.LittleEndian, blobFlags); err != nil {
+			return nil, err
+		}
 		p.Index = append(p.Index, Blob{
 			Type:    resourceType,
 			Version: resourceVersion,
 			MAC:     mac,
 			Offset:  blobOffset,
 			Length:  blobLength,
+			Flags:   blobFlags,
 		})
 		remaining -= BLOB_RECORD_SIZE
 	}
@@ -248,6 +269,9 @@ func (p *PackFile) Serialize() ([]byte, error) {
 		if err := binary.Write(&buffer, binary.LittleEndian, blob.Length); err != nil {
 			return nil, err
 		}
+		if err := binary.Write(&buffer, binary.LittleEndian, blob.Flags); err != nil {
+			return nil, err
+		}
 
 		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Type); err != nil {
 			return nil, err
@@ -264,6 +288,9 @@ func (p *PackFile) Serialize() ([]byte, error) {
 		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Length); err != nil {
 			return nil, err
 		}
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Flags); err != nil {
+			return nil, err
+		}
 	}
 	p.Footer.IndexMAC = objects.MAC(p.hasher.Sum(nil))
 
@@ -277,6 +304,9 @@ func (p *PackFile) Serialize() ([]byte, error) {
 		return nil, err
 	}
 	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.IndexMAC); err != nil {
+		return nil, err
+	}
+	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.Flags); err != nil {
 		return nil, err
 	}
 
@@ -310,6 +340,9 @@ func (p *PackFile) SerializeIndex() ([]byte, error) {
 		if err := binary.Write(&buffer, binary.LittleEndian, blob.Length); err != nil {
 			return nil, err
 		}
+		if err := binary.Write(&buffer, binary.LittleEndian, blob.Flags); err != nil {
+			return nil, err
+		}
 
 		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Type); err != nil {
 			return nil, err
@@ -324,6 +357,9 @@ func (p *PackFile) SerializeIndex() ([]byte, error) {
 			return nil, err
 		}
 		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Length); err != nil {
+			return nil, err
+		}
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Flags); err != nil {
 			return nil, err
 		}
 	}
@@ -349,6 +385,9 @@ func (p *PackFile) SerializeFooter() ([]byte, error) {
 		if err := binary.Write(&buffer, binary.LittleEndian, blob.Length); err != nil {
 			return nil, err
 		}
+		if err := binary.Write(&buffer, binary.LittleEndian, blob.Flags); err != nil {
+			return nil, err
+		}
 
 		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Type); err != nil {
 			return nil, err
@@ -363,6 +402,9 @@ func (p *PackFile) SerializeFooter() ([]byte, error) {
 			return nil, err
 		}
 		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Length); err != nil {
+			return nil, err
+		}
+		if err := binary.Write(p.hasher, binary.LittleEndian, blob.Flags); err != nil {
 			return nil, err
 		}
 	}
@@ -381,17 +423,21 @@ func (p *PackFile) SerializeFooter() ([]byte, error) {
 	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.IndexMAC); err != nil {
 		return nil, err
 	}
+	if err := binary.Write(&buffer, binary.LittleEndian, p.Footer.Flags); err != nil {
+		return nil, err
+	}
 
 	return buffer.Bytes(), nil
 }
 
-func (p *PackFile) AddBlob(resourceType resources.Type, version versioning.Version, mac objects.MAC, data []byte) {
+func (p *PackFile) AddBlob(resourceType resources.Type, version versioning.Version, mac objects.MAC, data []byte, flags uint32) {
 	p.Index = append(p.Index, Blob{
 		Type:    resourceType,
 		Version: version,
 		MAC:     mac,
 		Offset:  uint64(len(p.Blobs)),
 		Length:  uint32(len(data)),
+		Flags:   flags,
 	})
 	p.Blobs = append(p.Blobs, data...)
 	p.Footer.Count++
