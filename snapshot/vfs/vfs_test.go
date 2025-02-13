@@ -170,7 +170,7 @@ func generateSnapshot(t *testing.T) *snapshot.Snapshot {
 	serialized, err := config.ToBytes()
 	require.NoError(t, err)
 
-	hasher := hashing.GetHasher("SHA256")
+	hasher := hashing.GetHasher(storage.DEFAULT_HASHING_ALGORITHM)
 	wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serialized))
 	require.NoError(t, err)
 
