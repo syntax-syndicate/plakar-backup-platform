@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/PlakarKorp/plakar/btree"
+	"github.com/PlakarKorp/plakar/iterator"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/resources"
@@ -279,11 +280,11 @@ func (fsc *Filesystem) Children(path string) (iter.Seq2[string, error], error) {
 	}, nil
 }
 
-func (fsc *Filesystem) IterNodes() btree.Iterator[objects.MAC, *btree.Node[string, objects.MAC, objects.MAC]] {
+func (fsc *Filesystem) IterNodes() iterator.Iterator[objects.MAC, *btree.Node[string, objects.MAC, objects.MAC]] {
 	return fsc.tree.IterDFS()
 }
 
-func (fsc *Filesystem) XattrNodes() btree.Iterator[objects.MAC, *btree.Node[string, objects.MAC, objects.MAC]] {
+func (fsc *Filesystem) XattrNodes() iterator.Iterator[objects.MAC, *btree.Node[string, objects.MAC, objects.MAC]] {
 	return fsc.xattrs.IterDFS()
 }
 

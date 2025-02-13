@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/PlakarKorp/plakar/btree"
+	"github.com/PlakarKorp/plakar/iterator"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/resources"
@@ -332,7 +332,7 @@ type vdir struct {
 	path   string
 	entry  *Entry
 	fs     *Filesystem
-	iter   btree.Iterator[string, objects.MAC]
+	iter   iterator.Iterator[string, objects.MAC]
 	closed bool
 }
 
