@@ -5,7 +5,7 @@ import (
 )
 
 func TestDefaultAlgorithm(t *testing.T) {
-	expected := "SHA256"
+	expected := "BLAKE3"
 	actual := NewDefaultConfiguration().Algorithm
 	if actual != expected {
 		t.Errorf("Expected default algorithm %s, but got %s", expected, actual)
@@ -30,12 +30,12 @@ func TestGetHasher(t *testing.T) {
 
 func TestLookupNewDefaultConfiguration(t *testing.T) {
 	// Test for SHA256 algorithm
-	config, err := LookupDefaultConfiguration("SHA256")
+	config, err := LookupDefaultConfiguration("BLAKE3")
 	if err != nil {
-		t.Errorf("Expected no error for SHA256, but got %v", err)
+		t.Errorf("Expected no error for BLAKE3, but got %v", err)
 	}
-	if config == nil || config.Algorithm != "SHA256" || config.Bits != 256 {
-		t.Errorf("Expected SHA256 configuration, but got %v", config)
+	if config == nil || config.Algorithm != "BLAKE3" || config.Bits != 256 {
+		t.Errorf("Expected BLAKE3 configuration, but got %v", config)
 	}
 
 	// Test for unknown algorithm
