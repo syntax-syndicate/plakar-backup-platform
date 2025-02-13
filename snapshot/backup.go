@@ -438,7 +438,8 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 				err = ctidx.Insert(k, snap.repository.ComputeMAC(bytes))
 				muctidx.Unlock()
 				if err != nil {
-					panic(err)
+					backupCtx.recordError(record.Pathname, err)
+					return
 				}
 			}
 
