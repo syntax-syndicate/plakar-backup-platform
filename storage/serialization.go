@@ -7,12 +7,13 @@ import (
 	"hash"
 	"io"
 
+	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/versioning"
 )
 
 const (
-	DEFAULT_HASHING_ALGORITHM        = "SHA256"
+	DEFAULT_HASHING_ALGORITHM        = hashing.DEFAULT_HASHING_ALGORITHM
 	STORAGE_HEADER_SIZE       uint32 = 16
 	STORAGE_FOOTER_SIZE       uint32 = 32
 )
