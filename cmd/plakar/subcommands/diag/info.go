@@ -99,6 +99,15 @@ func parse_cmd_diag(ctx *appcontext.AppContext, repo *repository.Repository, arg
 			RepositorySecret:   ctx.GetSecret(),
 			SnapshotPath:       flags.Args()[1],
 		}, nil
+	case "contenttype":
+		if len(flags.Args()) < 2 {
+			return nil, fmt.Errorf("usage: %s vfs SNAPSHOT[:PATH]", flags.Name())
+		}
+		return &InfoContentType{
+			RepositoryLocation: repo.Location(),
+			RepositorySecret:   ctx.GetSecret(),
+			SnapshotPath:       flags.Args()[1],
+		}, nil
 	}
 	return nil, fmt.Errorf("Invalid parameter. usage: diag [snapshot|object|state|packfile|vfs|errors]")
 }

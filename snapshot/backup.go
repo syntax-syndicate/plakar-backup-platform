@@ -3,6 +3,7 @@ package snapshot
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math"
 	"mime"
@@ -249,6 +250,16 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		return err
 	}
 
+	ctstore := caching.DBStore[string, objects.MAC]{
+		Prefix: "__contenttype__",
+		Cache: snap.scanCache,
+	}
+	ctidx, err := btree.New(&ctstore, strings.Compare, 50)
+	if err != nil {
+		return err
+	}
+	var muctidx sync.Mutex
+
 	/* backup starts now */
 	beginTime := time.Now()
 
@@ -407,6 +418,25 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 				}
 
 				err = vfsCache.PutFileSummary(record.Pathname, seralizedFileSummary)
+				if err != nil {
+					backupCtx.recordError(record.Pathname, err)
+					return
+				}
+			}
+
+			if object != nil {
+				parts := strings.SplitN(object.ContentType, ";", 2)
+				mime := parts[0]
+
+				k := fmt.Sprintf("/%s%s", mime, fileEntry.Path())
+				bytes, err := fileEntry.ToBytes()
+				if err != nil {
+					backupCtx.recordError(record.Pathname, err)
+					return
+				}
+				muctidx.Lock()
+				err = ctidx.Insert(k, snap.repository.ComputeMAC(bytes))
+				muctidx.Unlock()
 				if err != nil {
 					backupCtx.recordError(record.Pathname, err)
 					return
@@ -609,6 +639,13 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		return err
 	}
 
+	ctmac, err := persistIndex(snap, ctidx, resources.RT_BTREE, func(mac objects.MAC) (objects.MAC, error) {
+		return mac, nil
+	})
+	if err != nil {
+		return err
+	}
+
 	if backupCtx.aborted.Load() {
 		return backupCtx.abortedReason
 	}
@@ -620,6 +657,13 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	}
 	snap.Header.Duration = time.Since(beginTime)
 	snap.Header.GetSource(0).Summary = *rootSummary
+	snap.Header.GetSource(0).Indexes = []header.Index{
+		{
+			Name:  "content-type",
+			Type:  "btree",
+			Value: ctmac,
+		},
+	}
 
 	/*
 		for _, key := range snap.Metadata.ListKeys() {
