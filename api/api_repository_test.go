@@ -33,7 +33,7 @@ func _Test_RepositoryConfiguration(t *testing.T) {
 	serializedConfig, err := config.ToBytes()
 	require.NoError(t, err)
 
-	hasher := hashing.GetHasher("SHA256")
+	hasher := hashing.GetHasher(hashing.DEFAULT_HASHING_ALGORITHM)
 	wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
 	require.NoError(t, err)
 	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
@@ -310,7 +310,7 @@ func _Test_RepositorySnapshots(t *testing.T) {
 			serializedConfig, err := c.config.ToBytes()
 			require.NoError(t, err)
 
-			hasher := hashing.GetHasher("SHA256")
+			hasher := hashing.GetHasher(hashing.DEFAULT_HASHING_ALGORITHM)
 			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
 			require.NoError(t, err)
 
@@ -409,7 +409,7 @@ func _Test_RepositorySnapshotsErrors(t *testing.T) {
 			serializedConfig, err := config.ToBytes()
 			require.NoError(t, err)
 
-			hasher := hashing.GetHasher("SHA256")
+			hasher := hashing.GetHasher(hashing.DEFAULT_HASHING_ALGORITHM)
 			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
 			require.NoError(t, err)
 
@@ -483,7 +483,7 @@ func _Test_RepositoryStates(t *testing.T) {
 			serializedConfig, err := c.config.ToBytes()
 			require.NoError(t, err)
 
-			hasher := hashing.GetHasher("SHA256")
+			hasher := hashing.GetHasher(hashing.DEFAULT_HASHING_ALGORITHM)
 			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
 			require.NoError(t, err)
 
@@ -551,7 +551,7 @@ func _Test_RepositoryState(t *testing.T) {
 			serializedConfig, err := c.config.ToBytes()
 			require.NoError(t, err)
 
-			hasher := hashing.GetHasher("SHA256")
+			hasher := hashing.GetHasher(hashing.DEFAULT_HASHING_ALGORITHM)
 			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
 			require.NoError(t, err)
 
@@ -624,7 +624,7 @@ func Test_RepositoryStateErrors(t *testing.T) {
 			serializedConfig, err := config.ToBytes()
 			require.NoError(t, err)
 
-			hasher := hashing.GetHasher("SHA256")
+			hasher := hashing.GetHasher(hashing.DEFAULT_HASHING_ALGORITHM)
 			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
 			require.NoError(t, err)
 

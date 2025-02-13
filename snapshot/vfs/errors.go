@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/PlakarKorp/plakar/btree"
+	"github.com/PlakarKorp/plakar/iterator"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/versioning"
@@ -90,6 +91,6 @@ func (fsc *Filesystem) Errors(beneath string) (iter.Seq2[*ErrorItem, error], err
 	}, nil
 }
 
-func (fsc *Filesystem) IterErrorNodes() (btree.Iterator[objects.MAC, *btree.Node[string, objects.MAC, objects.MAC]], error) {
+func (fsc *Filesystem) IterErrorNodes() (iterator.Iterator[objects.MAC, *btree.Node[string, objects.MAC, objects.MAC]], error) {
 	return fsc.errors.IterDFS(), nil
 }
