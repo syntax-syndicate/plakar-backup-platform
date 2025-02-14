@@ -29,6 +29,7 @@ import (
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/google/uuid"
+	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -41,10 +42,11 @@ func init() {
 type EntryType uint8
 
 const (
-	ET_METADATA  EntryType = 1
-	ET_LOCATIONS           = 2
-	ET_DELETED             = 3
-	ET_PACKFILE            = 4
+	ET_METADATA      EntryType = 1
+	ET_LOCATIONS               = 2
+	ET_DELETED                 = 3
+	ET_PACKFILE                = 4
+	ET_CONFIGURATION           = 5
 )
 
 type Metadata struct {
@@ -87,15 +89,24 @@ type PackfileEntry struct {
 
 const PackfileEntrySerializedSize = 32 + 32 + 8
 
-/*
- * A local version of the state, possibly aggregated, that uses on-disk storage.
- * - States are stored under a dedicated prefix key, with their data being the
- * state's metadata.
- * - Delta entries are stored under another dedicated prefix and are keyed by
- * their issuing state.
- */
+type ConfigurationEntry struct {
+	Key       string
+	Value     []byte
+	CreatedAt time.Time
+}
+
+// A local version of the state, possibly aggregated, that uses on-disk storage.
+//   - States are stored under a dedicated prefix key, with their data being the
+//     state's metadata.
+//   - Delta entries are stored under another dedicated prefix and are keyed by
+//     their issuing state.
 type LocalState struct {
 	Metadata Metadata
+
+	// Contains live configuration values (most up to date loaded from
+	// repository state), or when in a derived State contains configurations
+	// about to be pushed to the repository.
+	configuration map[string]ConfigurationEntry
 
 	// DeltaEntries are keyed by <EntryType>:<EntryCsum>:<StateID> in the cache.
 	// This allows:
@@ -115,7 +126,8 @@ func NewLocalState(cache caching.StateCache) *LocalState {
 			Version:   versioning.FromString(VERSION),
 			Timestamp: time.Now(),
 		},
-		cache: cache,
+		configuration: make(map[string]ConfigurationEntry),
+		cache:         cache,
 	}
 }
 
@@ -258,6 +270,20 @@ func (ls *LocalState) SerializeToStream(w io.Writer) error {
 
 		if _, err := w.Write(entry); err != nil {
 			return fmt.Errorf("failed to write packfile entry: %w", err)
+		}
+	}
+
+	for entry := range ls.cache.GetConfigurations() {
+		if _, err := w.Write([]byte{byte(ET_CONFIGURATION)}); err != nil {
+			return fmt.Errorf("failed to write configuration entry type: %w", err)
+		}
+
+		if err := writeUint32(uint32(len(entry))); err != nil {
+			return fmt.Errorf("failed to write configuration entry length: %w", err)
+		}
+
+		if _, err := w.Write(entry); err != nil {
+			return fmt.Errorf("failed to write configuration entry: %w", err)
 		}
 	}
 
@@ -413,6 +439,47 @@ func (de *DeletedEntry) ToBytes() (ret []byte) {
 	return
 }
 
+// Because it's a variable sized struct we encode it this way:
+// - keyLen uint8
+// - key [keylen]byte
+// - valueLen uint16
+// - value [valueLen]byte
+// - createdAt uint64
+func ConfigurationEntryFromBytes(buf []byte) (ce ConfigurationEntry, err error) {
+	bbuf := bytes.NewBuffer(buf)
+
+	keyLen, err := bbuf.ReadByte()
+	if err != nil {
+		return ce, fmt.Errorf("Short read while deserializing keyLen ConfigurationEntry")
+	}
+	ce.Key = string(bbuf.Next(int(keyLen)))
+
+	valueLen := binary.LittleEndian.Uint16(bbuf.Next(2))
+	ce.Value = bbuf.Next(int(valueLen))
+
+	timestamp := binary.LittleEndian.Uint64(bbuf.Next(8))
+	ce.CreatedAt = time.Unix(0, int64(timestamp))
+
+	return
+}
+
+func (ce *ConfigurationEntry) ToBytes() []byte {
+	buf := make([]byte, 1+len(ce.Key)+2+len(ce.Value)+8)
+	pos := 0
+
+	buf[pos] = byte(len(ce.Key))
+	pos += 1
+	pos += copy(buf[pos:], ce.Key)
+
+	binary.LittleEndian.PutUint16(buf[pos:], uint16(len(ce.Value)))
+	pos += 2
+	pos += copy(buf[pos:], ce.Value)
+
+	binary.LittleEndian.PutUint64(buf[pos:], uint64(ce.CreatedAt.UnixNano()))
+
+	return buf
+}
+
 func (ls *LocalState) deserializeFromStream(r io.Reader) error {
 	readUint64 := func() (uint64, error) {
 		buf := make([]byte, 8)
@@ -500,6 +567,23 @@ func (ls *LocalState) deserializeFromStream(r io.Reader) error {
 			}
 
 			ls.cache.PutPackfile(pe.StateID, pe.Packfile, pe_buf)
+
+		case ET_CONFIGURATION:
+			ce_buf := make([]byte, length)
+
+			if n, err := io.ReadFull(r, ce_buf); err != nil {
+				return fmt.Errorf("failed to read configuration entry %w, read(%d)/expected(%d)", err, n, length)
+			}
+
+			ce, err := ConfigurationEntryFromBytes(ce_buf)
+			if err != nil {
+				return fmt.Errorf("failed to deserialize configuration entry %w", err)
+			}
+
+			err = ls.insertOrUpdateConfiguration(ce)
+			if err != nil {
+				return fmt.Errorf("failed to insert/update configuration entry %w", err)
+			}
 		default:
 			// Our version doesn't know this entry type, just skip it.
 			io.CopyN(io.Discard, r, int64(length))
@@ -611,6 +695,49 @@ func (ls *LocalState) DeleteSnapshot(snapshotID objects.MAC) error {
 		When: time.Now(),
 	}
 	return ls.cache.PutDeleted(resources.RT_SNAPSHOT, snapshotID, de.ToBytes())
+}
+
+// Public function to insert a new configuration, beware this is to be
+// serialized and pushed to repository, in order to do so most of the time you
+// want to do it on a Derive'd State (in order to not repush existing
+// configuration entries)
+func (ls *LocalState) SetConfiguration(key string, value []byte) error {
+	ce := ConfigurationEntry{
+		Key:       key,
+		Value:     value,
+		CreatedAt: time.Now(),
+	}
+
+	return ls.insertOrUpdateConfiguration(ce)
+}
+
+// Internal function used by deserialization that only updates our local on
+// disk state if the provided configuration is more recent than the stored one
+func (ls *LocalState) insertOrUpdateConfiguration(ce ConfigurationEntry) error {
+	value, err := ls.cache.GetConfiguration(ce.Key)
+
+	if err != nil && err != leveldb.ErrNotFound {
+		return err
+	}
+
+	if err != nil && err == leveldb.ErrNotFound {
+		oldCe, err := ConfigurationEntryFromBytes(value)
+		if err != nil {
+			return err
+		}
+
+		if oldCe.CreatedAt.Before(ce.CreatedAt) {
+			if err := ls.cache.PutConfiguration(ce.Key, ce.ToBytes()); err != nil {
+				return err
+			}
+		}
+	} else {
+		if err := ls.cache.PutConfiguration(ce.Key, ce.ToBytes()); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (mt *Metadata) ToBytes() ([]byte, error) {
