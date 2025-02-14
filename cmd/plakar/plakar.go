@@ -368,7 +368,7 @@ func entryPoint() int {
 			// Reopen using the agentless cache, and rebuild a repository
 			ctx.GetCache().Close()
 			cacheSubDir = "plakar-agentless"
-			cacheDir, err := utils.GetCacheDir(cacheSubDir)
+			cacheDir, err = utils.GetCacheDir(cacheSubDir)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s: could not get cache directory: %s\n", flag.CommandLine.Name(), err)
 				return 1
