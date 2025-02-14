@@ -118,8 +118,6 @@ func SetupRoutes(server *http.ServeMux, repo *repository.Repository, token strin
 	server.Handle("GET /api/repository/snapshots", authToken(APIView(repositorySnapshots)))
 	server.Handle("GET /api/repository/states", authToken(APIView(repositoryStates)))
 	server.Handle("GET /api/repository/state/{state}", authToken(APIView(repositoryState)))
-	server.Handle("GET /api/repository/packfiles", authToken(APIView(repositoryPackfiles)))
-	server.Handle("GET /api/repository/packfile/{packfile}", authToken(APIView(repositoryPackfile)))
 
 	server.Handle("GET /api/snapshot/{snapshot}", authToken(APIView(snapshotHeader)))
 	server.Handle("GET /api/snapshot/reader/{snapshot_path...}", urlSigner.VerifyMiddleware(APIView(snapshotReader)))
