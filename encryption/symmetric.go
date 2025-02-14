@@ -35,7 +35,7 @@ type Configuration struct {
 type KDFParams struct {
 	KDF            string
 	Salt           []byte
-	Argon2IDParams *Argon2IDParams `msgpack:"argon2id,omitempty"`
+	Argon2idParams *Argon2idParams `msgpack:"argon2id,omitempty"`
 	ScryptParams   *ScryptParams   `msgpack:"scrypt,omitempty"`
 	Pbkdf2Params   *PBKDF2Params   `msgpack:"pbkdf2,omitempty"`
 }
@@ -52,12 +52,15 @@ func NewDefaultKDFParams(KDF string) (*KDFParams, error) {
 		return &KDFParams{
 			KDF:  "ARGON2ID",
 			Salt: salt,
-			Argon2IDParams: &Argon2IDParams{
+			Argon2idParams: &Argon2idParams{
 				SaltSize: saltSize,
 				Time:     4,
-				Memory:   256 * 1024,
-				Threads:  uint8(runtime.NumCPU()),
-				KeyLen:   32,
+				// from: https://pkg.go.dev/golang.org/x/crypto/argon2
+				// [...] the memory parameter specifies the size of the memory in KiB.
+				// For example memory=64*1024 sets the memory cost to ~64 MB
+				Memory:  256 * 1024,
+				Threads: uint8(runtime.NumCPU()),
+				KeyLen:  32,
 			},
 		}, nil
 	case "SCRYPT":
@@ -87,7 +90,7 @@ func NewDefaultKDFParams(KDF string) (*KDFParams, error) {
 	return nil, fmt.Errorf("unsupported KDF: %s", KDF)
 }
 
-type Argon2IDParams struct {
+type Argon2idParams struct {
 	SaltSize uint32
 	Time     uint32
 	Memory   uint32
@@ -133,7 +136,7 @@ func Salt() (salt []byte, err error) {
 func DeriveKey(params KDFParams, passphrase []byte) ([]byte, error) {
 	switch params.KDF {
 	case "ARGON2ID":
-		return argon2.IDKey(passphrase, params.Salt[:], params.Argon2IDParams.Time, params.Argon2IDParams.Memory, params.Argon2IDParams.Threads, params.Argon2IDParams.KeyLen), nil
+		return argon2.IDKey(passphrase, params.Salt[:], params.Argon2idParams.Time, params.Argon2idParams.Memory, params.Argon2idParams.Threads, params.Argon2idParams.KeyLen), nil
 	case "SCRYPT":
 		return scrypt.Key(passphrase, params.Salt[:], params.ScryptParams.N, params.ScryptParams.R, params.ScryptParams.P, params.ScryptParams.KeyLen)
 	case "PBKDF2":
