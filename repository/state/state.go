@@ -536,7 +536,7 @@ func (ls *LocalState) deserializeFromStream(r io.Reader) error {
 				return fmt.Errorf("failed to deserialize delta entry %w", err)
 			}
 
-			ls.cache.PutDelta(delta.Type, delta.Blob, de_buf)
+			ls.cache.PutDelta(delta.Type, delta.Blob, delta.Location.Packfile, de_buf)
 		case ET_DELETED:
 			if length != DeletedEntrySerializedSize {
 				return fmt.Errorf("failed to read deleted entry wrong length got(%d)/expected(%d)", length, DeletedEntrySerializedSize)
@@ -566,7 +566,7 @@ func (ls *LocalState) deserializeFromStream(r io.Reader) error {
 				return fmt.Errorf("failed to deserialize packfile entry %w", err)
 			}
 
-			ls.cache.PutPackfile(pe.StateID, pe.Packfile, pe_buf)
+			ls.cache.PutPackfile(pe.Packfile, pe_buf)
 
 		case ET_CONFIGURATION:
 			ce_buf := make([]byte, length)
@@ -622,22 +622,54 @@ func (ls *LocalState) DelState(stateID objects.MAC) error {
 }
 
 func (ls *LocalState) PutDelta(de DeltaEntry) error {
-	return ls.cache.PutDelta(de.Type, de.Blob, de.ToBytes())
+	return ls.cache.PutDelta(de.Type, de.Blob, de.Location.Packfile, de.ToBytes())
 }
 
 func (ls *LocalState) BlobExists(Type resources.Type, blobMAC objects.MAC) bool {
-	has, _ := ls.cache.HasDelta(Type, blobMAC)
-	return has
+	for _, buf := range ls.cache.GetDelta(Type, blobMAC) {
+		de, err := DeltaEntryFromBytes(buf)
+
+		if err != nil {
+			continue
+		}
+
+		ok, err := ls.cache.HasPackfile(de.Location.Packfile)
+		if err != nil {
+			continue
+		}
+
+		if ok {
+			return true
+		}
+	}
+
+	return false
 }
 
-func (ls *LocalState) GetSubpartForBlob(Type resources.Type, blobMAC objects.MAC) (objects.MAC, uint64, uint32, bool) {
-	/* XXX: We treat an error as missing data. Checking calling code I assume it's safe .. */
-	delta, _ := ls.cache.GetDelta(Type, blobMAC)
+func (ls *LocalState) GetSubpartForBlob(Type resources.Type, blobMAC objects.MAC) (Location, bool, error) {
+	var delta *DeltaEntry
+	for _, buf := range ls.cache.GetDelta(Type, blobMAC) {
+		de, err := DeltaEntryFromBytes(buf)
+
+		if err != nil {
+			return Location{}, false, err
+		}
+
+		ok, err := ls.cache.HasPackfile(de.Location.Packfile)
+		if err != nil {
+			return Location{}, false, err
+		}
+
+		if ok {
+			delta = &de
+			break
+		}
+	}
+
 	if delta == nil {
-		return objects.MAC{}, 0, 0, false
+		return Location{}, false, nil
 	} else {
-		de, _ := DeltaEntryFromBytes(delta)
-		return de.Location.Packfile, de.Location.Offset, de.Location.Length, true
+		return delta.Location, true, nil
 	}
 }
 
@@ -648,27 +680,24 @@ func (ls *LocalState) PutPackfile(stateId, packfile objects.MAC) error {
 		Timestamp: time.Now(),
 	}
 
-	return ls.cache.PutPackfile(pe.StateID, pe.Packfile, pe.ToBytes())
-}
-
-func (ls *LocalState) ListPackfiles(stateId objects.MAC) iter.Seq[objects.MAC] {
-	return func(yield func(objects.MAC) bool) {
-		for st, _ := range ls.cache.GetPackfilesForState(stateId) {
-			if !yield(st) {
-				return
-			}
-		}
-	}
+	return ls.cache.PutPackfile(pe.Packfile, pe.ToBytes())
 }
 
 func (ls *LocalState) ListSnapshots() iter.Seq[objects.MAC] {
 	return func(yield func(objects.MAC) bool) {
-		for csum, _ := range ls.cache.GetDeltasByType(resources.RT_SNAPSHOT) {
-			if has, _ := ls.cache.HasDeleted(resources.RT_SNAPSHOT, csum); has {
+		for _, buf := range ls.cache.GetDeltasByType(resources.RT_SNAPSHOT) {
+			de, _ := DeltaEntryFromBytes(buf)
+
+			ok, err := ls.cache.HasPackfile(de.Location.Packfile)
+			if err != nil || !ok {
 				continue
 			}
 
-			if !yield(csum) {
+			if has, _ := ls.cache.HasDeleted(resources.RT_SNAPSHOT, de.Blob); has {
+				continue
+			}
+
+			if !yield(de.Blob) {
 				return
 			}
 		}
@@ -679,6 +708,10 @@ func (ls *LocalState) ListObjectsOfType(Type resources.Type) iter.Seq2[DeltaEntr
 	return func(yield func(DeltaEntry, error) bool) {
 		for _, buf := range ls.cache.GetDeltasByType(Type) {
 			de, err := DeltaEntryFromBytes(buf)
+			ok, err := ls.cache.HasPackfile(de.Location.Packfile)
+			if err != nil || !ok {
+				continue
+			}
 
 			if !yield(de, err) {
 				return

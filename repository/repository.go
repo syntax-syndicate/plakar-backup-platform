@@ -544,13 +544,13 @@ func (r *Repository) GetPackfile(mac objects.MAC) (*packfile.PackFile, error) {
 	return p, nil
 }
 
-func (r *Repository) GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (io.ReadSeeker, error) {
+func (r *Repository) GetPackfileBlob(loc state.Location) (io.ReadSeeker, error) {
 	t0 := time.Now()
 	defer func() {
-		r.Logger().Trace("repository", "GetPackfileBlob(%x, %d, %d): %s", mac, offset, length, time.Since(t0))
+		r.Logger().Trace("repository", "GetPackfileBlob(%x, %d, %d): %s", loc.Packfile, loc.Offset, loc.Length, time.Since(t0))
 	}()
 
-	rd, err := r.store.GetPackfileBlob(mac, offset+uint64(storage.STORAGE_HEADER_SIZE), length)
+	rd, err := r.store.GetPackfileBlob(loc.Packfile, loc.Offset+uint64(storage.STORAGE_HEADER_SIZE), loc.Length)
 	if err != nil {
 		return nil, err
 	}
@@ -596,12 +596,17 @@ func (r *Repository) GetBlob(Type resources.Type, mac objects.MAC) (io.ReadSeeke
 		r.Logger().Trace("repository", "GetBlob(%s, %x): %s", Type, mac, time.Since(t0))
 	}()
 
-	packfileMAC, offset, length, exists := r.state.GetSubpartForBlob(Type, mac)
+	loc, exists, err := r.state.GetSubpartForBlob(Type, mac)
+	if err != nil {
+		fmt.Printf("WE ARE FAILING WITH %s\n", err)
+		return nil, err
+	}
+
 	if !exists {
 		return nil, ErrPackfileNotFound
 	}
 
-	rd, err := r.GetPackfileBlob(packfileMAC, offset, length)
+	rd, err := r.GetPackfileBlob(loc)
 	if err != nil {
 		return nil, err
 	}
