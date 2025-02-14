@@ -35,7 +35,7 @@ func TestAuthMiddleware(t *testing.T) {
 	serializedConfig, err := config.ToBytes()
 	require.NoError(t, err)
 
-	hasher := hashing.GetHasher("SHA256")
+	hasher := hashing.GetHasher(hashing.DEFAULT_HASHING_ALGORITHM)
 	wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
 	require.NoError(t, err)
 
@@ -92,7 +92,7 @@ func Test_UnknownEndpoint(t *testing.T) {
 	serializedConfig, err := config.ToBytes()
 	require.NoError(t, err)
 
-	hasher := hashing.GetHasher("SHA256")
+	hasher := hashing.GetHasher(hashing.DEFAULT_HASHING_ALGORITHM)
 	wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
 	require.NoError(t, err)
 

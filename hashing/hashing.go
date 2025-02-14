@@ -9,13 +9,15 @@ import (
 	"github.com/zeebo/blake3"
 )
 
+const DEFAULT_HASHING_ALGORITHM = "BLAKE3"
+
 type Configuration struct {
 	Algorithm string // Hashing algorithm name (e.g., "SHA256", "BLAKE3")
 	Bits      uint32
 }
 
 func NewDefaultConfiguration() *Configuration {
-	configuration, _ := LookupDefaultConfiguration("SHA256")
+	configuration, _ := LookupDefaultConfiguration(DEFAULT_HASHING_ALGORITHM)
 	return configuration
 }
 
