@@ -175,8 +175,8 @@ func New(location string) (Store, error) {
 			backendName = "null"
 		} else if strings.HasPrefix(location, "fs://") {
 			backendName = "fs"
-		} else if strings.HasPrefix(location, "ssh://") {
-			backendName = "ssh"
+		} else if strings.HasPrefix(location, "sftp://") {
+			backendName = "sftp"
 		} else if strings.Contains(location, "://") {
 			return nil, fmt.Errorf("unsupported plakar protocol")
 		}

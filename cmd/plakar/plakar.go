@@ -32,7 +32,7 @@ import (
 	_ "github.com/PlakarKorp/plakar/storage/backends/null"
 	_ "github.com/PlakarKorp/plakar/storage/backends/plakard"
 	_ "github.com/PlakarKorp/plakar/storage/backends/s3"
-	_ "github.com/PlakarKorp/plakar/storage/backends/ssh"
+	_ "github.com/PlakarKorp/plakar/storage/backends/sftp"
 
 	_ "github.com/PlakarKorp/plakar/snapshot/importer/fs"
 	_ "github.com/PlakarKorp/plakar/snapshot/importer/ftp"
