@@ -165,9 +165,7 @@ func Backends() []string {
 func New(location string) (Store, error) {
 	backendName := "fs"
 	if !strings.HasPrefix(location, "/") {
-		if strings.HasPrefix(location, "tcp://") || strings.HasPrefix(location, "ssh://") || strings.HasPrefix(location, "stdio://") {
-			backendName = "plakard"
-		} else if strings.HasPrefix(location, "http://") || strings.HasPrefix(location, "https://") {
+		if strings.HasPrefix(location, "http://") || strings.HasPrefix(location, "https://") {
 			backendName = "http"
 		} else if strings.HasPrefix(location, "sqlite://") {
 			backendName = "database"
@@ -177,6 +175,8 @@ func New(location string) (Store, error) {
 			backendName = "null"
 		} else if strings.HasPrefix(location, "fs://") {
 			backendName = "fs"
+		} else if strings.HasPrefix(location, "ssh://") {
+			backendName = "ssh"
 		} else if strings.Contains(location, "://") {
 			return nil, fmt.Errorf("unsupported plakar protocol")
 		}
