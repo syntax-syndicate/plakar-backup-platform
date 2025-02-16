@@ -4,21 +4,16 @@ agent:
     - name: system
       repository:
         url: /Users/gilles/.plakar
-      backup:
-        - path: /private/etc
-          interval: 5s
-          retention: 30s
+      #backup:
+      #  - path: /private/etc
+      #    interval: 5s
+      #    check: true
+      #    retention: 30s
       check:
         - path: /
-          interval: 1m
+          interval: 30s
 
-    - name: gilles
-      repository:
-        url: /Users/gilles/.plakar
-      backup:
-        - path: /Users/gilles/Wip/github.com/PlakarKorp/plakar
-          interval: 5s
-          retention: 60s
-      check:
-        - path: /
-          interval: 1m
+      restore:
+        - path: /Users/gilles/.plakar
+          target: /tmp/foobar
+          interval: 30s

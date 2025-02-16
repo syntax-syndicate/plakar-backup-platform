@@ -124,7 +124,6 @@ func parse_cmd_check(ctx *appcontext.AppContext, repo *repository.Repository, ar
 type Check struct {
 	RepositoryLocation string
 	RepositorySecret   []byte
-	Job                string
 
 	OptBefore time.Time
 	OptSince  time.Time

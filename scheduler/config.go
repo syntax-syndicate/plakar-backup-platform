@@ -58,17 +58,17 @@ type BackupConfig struct {
 }
 
 type CheckConfig struct {
-	Type     string `yaml:"type,omitempty"`
-	Interval string `yaml:"interval"`
 	Path     string `yaml:"path,omitempty"`
+	Since    string `yaml:"since,omitempty"`
+	Before   string `yaml:"before,omitempty"`
+	Interval string `yaml:"interval"`
+	Latest   bool   `yaml:"latest"`
 }
 
 type RestoreConfig struct {
-	Description string `yaml:"description"`
-	Name        string `yaml:"name"`
-	Interval    string `yaml:"interval"`
-	Path        string `yaml:"path"`
-	Target      string `yaml:"target"`
+	Path     string `yaml:"path"`
+	Target   string `yaml:"target"`
+	Interval string `yaml:"interval"`
 }
 
 func NewConfiguration() *Configuration {
