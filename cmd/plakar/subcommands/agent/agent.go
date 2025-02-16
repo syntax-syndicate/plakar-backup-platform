@@ -28,6 +28,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"syscall"
 
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -40,7 +41,7 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/clone"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/diff"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/digest"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/exec"
+	cmd_exec "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/exec"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/info"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/locate"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ls"
@@ -63,7 +64,34 @@ func init() {
 	subcommands.Register("agent", parse_cmd_agent)
 }
 
+func daemonize(argv []string) error {
+	binary, err := os.Executable()
+	if err != nil {
+		return err
+	}
+
+	procAttr := syscall.ProcAttr{}
+	procAttr.Files = []uintptr{
+		uintptr(syscall.Stdin),
+		uintptr(syscall.Stdout),
+		uintptr(syscall.Stderr),
+	}
+	procAttr.Env = append(os.Environ(),
+		"REEXEC=1",
+	)
+
+	pid, err := syscall.ForkExec(binary, argv, &procAttr)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("agent started with pid=%d\n", pid)
+	os.Exit(0)
+	return nil
+}
+
 func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+	var opt_foreground bool
+	var opt_stop bool
 	var opt_prometheus string
 	var opt_tasks string
 
@@ -76,7 +104,23 @@ func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, ar
 
 	flags.StringVar(&opt_tasks, "tasks", "", "tasks configuration file")
 	flags.StringVar(&opt_prometheus, "prometheus", "", "prometheus exporter interface, e.g. 127.0.0.1:9090")
+	flags.BoolVar(&opt_foreground, "foreground", false, "run in foreground")
+	flags.BoolVar(&opt_stop, "stop", false, "stop the agent")
 	flags.Parse(args)
+
+	if opt_stop {
+		client, err := agent.NewClient(filepath.Join(ctx.CacheDir, "agent.sock"))
+		if err != nil {
+			return nil, err
+		}
+		defer client.Close()
+
+		retval, err := client.SendCommand(ctx, &AgentStop{}, nil)
+		if err != nil {
+			return nil, err
+		}
+		os.Exit(retval)
+	}
 
 	var schedConfig *scheduler.Configuration
 	if opt_tasks != "" {
@@ -87,11 +131,25 @@ func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, ar
 		schedConfig = tmp
 	}
 
+	if !opt_foreground && os.Getenv("REEXEC") == "" {
+		err := daemonize(os.Args)
+		return nil, err
+	}
+
 	return &Agent{
 		prometheus:  opt_prometheus,
 		socketPath:  filepath.Join(ctx.CacheDir, "agent.sock"),
 		schedConfig: schedConfig,
 	}, nil
+}
+
+type AgentStop struct{}
+
+func (cmd *AgentStop) Name() string {
+	return "agent-stop"
+}
+func (cmd *AgentStop) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+	return 1, nil
 }
 
 type Agent struct {
@@ -170,8 +228,6 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 		return fmt.Errorf("failed to set socket permissions: %w", err)
 	}
 
-	cancelCtx, _ := context.WithCancel(context.Background())
-
 	if cmd.prometheus != "" {
 		promlistener, err := net.Listen("tcp", cmd.prometheus)
 		if err != nil {
@@ -188,23 +244,12 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 	var wg sync.WaitGroup
 
 	for {
-		select {
-		case <-cancelCtx.Done():
-			return nil
-		default:
-		}
-
 		conn, err := cmd.listener.Accept()
 		if err != nil {
-			select {
-			case <-cancelCtx.Done():
+			if opErr, ok := err.(*net.OpError); ok && opErr.Err.Error() == "use of closed network connection" {
 				return nil
-			default:
-				if opErr, ok := err.(*net.OpError); ok && opErr.Err.Error() == "use of closed network connection" {
-					return nil
-				}
-				return fmt.Errorf("failed to accept connection: %w", err)
 			}
+			return fmt.Errorf("failed to accept connection: %w", err)
 		}
 
 		wg.Add(1)
@@ -215,8 +260,9 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 
 			mu := sync.Mutex{}
 
-			encoder := msgpack.NewEncoder(_conn)
 			var encodingErrorOccurred bool
+			encoder := msgpack.NewEncoder(_conn)
+			decoder := msgpack.NewDecoder(_conn)
 
 			// Create a context tied to the connection
 			cancelCtx, cancel := context.WithCancel(context.Background())
@@ -226,7 +272,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			clientContext.SetContext(cancelCtx)
 			defer clientContext.Close()
 
-			processStdout := func(data string) {
+			write := func(packet agent.Packet) {
 				if encodingErrorOccurred {
 					return
 				}
@@ -234,38 +280,36 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				case <-clientContext.GetContext().Done():
 					return
 				default:
-					response := agent.Packet{
-						Type: "stdout",
-						Data: []byte(data),
-					}
 					mu.Lock()
-					if err := encoder.Encode(&response); err != nil {
+					if err := encoder.Encode(&packet); err != nil {
 						encodingErrorOccurred = true
 					}
 					mu.Unlock()
 				}
 			}
+			read := func(v interface{}) (interface{}, error) {
+				if err := decoder.Decode(v); err != nil {
+					if isDisconnectError(err) {
+						handleDisconnect()
+						cancel()
+					}
+					return nil, err
+				}
+				return v, nil
+			}
+
+			processStdout := func(data string) {
+				write(agent.Packet{
+					Type: "stdout",
+					Data: []byte(data),
+				})
+			}
 
 			processStderr := func(data string) {
-				if encodingErrorOccurred {
-					return
-				}
-
-				select {
-				case <-clientContext.GetContext().Done():
-					return
-				default:
-					response := agent.Packet{
-						Type: "stderr",
-						Data: []byte(data),
-					}
-					mu.Lock()
-					if err := encoder.Encode(&response); err != nil {
-						encodingErrorOccurred = true
-					}
-					mu.Unlock()
-
-				}
+				write(agent.Packet{
+					Type: "stderr",
+					Data: []byte(data),
+				})
 			}
 
 			clientContext.Stdout = &CustomWriter{processFunc: processStdout}
@@ -274,12 +318,6 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			logger := logging.NewLogger(clientContext.Stdout, clientContext.Stderr)
 			logger.EnableInfo()
 			clientContext.SetLogger(logger)
-
-			decoder := msgpack.NewDecoder(conn)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Unable to initialize decoder\n")
-				return
-			}
 
 			name, request, err := subcommands.DecodeRPC(decoder)
 			if err != nil {
@@ -292,16 +330,10 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				return
 			}
 
-			// Monitor the connection for subsequent disconnection
+			// Attempt another decode to detect client disconnection during processing
 			go func() {
-				// Attempt another decode to detect client disconnection during processing
 				var tmp interface{}
-				if err := decoder.Decode(&tmp); err != nil {
-					if isDisconnectError(err) {
-						handleDisconnect()
-						cancel()
-					}
-				}
+				read(&tmp)
 			}()
 
 			var subcommand subcommands.RPC
@@ -309,6 +341,15 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			var repositorySecret []byte
 
 			switch name {
+			case (&AgentStop{}).Name():
+				var cmd struct {
+				}
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
+					return
+				}
+				subcommand = &AgentStop{}
+				os.Exit(0)
 			case (&cat.Cat{}).Name():
 				var cmd struct {
 					Name       string
@@ -477,10 +518,10 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case (&exec.Exec{}).Name():
+			case (&cmd_exec.Exec{}).Name():
 				var cmd struct {
 					Name       string
-					Subcommand exec.Exec
+					Subcommand cmd_exec.Exec
 				}
 				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
@@ -554,6 +595,10 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			var repo *repository.Repository
 
 			if repositoryLocation != "" {
+				if repositorySecret != nil {
+					clientContext.SetSecret(repositorySecret)
+				}
+
 				store, serializedConfig, err := storage.Open(repositoryLocation)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to open storage: %s\n", err)
@@ -569,10 +614,6 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				defer repo.Close()
 			}
 
-			if repositorySecret != nil {
-				clientContext.SetSecret(repositorySecret)
-			}
-
 			eventsDone := make(chan struct{})
 			eventsChan := clientContext.Events().Listen()
 			go func() {
@@ -583,22 +624,10 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 						return
 					}
 					// Send the event to the client
-					response := agent.Packet{
+					write(agent.Packet{
 						Type: "event",
 						Data: serialized,
-					}
-					select {
-					case <-clientContext.GetContext().Done():
-						return
-					default:
-						mu.Lock()
-						err = encoder.Encode(&response)
-						mu.Unlock()
-						if err != nil {
-							fmt.Fprintf(os.Stderr, "Failed to encode event: %s\n", err)
-							return
-						}
-					}
+					})
 				}
 				eventsDone <- struct{}{}
 			}()
@@ -608,25 +637,15 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			clientContext.Close()
 			<-eventsDone
 
-			select {
-			case <-clientContext.GetContext().Done():
-				return
-			default:
-				errStr := ""
-				if err != nil {
-					errStr = err.Error()
-				}
-				response := agent.Packet{
-					Type:     "exit",
-					ExitCode: status,
-					Err:      errStr,
-				}
-				mu.Lock()
-				if err := encoder.Encode(&response); err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to encode response: %s\n", err)
-				}
-				mu.Unlock()
+			errStr := ""
+			if err != nil {
+				errStr = err.Error()
 			}
+			write(agent.Packet{
+				Type:     "exit",
+				ExitCode: status,
+				Err:      errStr,
+			})
 
 		}(conn)
 	}

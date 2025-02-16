@@ -28,4 +28,8 @@ type StateCache interface {
 	PutPackfile(stateID objects.MAC, packfile objects.MAC, data []byte) error
 	GetPackfiles() iter.Seq2[objects.MAC, []byte]
 	GetPackfilesForState(stateID objects.MAC) iter.Seq2[objects.MAC, []byte]
+
+	PutConfiguration(key string, data []byte) error
+	GetConfiguration(key string) ([]byte, error)
+	GetConfigurations() iter.Seq[[]byte]
 }

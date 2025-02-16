@@ -3,6 +3,7 @@ package snapshot
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math"
 	"mime"
@@ -69,20 +70,20 @@ func (bc *BackupContext) recordError(path string, err error) error {
 	return e
 }
 
-func (bc *BackupContext) recordXattr(record importer.ScanRecord, object *objects.Object) error {
+func (bc *BackupContext) recordXattr(record *importer.ScanRecord, object *objects.Object) error {
 	bc.muxattridx.Lock()
 	err := bc.xattridx.Insert(record.Pathname, vfs.NewXattr(record, object))
 	bc.muxattridx.Unlock()
 	return err
 }
 
-func (snapshot *Snapshot) skipExcludedPathname(options *BackupOptions, record importer.ScanResult) bool {
+func (snapshot *Snapshot) skipExcludedPathname(options *BackupOptions, record *importer.ScanResult) bool {
 	var pathname string
-	switch record := record.(type) {
-	case importer.ScanError:
-		pathname = record.Pathname
-	case importer.ScanRecord:
-		pathname = record.Pathname
+	switch {
+	case record.Record != nil:
+		pathname = record.Record.Pathname
+	case record.Error != nil:
+		pathname = record.Error.Pathname
 	}
 	doExclude := false
 	for _, exclude := range options.Excludes {
@@ -94,14 +95,14 @@ func (snapshot *Snapshot) skipExcludedPathname(options *BackupOptions, record im
 	return doExclude
 }
 
-func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptions) (chan importer.ScanRecord, error) {
+func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptions) (chan *importer.ScanRecord, error) {
 	scanner, err := backupCtx.imp.Scan()
 	if err != nil {
 		return nil, err
 	}
 
 	wg := sync.WaitGroup{}
-	filesChannel := make(chan importer.ScanRecord, 1000)
+	filesChannel := make(chan *importer.ScanRecord, 1000)
 
 	go func() {
 		startEvent := events.StartImporterEvent()
@@ -121,14 +122,15 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 
 			backupCtx.maxConcurrency <- true
 			wg.Add(1)
-			go func(record importer.ScanResult) {
+			go func(record *importer.ScanResult) {
 				defer func() {
 					<-backupCtx.maxConcurrency
 					wg.Done()
 				}()
 
-				switch record := record.(type) {
-				case importer.ScanError:
+				switch {
+				case record.Error != nil:
+					record := record.Error
 					if record.Pathname == backupCtx.imp.Root() || len(record.Pathname) < len(backupCtx.imp.Root()) {
 						backupCtx.aborted.Store(true)
 						backupCtx.abortedReason = record.Err
@@ -137,12 +139,13 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 					backupCtx.recordError(record.Pathname, record.Err)
 					snap.Event(events.PathErrorEvent(snap.Header.Identifier, record.Pathname, record.Err.Error()))
 
-				case importer.ScanRecord:
+				case record.Record != nil:
+					record := record.Record
 					snap.Event(events.PathEvent(snap.Header.Identifier, record.Pathname))
 
 					if !record.FileInfo.Mode().IsDir() {
 						filesChannel <- record
-						if !record.FileInfo.ExtendedAttribute {
+						if !record.IsXattr {
 							atomic.AddUint64(&nFiles, +1)
 							if record.FileInfo.Mode().IsRegular() {
 								atomic.AddUint64(&size, uint64(record.FileInfo.Size()))
@@ -154,7 +157,7 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 						}
 					} else {
 						atomic.AddUint64(&nDirectories, +1)
-						entry := vfs.NewEntry(path.Dir(record.Pathname), &record)
+						entry := vfs.NewEntry(path.Dir(record.Pathname), record)
 						if err := backupCtx.recordEntry(entry); err != nil {
 							backupCtx.recordError(record.Pathname, err)
 							return
@@ -247,6 +250,16 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		return err
 	}
 
+	ctstore := caching.DBStore[string, objects.MAC]{
+		Prefix: "__contenttype__",
+		Cache: snap.scanCache,
+	}
+	ctidx, err := btree.New(&ctstore, strings.Compare, 50)
+	if err != nil {
+		return err
+	}
+	var muctidx sync.Mutex
+
 	/* backup starts now */
 	beginTime := time.Now()
 
@@ -267,7 +280,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 
 		backupCtx.maxConcurrency <- true
 		scannerWg.Add(1)
-		go func(record importer.ScanRecord) {
+		go func(record *importer.ScanRecord) {
 			defer func() {
 				<-backupCtx.maxConcurrency
 				scannerWg.Done()
@@ -347,7 +360,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			}
 
 			// xattrs are a special case
-			if record.FileInfo.ExtendedAttribute {
+			if record.IsXattr {
 				backupCtx.recordXattr(record, object)
 				return
 			}
@@ -356,7 +369,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			if fileEntry != nil && snap.BlobExists(resources.RT_VFS_ENTRY, cachedFileEntryMAC) {
 				fileEntryMAC = cachedFileEntryMAC
 			} else {
-				fileEntry = vfs.NewEntry(path.Dir(record.Pathname), &record)
+				fileEntry = vfs.NewEntry(path.Dir(record.Pathname), record)
 				if object != nil {
 					fileEntry.Object = object.MAC
 				}
@@ -405,6 +418,25 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 				}
 
 				err = vfsCache.PutFileSummary(record.Pathname, seralizedFileSummary)
+				if err != nil {
+					backupCtx.recordError(record.Pathname, err)
+					return
+				}
+			}
+
+			if object != nil {
+				parts := strings.SplitN(object.ContentType, ";", 2)
+				mime := parts[0]
+
+				k := fmt.Sprintf("/%s%s", mime, fileEntry.Path())
+				bytes, err := fileEntry.ToBytes()
+				if err != nil {
+					backupCtx.recordError(record.Pathname, err)
+					return
+				}
+				muctidx.Lock()
+				err = ctidx.Insert(k, snap.repository.ComputeMAC(bytes))
+				muctidx.Unlock()
 				if err != nil {
 					backupCtx.recordError(record.Pathname, err)
 					return
@@ -607,6 +639,13 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		return err
 	}
 
+	ctmac, err := persistIndex(snap, ctidx, resources.RT_BTREE, func(mac objects.MAC) (objects.MAC, error) {
+		return mac, nil
+	})
+	if err != nil {
+		return err
+	}
+
 	if backupCtx.aborted.Load() {
 		return backupCtx.abortedReason
 	}
@@ -618,6 +657,13 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	}
 	snap.Header.Duration = time.Since(beginTime)
 	snap.Header.GetSource(0).Summary = *rootSummary
+	snap.Header.GetSource(0).Indexes = []header.Index{
+		{
+			Name:  "content-type",
+			Type:  "btree",
+			Value: ctmac,
+		},
+	}
 
 	/*
 		for _, key := range snap.Metadata.ListKeys() {
@@ -674,11 +720,11 @@ func entropy(data []byte) (float64, [256]float64) {
 	return entropy, freq
 }
 
-func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier, record importer.ScanRecord) (*objects.Object, error) {
+func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier, record *importer.ScanRecord) (*objects.Object, error) {
 	var rd io.ReadCloser
 	var err error
 
-	if record.FileInfo.ExtendedAttribute {
+	if record.IsXattr {
 		atoms := strings.Split(record.Pathname, ":")
 		attribute := atoms[len(atoms)-1]
 		pathname := strings.Join(atoms[:len(atoms)-1], ":")

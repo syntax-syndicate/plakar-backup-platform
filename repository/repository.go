@@ -3,7 +3,9 @@ package repository
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/binary"
 	"errors"
+	"fmt"
 	"hash"
 	"io"
 	"iter"
@@ -20,6 +22,7 @@ import (
 	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository/state"
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/storage"
@@ -290,7 +293,11 @@ func (r *Repository) EncodeBuffer(buffer []byte) ([]byte, error) {
 func (r *Repository) GetMACHasher() hash.Hash {
 	secret := r.AppContext().GetSecret()
 	if secret == nil {
-		secret = r.configuration.RepositoryID[:]
+		// unencrypted repo, derive 32-bytes "secret" from RepositoryID
+		// so ComputeMAC can be used similarly to encrypted repos
+		hasher := hashing.GetHasher(r.Configuration().Hashing.Algorithm)
+		hasher.Write(r.configuration.RepositoryID[:])
+		secret = hasher.Sum(nil)
 	}
 	return hashing.GetMACHasher(r.Configuration().Hashing.Algorithm, secret)
 }
@@ -457,18 +464,70 @@ func (r *Repository) GetPackfiles() ([]objects.MAC, error) {
 	return r.store.GetPackfiles()
 }
 
-func (r *Repository) GetPackfile(mac objects.MAC) (versioning.Version, io.Reader, error) {
+func (r *Repository) GetPackfile(mac objects.MAC) (*packfile.PackFile, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "GetPackfile(%x, ...): %s", mac, time.Since(t0))
 	}()
 
+	hasher := r.GetMACHasher()
+
 	rd, err := r.store.GetPackfile(mac)
 	if err != nil {
-		return versioning.Version(0), nil, err
+		return nil, err
 	}
 
-	return storage.Deserialize(r.GetMACHasher(), resources.RT_PACKFILE, rd)
+	packfileVersion, rd, err := storage.Deserialize(hasher, resources.RT_PACKFILE, rd)
+	if err != nil {
+		return nil, err
+	}
+
+	rawPackfile, err := io.ReadAll(rd)
+	if err != nil {
+		return nil, err
+	}
+
+	footerBufLength := binary.LittleEndian.Uint32(rawPackfile[len(rawPackfile)-4:])
+	rawPackfile = rawPackfile[:len(rawPackfile)-4]
+
+	footerbuf := rawPackfile[len(rawPackfile)-int(footerBufLength):]
+	rawPackfile = rawPackfile[:len(rawPackfile)-int(footerBufLength)]
+
+	footerbuf, err = r.DecodeBuffer(footerbuf)
+	if err != nil {
+		return nil, err
+	}
+
+	footer, err := packfile.NewFooterFromBytes(packfileVersion, footerbuf)
+	if err != nil {
+		return nil, err
+	}
+
+	indexbuf := rawPackfile[int(footer.IndexOffset):]
+	rawPackfile = rawPackfile[:int(footer.IndexOffset)]
+
+	indexbuf, err = r.DecodeBuffer(indexbuf)
+	if err != nil {
+		return nil, err
+	}
+
+	hasher.Reset()
+	hasher.Write(indexbuf)
+
+	if !bytes.Equal(hasher.Sum(nil), footer.IndexMAC[:]) {
+		return nil, fmt.Errorf("packfile: index MAC mismatch")
+	}
+
+	rawPackfile = append(rawPackfile, indexbuf...)
+	rawPackfile = append(rawPackfile, footerbuf...)
+
+	hasher.Reset()
+	p, err := packfile.NewFromBytes(hasher, packfileVersion, rawPackfile)
+	if err != nil {
+		return nil, err
+	}
+
+	return p, nil
 }
 
 func (r *Repository) GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (io.ReadSeeker, error) {

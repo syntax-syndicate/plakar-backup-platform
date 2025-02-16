@@ -255,6 +255,33 @@ func (c *ScanCache) GetPackfilesForState(stateID objects.MAC) iter.Seq2[objects.
 	return c.getObjects(fmt.Sprintf("__packfile__:%x", stateID))
 }
 
+func (c *ScanCache) PutConfiguration(key string, data []byte) error {
+	return c.put("__configuration__", key, data)
+}
+
+func (c *ScanCache) GetConfiguration(key string) ([]byte, error) {
+	return c.get("__configuration__", key)
+}
+
+func (c *ScanCache) GetConfigurations() iter.Seq[[]byte] {
+	return func(yield func([]byte) bool) {
+		iter := c.db.NewIterator(nil, nil)
+		defer iter.Release()
+
+		keyPrefix := "__configuration__:"
+
+		for iter.Seek([]byte(keyPrefix)); iter.Valid(); iter.Next() {
+			if !strings.HasPrefix(string(iter.Key()), keyPrefix) {
+				break
+			}
+
+			if !yield(iter.Value()) {
+				return
+			}
+		}
+	}
+}
+
 func (c *ScanCache) EnumerateKeysWithPrefix(prefix string, reverse bool) iter.Seq2[string, []byte] {
 	l := len(prefix)
 

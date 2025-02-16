@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -34,10 +35,11 @@ func ExecuteRPC(ctx *appcontext.AppContext, repo *repository.Repository, cmd sub
 
 	client, err := NewClient(filepath.Join(ctx.CacheDir, "agent.sock"))
 	if err != nil {
-		ctx.GetLogger().Warn("failed to connect to agent, falling back to -no-agent: %v", err)
+		ctx.GetLogger().Warn("failed to connect to agent, falling back to -no-agent")
 		return 1, ErrRetryAgentless
 	}
 	defer client.Close()
+
 	if status, err := client.SendCommand(ctx, rpcCmd, repo); err != nil {
 		return status, err
 	}
@@ -63,6 +65,9 @@ func (c *Client) SendCommand(ctx *appcontext.AppContext, cmd subcommands.RPC, re
 	var response Packet
 	for {
 		if err := decoder.Decode(&response); err != nil {
+			if err == io.EOF {
+				break
+			}
 			return 1, fmt.Errorf("failed to decode response: %w", err)
 		}
 		switch response.Type {
@@ -84,6 +89,7 @@ func (c *Client) SendCommand(ctx *appcontext.AppContext, cmd subcommands.RPC, re
 			return response.ExitCode, err
 		}
 	}
+	return 0, nil
 }
 func (c *Client) Close() error {
 	return c.conn.Close()

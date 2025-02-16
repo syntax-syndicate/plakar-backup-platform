@@ -201,3 +201,30 @@ func (c *_RepositoryCache) GetPackfiles() iter.Seq2[objects.MAC, []byte] {
 func (c *_RepositoryCache) GetPackfilesForState(stateID objects.MAC) iter.Seq2[objects.MAC, []byte] {
 	return c.getObjects(fmt.Sprintf("__packfile__:%x", stateID))
 }
+
+func (c *_RepositoryCache) PutConfiguration(key string, data []byte) error {
+	return c.put("__configuration__", key, data)
+}
+
+func (c *_RepositoryCache) GetConfiguration(key string) ([]byte, error) {
+	return c.get("__configuration__", key)
+}
+
+func (c *_RepositoryCache) GetConfigurations() iter.Seq[[]byte] {
+	return func(yield func([]byte) bool) {
+		iter := c.db.NewIterator(nil, nil)
+		defer iter.Release()
+
+		keyPrefix := "__configuration__:"
+
+		for iter.Seek([]byte(keyPrefix)); iter.Valid(); iter.Next() {
+			if !strings.HasPrefix(string(iter.Key()), keyPrefix) {
+				break
+			}
+
+			if !yield(iter.Value()) {
+				return
+			}
+		}
+	}
+}

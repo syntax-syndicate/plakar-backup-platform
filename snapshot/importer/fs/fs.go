@@ -66,7 +66,7 @@ func (p *FSImporter) Type() string {
 	return "fs"
 }
 
-func (p *FSImporter) Scan() (<-chan importer.ScanResult, error) {
+func (p *FSImporter) Scan() (<-chan *importer.ScanResult, error) {
 	return walkDir_walker(p.rootDir, 256)
 }
 

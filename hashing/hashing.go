@@ -9,13 +9,15 @@ import (
 	"github.com/zeebo/blake3"
 )
 
+const DEFAULT_HASHING_ALGORITHM = "BLAKE3"
+
 type Configuration struct {
 	Algorithm string // Hashing algorithm name (e.g., "SHA256", "BLAKE3")
 	Bits      uint32
 }
 
 func NewDefaultConfiguration() *Configuration {
-	configuration, _ := LookupDefaultConfiguration("SHA256")
+	configuration, _ := LookupDefaultConfiguration(DEFAULT_HASHING_ALGORITHM)
 	return configuration
 }
 
@@ -52,7 +54,12 @@ func GetMACHasher(name string, secret []byte) hash.Hash {
 	case "SHA256":
 		return hmac.New(sha256.New, secret)
 	case "BLAKE3":
-		return hmac.New(func() hash.Hash { return blake3.New() }, secret)
+		// secret is guaranteed to be 32 bytes here
+		keyed, err := blake3.NewKeyed(secret)
+		if err != nil {
+			panic(err)
+		}
+		return keyed
 	default:
 		return nil
 	}

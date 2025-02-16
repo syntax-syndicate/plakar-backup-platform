@@ -24,8 +24,8 @@ func TestPackFile(t *testing.T) {
 	mac2 := [32]byte{2} // Mock mac for chunk2
 
 	// Test AddBlob
-	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac1, chunk1)
-	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac1, chunk1, 0)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac2, chunk2, 0)
 
 	// Test GetBlob
 	retrievedChunk1, exists := p.GetBlob(mac1)
@@ -63,8 +63,8 @@ func TestPackFileSerialization(t *testing.T) {
 	mac2 := [32]byte{2} // Mock mac for chunk2
 
 	// Test AddBlob
-	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac1, chunk1)
-	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac1, chunk1, 0)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac2, chunk2, 0)
 
 	// Test Serialize and NewFromBytes
 	serialized, err := p.Serialize()
@@ -115,8 +115,8 @@ func TestPackFileSerializeIndex(t *testing.T) {
 	mac2 := objects.MAC{2} // Mock mac for chunk2
 
 	// Test AddBlob
-	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac1, chunk1)
-	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac1, chunk1, 0)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac2, chunk2, 0)
 
 	// Test packfile Size
 	require.Equal(t, p.Size(), uint32(44), "Expected 2 blobs but got %q", p.Size())
@@ -157,8 +157,8 @@ func TestPackFileSerializeFooter(t *testing.T) {
 	mac2 := [32]byte{2} // Mock mac for chunk2
 
 	// Test AddBlob
-	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac1, chunk1)
-	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac1, chunk1, 0)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac2, chunk2, 0)
 
 	// Test Serialize and NewFromBytes
 	serialized, err := p.SerializeFooter()
@@ -183,8 +183,8 @@ func TestPackFileSerializeData(t *testing.T) {
 	mac2 := [32]byte{2} // Mock mac for chunk2
 
 	// Test AddBlob
-	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac1, chunk1)
-	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac2, chunk2)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac1, chunk1, 0)
+	p.AddBlob(resources.RT_CHUNK, versioning.GetCurrentVersion(resources.RT_CHUNK), mac2, chunk2, 0)
 
 	// Test SerializeData
 	serialized, err := p.SerializeData()

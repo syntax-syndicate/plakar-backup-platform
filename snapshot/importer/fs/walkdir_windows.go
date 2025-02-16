@@ -44,7 +44,7 @@ func toUnixPath(pathname string) string {
 }
 
 // Worker pool to handle file scanning in parallel
-func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *sync.WaitGroup) {
+func walkDir_worker(jobs <-chan string, results chan<- *importer.ScanResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for pathname := range jobs {
@@ -58,7 +58,7 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 		} else {
 			info, err := os.Lstat(pathname)
 			if err != nil {
-				results <- importer.ScanError{Pathname: unixPath, Err: err}
+				results <- importer.NewScanError(unixPath, err)
 				continue
 			}
 			fileinfo = objects.FileInfoFromStat(info)
@@ -69,7 +69,7 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 
 		extendedAttributes, err := xattr.List(pathname)
 		if err != nil {
-			results <- importer.ScanError{Pathname: unixPath, Err: err}
+			results <- importer.NewScanError(unixPath, err)
 			continue
 		}
 
@@ -84,15 +84,15 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 		if fileinfo.Mode()&os.ModeSymlink != 0 {
 			originFile, err = os.Readlink(pathname)
 			if err != nil {
-				results <- importer.ScanError{Pathname: unixPath, Err: err}
+				results <- importer.NewScanError(unixPath, err)
 				continue
 			}
 		}
-		results <- importer.ScanRecord{Pathname: unixPath, Target: originFile, FileInfo: fileinfo, ExtendedAttributes: extendedAttributes}
+		results <- importer.NewScanRecord(unixPath, originFile, fileinfo, extendedAttributes)
 		for _, attr := range extendedAttributes {
 			bytes, err := xattr.Get(pathname, attr)
 			if err != nil {
-				results <- importer.ScanError{Pathname: pathname, Err: err}
+				results <- importer.NewScanError(pathname, err)
 				continue
 			}
 
@@ -102,12 +102,12 @@ func walkDir_worker(jobs <-chan string, results chan<- importer.ScanResult, wg *
 				Lmode:             0,
 				ExtendedAttribute: true,
 			}
-			results <- importer.ScanRecord{Pathname: filepath.ToSlash(pathname) + ":" + attr, FileInfo: fileinfo}
+			results <- importer.NewScanXattr(filepath.ToSlash(pathname) + ":" + attr, fileinfo)
 		}
 	}
 }
 
-func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results chan<- importer.ScanResult) {
+func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results chan<- *importer.ScanResult) {
 	// Clean the directory and split the path into components
 	directory := filepath.Clean(rootDir)
 	atoms := strings.Split(directory, string(os.PathSeparator))
@@ -117,7 +117,7 @@ func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results ch
 		pathname := strings.Join(atoms[0:i+1], string(os.PathSeparator))
 
 		if _, err := os.Stat(pathname); err != nil {
-			results <- importer.ScanError{Pathname: pathname, Err: err}
+			results <- importer.NewScanError(pathname, err)
 			continue
 		}
 
@@ -125,8 +125,8 @@ func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results ch
 	}
 }
 
-func walkDir_walker(rootDir string, numWorkers int) (<-chan importer.ScanResult, error) {
-	results := make(chan importer.ScanResult, 1000) // Larger buffer for results
+func walkDir_walker(rootDir string, numWorkers int) (<-chan *importer.ScanResult, error) {
+	results := make(chan *importer.ScanResult, 1000) // Larger buffer for results
 	jobs := make(chan string, 1000)                 // Buffered channel to feed paths to workers
 	var wg sync.WaitGroup
 
@@ -142,13 +142,13 @@ func walkDir_walker(rootDir string, numWorkers int) (<-chan importer.ScanResult,
 
 		info, err := os.Lstat(rootDir)
 		if err != nil {
-			results <- importer.ScanError{Pathname: rootDir, Err: err}
+			results <- importer.NewScanError(rootDir, err)
 			return
 		}
 		if info.Mode()&os.ModeSymlink != 0 {
 			originFile, err := os.Readlink(rootDir)
 			if err != nil {
-				results <- importer.ScanError{Pathname: rootDir, Err: err}
+				results <- importer.NewScanError(rootDir, err)
 				return
 			}
 
@@ -164,14 +164,14 @@ func walkDir_walker(rootDir string, numWorkers int) (<-chan importer.ScanResult,
 
 		err = filepath.WalkDir(rootDir, func(pathname string, d fs.DirEntry, err error) error {
 			if err != nil {
-				results <- importer.ScanError{Pathname: pathname, Err: err}
+				results <- importer.NewScanError(pathname, err)
 				return nil
 			}
 			jobs <- pathname
 			return nil
 		})
 		if err != nil {
-			results <- importer.ScanError{Pathname: rootDir, Err: err}
+			results <- importer.NewScanError(rootDir, err)
 		}
 	}()
 

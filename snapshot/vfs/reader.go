@@ -23,7 +23,7 @@ func NewObjectReader(repo *repository.Repository, object *objects.Object, size i
 	return &ObjectReader{
 		object: object,
 		repo:   repo,
-		size:   0,
+		size:   size,
 	}
 }
 
