@@ -48,6 +48,7 @@ func parse_cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args 
 	var opt_tag string
 	var opt_before string
 	var opt_since string
+	var opt_latest bool
 	var opt_uuid bool
 	var opt_recursive bool
 
@@ -66,6 +67,7 @@ func parse_cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args 
 	flags.StringVar(&opt_tag, "tag", "", "filter by tag")
 	flags.StringVar(&opt_before, "before", "", "filter by date")
 	flags.StringVar(&opt_since, "since", "", "filter by date")
+	flags.BoolVar(&opt_latest, "latest", false, "use latest snapshot")
 	flags.BoolVar(&opt_uuid, "uuid", false, "display uuid instead of short ID")
 	flags.BoolVar(&opt_recursive, "recursive", false, "recursive listing")
 	flags.Parse(args)
@@ -98,6 +100,7 @@ func parse_cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args 
 
 		OptBefore: beforeDate,
 		OptSince:  sinceDate,
+		OptLatest: opt_latest,
 
 		OptName:        opt_name,
 		OptCategory:    opt_category,
@@ -118,6 +121,7 @@ type Ls struct {
 
 	OptBefore time.Time
 	OptSince  time.Time
+	OptLatest bool
 
 	OptName        string
 	OptCategory    string
@@ -156,6 +160,7 @@ func (cmd *Ls) list_snapshots(ctx *appcontext.AppContext, repo *repository.Repos
 
 	locateOptions.Before = cmd.OptBefore
 	locateOptions.Since = cmd.OptSince
+	locateOptions.Latest = cmd.OptLatest
 
 	if cmd.OptName != "" {
 		locateOptions.Name = cmd.OptName

@@ -90,7 +90,7 @@ func parse_cmd_check(ctx *appcontext.AppContext, repo *repository.Repository, ar
 	}
 
 	if flags.NArg() != 0 {
-		if opt_name != "" || opt_category != "" || opt_environment != "" || opt_perimeter != "" || opt_job != "" || opt_tag != "" || !beforeDate.IsZero() || !sinceDate.IsZero() {
+		if opt_name != "" || opt_category != "" || opt_environment != "" || opt_perimeter != "" || opt_job != "" || opt_tag != "" || !beforeDate.IsZero() || !sinceDate.IsZero() || opt_latest {
 			ctx.GetLogger().Warn("snapshot specified, filters will be ignored")
 		}
 	}
