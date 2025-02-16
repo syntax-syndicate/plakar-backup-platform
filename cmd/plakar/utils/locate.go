@@ -39,6 +39,9 @@ type LocateOptions struct {
 	SortOrder      locateSortOrder
 	Latest         bool
 
+	Before time.Time
+	Since  time.Time
+
 	Name        string
 	Category    string
 	Environment string
@@ -52,12 +55,16 @@ func NewDefaultLocateOptions() *LocateOptions {
 		MaxConcurrency: 1,
 		SortOrder:      LocateSortOrderNone,
 		Latest:         false,
-		Name:           "",
-		Category:       "",
-		Environment:    "",
-		Perimeter:      "",
-		Job:            "",
-		Tag:            "",
+
+		Before: time.Time{},
+		Since:  time.Time{},
+
+		Name:        "",
+		Category:    "",
+		Environment: "",
+		Perimeter:   "",
+		Job:         "",
+		Tag:         "",
 	}
 }
 
@@ -123,6 +130,18 @@ func LocateSnapshotIDs(repo *repository.Repository, opts *LocateOptions) ([]obje
 
 			if opts.Tag != "" {
 				if !snap.Header.HasTag(opts.Tag) {
+					return
+				}
+			}
+
+			if !opts.Before.IsZero() {
+				if snap.Header.Timestamp.After(opts.Before) {
+					return
+				}
+			}
+
+			if !opts.Since.IsZero() {
+				if snap.Header.Timestamp.Before(opts.Since) {
 					return
 				}
 			}

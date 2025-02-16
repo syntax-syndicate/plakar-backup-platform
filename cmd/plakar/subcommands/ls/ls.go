@@ -49,6 +49,8 @@ func parse_cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args 
 	var opt_job string
 	var opt_tag string
 	var opt_uuid bool
+	var opt_before string
+	var opt_since string
 
 	flags := flag.NewFlagSet("ls", flag.ExitOnError)
 	flags.Usage = func() {
@@ -64,6 +66,8 @@ func parse_cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args 
 	flags.StringVar(&opt_perimeter, "perimeter", "", "filter by perimeter")
 	flags.StringVar(&opt_job, "job", "", "filter by job")
 	flags.StringVar(&opt_tag, "tag", "", "filter by tag")
+	flags.StringVar(&opt_before, "before", "", "filter by date")
+	flags.StringVar(&opt_since, "since", "", "filter by date")
 	flags.BoolVar(&opt_recursive, "recursive", false, "recursive listing")
 	flags.Parse(args)
 
@@ -71,9 +75,30 @@ func parse_cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args 
 		return nil, fmt.Errorf("too many arguments")
 	}
 
+	var err error
+
+	var beforeDate time.Time
+	if opt_before != "" {
+		beforeDate, err = utils.ParseTimeFlag(opt_before)
+		if err != nil {
+			return nil, fmt.Errorf("invalid date format: %s", opt_before)
+		}
+	}
+
+	var sinceDate time.Time
+	if opt_since != "" {
+		sinceDate, err = utils.ParseTimeFlag(opt_since)
+		if err != nil {
+			return nil, fmt.Errorf("invalid date format: %s", opt_since)
+		}
+	}
+
 	return &Ls{
 		RepositoryLocation: repo.Location(),
 		RepositorySecret:   ctx.GetSecret(),
+
+		OptBefore: beforeDate,
+		OptSince:  sinceDate,
 
 		OptName:        opt_name,
 		OptCategory:    opt_category,
@@ -91,6 +116,9 @@ func parse_cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args 
 type Ls struct {
 	RepositoryLocation string
 	RepositorySecret   []byte
+
+	OptBefore time.Time
+	OptSince  time.Time
 
 	OptName        string
 	OptCategory    string
@@ -126,6 +154,9 @@ func (cmd *Ls) list_snapshots(ctx *appcontext.AppContext, repo *repository.Repos
 	locateOptions := utils.NewDefaultLocateOptions()
 	locateOptions.MaxConcurrency = ctx.MaxConcurrency
 	locateOptions.SortOrder = utils.LocateSortOrderDescending
+
+	locateOptions.Before = cmd.OptBefore
+	locateOptions.Since = cmd.OptSince
 
 	if cmd.OptName != "" {
 		locateOptions.Name = cmd.OptName
