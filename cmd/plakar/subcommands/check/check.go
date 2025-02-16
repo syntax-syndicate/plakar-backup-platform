@@ -151,7 +151,7 @@ func (cmd *Check) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 	if len(cmd.Snapshots) == 0 {
 		locateOptions := utils.NewDefaultLocateOptions()
 		locateOptions.MaxConcurrency = ctx.MaxConcurrency
-		locateOptions.SortOrder = utils.LocateSortOrderDescending
+		locateOptions.SortOrder = utils.LocateSortOrderAscending
 
 		locateOptions.Before = cmd.OptBefore
 		locateOptions.Since = cmd.OptSince
