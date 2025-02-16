@@ -23,6 +23,38 @@ is given.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl name Ar string
+Only apply command to snapshots that match
+.Ar name .
+.It Fl category Ar string
+Only apply command to snapshots that match
+.Ar category .
+.It Fl environment Ar string
+Only apply command to snapshots that match
+.Ar environment .
+.It Fl perimeter Ar string
+Only apply command to snapshots that match
+.Ar perimeter .
+.It Fl job Ar string
+Only apply command to snapshots that match
+.Ar job .
+.It Fl tag Ar string
+Only apply command to snapshots that match
+.Ar tag .
+.It Fl latest
+Only apply command to latest snapshot matching filters.
+.It Fl before Ar date
+Only apply command to snapshots matching filters and older than the specified date.
+Accepted formats include relative durations
+.Pq e.g. "2d" for two days, "1w" for one week
+or specific dates in various formats
+.Pq e.g. "2006-01-02 15:04:05" .
+.It Fl since Ar date
+Only apply command to snapshots matching filters and created since the specified date, included.
+Accepted formats include relative durations
+.Pq e.g. "2d" for two days, "1w" for one week
+or specific dates in various formats
+.Pq e.g. "2006-01-02 15:04:05" .
 .It Fl concurrency Ar number
 Set the maximum number of parallel tasks for faster processing.
 Defaults to
