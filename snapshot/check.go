@@ -114,10 +114,12 @@ func snapshotCheckPath(snap *Snapshot, fsc *vfs.Filesystem, pathname string, opt
 			snap.Event(events.ObjectOKEvent(snap.Header.Identifier, object.MAC))
 		}
 
-		if !bytes.Equal(hasher.Sum(nil), object.MAC[:]) {
-			snap.Event(events.ObjectCorruptedEvent(snap.Header.Identifier, object.MAC))
-			snap.Event(events.FileCorruptedEvent(snap.Header.Identifier, pathname))
-			return
+		if !opts.FastCheck {
+			if !bytes.Equal(hasher.Sum(nil), object.MAC[:]) {
+				snap.Event(events.ObjectCorruptedEvent(snap.Header.Identifier, object.MAC))
+				snap.Event(events.FileCorruptedEvent(snap.Header.Identifier, pathname))
+				return
+			}
 		}
 	}(file)
 	snap.Event(events.FileOKEvent(snap.Header.Identifier, pathname, file.Size()))
