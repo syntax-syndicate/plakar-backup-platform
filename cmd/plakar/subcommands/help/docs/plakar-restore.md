@@ -32,6 +32,36 @@ directory from the last matching snapshot.
 
 The options are as follows:
 
+**-name** *string*
+
+> Only apply command to snapshots that match
+> *name*.
+
+**-category** *string*
+
+> Only apply command to snapshots that match
+> *category*.
+
+**-environment** *string*
+
+> Only apply command to snapshots that match
+> *environment*.
+
+**-perimeter** *string*
+
+> Only apply command to snapshots that match
+> *perimeter*.
+
+**-job** *string*
+
+> Only apply command to snapshots that match
+> *job*.
+
+**-tag** *string*
+
+> Only apply command to snapshots that match
+> *tag*.
+
 **-concurrency** *number*
 
 > Set the maximum number of parallel tasks for faster
