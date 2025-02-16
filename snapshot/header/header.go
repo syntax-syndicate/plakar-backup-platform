@@ -160,6 +160,15 @@ func (h *Header) GetIndexShortID() []byte {
 	return h.Identifier[:4]
 }
 
+func (h *Header) HasTag(tag string) bool {
+	for _, t := range h.Tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
+}
+
 func ParseSortKeys(sortKeysStr string) ([]string, error) {
 	if sortKeysStr == "" {
 		return nil, nil
