@@ -94,8 +94,8 @@ func (s *Scheduler) backupTask(taskset TaskSet, task BackupConfig) error {
 					rmSubcommand.RepositorySecret = []byte(taskset.Repository.Passphrase)
 					_ = rmSubcommand.RepositorySecret
 				}
-				rmSubcommand.Job = task.Name
-				rmSubcommand.BeforeDate = time.Now().Add(-retention)
+				rmSubcommand.OptJob = task.Name
+				rmSubcommand.OptBefore = time.Now().Add(-retention)
 				retval, err := rmSubcommand.Execute(s.ctx, repo)
 				if err != nil || retval != 0 {
 					fmt.Println("Error executing rm task: ", err)
