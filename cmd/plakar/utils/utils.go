@@ -60,6 +60,25 @@ func ParseSnapshotID(id string) (string, string) {
 	return prefix, pattern
 }
 
+func ParseSnapshotPath(snapshotPath string) (string, string) {
+	if strings.HasPrefix(snapshotPath, "/") {
+		return "", snapshotPath
+	}
+
+	tmp := strings.SplitN(snapshotPath, ":", 2)
+	prefix := snapshotPath
+	pattern := ""
+	if len(tmp) == 2 {
+		prefix, pattern = tmp[0], tmp[1]
+		if runtime.GOOS != "windows" {
+			if !strings.HasPrefix(pattern, "/") {
+				pattern = "/" + pattern
+			}
+		}
+	}
+	return prefix, pattern
+}
+
 func LookupSnapshotByPrefix(repo *repository.Repository, prefix string) []objects.MAC {
 	ret := make([]objects.MAC, 0)
 	for snapshotID := range repo.ListSnapshots() {

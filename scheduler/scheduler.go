@@ -8,6 +8,7 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/backup"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/storage"
@@ -181,9 +182,7 @@ func (s *Scheduler) checkTask(taskset TaskSet, task CheckConfig) error {
 
 	return nil
 }
-
-/*
-func (s *Scheduler) restoreTask(taskset TaskSet, task CheckConfig) error {
+func (s *Scheduler) restoreTask(taskset TaskSet, task RestoreConfig) error {
 	interval, err := stringToDuration(task.Interval)
 	if err != nil {
 		return err
@@ -196,8 +195,8 @@ func (s *Scheduler) restoreTask(taskset TaskSet, task CheckConfig) error {
 		_ = restoreSubcommand.RepositorySecret
 	}
 	restoreSubcommand.OptJob = taskset.Name
-	restoreSubcommand.OptLatest = task.Latest
-	restoreSubcommand.Silent = false
+
+	fmt.Println("Restore path", task.Path, "for job", taskset.Name, "io target", task.Target)
 
 	s.wg.Add(1)
 	go func() {
@@ -223,7 +222,8 @@ func (s *Scheduler) restoreTask(taskset TaskSet, task CheckConfig) error {
 				continue
 			}
 
-			retval, err := restoreSubcommand.Execute(s.ctx, repo)
+			//retval, err := restoreSubcommand.Execute(s.ctx, repo)
+			retval := 1
 			if err != nil || retval != 0 {
 				fmt.Println("Error executing check: ", err)
 			} else {
@@ -236,7 +236,6 @@ func (s *Scheduler) restoreTask(taskset TaskSet, task CheckConfig) error {
 
 	return nil
 }
-*/
 
 func (s *Scheduler) Run() {
 	for _, tasksetCfg := range s.config.Agent.TaskSets {
@@ -250,7 +249,14 @@ func (s *Scheduler) Run() {
 		for _, checkCfg := range tasksetCfg.Check {
 			err := s.checkTask(tasksetCfg, checkCfg)
 			if err != nil {
-				fmt.Println("Error configuring backup task: ", err)
+				fmt.Println("Error configuring check task: ", err)
+			}
+		}
+
+		for _, restoreCfg := range tasksetCfg.Restore {
+			err := s.restoreTask(tasksetCfg, restoreCfg)
+			if err != nil {
+				fmt.Println("Error configuring restore task: ", err)
 			}
 		}
 	}

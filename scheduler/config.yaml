@@ -9,11 +9,11 @@ agent:
       #    interval: 5s
       #    check: true
       #    retention: 30s
-      check:
-        - path: /
-          interval: 30s
+      #check:
+      #  - path: /
+      #    interval: 30s
 
       restore:
-        - path: /Users/gilles/.plakar
+        - path: /
           target: /tmp/foobar
           interval: 30s

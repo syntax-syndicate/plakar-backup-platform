@@ -69,6 +69,10 @@ func parse_cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, 
 		if opt_name != "" || opt_category != "" || opt_environment != "" || opt_perimeter != "" || opt_job != "" || opt_tag != "" {
 			ctx.GetLogger().Warn("snapshot specified, filters will be ignored")
 		}
+	} else if flags.NArg() > 1 {
+		return nil, fmt.Errorf("multiple restore paths specified, please specify only one")
+	} else {
+
 	}
 
 	return &Restore{
