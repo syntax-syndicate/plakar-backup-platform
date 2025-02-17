@@ -78,21 +78,20 @@ func (cmd *Cat) Name() string {
 }
 
 func (cmd *Cat) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	snapshots, err := utils.GetSnapshots(repo, cmd.Paths)
-	if err != nil {
-		ctx.GetLogger().Error("cat: could not obtain snapshots list: %s", err)
-		return 1, err
-	}
-
 	errors := 0
-	for offset, snap := range snapshots {
-		defer snap.Close()
-
-		_, pathname := utils.ParseSnapshotID(cmd.Paths[offset])
+	for _, snapPath := range cmd.Paths {
+		snapID, pathname := utils.ParseSnapshotID(snapPath)
+		snap, err := utils.OpenSnapshotByPrefix(repo, snapID)
+		if err != nil {
+			ctx.GetLogger().Error("cat: %s: %s", snapID, err)
+			errors++
+			continue
+		}
 
 		if pathname == "" {
 			ctx.GetLogger().Error("cat: missing filename for snapshot")
 			errors++
+			snap.Close()
 			continue
 		}
 
@@ -100,6 +99,7 @@ func (cmd *Cat) Execute(ctx *appcontext.AppContext, repo *repository.Repository)
 		if err != nil {
 			ctx.GetLogger().Error("cat: %s: %s", pathname, err)
 			errors++
+			snap.Close()
 			continue
 		}
 
@@ -108,12 +108,14 @@ func (cmd *Cat) Execute(ctx *appcontext.AppContext, repo *repository.Repository)
 		if err != nil {
 			ctx.GetLogger().Error("cat: %s: no such file", pathname)
 			errors++
+			snap.Close()
 			continue
 		}
 
 		if !entry.Stat().Mode().IsRegular() {
 			ctx.GetLogger().Error("cat: %s: not a regular file", pathname)
 			errors++
+			snap.Close()
 			continue
 		}
 
@@ -127,6 +129,7 @@ func (cmd *Cat) Execute(ctx *appcontext.AppContext, repo *repository.Repository)
 					ctx.GetLogger().Error("cat: %s: %s", pathname, err)
 					errors++
 					file.Close()
+					snap.Close()
 					continue
 				}
 				rd = gzRd
@@ -156,6 +159,7 @@ func (cmd *Cat) Execute(ctx *appcontext.AppContext, repo *repository.Repository)
 					if errTokenize != nil {
 						ctx.GetLogger().Error("cat: %s: %s", pathname, errTokenize)
 						errors++
+						snap.Close()
 						break
 					}
 
@@ -163,6 +167,7 @@ func (cmd *Cat) Execute(ctx *appcontext.AppContext, repo *repository.Repository)
 					if errFormat != nil {
 						ctx.GetLogger().Error("cat: %s: %s", pathname, errFormat)
 						errors++
+						snap.Close()
 						break
 					}
 				}
@@ -173,6 +178,7 @@ func (cmd *Cat) Execute(ctx *appcontext.AppContext, repo *repository.Repository)
 				} else if err != nil {
 					ctx.GetLogger().Error("cat: %s: %s", pathname, err)
 					errors++
+					snap.Close()
 					break
 				}
 			}
@@ -183,8 +189,10 @@ func (cmd *Cat) Execute(ctx *appcontext.AppContext, repo *repository.Repository)
 		if err != nil {
 			ctx.GetLogger().Error("cat: %s: %s", pathname, err)
 			errors++
+			snap.Close()
 			continue
 		}
+		snap.Close()
 	}
 
 	if errors != 0 {

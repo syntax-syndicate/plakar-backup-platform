@@ -20,17 +20,13 @@ import (
 	"encoding/hex"
 	"encoding/xml"
 	"errors"
-	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -94,177 +90,6 @@ func GetSnapshotsList(repo *repository.Repository) ([]objects.MAC, error) {
 		return nil, err
 	}
 	return snapshots, nil
-}
-
-/*
-func GetHeaders(repo *repository.Repository, prefixes []string) ([]*header.Header, error) {
-	snapshotsList, err := GetSnapshotsList(repo)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]*header.Header, 0)
-
-	// no prefixes, this is a full fetch
-	if prefixes == nil {
-		wg := sync.WaitGroup{}
-		mu := sync.Mutex{}
-		for _, snapshotID := range snapshotsList {
-			wg.Add(1)
-			go func(snapshotID objects.MAC) {
-				defer wg.Done()
-				hdr, _, err := snapshot.GetSnapshot(repo, snapshotID)
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-				mu.Lock()
-				result = append(result, hdr)
-				mu.Unlock()
-			}(snapshotID)
-		}
-		wg.Wait()
-		sort.Slice(result, func(i, j int) bool {
-			return result[i].Timestamp.Before(result[j].Timestamp)
-		})
-		return result, nil
-	}
-
-	tags := make(map[string]objects.MAC)
-	tagsTimestamp := make(map[string]time.Time)
-
-	for _, snapshotID := range snapshotsList {
-		hdr, _, err := snapshot.GetSnapshot(repo, snapshotID)
-		if err != nil {
-			return nil, err
-		}
-		for _, tag := range hdr.Tags {
-			if recordTime, exists := tagsTimestamp[tag]; !exists {
-				tags[tag] = snapshotID
-				tagsTimestamp[tag] = hdr.Timestamp
-			} else if recordTime.Before(hdr.Timestamp) {
-				tags[tag] = snapshotID
-				tagsTimestamp[tag] = hdr.Timestamp
-			}
-		}
-	}
-
-	// prefixes, preprocess snapshots to only fetch necessary ones
-	for _, prefix := range prefixes {
-		parsedUuidPrefix, _ := ParseSnapshotID(prefix)
-
-		matches := 0
-		for _, snapshotID := range snapshotsList {
-			if strings.HasPrefix(hex.EncodeToString(snapshotID[:]), parsedUuidPrefix) {
-				matches++
-			}
-		}
-		if matches == 0 {
-			if _, exists := tags[parsedUuidPrefix]; !exists {
-				log.Fatalf("%s: no snapshot has prefix: %s", flag.CommandLine.Name(), parsedUuidPrefix)
-			}
-		} else if matches > 1 {
-			log.Fatalf("%s: snapshot ID is ambiguous: %s (matches %d snapshots)", flag.CommandLine.Name(), prefix, matches)
-		}
-
-		for _, snapshotID := range snapshotsList {
-			if strings.HasPrefix(hex.EncodeToString(snapshotID[:]), parsedUuidPrefix) || snapshotID == tags[parsedUuidPrefix] {
-				metadata, _, err := snapshot.GetSnapshot(repo, snapshotID)
-				if err != nil {
-					return nil, err
-				}
-				result = append(result, metadata)
-			}
-		}
-	}
-	return result, nil
-}
-*/
-
-func GetSnapshots(repo *repository.Repository, prefixes []string) ([]*snapshot.Snapshot, error) {
-	snapshotsList, err := GetSnapshotsList(repo)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]*snapshot.Snapshot, 0)
-
-	// no prefixes, this is a full fetch
-	if prefixes == nil {
-		wg := sync.WaitGroup{}
-		mu := sync.Mutex{}
-		for _, snapshotID := range snapshotsList {
-			wg.Add(1)
-			go func(snapshotID objects.MAC) {
-				defer wg.Done()
-				snapshotInstance, err := snapshot.Load(repo, snapshotID)
-				if err != nil {
-					return
-				}
-				mu.Lock()
-				result = append(result, snapshotInstance)
-				mu.Unlock()
-			}(snapshotID)
-		}
-		wg.Wait()
-		return sortSnapshotsByDate(result), nil
-	}
-
-	tags := make(map[string]objects.MAC)
-	tagsTimestamp := make(map[string]time.Time)
-
-	for _, snapshotID := range snapshotsList {
-		metadata, _, err := snapshot.GetSnapshot(repo, snapshotID)
-		if err != nil {
-			return nil, err
-		}
-		for _, tag := range metadata.Tags {
-			if recordTime, exists := tagsTimestamp[tag]; !exists {
-				tags[tag] = snapshotID
-				tagsTimestamp[tag] = metadata.Timestamp
-			} else if recordTime.Before(metadata.Timestamp) {
-				tags[tag] = snapshotID
-				tagsTimestamp[tag] = metadata.Timestamp
-			}
-		}
-	}
-
-	// prefixes, preprocess snapshots to only fetch necessary ones
-	for _, prefix := range prefixes {
-		parsedUuidPrefix, _ := ParseSnapshotID(prefix)
-
-		matches := 0
-		for _, snapshotID := range snapshotsList {
-			if strings.HasPrefix(hex.EncodeToString(snapshotID[:]), parsedUuidPrefix) {
-				matches++
-			}
-		}
-		if matches == 0 {
-			if _, exists := tags[parsedUuidPrefix]; !exists {
-				log.Fatalf("%s: no snapshot has prefix: %s", flag.CommandLine.Name(), parsedUuidPrefix)
-			}
-		} else if matches > 1 {
-			log.Fatalf("%s: snapshot ID is ambiguous: %s (matches %d snapshots)", flag.CommandLine.Name(), prefix, matches)
-		}
-
-		for _, snapshotID := range snapshotsList {
-			if strings.HasPrefix(hex.EncodeToString(snapshotID[:]), parsedUuidPrefix) || snapshotID == tags[parsedUuidPrefix] {
-				snapshotInstance, err := snapshot.Load(repo, snapshotID)
-				if err != nil {
-					return nil, err
-				}
-				result = append(result, snapshotInstance)
-			}
-		}
-	}
-	return result, nil
-}
-
-func sortSnapshotsByDate(snapshots []*snapshot.Snapshot) []*snapshot.Snapshot {
-	sort.Slice(snapshots, func(i, j int) bool {
-		return snapshots[i].Header.Timestamp.Before(snapshots[j].Header.Timestamp)
-	})
-	return snapshots
 }
 
 func HumanToDuration(human string) (time.Duration, error) {
