@@ -6,6 +6,7 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/dustin/go-humanize"
 )
 
@@ -19,10 +20,6 @@ func (cmd *InfoRepository) Name() string {
 }
 
 func (cmd *InfoRepository) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	metadatas, err := utils.GetHeaders(repo, nil)
-	if err != nil {
-		return 1, err
-	}
 
 	fmt.Fprintln(ctx.Stdout, "Version:", repo.Configuration().Version)
 	fmt.Fprintln(ctx.Stdout, "Timestamp:", repo.Configuration().Timestamp)
@@ -83,10 +80,20 @@ func (cmd *InfoRepository) Execute(ctx *appcontext.AppContext, repo *repository.
 		}
 	}
 
-	fmt.Fprintln(ctx.Stdout, "Snapshots:", len(metadatas))
+	snapshotIDs, err := utils.LocateSnapshotIDs(repo, nil)
+	if err != nil {
+		return 1, err
+	}
+
+	fmt.Fprintln(ctx.Stdout, "Snapshots:", len(snapshotIDs))
 	totalSize := uint64(0)
-	for _, metadata := range metadatas {
-		totalSize += metadata.GetSource(0).Summary.Directory.Size + metadata.GetSource(0).Summary.Below.Size
+	for _, snapshotID := range snapshotIDs {
+		snap, err := snapshot.Load(repo, snapshotID)
+		if err != nil {
+			return 1, err
+		}
+		totalSize += snap.Header.GetSource(0).Summary.Directory.Size + snap.Header.GetSource(0).Summary.Below.Size
+		snap.Close()
 	}
 	fmt.Fprintf(ctx.Stdout, "Size: %s (%d bytes)\n", humanize.Bytes(totalSize), totalSize)
 
