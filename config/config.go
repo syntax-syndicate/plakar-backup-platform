@@ -58,7 +58,7 @@ func (c *Config) Lookup(label, key string) (interface{}, bool) {
 	return value, ok
 }
 
-func (c *Config) Set(category, option, value string) {
+func (c *Config) Set(category, option string, value interface{}) {
 	if c.Labels == nil {
 		c.Labels = make(map[string]map[string]interface{})
 	}
