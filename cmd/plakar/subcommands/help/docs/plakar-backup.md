@@ -10,6 +10,7 @@ PLAKAR-BACKUP(1) - General Commands Manual
 \[**-concurrency**&nbsp;*number*]
 \[**-exclude**&nbsp;*pattern*]
 \[**-excludes**&nbsp;*file*]
+\[**-check**]
 \[**-quiet**]
 \[**-stdio**]
 \[**-tag**&nbsp;*tag*]
@@ -44,6 +45,10 @@ The options are as follows:
 
 > Specify a file containing exclusion patterns, one per line, to ignore
 > files or directories in the backup.
+
+**-check**
+
+> Perform a full check on the backup after success.
 
 **-quiet**
 
