@@ -72,7 +72,7 @@ func (bc *BackupContext) recordError(path string, err error) error {
 
 func (bc *BackupContext) recordXattr(record *importer.ScanRecord, object *objects.Object) error {
 	bc.muxattridx.Lock()
-	err := bc.xattridx.Insert(record.Pathname, vfs.NewXattr(record, object))
+	err := bc.xattridx.Insert(record.Pathname + ":" + record.XattrName, vfs.NewXattr(record, object))
 	bc.muxattridx.Unlock()
 	return err
 }
@@ -725,10 +725,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 	var err error
 
 	if record.IsXattr {
-		atoms := strings.Split(record.Pathname, ":")
-		attribute := atoms[len(atoms)-1]
-		pathname := strings.Join(atoms[:len(atoms)-1], ":")
-		rd, err = imp.NewExtendedAttributeReader(pathname, attribute)
+		rd, err = imp.NewExtendedAttributeReader(record.Pathname, record.XattrName)
 	} else {
 		rd, err = imp.NewReader(record.Pathname)
 	}
