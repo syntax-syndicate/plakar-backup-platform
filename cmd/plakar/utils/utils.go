@@ -70,11 +70,6 @@ func LookupSnapshotByPrefix(repo *repository.Repository, prefix string) []object
 	return ret
 }
 
-type snapshotIDandTimestamp struct {
-	snapshotID objects.MAC
-	timestamp  time.Time
-}
-
 type LookupCriterias struct {
 	Name    string
 	Tag     string
