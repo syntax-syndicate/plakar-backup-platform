@@ -113,6 +113,7 @@ func TestExecuteCmdLsDefault(t *testing.T) {
 	defer snap.Close()
 
 	ctx := snap.AppContext()
+	ctx.MaxConcurrency = 1
 	repo := snap.Repository()
 	args := []string{}
 
@@ -153,6 +154,7 @@ func TestExecuteCmdLsFilterByIDAndRecursive(t *testing.T) {
 	defer snap.Close()
 
 	ctx := snap.AppContext()
+	ctx.MaxConcurrency = 1
 	repo := snap.Repository()
 	args := []string{"-recursive", hex.EncodeToString(snap.Header.GetIndexShortID())}
 
@@ -193,6 +195,7 @@ func TestExecuteCmdLsFilterUuid(t *testing.T) {
 	defer snap.Close()
 
 	ctx := snap.AppContext()
+	ctx.MaxConcurrency = 1
 	repo := snap.Repository()
 	args := []string{"-uuid"}
 
