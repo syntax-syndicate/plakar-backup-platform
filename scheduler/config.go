@@ -45,6 +45,7 @@ type TaskSet struct {
 	Backup     *BackupConfig   `yaml:"backup,omitempty"`
 	Check      []CheckConfig   `yaml:"check,omitempty"`
 	Restore    []RestoreConfig `yaml:"restore,omitempty"`
+	Sync       []SyncConfig    `yaml:"sync,omitempty"`
 }
 
 type BackupConfig struct {
@@ -69,6 +70,12 @@ type RestoreConfig struct {
 	Path     string `yaml:"path"`
 	Target   string `yaml:"target"`
 	Interval string `yaml:"interval"`
+}
+
+type SyncConfig struct {
+	Peer      string `yaml:"peer"`
+	Direction string `yaml:"direction"`
+	Interval  string `yaml:"interval"`
 }
 
 func NewConfiguration() *Configuration {

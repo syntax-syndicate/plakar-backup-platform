@@ -576,8 +576,8 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					return
 				}
 				subcommand = &cmd.Subcommand
-				repositoryLocation = cmd.Subcommand.RepositoryLocation
-				repositorySecret = cmd.Subcommand.RepositorySecret
+				repositoryLocation = cmd.Subcommand.SourceRepositoryLocation
+				repositorySecret = cmd.Subcommand.SourceRepositorySecret
 			case (&ui.Ui{}).Name():
 				var cmd struct {
 					Name       string

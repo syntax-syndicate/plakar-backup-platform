@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -8,6 +9,7 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/storage"
 )
@@ -218,6 +220,79 @@ func (s *Scheduler) restoreTask(taskset TaskSet, task RestoreConfig) error {
 				s.ctx.GetLogger().Error("Error executing restore: %s", err)
 			} else {
 				s.ctx.GetLogger().Info("Restore succeeded")
+			}
+
+			newCtx.Close()
+			repo.Close()
+			store.Close()
+		}
+	}()
+
+	return nil
+}
+
+func (s *Scheduler) syncTask(taskset TaskSet, task SyncConfig) error {
+	interval, err := stringToDuration(task.Interval)
+	if err != nil {
+		return err
+	}
+
+	syncSubcommand := &sync.Sync{}
+	syncSubcommand.SourceRepositoryLocation = taskset.Repository.URL
+	if taskset.Repository.Passphrase != "" {
+		syncSubcommand.SourceRepositorySecret = []byte(taskset.Repository.Passphrase)
+		_ = syncSubcommand.SourceRepositorySecret
+	}
+
+	syncSubcommand.PeerRepositoryLocation = task.Peer
+	if task.Direction == "to" {
+		syncSubcommand.Direction = "to"
+	} else if task.Direction == "from" {
+		syncSubcommand.Direction = "from"
+	} else if task.Direction == "both" || task.Direction == "" {
+		syncSubcommand.Direction = "both"
+	} else {
+		return fmt.Errorf("invalid sync direction: %s", task.Direction)
+	}
+	//	if taskset.Repository.Passphrase != "" {
+	//		syncSubcommand.DestinationRepositorySecret = []byte(taskset.Repository.Passphrase)
+	//		_ = syncSubcommand.DestinationRepositorySecret
+
+	//	syncSubcommand.OptJob = taskset.Name
+	//	syncSubcommand.Target = task.Target
+	//	syncSubcommand.Silent = true
+
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		firstRun := true
+		for {
+			if firstRun {
+				firstRun = false
+			} else {
+				time.Sleep(interval)
+			}
+
+			store, config, err := storage.Open(syncSubcommand.SourceRepositoryLocation)
+			if err != nil {
+				s.ctx.GetLogger().Error("Error opening storage: %s", err)
+				continue
+			}
+
+			newCtx := appcontext.NewAppContextFrom(s.ctx)
+
+			repo, err := repository.New(newCtx, store, config)
+			if err != nil {
+				s.ctx.GetLogger().Error("Error opening repository: %s", err)
+				store.Close()
+				continue
+			}
+
+			retval, err := syncSubcommand.Execute(newCtx, repo)
+			if err != nil || retval != 0 {
+				s.ctx.GetLogger().Error("Error executing sync: %s", err)
+			} else {
+				s.ctx.GetLogger().Info("Sync succeeded")
 			}
 
 			newCtx.Close()

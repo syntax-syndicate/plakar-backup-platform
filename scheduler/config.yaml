@@ -25,3 +25,9 @@ agent:
         - interval: 10s
           path: /private/etc/apache2
           target: /tmp/foobarbaz
+
+      sync:
+        - interval: 10s
+          direction: both
+          peer: /tmp/foobar
+

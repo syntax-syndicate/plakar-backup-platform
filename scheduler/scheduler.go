@@ -50,6 +50,13 @@ func (s *Scheduler) Run() {
 				s.ctx.GetLogger().Error("Error configuring restore task: %s", err)
 			}
 		}
+
+		for _, syncCfg := range tasksetCfg.Sync {
+			err := s.syncTask(tasksetCfg, syncCfg)
+			if err != nil {
+				s.ctx.GetLogger().Error("Error configuring sync task: %s", err)
+			}
+		}
 	}
 	<-make(chan struct{})
 }
