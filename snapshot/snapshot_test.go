@@ -49,7 +49,7 @@ func generateSnapshot(t *testing.T, keyPair *keypair.KeyPair) *Snapshot {
 	serialized, err := config.ToBytes()
 	require.NoError(t, err)
 
-	hasher := hashing.GetHasher("SHA256")
+	hasher := hashing.GetHasher(hashing.DEFAULT_HASHING_ALGORITHM)
 	wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serialized))
 	require.NoError(t, err)
 

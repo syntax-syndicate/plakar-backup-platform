@@ -61,6 +61,7 @@ type VFS struct {
 
 type Source struct {
 	Importer Importer    `msgpack:"importer" json:"importer"`
+	Context  []KeyValue  `msgpack:"context" json:"context"`
 	VFS      VFS         `msgpack:"root" json:"root"`
 	Indexes  []Index     `msgpack:"indexes" json:"indexes"`
 	Summary  vfs.Summary `msgpack:"summary" json:"summary"`
@@ -69,6 +70,7 @@ type Source struct {
 func NewSource() Source {
 	return Source{
 		Importer: Importer{},
+		Context:  []KeyValue{},
 		VFS:      VFS{},
 		Indexes:  []Index{},
 		Summary:  vfs.Summary{},
@@ -156,6 +158,15 @@ func (h *Header) GetIndexID() [32]byte {
 
 func (h *Header) GetIndexShortID() []byte {
 	return h.Identifier[:4]
+}
+
+func (h *Header) HasTag(tag string) bool {
+	for _, t := range h.Tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
 }
 
 func ParseSortKeys(sortKeysStr string) ([]string, error) {

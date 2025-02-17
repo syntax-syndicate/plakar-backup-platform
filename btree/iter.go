@@ -1,10 +1,6 @@
 package btree
 
-type Iterator[K, V any] interface {
-	Next() bool
-	Current() (K, V)
-	Err() error
-}
+import "github.com/PlakarKorp/plakar/iterator"
 
 type forwardIter[K, P any, V any] struct {
 	b       *BTree[K, P, V]
@@ -51,7 +47,7 @@ func (fit *forwardIter[K, P, V]) Err() error {
 
 // ScanAll returns an iterator that visits all the values from the
 // smaller one onwards.
-func (b *BTree[K, P, V]) ScanAll() (Iterator[K, V], error) {
+func (b *BTree[K, P, V]) ScanAll() (iterator.Iterator[K, V], error) {
 	ptr := b.Root
 
 	var n *Node[K, P, V]
@@ -79,7 +75,7 @@ func (b *BTree[K, P, V]) ScanAll() (Iterator[K, V], error) {
 // ScanFrom returns an iterator that visits all the values starting
 // from the given key, or the first key larger than the given one,
 // onwards.
-func (b *BTree[K, P, V]) ScanFrom(key K) (Iterator[K, V], error) {
+func (b *BTree[K, P, V]) ScanFrom(key K) (iterator.Iterator[K, V], error) {
 	node, path, err := b.findleaf(key)
 	if err != nil {
 		return nil, err
@@ -200,7 +196,7 @@ func (bit *backwardIter[K, P, V]) Err() error {
 	return bit.err
 }
 
-func (b *BTree[K, P, V]) ScanAllReverse() (Iterator[K, V], error) {
+func (b *BTree[K, P, V]) ScanAllReverse() (iterator.Iterator[K, V], error) {
 	bit := &backwardIter[K, P, V]{
 		b: b,
 	}
@@ -252,7 +248,7 @@ func (dit *dfsIter[K, P, V]) Err() error {
 	return dit.err
 }
 
-func (b *BTree[K, P, V]) IterDFS() Iterator[P, *Node[K, P, V]] {
+func (b *BTree[K, P, V]) IterDFS() iterator.Iterator[P, *Node[K, P, V]] {
 	return &dfsIter[K, P, V]{
 		b:     b,
 		stack: []step[K, P, V]{{b.Root, -1}},

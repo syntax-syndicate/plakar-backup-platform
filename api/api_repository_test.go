@@ -33,7 +33,7 @@ func _Test_RepositoryConfiguration(t *testing.T) {
 	serializedConfig, err := config.ToBytes()
 	require.NoError(t, err)
 
-	hasher := hashing.GetHasher("SHA256")
+	hasher := hashing.GetHasher(hashing.DEFAULT_HASHING_ALGORITHM)
 	wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
 	require.NoError(t, err)
 	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
@@ -310,7 +310,7 @@ func _Test_RepositorySnapshots(t *testing.T) {
 			serializedConfig, err := c.config.ToBytes()
 			require.NoError(t, err)
 
-			hasher := hashing.GetHasher("SHA256")
+			hasher := hashing.GetHasher(hashing.DEFAULT_HASHING_ALGORITHM)
 			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
 			require.NoError(t, err)
 
@@ -409,7 +409,7 @@ func _Test_RepositorySnapshotsErrors(t *testing.T) {
 			serializedConfig, err := config.ToBytes()
 			require.NoError(t, err)
 
-			hasher := hashing.GetHasher("SHA256")
+			hasher := hashing.GetHasher(hashing.DEFAULT_HASHING_ALGORITHM)
 			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
 			require.NoError(t, err)
 
@@ -483,7 +483,7 @@ func _Test_RepositoryStates(t *testing.T) {
 			serializedConfig, err := c.config.ToBytes()
 			require.NoError(t, err)
 
-			hasher := hashing.GetHasher("SHA256")
+			hasher := hashing.GetHasher(hashing.DEFAULT_HASHING_ALGORITHM)
 			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
 			require.NoError(t, err)
 
@@ -551,7 +551,7 @@ func _Test_RepositoryState(t *testing.T) {
 			serializedConfig, err := c.config.ToBytes()
 			require.NoError(t, err)
 
-			hasher := hashing.GetHasher("SHA256")
+			hasher := hashing.GetHasher(hashing.DEFAULT_HASHING_ALGORITHM)
 			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
 			require.NoError(t, err)
 
@@ -624,7 +624,7 @@ func Test_RepositoryStateErrors(t *testing.T) {
 			serializedConfig, err := config.ToBytes()
 			require.NoError(t, err)
 
-			hasher := hashing.GetHasher("SHA256")
+			hasher := hashing.GetHasher(hashing.DEFAULT_HASHING_ALGORITHM)
 			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
 			require.NoError(t, err)
 
@@ -647,289 +647,6 @@ func Test_RepositoryStateErrors(t *testing.T) {
 			SetupRoutes(mux, repo, noToken)
 
 			req, err := http.NewRequest("GET", fmt.Sprintf("/api/repository/state/%s", c.stateId), nil)
-			require.NoError(t, err, "creating request")
-
-			w := httptest.NewRecorder()
-			mux.ServeHTTP(w, req)
-			require.Equal(t, c.status, w.Code, fmt.Sprintf("expected status code %d", c.status))
-		})
-	}
-}
-
-// XXX: re-add once we move to non-mocked state object.
-func _Test_RepositoryPackfiles(t *testing.T) {
-
-	testCases := []struct {
-		name     string
-		config   *storage.Configuration
-		location string
-		expected string
-	}{
-		{
-			name:     "no states",
-			location: "/test/location",
-			config:   ptesting.NewConfiguration(),
-			expected: `{"items": [], "total": 0}`,
-		},
-		{
-			name:     "with states",
-			location: "/test/location?behavior=oneState",
-			config:   ptesting.NewConfiguration(),
-			expected: `{"total":3,"items":["0400000000000000000000000000000000000000000000000000000000000000","0500000000000000000000000000000000000000000000000000000000000000","0600000000000000000000000000000000000000000000000000000000000000"]}`,
-		},
-	}
-
-	for _, c := range testCases {
-		t.Run(c.name, func(t *testing.T) {
-			serializedConfig, err := c.config.ToBytes()
-			require.NoError(t, err)
-
-			hasher := hashing.GetHasher("SHA256")
-			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
-			require.NoError(t, err)
-
-			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
-			require.NoError(t, err)
-
-			lstore, err := storage.Create(c.location, wrappedConfig)
-			require.NoError(t, err, "creating storage")
-
-			ctx := appcontext.NewAppContext()
-			cache := caching.NewManager("/tmp/test_plakar")
-			defer cache.Close()
-			ctx.SetCache(cache)
-			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-			repo, err := repository.New(ctx, lstore, wrappedConfig)
-			require.NoError(t, err, "creating repository")
-
-			var noToken string
-			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, noToken)
-
-			req, err := http.NewRequest("GET", "/api/repository/packfiles", nil)
-			require.NoError(t, err, "creating request")
-
-			w := httptest.NewRecorder()
-			mux.ServeHTTP(w, req)
-			require.Equal(t, http.StatusOK, w.Code, fmt.Sprintf("expected status code %d", http.StatusOK))
-
-			response := w.Result()
-			defer func(Body io.ReadCloser) {
-				err := Body.Close()
-				require.NoError(t, err, "closing body")
-			}(response.Body)
-
-			rawBody, err := io.ReadAll(response.Body)
-			require.NoError(t, err)
-
-			require.JSONEq(t, c.expected, string(rawBody))
-		})
-	}
-}
-
-func _Test_RepositoryPackfilesErrors(t *testing.T) {
-	testCases := []struct {
-		name     string
-		params   string
-		location string
-		expected string
-		status   int
-	}{
-		{
-			name:     "wrong packfiles",
-			location: "/test/location?behavior=brokenGetPackfiles",
-			status:   http.StatusInternalServerError,
-		},
-	}
-
-	for _, c := range testCases {
-		t.Run(c.name, func(t *testing.T) {
-			config := ptesting.NewConfiguration()
-
-			serializedConfig, err := config.ToBytes()
-			require.NoError(t, err)
-
-			hasher := hashing.GetHasher("SHA256")
-			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
-			require.NoError(t, err)
-
-			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
-			require.NoError(t, err)
-
-			lstore, err := storage.Create(c.location, wrappedConfig)
-			require.NoError(t, err, "creating storage")
-
-			ctx := appcontext.NewAppContext()
-			cache := caching.NewManager("/tmp/test_plakar")
-			defer cache.Close()
-			ctx.SetCache(cache)
-			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-			repo, err := repository.New(ctx, lstore, wrappedConfig)
-			require.NoError(t, err, "creating repository")
-
-			var noToken string
-			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, noToken)
-
-			req, err := http.NewRequest("GET", "/api/repository/packfiles", nil)
-			require.NoError(t, err, "creating request")
-
-			w := httptest.NewRecorder()
-			mux.ServeHTTP(w, req)
-			require.Equal(t, c.status, w.Code, fmt.Sprintf("expected status code %d", c.status))
-		})
-	}
-}
-
-func _Test_RepositoryPackfile(t *testing.T) {
-
-	testCases := []struct {
-		name       string
-		config     *storage.Configuration
-		location   string
-		packfileId string
-		expected   string
-	}{
-		{
-			name:       "default packfile",
-			location:   "/test/location",
-			config:     ptesting.NewConfiguration(ptesting.WithConfigurationCompression(nil)),
-			packfileId: "0400000000000000000000000000000000000000000000000000000000000000",
-			expected:   `{"test": "data"}`,
-		},
-	}
-
-	for _, c := range testCases {
-		t.Run(c.name, func(t *testing.T) {
-
-			serializedConfig, err := c.config.ToBytes()
-			require.NoError(t, err)
-
-			hasher := hashing.GetHasher("SHA256")
-			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
-			require.NoError(t, err)
-
-			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
-			require.NoError(t, err)
-
-			lstore, err := storage.Create(c.location, wrappedConfig)
-			require.NoError(t, err, "creating storage")
-
-			ctx := appcontext.NewAppContext()
-			cache := caching.NewManager("/tmp/test_plakar")
-			defer cache.Close()
-			ctx.SetCache(cache)
-			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-			repo, err := repository.New(ctx, lstore, wrappedConfig)
-			require.NoError(t, err, "creating repository")
-
-			var noToken string
-			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, noToken)
-
-			req, err := http.NewRequest("GET", fmt.Sprintf("/api/repository/packfile/%s", c.packfileId), nil)
-			require.NoError(t, err, "creating request")
-
-			w := httptest.NewRecorder()
-			mux.ServeHTTP(w, req)
-			require.Equal(t, http.StatusOK, w.Code, fmt.Sprintf("expected status code %d", http.StatusOK))
-
-			response := w.Result()
-			defer func(Body io.ReadCloser) {
-				err := Body.Close()
-				require.NoError(t, err, "closing body")
-			}(response.Body)
-
-			rawBody, err := io.ReadAll(response.Body)
-			require.NoError(t, err)
-
-			require.JSONEq(t, c.expected, string(rawBody))
-		})
-	}
-}
-
-func Test_RepositoryPackfileErrors(t *testing.T) {
-	testCases := []struct {
-		name       string
-		params     string
-		location   string
-		packfileId string
-		expected   string
-		status     int
-	}{
-		{
-			name:       "wrong packfile id format",
-			location:   "/test/location",
-			packfileId: "abc",
-			status:     http.StatusBadRequest,
-		},
-		{
-			name:       "wrong offset",
-			location:   "/test/location",
-			params:     url.Values{"offset": []string{"abc"}}.Encode(),
-			packfileId: "0100000000000000000000000000000000000000000000000000000000000000",
-			status:     http.StatusInternalServerError,
-		},
-		{
-			name:       "wrong length",
-			location:   "/test/location",
-			params:     url.Values{"length": []string{"abc"}}.Encode(),
-			packfileId: "0100000000000000000000000000000000000000000000000000000000000000",
-			status:     http.StatusInternalServerError,
-		},
-		{
-			name:       "length but no offset",
-			location:   "/test/location",
-			params:     url.Values{"length": []string{"1"}}.Encode(),
-			packfileId: "0100000000000000000000000000000000000000000000000000000000000000",
-			status:     http.StatusBadRequest,
-		},
-		{
-			name:       "wrong packfile",
-			location:   "/test/location?behavior=brokenGetPackfile",
-			packfileId: "0100000000000000000000000000000000000000000000000000000000000000",
-			status:     http.StatusInternalServerError,
-		},
-		{
-			name:       "length and offset but error",
-			location:   "/test/location?behavior=brokenGetPackfileBlob",
-			params:     url.Values{"length": []string{"1"}, "offset": []string{"1"}}.Encode(),
-			packfileId: "0100000000000000000000000000000000000000000000000000000000000000",
-			status:     http.StatusInternalServerError,
-		},
-	}
-
-	for _, c := range testCases {
-		t.Run(c.name, func(t *testing.T) {
-			config := ptesting.NewConfiguration()
-
-			serializedConfig, err := config.ToBytes()
-			require.NoError(t, err)
-
-			hasher := hashing.GetHasher("SHA256")
-			wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serializedConfig))
-			require.NoError(t, err)
-
-			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
-			require.NoError(t, err)
-
-			lstore, err := storage.Create(c.location, wrappedConfig)
-			require.NoError(t, err, "creating storage")
-
-			ctx := appcontext.NewAppContext()
-			cache := caching.NewManager("/tmp/test_plakar")
-			defer cache.Close()
-			ctx.SetCache(cache)
-			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-			repo, err := repository.New(ctx, lstore, wrappedConfig)
-			require.NoError(t, err, "creating repository")
-
-			var noToken string
-			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, noToken)
-
-			req, err := http.NewRequest("GET", fmt.Sprintf("/api/repository/packfile/%s?%s", c.packfileId, c.params), nil)
-
 			require.NoError(t, err, "creating request")
 
 			w := httptest.NewRecorder()
