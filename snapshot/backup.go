@@ -71,8 +71,9 @@ func (bc *BackupContext) recordError(path string, err error) error {
 }
 
 func (bc *BackupContext) recordXattr(record *importer.ScanRecord, object *objects.Object) error {
+	xattr := vfs.NewXattr(record, object)
 	bc.muxattridx.Lock()
-	err := bc.xattridx.Insert(record.Pathname + ":" + record.XattrName, vfs.NewXattr(record, object))
+	err := bc.xattridx.Insert(xattr.ToPath(), xattr)
 	bc.muxattridx.Unlock()
 	return err
 }

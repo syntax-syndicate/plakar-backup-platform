@@ -1,6 +1,8 @@
 package vfs
 
 import (
+	"strings"
+
 	"github.com/PlakarKorp/plakar/btree"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/resources"
@@ -18,8 +20,10 @@ func init() {
 
 type Xattr struct {
 	Version versioning.Version `msgpack:"version" json:"version"`
+	Path    string             `msgpack:"path" json:"path"`
 	Name    string             `msgpack:"name" json:"name"`
 	Size    int64              `msgpack:"size" json:"size"`
+	Type    objects.Attribute  `msgpack:"type" json:"type"`
 	Object  objects.MAC        `msgpack:"object,omitempty" json:"-"`
 
 	// This the true object, resolved when opening the
@@ -37,10 +41,36 @@ func NewXattr(record *importer.ScanRecord, object *objects.Object) *Xattr {
 
 	return &Xattr{
 		Version: versioning.FromString(VFS_XATTR_VERSION),
-		Name:    record.FileInfo.Lname,
+		Path:    record.Pathname,
+		Name:    record.XattrName,
+		Type:    record.XattrType,
 		Object:  object.MAC,
 		Size:    size,
 	}
+}
+
+func (x *Xattr) ToPath() string {
+	var sep rune
+	switch x.Type {
+	case objects.AttributeExtended:
+		sep = ':'
+	case objects.AttributeADS:
+		sep = '@'
+	default:
+		sep = '#'
+	}
+
+	var b strings.Builder
+	b.WriteString(x.Path)
+	b.WriteRune(sep)
+	for _, r := range x.Name {
+		if r == sep || r == '\\' {
+			b.WriteRune('\\')
+		}
+		b.WriteRune(r)
+	}
+
+	return b.String()
 }
 
 func XattrFromBytes(bytes []byte) (*Xattr, error) {
