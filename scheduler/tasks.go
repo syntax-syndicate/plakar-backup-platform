@@ -7,6 +7,7 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/backup"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/cleanup"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
@@ -293,6 +294,61 @@ func (s *Scheduler) syncTask(taskset TaskSet, task SyncConfig) error {
 				s.ctx.GetLogger().Error("Error executing sync: %s", err)
 			} else {
 				s.ctx.GetLogger().Info("Sync succeeded")
+			}
+
+			newCtx.Close()
+			repo.Close()
+			store.Close()
+		}
+	}()
+
+	return nil
+}
+
+func (s *Scheduler) cleanupTask(taskset TaskSet, task CleanupConfig) error {
+	interval, err := stringToDuration(task.Interval)
+	if err != nil {
+		return err
+	}
+
+	cleanupSubcommand := &cleanup.Cleanup{}
+	cleanupSubcommand.RepositoryLocation = taskset.Repository.URL
+	if taskset.Repository.Passphrase != "" {
+		cleanupSubcommand.RepositorySecret = []byte(taskset.Repository.Passphrase)
+		_ = cleanupSubcommand.RepositorySecret
+	}
+
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		firstRun := true
+		for {
+			if firstRun {
+				firstRun = false
+			} else {
+				time.Sleep(interval)
+			}
+
+			store, config, err := storage.Open(cleanupSubcommand.RepositoryLocation)
+			if err != nil {
+				s.ctx.GetLogger().Error("Error opening storage: %s", err)
+				continue
+			}
+
+			newCtx := appcontext.NewAppContextFrom(s.ctx)
+
+			repo, err := repository.New(newCtx, store, config)
+			if err != nil {
+				s.ctx.GetLogger().Error("Error opening repository: %s", err)
+				store.Close()
+				continue
+			}
+
+			retval, err := cleanupSubcommand.Execute(newCtx, repo)
+			if err != nil || retval != 0 {
+				s.ctx.GetLogger().Error("Error executing cleanup: %s", err)
+			} else {
+				s.ctx.GetLogger().Info("cleanup succeeded")
 			}
 
 			newCtx.Close()

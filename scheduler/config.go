@@ -42,6 +42,7 @@ type SmtpConfig struct {
 type TaskSet struct {
 	Name       string          `yaml:"name"`
 	Repository Repository      `yaml:"repository"`
+	Cleanup    *CleanupConfig  `yaml:"cleanup,omitempty"`
 	Backup     *BackupConfig   `yaml:"backup,omitempty"`
 	Check      []CheckConfig   `yaml:"check,omitempty"`
 	Restore    []RestoreConfig `yaml:"restore,omitempty"`
@@ -76,6 +77,10 @@ type SyncConfig struct {
 	Peer      string `yaml:"peer"`
 	Direction string `yaml:"direction"`
 	Interval  string `yaml:"interval"`
+}
+
+type CleanupConfig struct {
+	Interval string `yaml:"interval"`
 }
 
 func NewConfiguration() *Configuration {

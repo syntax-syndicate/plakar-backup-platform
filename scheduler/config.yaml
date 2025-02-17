@@ -8,7 +8,7 @@ agent:
         path: /private/etc
         interval: 5s
         retention: 45s
-        #check: true
+        check: true
 
       check:
         - interval: 10s
@@ -31,3 +31,5 @@ agent:
           direction: both
           peer: /tmp/foobar
 
+      cleanup:
+        interval: 10s
