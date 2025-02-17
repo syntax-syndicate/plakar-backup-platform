@@ -36,16 +36,9 @@ func (s *Scheduler) backupTask(taskset TaskSet, task BackupConfig) error {
 	backupSubcommand.Job = taskset.Name
 	backupSubcommand.Path = task.Path
 	backupSubcommand.Quiet = true
-
-	checkSubcommand := &check.Check{}
-	checkSubcommand.RepositoryLocation = taskset.Repository.URL
-	if taskset.Repository.Passphrase != "" {
-		checkSubcommand.RepositorySecret = []byte(taskset.Repository.Passphrase)
-		_ = checkSubcommand.RepositorySecret
+	if task.Check {
+		backupSubcommand.OptCheck = true
 	}
-	checkSubcommand.OptJob = task.Name
-	checkSubcommand.Silent = true
-	checkSubcommand.OptLatest = true
 
 	rmSubcommand := &rm.Rm{}
 	rmSubcommand.RepositoryLocation = taskset.Repository.URL
@@ -91,19 +84,6 @@ func (s *Scheduler) backupTask(taskset TaskSet, task BackupConfig) error {
 				s.ctx.GetLogger().Info("Backup succeeded")
 			}
 			backupCtx.Close()
-
-			if task.Check {
-				checkCtx := appcontext.NewAppContextFrom(newCtx)
-				retval, err = checkSubcommand.Execute(checkCtx, repo)
-				if err != nil || retval != 0 {
-					s.ctx.GetLogger().Error("Error checking backup: %s", err)
-					checkCtx.Close()
-					goto close
-				} else {
-					s.ctx.GetLogger().Info("Backup succeeded")
-				}
-				checkCtx.Close()
-			}
 
 			if task.Retention != "" {
 				rmCtx := appcontext.NewAppContextFrom(newCtx)
