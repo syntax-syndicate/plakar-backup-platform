@@ -51,6 +51,24 @@ func ParseSnapshotID(id string) (string, string) {
 	return prefix, pattern
 }
 
+func ParseSnapshotPath(snapshotPath string) (string, string) {
+	if strings.HasPrefix(snapshotPath, "/") {
+		return "", snapshotPath
+	}
+	tmp := strings.SplitN(snapshotPath, ":", 2)
+	prefix := snapshotPath
+	pattern := "/"
+	if len(tmp) == 2 {
+		prefix, pattern = tmp[0], tmp[1]
+		if runtime.GOOS != "windows" {
+			if !strings.HasPrefix(pattern, "/") {
+				pattern = "/" + pattern
+			}
+		}
+	}
+	return prefix, pattern
+}
+
 func HumanToDuration(human string) (time.Duration, error) {
 	// support either one of the following:
 	// - time.Duration string
