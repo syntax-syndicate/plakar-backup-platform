@@ -212,7 +212,7 @@ func (cmd *Ls) list_snapshot(ctx *appcontext.AppContext, repo *repository.Reposi
 
 	snap, err := utils.OpenSnapshotByPrefix(repo, prefix)
 	if err != nil {
-		return fmt.Errorf("ls: could not fetch snapshot: %w", err)
+		return err
 	}
 	defer snap.Close()
 

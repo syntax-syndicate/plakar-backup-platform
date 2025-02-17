@@ -151,7 +151,7 @@ func (cmd *Rm) Execute(ctx *appcontext.AppContext, repo *repository.Repository) 
 
 		snapshotIDs, err := utils.LocateSnapshotIDs(repo, locateOptions)
 		if err != nil {
-			return 1, fmt.Errorf("ls: could not fetch snapshots list: %w", err)
+			return 1, err
 		}
 		snapshots = append(snapshots, snapshotIDs...)
 	} else {
