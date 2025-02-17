@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"os/user"
-	"path"
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
@@ -90,7 +89,7 @@ func entryPoint() int {
 		fmt.Fprintf(os.Stderr, "%s: could not get config directory: %s\n", flag.CommandLine.Name(), err)
 		return 1
 	}
-	opt_configDefault := path.Join(configDir, "plakar.yml")
+	opt_configDefault := filepath.Join(configDir, "plakar.yml")
 
 	// command line overrides
 	var opt_cpuCount int
