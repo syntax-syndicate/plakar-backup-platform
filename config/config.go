@@ -47,14 +47,14 @@ func (c *Config) Save() error {
 	return os.Rename(tmpFile.Name(), c.pathname)
 }
 
-func (c *Config) Lookup(label, key string) (interface{}, bool) {
+func (c *Config) Lookup(category, option string) (interface{}, bool) {
 	if c.Labels == nil {
 		return nil, false
 	}
-	if c.Labels[label] == nil {
+	if c.Labels[category] == nil {
 		return nil, false
 	}
-	value, ok := c.Labels[label][key]
+	value, ok := c.Labels[category][option]
 	return value, ok
 }
 
