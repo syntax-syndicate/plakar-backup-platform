@@ -13,6 +13,7 @@ const VFS_XATTR_VERSION = "1.0.0"
 
 func init() {
 	versioning.Register(resources.RT_XATTR_BTREE, versioning.FromString(btree.BTREE_VERSION))
+	versioning.Register(resources.RT_XATTR_NODE, versioning.FromString(btree.NODE_VERSION))
 	versioning.Register(resources.RT_XATTR_ENTRY, versioning.FromString(VFS_XATTR_VERSION))
 }
 

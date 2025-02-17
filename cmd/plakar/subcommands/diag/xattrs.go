@@ -44,7 +44,7 @@ func (cmd *InfoXattr) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 		return 1, err
 	}
 
-	store := repository.NewRepositoryStore[string, objects.MAC](repo, resources.RT_XATTR_BTREE)
+	store := repository.NewRepositoryStore[string, objects.MAC](repo, resources.RT_XATTR_NODE)
 	tree, err := btree.Deserialize(rd, store, vfs.PathCmp)
 	if err != nil {
 		return 1, err

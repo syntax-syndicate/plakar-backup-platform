@@ -459,7 +459,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 	}
 	scannerWg.Wait()
 
-	errcsum, err := persistIndex(snap, backupCtx.erridx, resources.RT_ERROR_BTREE, func(e *vfs.ErrorItem) (csum objects.MAC, err error) {
+	errcsum, err := persistIndex(snap, backupCtx.erridx, resources.RT_ERROR_BTREE, resources.RT_ERROR_NODE, func(e *vfs.ErrorItem) (csum objects.MAC, err error) {
 		serialized, err := e.ToBytes()
 		if err != nil {
 			return
@@ -609,7 +609,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		}
 	}
 
-	rootcsum, err := persistIndex(snap, fileidx, resources.RT_VFS_BTREE, func(entry *vfs.Entry) (csum objects.MAC, err error) {
+	rootcsum, err := persistIndex(snap, fileidx, resources.RT_VFS_BTREE, resources.RT_VFS_NODE, func(entry *vfs.Entry) (csum objects.MAC, err error) {
 		serialized, err := entry.ToBytes()
 		if err != nil {
 			return
@@ -624,7 +624,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		return err
 	}
 
-	xattrcsum, err := persistIndex(snap, backupCtx.xattridx, resources.RT_XATTR_BTREE, func(xattr *vfs.Xattr) (csum objects.MAC, err error) {
+	xattrcsum, err := persistIndex(snap, backupCtx.xattridx, resources.RT_XATTR_BTREE, resources.RT_XATTR_NODE, func(xattr *vfs.Xattr) (csum objects.MAC, err error) {
 		serialized, err := xattr.ToBytes()
 		if err != nil {
 			return
@@ -639,7 +639,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 		return err
 	}
 
-	ctmac, err := persistIndex(snap, ctidx, resources.RT_BTREE, func(mac objects.MAC) (objects.MAC, error) {
+	ctmac, err := persistIndex(snap, ctidx, resources.RT_BTREE_ROOT, resources.RT_BTREE_NODE, func(mac objects.MAC) (objects.MAC, error) {
 		return mac, nil
 	})
 	if err != nil {
