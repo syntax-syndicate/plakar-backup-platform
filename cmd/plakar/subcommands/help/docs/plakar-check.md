@@ -8,6 +8,15 @@ PLAKAR(CHECK) - CHECK (1)
 
 **plakar check**
 \[**-concurrency**&nbsp;*number*]
+\[**-name**&nbsp;*name*]
+\[**-category**&nbsp;*category*]
+\[**-environment**&nbsp;*environment*]
+\[**-perimeter**&nbsp;*perimeter*]
+\[**-job**&nbsp;*job*]
+\[**-tag**&nbsp;*tag*]
+\[**-latest**]
+\[**-before**&nbsp;*date*]
+\[**-since**&nbsp;*date*]
 \[**-fast**]
 \[**-no-verify**]
 \[**-quiet**]
