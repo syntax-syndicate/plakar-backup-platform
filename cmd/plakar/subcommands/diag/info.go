@@ -99,6 +99,15 @@ func parse_cmd_diag(ctx *appcontext.AppContext, repo *repository.Repository, arg
 			RepositorySecret:   ctx.GetSecret(),
 			SnapshotPath:       flags.Args()[1],
 		}, nil
+	case "xattr":
+		if len(flags.Args()) < 2 {
+			return nil, fmt.Errorf("usage: %s vfs SNAPSHOT[:PATH]", flags.Name())
+		}
+		return &InfoXattr{
+			RepositoryLocation: repo.Location(),
+			RepositorySecret:   ctx.GetSecret(),
+			SnapshotPath:       flags.Args()[1],
+		}, nil
 	case "contenttype":
 		if len(flags.Args()) < 2 {
 			return nil, fmt.Errorf("usage: %s vfs SNAPSHOT[:PATH]", flags.Name())
