@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -35,20 +34,20 @@ func (s *Scheduler) Run() {
 		if tasksetCfg.Backup != nil {
 			err := s.backupTask(tasksetCfg, *tasksetCfg.Backup)
 			if err != nil {
-				fmt.Println("Error configuring backup task: ", err)
+				s.ctx.GetLogger().Error("Error configuring backup task: %s", err)
 			}
 		}
 		for _, checkCfg := range tasksetCfg.Check {
 			err := s.checkTask(tasksetCfg, checkCfg)
 			if err != nil {
-				fmt.Println("Error configuring check task: ", err)
+				s.ctx.GetLogger().Error("Error configuring check task: %s", err)
 			}
 		}
 
 		for _, restoreCfg := range tasksetCfg.Restore {
 			err := s.restoreTask(tasksetCfg, restoreCfg)
 			if err != nil {
-				fmt.Println("Error configuring restore task: ", err)
+				s.ctx.GetLogger().Error("Error configuring restore task: %s", err)
 			}
 		}
 	}

@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -69,7 +68,7 @@ func (s *Scheduler) backupTask(taskset TaskSet, task BackupConfig) error {
 
 			store, config, err := storage.Open(backupSubcommand.RepositoryLocation)
 			if err != nil {
-				fmt.Println("Error opening storage: ", err)
+				s.ctx.GetLogger().Error("Error opening storage: %s", err)
 				continue
 			}
 
@@ -77,7 +76,7 @@ func (s *Scheduler) backupTask(taskset TaskSet, task BackupConfig) error {
 
 			repo, err := repository.New(newCtx, store, config)
 			if err != nil {
-				fmt.Println("Error creating repository: ", err)
+				s.ctx.GetLogger().Error("Error opening repository: %s", err)
 				store.Close()
 				continue
 			}
@@ -85,11 +84,11 @@ func (s *Scheduler) backupTask(taskset TaskSet, task BackupConfig) error {
 			backupCtx := appcontext.NewAppContextFrom(newCtx)
 			retval, err := backupSubcommand.Execute(backupCtx, repo)
 			if err != nil || retval != 0 {
-				fmt.Println("Error executing backup: ", err)
+				s.ctx.GetLogger().Error("Error creating backup: %s", err)
 				backupCtx.Close()
 				goto close
 			} else {
-				fmt.Println("Backup succeeded")
+				s.ctx.GetLogger().Info("Backup succeeded")
 			}
 			backupCtx.Close()
 
@@ -97,11 +96,11 @@ func (s *Scheduler) backupTask(taskset TaskSet, task BackupConfig) error {
 				checkCtx := appcontext.NewAppContextFrom(newCtx)
 				retval, err = checkSubcommand.Execute(checkCtx, repo)
 				if err != nil || retval != 0 {
-					fmt.Println("Error executing check task: ", err)
+					s.ctx.GetLogger().Error("Error checking backup: %s", err)
 					checkCtx.Close()
 					goto close
 				} else {
-					fmt.Println("Check succeeded")
+					s.ctx.GetLogger().Info("Backup succeeded")
 				}
 				checkCtx.Close()
 			}
@@ -111,9 +110,9 @@ func (s *Scheduler) backupTask(taskset TaskSet, task BackupConfig) error {
 				rmSubcommand.OptBefore = time.Now().Add(-retention)
 				retval, err = rmSubcommand.Execute(rmCtx, repo)
 				if err != nil || retval != 0 {
-					fmt.Println("Error executing rm task: ", err)
+					s.ctx.GetLogger().Error("Error removing obsolete backups: %s", err)
 				} else {
-					fmt.Println("Retention purge succeeded")
+					s.ctx.GetLogger().Info("Retention purge succeeded")
 				}
 				rmCtx.Close()
 			}
@@ -160,7 +159,7 @@ func (s *Scheduler) checkTask(taskset TaskSet, task CheckConfig) error {
 
 			store, config, err := storage.Open(checkSubcommand.RepositoryLocation)
 			if err != nil {
-				fmt.Println("Error opening storage: ", err)
+				s.ctx.GetLogger().Error("Error opening storage: %s", err)
 				continue
 			}
 
@@ -168,16 +167,16 @@ func (s *Scheduler) checkTask(taskset TaskSet, task CheckConfig) error {
 
 			repo, err := repository.New(newCtx, store, config)
 			if err != nil {
-				fmt.Println("Error creating repository: ", err)
+				s.ctx.GetLogger().Error("Error opening repository: %s", err)
 				store.Close()
 				continue
 			}
 
 			retval, err := checkSubcommand.Execute(newCtx, repo)
 			if err != nil || retval != 0 {
-				fmt.Println("Error executing check: ", err)
+				s.ctx.GetLogger().Error("Error executing check: %s", err)
 			} else {
-				fmt.Println("Check succeeded")
+				s.ctx.GetLogger().Info("Check succeeded")
 			}
 
 			newCtx.Close()
@@ -221,7 +220,7 @@ func (s *Scheduler) restoreTask(taskset TaskSet, task RestoreConfig) error {
 
 			store, config, err := storage.Open(restoreSubcommand.RepositoryLocation)
 			if err != nil {
-				fmt.Println("Error opening storage: ", err)
+				s.ctx.GetLogger().Error("Error opening storage: %s", err)
 				continue
 			}
 
@@ -229,16 +228,16 @@ func (s *Scheduler) restoreTask(taskset TaskSet, task RestoreConfig) error {
 
 			repo, err := repository.New(newCtx, store, config)
 			if err != nil {
-				fmt.Println("Error creating repository: ", err)
+				s.ctx.GetLogger().Error("Error opening repository: %s", err)
 				store.Close()
 				continue
 			}
 
 			retval, err := restoreSubcommand.Execute(newCtx, repo)
 			if err != nil || retval != 0 {
-				fmt.Println("Error executing restore: ", err)
+				s.ctx.GetLogger().Error("Error executing restore: %s", err)
 			} else {
-				fmt.Println("Restore succeeded")
+				s.ctx.GetLogger().Info("Restore succeeded")
 			}
 
 			newCtx.Close()
