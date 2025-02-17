@@ -71,8 +71,8 @@ func (cmd *Config) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 	}
 
 	if len(kv) == 1 {
-		if ctx.Config.Labels != nil && ctx.Config.Labels[atoms[0]] != nil {
-			fmt.Println(ctx.Config.Labels[atoms[0]][atoms[1]])
+		if val, ok := ctx.Config.Lookup(atoms[0], atoms[1]); ok {
+			fmt.Println(val)
 		}
 	} else {
 		value := strings.TrimSpace(kv[1])
