@@ -85,63 +85,6 @@ type LookupCriterias struct {
 	Reverse bool
 }
 
-func LookupSnapshots(repo *repository.Repository, criterias *LookupCriterias) []objects.MAC {
-
-	sortTable := make([]snapshotIDandTimestamp, 0)
-	for snapshotID := range repo.ListSnapshots() {
-		hdr, _, err := snapshot.GetSnapshot(repo, snapshotID)
-		if err != nil {
-			continue
-		}
-		if criterias == nil {
-			sortTable = append(sortTable, snapshotIDandTimestamp{snapshotID: snapshotID, timestamp: time.Time{}})
-		} else {
-			if criterias.Name != "" && hdr.Name != criterias.Name {
-				continue
-			}
-			if criterias.Tag != "" {
-				found := false
-				for _, t := range hdr.Tags {
-					if t == criterias.Tag {
-						found = true
-						break
-					}
-				}
-				if !found {
-					continue
-				}
-			}
-			if !criterias.Before.IsZero() && hdr.Timestamp.After(criterias.Before) {
-				continue
-			}
-			if !criterias.After.IsZero() && hdr.Timestamp.Before(criterias.After) {
-				continue
-			}
-			sortTable = append(sortTable, snapshotIDandTimestamp{snapshotID: snapshotID, timestamp: hdr.Timestamp})
-		}
-	}
-
-	sort.Slice(sortTable, func(i, j int) bool {
-		if criterias.Reverse {
-			return sortTable[i].timestamp.After(sortTable[j].timestamp)
-		} else {
-			return sortTable[i].timestamp.Before(sortTable[j].timestamp)
-		}
-	})
-
-	ret := make([]objects.MAC, 0)
-	for offset, entry := range sortTable {
-		if criterias.Offset != 0 && offset < criterias.Offset {
-			continue
-		}
-		if criterias.Limit != 0 && offset >= criterias.Limit {
-			break
-		}
-		ret = append(ret, entry.snapshotID)
-	}
-	return ret
-}
-
 func LocateSnapshotByPrefix(repo *repository.Repository, prefix string) (objects.MAC, error) {
 	snapshots := LookupSnapshotByPrefix(repo, prefix)
 	if len(snapshots) == 0 {
