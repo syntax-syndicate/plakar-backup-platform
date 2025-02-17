@@ -101,7 +101,7 @@ func parse_cmd_diag(ctx *appcontext.AppContext, repo *repository.Repository, arg
 		}, nil
 	case "xattr":
 		if len(flags.Args()) < 2 {
-			return nil, fmt.Errorf("usage: %s vfs SNAPSHOT[:PATH]", flags.Name())
+			return nil, fmt.Errorf("usage: %s xattr SNAPSHOT[:PATH]", flags.Name())
 		}
 		return &InfoXattr{
 			RepositoryLocation: repo.Location(),
@@ -110,7 +110,7 @@ func parse_cmd_diag(ctx *appcontext.AppContext, repo *repository.Repository, arg
 		}, nil
 	case "contenttype":
 		if len(flags.Args()) < 2 {
-			return nil, fmt.Errorf("usage: %s vfs SNAPSHOT[:PATH]", flags.Name())
+			return nil, fmt.Errorf("usage: %s contettype SNAPSHOT[:PATH]", flags.Name())
 		}
 		return &InfoContentType{
 			RepositoryLocation: repo.Location(),
@@ -118,5 +118,5 @@ func parse_cmd_diag(ctx *appcontext.AppContext, repo *repository.Repository, arg
 			SnapshotPath:       flags.Args()[1],
 		}, nil
 	}
-	return nil, fmt.Errorf("Invalid parameter. usage: diag [snapshot|object|state|packfile|vfs|errors]")
+	return nil, fmt.Errorf("Invalid parameter. usage: diag [contenttype|snapshot|object|state|packfile|vfs|xattr|errors]")
 }
