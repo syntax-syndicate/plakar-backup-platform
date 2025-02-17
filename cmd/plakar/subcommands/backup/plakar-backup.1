@@ -9,6 +9,7 @@
 .Op Fl concurrency Ar number
 .Op Fl exclude Ar pattern
 .Op Fl excludes Ar file
+.Op Fl check
 .Op Fl quiet
 .Op Fl stdio
 .Op Fl tag Ar tag
@@ -36,6 +37,8 @@ This option can be repeated.
 .It Fl excludes Ar file
 Specify a file containing exclusion patterns, one per line, to ignore
 files or directories in the backup.
+.It Fl check
+Perform a full check on the backup after success.
 .It Fl quiet
 Suppress output to standard input, only logging errors and warnings.
 .It Fl stdio
