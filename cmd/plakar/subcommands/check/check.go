@@ -172,7 +172,7 @@ func (cmd *Check) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 
 		snapshotIDs, err := utils.LocateSnapshotIDs(repo, locateOptions)
 		if err != nil {
-			return 1, fmt.Errorf("ls: could not fetch snapshots list: %w", err)
+			return 1, err
 		}
 		for _, snapshotID := range snapshotIDs {
 			snapshots = append(snapshots, fmt.Sprintf("%x:/", snapshotID))
@@ -199,7 +199,7 @@ func (cmd *Check) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 
 			snapshotIDs, err := utils.LocateSnapshotIDs(repo, locateOptions)
 			if err != nil {
-				return 1, fmt.Errorf("ls: could not fetch snapshots list: %w", err)
+				return 1, err
 			}
 			for _, snapshotID := range snapshotIDs {
 				snapshots = append(snapshots, fmt.Sprintf("%x:%s", snapshotID, path))
