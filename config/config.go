@@ -13,6 +13,26 @@ type Config struct {
 	Labels   map[string]map[string]interface{} `yaml:"labels"`
 }
 
+func LoadOrCreate(configFile string) (*Config, error) {
+	data, err := os.ReadFile(configFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			cfg := &Config{
+				pathname: configFile,
+				Labels:   make(map[string]map[string]interface{}),
+			}
+			return cfg, cfg.Save()
+		}
+		return nil, fmt.Errorf("error reading config file: %T", err)
+	}
+	var config Config
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		log.Fatalf("Error parsing YAML: %v", err)
+	}
+	config.pathname = configFile
+	return &config, nil
+}
+
 func (c *Config) Save() error {
 	tmpFile, err := os.CreateTemp("", "config.*.yaml")
 	if err != nil {
@@ -46,24 +66,4 @@ func (c *Config) Set(category, option, value string) {
 		c.Labels[category] =make(map[string]interface{})
 	}
 	c.Labels[category][option] = value
-}
-
-func LoadOrCreate(configFile string) (*Config, error) {
-	data, err := os.ReadFile(configFile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			cfg := &Config{
-				pathname: configFile,
-				Labels:   make(map[string]map[string]interface{}),
-			}
-			return cfg, cfg.Save()
-		}
-		return nil, fmt.Errorf("error reading config file: %T", err)
-	}
-	var config Config
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		log.Fatalf("Error parsing YAML: %v", err)
-	}
-	config.pathname = configFile
-	return &config, nil
 }
