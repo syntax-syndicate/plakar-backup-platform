@@ -51,6 +51,8 @@ type LocateOptions struct {
 	Perimeter   string
 	Job         string
 	Tag         string
+
+	Prefix string
 }
 
 func NewDefaultLocateOptions() *LocateOptions {
@@ -68,6 +70,8 @@ func NewDefaultLocateOptions() *LocateOptions {
 		Perimeter:   "",
 		Job:         "",
 		Tag:         "",
+
+		Prefix: "",
 	}
 }
 
@@ -100,6 +104,12 @@ func LocateSnapshotIDs(repo *repository.Repository, opts *LocateOptions) ([]obje
 				return
 			}
 			defer snap.Close()
+
+			if opts.Prefix != "" {
+				if !strings.HasPrefix(hex.EncodeToString(snapshotID[:]), opts.Prefix) {
+					return
+				}
+			}
 
 			if opts.Name != "" {
 				if snap.Header.Name != opts.Name {
