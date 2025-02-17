@@ -56,6 +56,7 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 	var opt_concurrency uint64
 	var opt_quiet bool
 	var opt_silent bool
+	var opt_check bool
 	// var opt_stdio bool
 
 	excludes := []glob.Glob{}
@@ -74,6 +75,7 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 	flags.Var(&opt_exclude, "exclude", "file containing a list of exclusions")
 	flags.BoolVar(&opt_quiet, "quiet", false, "suppress output")
 	flags.BoolVar(&opt_silent, "silent", false, "suppress ALL output")
+	flags.BoolVar(&opt_check, "check", false, "check the snapshot after creating it")
 	//flags.BoolVar(&opt_stdio, "stdio", false, "output one line per file to stdout instead of the default interactive output")
 	flags.Parse(args)
 
@@ -112,6 +114,7 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 		Exclude:            opt_exclude,
 		Quiet:              opt_quiet,
 		Path:               flags.Arg(0),
+		OptCheck:           opt_check,
 	}, nil
 }
 
@@ -127,6 +130,7 @@ type Backup struct {
 	Silent      bool
 	Quiet       bool
 	Path        string
+	OptCheck    bool
 }
 
 func (cmd *Backup) Name() string {
@@ -193,5 +197,26 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 			humanize.Bytes(snap.Header.GetSource(0).Summary.Directory.Size+snap.Header.GetSource(0).Summary.Below.Size),
 			snap.Header.Duration)
 	}
+
+	if cmd.OptCheck {
+		checkOptions := &snapshot.CheckOptions{
+			MaxConcurrency: cmd.Concurrency,
+			FastCheck:      false,
+		}
+		ok, err := snap.Check("/", checkOptions)
+		if err != nil {
+			return 1, fmt.Errorf("failed to check snapshot: %w", err)
+		}
+		if !ok {
+			return 1, fmt.Errorf("snapshot is not valid")
+		}
+	}
+
+	ctx.GetLogger().Info("created %s snapshot %x with root %s of size %s in %s",
+		"unsigned",
+		snap.Header.GetIndexShortID(),
+		base64.RawStdEncoding.EncodeToString(snap.Header.GetSource(0).VFS.Root[:]),
+		humanize.Bytes(snap.Header.GetSource(0).Summary.Directory.Size+snap.Header.GetSource(0).Summary.Below.Size),
+		snap.Header.Duration)
 	return 0, nil
 }
