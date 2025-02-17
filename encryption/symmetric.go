@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"runtime"
 
 	"github.com/PlakarKorp/plakar/hashing"
 	aeskw "github.com/nickball/go-aes-key-wrap"
@@ -59,7 +58,7 @@ func NewDefaultKDFParams(KDF string) (*KDFParams, error) {
 				// [...] the memory parameter specifies the size of the memory in KiB.
 				// For example memory=64*1024 sets the memory cost to ~64 MB
 				Memory:  256 * 1024,
-				Threads: uint8(runtime.NumCPU()),
+				Threads: 1,
 				KeyLen:  32,
 			},
 		}, nil
