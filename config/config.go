@@ -38,6 +38,16 @@ func (c *Config) Lookup(label, key string) (interface{}, bool) {
 	return value, ok
 }
 
+func (c *Config) Set(category, option, value string) {
+	if c.Labels == nil {
+		c.Labels = make(map[string]map[string]interface{})
+	}
+	if c.Labels[category] == nil {
+		c.Labels[category] =make(map[string]interface{})
+	}
+	c.Labels[category][option] = value
+}
+
 func LoadOrCreate(configFile string) (*Config, error) {
 	data, err := os.ReadFile(configFile)
 	if err != nil {

@@ -76,13 +76,7 @@ func (cmd *Config) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		}
 	} else {
 		value := strings.TrimSpace(kv[1])
-		if ctx.Config.Labels == nil {
-			ctx.Config.Labels = make(map[string]map[string]interface{})
-		}
-		if ctx.Config.Labels[atoms[0]] == nil {
-			ctx.Config.Labels[atoms[0]] = make(map[string]interface{})
-		}
-		ctx.Config.Labels[atoms[0]][atoms[1]] = value
+		ctx.Config.Set(atoms[0], atoms[1], value)
 		ctx.Config.Save()
 	}
 
