@@ -30,6 +30,13 @@ type FileInfo struct {
 	Flags uint32 `json:"flags" msgpack:"flags"`
 }
 
+type Attribute uint8
+
+const (
+	AttributeExtended Attribute = 0
+	AttributeADS      Attribute = 1
+)
+
 func (f FileInfo) Name() string {
 	return f.Lname
 }
