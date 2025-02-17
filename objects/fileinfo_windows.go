@@ -25,7 +25,9 @@ type FileInfo struct {
 	Lusername  string      `json:"username" msgpack:"username"`
 	Lgroupname string      `json:"groupname" msgpack:"groupname"`
 
-	ExtendedAttribute bool `json:"extended_attribute" msgpack:"extended_attribute"`
+	// Just in case we need something special to handle special
+	// OSes.
+	Flags uint32 `json:"flags" msgpack:"flags"`
 }
 
 func (f FileInfo) Name() string {
