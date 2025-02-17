@@ -7,6 +7,15 @@ PLAKAR-LOCATE(1) - General Commands Manual
 # SYNOPSIS
 
 **plakar locate**
+\[**-name**&nbsp;*name*]
+\[**-category**&nbsp;*category*]
+\[**-environment**&nbsp;*environment*]
+\[**-perimeter**&nbsp;*perimeter*]
+\[**-job**&nbsp;*job*]
+\[**-tag**&nbsp;*tag*]
+\[**-latest**]
+\[**-before**&nbsp;*date*]
+\[**-since**&nbsp;*date*]
 \[**-snapshot**&nbsp;*snapshotID*]
 *patterns&nbsp;...*
 

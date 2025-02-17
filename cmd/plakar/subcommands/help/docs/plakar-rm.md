@@ -7,8 +7,15 @@ PLAKAR-RM(1) - General Commands Manual
 # SYNOPSIS
 
 **plakar rm**
-\[**-older**&nbsp;*date*]
+\[**-name**&nbsp;*name*]
+\[**-category**&nbsp;*category*]
+\[**-environment**&nbsp;*environment*]
+\[**-perimeter**&nbsp;*perimeter*]
+\[**-job**&nbsp;*job*]
 \[**-tag**&nbsp;*tag*]
+\[**-latest**]
+\[**-before**&nbsp;*date*]
+\[**-since**&nbsp;*date*]
 \[*snapshotID&nbsp;...*]
 
 # DESCRIPTION

@@ -8,7 +8,15 @@ PLAKAR-LS(1) - General Commands Manual
 
 **plakar ls**
 \[**-uuid**]
+\[**-name**&nbsp;*name*]
+\[**-category**&nbsp;*category*]
+\[**-environment**&nbsp;*environment*]
+\[**-perimeter**&nbsp;*perimeter*]
+\[**-job**&nbsp;*job*]
 \[**-tag**&nbsp;*tag*]
+\[**-latest**]
+\[**-before**&nbsp;*date*]
+\[**-since**&nbsp;*date*]
 \[**-recursive**]
 \[*snapshotID*:*path*]
 
@@ -23,35 +31,35 @@ in a specified snapshot.
 
 The options are as follows:
 
-**-name** *string*
+**-name** *name*
 
 > Only apply command to snapshots that match
 > *name*.
 
-**-category** *string*
+**-category** *category*
 
 > Only apply command to snapshots that match
 > *category*.
 
-**-environment** *string*
+**-environment** *environment*
 
 > Only apply command to snapshots that match
 > *environment*.
 
-**-perimeter** *string*
+**-perimeter** *perimeter*
 
 > Only apply command to snapshots that match
 > *perimeter*.
 
-**-job** *string*
+**-job** *job*
 
 > Only apply command to snapshots that match
 > *job*.
 
-**-tag** *string*
+**-tag** *tag*
 
-> Only apply command to snapshots that match
-> *tag*.
+> Filter snapshots by the specified tag, listing only those that contain
+> the given tag.
 
 **-latest**
 
@@ -77,11 +85,6 @@ The options are as follows:
 
 > Display the full UUID for each snapshot instead of the shorter
 > snapshot ID.
-
-**-tag** *tag*
-
-> Filter snapshots by the specified tag, listing only those that contain
-> the given tag.
 
 **-recursive**
 
