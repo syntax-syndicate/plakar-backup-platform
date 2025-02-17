@@ -84,14 +84,6 @@ func OpenSnapshotByPrefix(repo *repository.Repository, prefix string) (*snapshot
 	return snapshot.Load(repo, snapshotID)
 }
 
-func GetSnapshotsList(repo *repository.Repository) ([]objects.MAC, error) {
-	snapshots, err := repo.GetSnapshots()
-	if err != nil {
-		return nil, err
-	}
-	return snapshots, nil
-}
-
 func HumanToDuration(human string) (time.Duration, error) {
 	// support either one of the following:
 	// - time.Duration string
