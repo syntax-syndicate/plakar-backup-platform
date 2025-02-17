@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -14,7 +13,7 @@ type Config struct {
 }
 
 func LoadOrCreate(configFile string) (*Config, error) {
-	data, err := os.ReadFile(configFile)
+	f, err := os.Open(configFile)
 	if err != nil {
 		if os.IsNotExist(err) {
 			cfg := &Config{
@@ -25,9 +24,10 @@ func LoadOrCreate(configFile string) (*Config, error) {
 		}
 		return nil, fmt.Errorf("error reading config file: %T", err)
 	}
+	defer f.Close()
 	var config Config
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		log.Fatalf("Error parsing YAML: %v", err)
+	if err := yaml.NewDecoder(f).Decode(&config); err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 	config.pathname = configFile
 	return &config, nil
@@ -63,7 +63,7 @@ func (c *Config) Set(category, option, value string) {
 		c.Labels = make(map[string]map[string]interface{})
 	}
 	if c.Labels[category] == nil {
-		c.Labels[category] =make(map[string]interface{})
+		c.Labels[category] = make(map[string]interface{})
 	}
 	c.Labels[category][option] = value
 }
