@@ -17,7 +17,6 @@
 package utils
 
 import (
-	"encoding/hex"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -30,9 +29,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/snapshot"
 	"golang.org/x/mod/semver"
 	"golang.org/x/term"
 	"golang.org/x/tools/blog/atom"
@@ -53,35 +49,6 @@ func ParseSnapshotID(id string) (string, string) {
 		}
 	}
 	return prefix, pattern
-}
-
-func LookupSnapshotByPrefix(repo *repository.Repository, prefix string) []objects.MAC {
-	ret := make([]objects.MAC, 0)
-	for snapshotID := range repo.ListSnapshots() {
-		if strings.HasPrefix(hex.EncodeToString(snapshotID[:]), prefix) {
-			ret = append(ret, snapshotID)
-		}
-	}
-	return ret
-}
-
-func LocateSnapshotByPrefix(repo *repository.Repository, prefix string) (objects.MAC, error) {
-	snapshots := LookupSnapshotByPrefix(repo, prefix)
-	if len(snapshots) == 0 {
-		return objects.MAC{}, fmt.Errorf("no snapshot has prefix: %s", prefix)
-	}
-	if len(snapshots) > 1 {
-		return objects.MAC{}, fmt.Errorf("snapshot ID is ambiguous: %s (matches %d snapshots)", prefix, len(snapshots))
-	}
-	return snapshots[0], nil
-}
-
-func OpenSnapshotByPrefix(repo *repository.Repository, prefix string) (*snapshot.Snapshot, error) {
-	snapshotID, err := LocateSnapshotByPrefix(repo, prefix)
-	if err != nil {
-		return nil, err
-	}
-	return snapshot.Load(repo, snapshotID)
 }
 
 func HumanToDuration(human string) (time.Duration, error) {
