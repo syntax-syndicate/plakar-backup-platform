@@ -7,8 +7,7 @@ import (
 )
 
 type Configuration struct {
-	Repositories []Repository `yaml:"repositories"`
-	Agent        AgentConfig  `yaml:"agent"`
+	Agent AgentConfig `yaml:"agent"`
 }
 
 type Repository struct {
@@ -43,7 +42,7 @@ type SmtpConfig struct {
 type TaskSet struct {
 	Name       string          `yaml:"name"`
 	Repository Repository      `yaml:"repository"`
-	Backup     []BackupConfig  `yaml:"backup,omitempty"`
+	Backup     *BackupConfig   `yaml:"backup,omitempty"`
 	Check      []CheckConfig   `yaml:"check,omitempty"`
 	Restore    []RestoreConfig `yaml:"restore,omitempty"`
 }
@@ -54,6 +53,7 @@ type BackupConfig struct {
 	Tags        []string `yaml:"tags,omitempty"`
 	Path        string   `yaml:"path"`
 	Interval    string   `yaml:"interval"`
+	Check       bool     `yaml:"check"`
 	Retention   string   `yaml:"retention"`
 }
 

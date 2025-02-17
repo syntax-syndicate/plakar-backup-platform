@@ -42,9 +42,13 @@ func (s *Scheduler) backupTask(taskset TaskSet, task BackupConfig) error {
 	if err != nil {
 		return err
 	}
-	retention, err := stringToDuration(task.Retention)
-	if err != nil {
-		return err
+
+	var retention time.Duration
+	if task.Retention != "" {
+		retention, err = stringToDuration(task.Retention)
+		if err != nil {
+			return err
+		}
 	}
 
 	backupSubcommand := &backup.Backup{}
@@ -57,6 +61,24 @@ func (s *Scheduler) backupTask(taskset TaskSet, task BackupConfig) error {
 	backupSubcommand.Job = taskset.Name
 	backupSubcommand.Path = task.Path
 	backupSubcommand.Quiet = true
+
+	checkSubcommand := &check.Check{}
+	checkSubcommand.RepositoryLocation = taskset.Repository.URL
+	if taskset.Repository.Passphrase != "" {
+		checkSubcommand.RepositorySecret = []byte(taskset.Repository.Passphrase)
+		_ = checkSubcommand.RepositorySecret
+	}
+	checkSubcommand.OptJob = task.Name
+	checkSubcommand.Silent = true
+	checkSubcommand.OptLatest = true
+
+	rmSubcommand := &rm.Rm{}
+	rmSubcommand.RepositoryLocation = taskset.Repository.URL
+	if taskset.Repository.Passphrase != "" {
+		rmSubcommand.RepositorySecret = []byte(taskset.Repository.Passphrase)
+		_ = rmSubcommand.RepositorySecret
+	}
+	rmSubcommand.OptJob = task.Name
 
 	s.wg.Add(1)
 	go func() {
@@ -83,44 +105,28 @@ func (s *Scheduler) backupTask(taskset TaskSet, task BackupConfig) error {
 			}
 
 			retval, err := backupSubcommand.Execute(s.ctx, repo)
-
 			if err != nil || retval != 0 {
 				fmt.Println("Error executing backup: ", err)
-			} else {
-				fmt.Println("Backup succeeded")
+				goto close
+			}
 
-				checkSubcommand := &check.Check{}
-				checkSubcommand.RepositoryLocation = taskset.Repository.URL
-				if taskset.Repository.Passphrase != "" {
-					checkSubcommand.RepositorySecret = []byte(taskset.Repository.Passphrase)
-					_ = checkSubcommand.RepositorySecret
-				}
-				checkSubcommand.OptJob = task.Name
-				checkSubcommand.Silent = true
-				checkSubcommand.OptLatest = true
-				retval, err := checkSubcommand.Execute(s.ctx, repo)
+			if task.Check {
+				retval, err = checkSubcommand.Execute(s.ctx, repo)
 				if err != nil || retval != 0 {
 					fmt.Println("Error executing check task: ", err)
-				} else {
-					fmt.Println("Check succeeded")
-
-					rmSubcommand := &rm.Rm{}
-					rmSubcommand.RepositoryLocation = taskset.Repository.URL
-					if taskset.Repository.Passphrase != "" {
-						rmSubcommand.RepositorySecret = []byte(taskset.Repository.Passphrase)
-						_ = rmSubcommand.RepositorySecret
-					}
-					rmSubcommand.OptJob = task.Name
-					rmSubcommand.OptBefore = time.Now().Add(-retention)
-					retval, err := rmSubcommand.Execute(s.ctx, repo)
-					if err != nil || retval != 0 {
-						fmt.Println("Error executing rm task: ", err)
-					} else {
-						fmt.Println("Retention succeeded")
-					}
+					goto close
 				}
 			}
 
+			if task.Retention != "" {
+				rmSubcommand.OptBefore = time.Now().Add(-retention)
+				retval, err = rmSubcommand.Execute(s.ctx, repo)
+				if err != nil || retval != 0 {
+					fmt.Println("Error executing rm task: ", err)
+				}
+			}
+
+		close:
 			repo.Close()
 			store.Close()
 		}
@@ -182,6 +188,7 @@ func (s *Scheduler) checkTask(taskset TaskSet, task CheckConfig) error {
 
 	return nil
 }
+
 func (s *Scheduler) restoreTask(taskset TaskSet, task RestoreConfig) error {
 	interval, err := stringToDuration(task.Interval)
 	if err != nil {
@@ -240,8 +247,8 @@ func (s *Scheduler) restoreTask(taskset TaskSet, task RestoreConfig) error {
 func (s *Scheduler) Run() {
 	for _, tasksetCfg := range s.config.Agent.TaskSets {
 		fmt.Println(tasksetCfg)
-		for _, backupCfg := range tasksetCfg.Backup {
-			err := s.backupTask(tasksetCfg, backupCfg)
+		if tasksetCfg.Backup != nil {
+			err := s.backupTask(tasksetCfg, *tasksetCfg.Backup)
 			if err != nil {
 				fmt.Println("Error configuring backup task: ", err)
 			}
