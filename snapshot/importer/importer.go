@@ -44,6 +44,7 @@ type ScanRecord struct {
 	ExtendedAttributes []string
 	FileAttributes     uint32
 	IsXattr            bool
+	XattrName          string
 }
 
 type ScanError struct {
@@ -134,12 +135,13 @@ func NewScanRecord(pathname, target string, fileinfo objects.FileInfo, xattr []s
 	}
 }
 
-func NewScanXattr(pathname string, fileinfo objects.FileInfo) *ScanResult {
+func NewScanXattr(pathname, xattr string, fileinfo objects.FileInfo) *ScanResult {
 	return &ScanResult{
 		Record: &ScanRecord{
-			Pathname: pathname,
-			FileInfo: fileinfo,
-			IsXattr:  true,
+			Pathname:  pathname,
+			FileInfo:  fileinfo,
+			IsXattr:   true,
+			XattrName: xattr,
 		},
 	}
 }

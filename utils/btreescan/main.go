@@ -59,6 +59,7 @@ func (l *leveldbstore) Put(node *Node) (int, error) {
 func main() {
 	var (
 		verify  bool
+		xattr   bool
 		dbpath  string
 		order   int
 		dot     string
@@ -66,6 +67,7 @@ func main() {
 		cpuprof string
 	)
 	flag.BoolVar(&verify, "verify", false, `Whether to verify the tree at the end`)
+	flag.BoolVar(&xattr, "xattr", false, `get xattr for all the files as well`)
 	flag.StringVar(&dbpath, "dbpath", "/tmp/leveldb", `Path to the leveldb; use "memory" for an in-memory btree`)
 	flag.IntVar(&order, "order", 50, `Order of the btree`)
 	flag.StringVar(&dot, "dot", "", `where to put the generated dot; empty for none`)
@@ -142,6 +144,15 @@ func main() {
 				log.Fatalf("failed to insert %s: %v", path, err)
 			}
 			items++
+
+			if xattr && record.Record.IsXattr {
+				rd, err := imp.NewExtendedAttributeReader(path, record.Record.XattrName)
+				if err != nil {
+					log.Fatalln("failed to get xattr for", path, "due to", err)
+				}
+				rd.Close()
+				log.Println(path, "found xattr named", record.Record.XattrName)
+			}
 		default:
 			log.Fatalln("got unknown scanrecord", record)
 		}
