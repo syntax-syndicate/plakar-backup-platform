@@ -129,24 +129,12 @@ func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 		locateOptions.SortOrder = utils.LocateSortOrderAscending
 		locateOptions.Latest = true
 
-		if cmd.OptName != "" {
-			locateOptions.Name = cmd.OptName
-		}
-		if cmd.OptCategory != "" {
-			locateOptions.Category = cmd.OptCategory
-		}
-		if cmd.OptEnvironment != "" {
-			locateOptions.Environment = cmd.OptEnvironment
-		}
-		if cmd.OptPerimeter != "" {
-			locateOptions.Perimeter = cmd.OptPerimeter
-		}
-		if cmd.OptJob != "" {
-			locateOptions.Job = cmd.OptJob
-		}
-		if cmd.OptTag != "" {
-			locateOptions.Tag = cmd.OptTag
-		}
+		locateOptions.Name = cmd.OptName
+		locateOptions.Category = cmd.OptCategory
+		locateOptions.Environment = cmd.OptEnvironment
+		locateOptions.Perimeter = cmd.OptPerimeter
+		locateOptions.Job = cmd.OptJob
+		locateOptions.Tag = cmd.OptTag
 
 		snapshotIDs, err := utils.LocateSnapshotIDs(repo, locateOptions)
 		if err != nil {
@@ -164,27 +152,13 @@ func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 			locateOptions.SortOrder = utils.LocateSortOrderAscending
 			locateOptions.Latest = true
 
-			if cmd.OptName != "" {
-				locateOptions.Name = cmd.OptName
-			}
-			if cmd.OptCategory != "" {
-				locateOptions.Category = cmd.OptCategory
-			}
-			if cmd.OptEnvironment != "" {
-				locateOptions.Environment = cmd.OptEnvironment
-			}
-			if cmd.OptPerimeter != "" {
-				locateOptions.Perimeter = cmd.OptPerimeter
-			}
-			if cmd.OptJob != "" {
-				locateOptions.Job = cmd.OptJob
-			}
-			if cmd.OptTag != "" {
-				locateOptions.Tag = cmd.OptTag
-			}
-			if prefix != "" {
-				locateOptions.Prefix = prefix
-			}
+			locateOptions.Name = cmd.OptName
+			locateOptions.Category = cmd.OptCategory
+			locateOptions.Environment = cmd.OptEnvironment
+			locateOptions.Perimeter = cmd.OptPerimeter
+			locateOptions.Job = cmd.OptJob
+			locateOptions.Tag = cmd.OptTag
+			locateOptions.Prefix = prefix
 
 			snapshotIDs, err := utils.LocateSnapshotIDs(repo, locateOptions)
 			if err != nil {
