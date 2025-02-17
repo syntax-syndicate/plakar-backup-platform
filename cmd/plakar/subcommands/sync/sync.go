@@ -50,6 +50,7 @@ func parse_cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, arg
 	direction := ""
 	peerRepositoryPath := ""
 
+	args = flags.Args()
 	switch len(args) {
 	case 2:
 		direction = args[0]
