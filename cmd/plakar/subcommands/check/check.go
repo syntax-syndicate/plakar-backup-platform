@@ -190,7 +190,47 @@ func (cmd *Check) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 			snapshots = append(snapshots, fmt.Sprintf("%x:/", snapshotID))
 		}
 	} else {
-		snapshots = cmd.Snapshots
+		for _, snapshotPath := range cmd.Snapshots {
+			prefix, path := utils.ParseSnapshotPath(snapshotPath)
+
+			locateOptions := utils.NewDefaultLocateOptions()
+			locateOptions.MaxConcurrency = ctx.MaxConcurrency
+			locateOptions.SortOrder = utils.LocateSortOrderAscending
+
+			locateOptions.Before = cmd.OptBefore
+			locateOptions.Since = cmd.OptSince
+			locateOptions.Latest = cmd.OptLatest
+
+			if cmd.OptName != "" {
+				locateOptions.Name = cmd.OptName
+			}
+			if cmd.OptCategory != "" {
+				locateOptions.Category = cmd.OptCategory
+			}
+			if cmd.OptEnvironment != "" {
+				locateOptions.Environment = cmd.OptEnvironment
+			}
+			if cmd.OptPerimeter != "" {
+				locateOptions.Perimeter = cmd.OptPerimeter
+			}
+			if cmd.OptJob != "" {
+				locateOptions.Job = cmd.OptJob
+			}
+			if cmd.OptTag != "" {
+				locateOptions.Tag = cmd.OptTag
+			}
+			if prefix != "" {
+				locateOptions.Prefix = prefix
+			}
+
+			snapshotIDs, err := utils.LocateSnapshotIDs(repo, locateOptions)
+			if err != nil {
+				return 1, fmt.Errorf("ls: could not fetch snapshots list: %w", err)
+			}
+			for _, snapshotID := range snapshotIDs {
+				snapshots = append(snapshots, fmt.Sprintf("%x:%s", snapshotID, path))
+			}
+		}
 	}
 
 	opts := &snapshot.CheckOptions{
@@ -200,7 +240,7 @@ func (cmd *Check) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 
 	failures := false
 	for _, arg := range snapshots {
-		snapshotPrefix, pathname := utils.ParseSnapshotID(arg)
+		snapshotPrefix, pathname := utils.ParseSnapshotPath(arg)
 		snap, err := utils.OpenSnapshotByPrefix(repo, snapshotPrefix)
 		if err != nil {
 			return 1, err

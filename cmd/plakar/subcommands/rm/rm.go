@@ -187,7 +187,6 @@ func (cmd *Rm) Execute(ctx *appcontext.AppContext, repo *repository.Repository) 
 				errors++
 			}
 			wg.Done()
-			ctx.GetLogger().Info("removed snapshot %x", snapshotID)
 		}(snap)
 	}
 	wg.Wait()

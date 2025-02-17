@@ -8,10 +8,20 @@ agent:
         path: /private/etc
         interval: 5s
         retention: 45s
-        check: true
+        #check: true
 
       check:
         - interval: 10s
-          path: /private/etc/apache2
+          path: /
           latest: true
+        - interval: 60s
+          path: /
           since: 30s
+        - interval: 10s
+          path: /private/etc
+          latest: true
+
+      restore:
+        - interval: 10s
+          path: /private/etc/apache2
+          target: /tmp/foobarbaz

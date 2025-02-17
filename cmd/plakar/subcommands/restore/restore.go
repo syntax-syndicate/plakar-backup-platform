@@ -44,6 +44,7 @@ func parse_cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, 
 	var pullRebase bool
 	var opt_concurrency uint64
 	var opt_quiet bool
+	var opt_silent bool
 
 	flags := flag.NewFlagSet("restore", flag.ExitOnError)
 	flags.Usage = func() {
@@ -63,6 +64,7 @@ func parse_cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, 
 	flags.StringVar(&pullPath, "to", ctx.CWD, "base directory where pull will restore")
 	flags.BoolVar(&pullRebase, "rebase", false, "strip pathname when pulling")
 	flags.BoolVar(&opt_quiet, "quiet", false, "do not print progress")
+	flags.BoolVar(&opt_silent, "silent", false, "do not print ANY progress")
 	flags.Parse(args)
 
 	if flags.NArg() != 0 {
@@ -86,10 +88,11 @@ func parse_cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, 
 		OptJob:         opt_job,
 		OptTag:         opt_tag,
 
-		Path:        pullPath,
+		Target:      pullPath,
 		Rebase:      pullRebase,
 		Concurrency: opt_concurrency,
 		Quiet:       opt_quiet,
+		Silent:      opt_silent,
 		Snapshots:   flags.Args(),
 	}, nil
 }
@@ -105,10 +108,11 @@ type Restore struct {
 	OptJob         string
 	OptTag         string
 
-	Path        string
+	Target      string
 	Rebase      bool
 	Concurrency uint64
 	Quiet       bool
+	Silent      bool
 	Snapshots   []string
 }
 
@@ -117,8 +121,9 @@ func (cmd *Restore) Name() string {
 }
 
 func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	go eventsProcessorStdio(ctx, cmd.Quiet)
-
+	if !cmd.Silent {
+		go eventsProcessorStdio(ctx, cmd.Quiet)
+	}
 	var snapshots []string
 	if len(cmd.Snapshots) == 0 {
 		locateOptions := utils.NewDefaultLocateOptions()
@@ -153,7 +158,44 @@ func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 			snapshots = append(snapshots, fmt.Sprintf("%x:/", snapshotID))
 		}
 	} else {
-		snapshots = cmd.Snapshots
+		for _, snapshotPath := range cmd.Snapshots {
+			prefix, path := utils.ParseSnapshotPath(snapshotPath)
+
+			locateOptions := utils.NewDefaultLocateOptions()
+			locateOptions.MaxConcurrency = ctx.MaxConcurrency
+			locateOptions.SortOrder = utils.LocateSortOrderAscending
+			locateOptions.Latest = true
+
+			if cmd.OptName != "" {
+				locateOptions.Name = cmd.OptName
+			}
+			if cmd.OptCategory != "" {
+				locateOptions.Category = cmd.OptCategory
+			}
+			if cmd.OptEnvironment != "" {
+				locateOptions.Environment = cmd.OptEnvironment
+			}
+			if cmd.OptPerimeter != "" {
+				locateOptions.Perimeter = cmd.OptPerimeter
+			}
+			if cmd.OptJob != "" {
+				locateOptions.Job = cmd.OptJob
+			}
+			if cmd.OptTag != "" {
+				locateOptions.Tag = cmd.OptTag
+			}
+			if prefix != "" {
+				locateOptions.Prefix = prefix
+			}
+
+			snapshotIDs, err := utils.LocateSnapshotIDs(repo, locateOptions)
+			if err != nil {
+				return 1, fmt.Errorf("ls: could not fetch snapshots list: %w", err)
+			}
+			for _, snapshotID := range snapshotIDs {
+				snapshots = append(snapshots, fmt.Sprintf("%x:%s", snapshotID, path))
+			}
+		}
 	}
 
 	if len(snapshots) == 0 {
@@ -164,7 +206,7 @@ func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 
 	var exporterInstance exporter.Exporter
 	var err error
-	exporterInstance, err = exporter.NewExporter(cmd.Path)
+	exporterInstance, err = exporter.NewExporter(cmd.Target)
 	if err != nil {
 		return 1, err
 	}
@@ -176,8 +218,7 @@ func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 	}
 
 	for _, snapPath := range snapshots {
-		fmt.Println("Will restore", snapPath)
-		prefix, pattern := utils.ParseSnapshotID(snapPath)
+		prefix, pattern := utils.ParseSnapshotPath(snapPath)
 		snap, err := utils.OpenSnapshotByPrefix(repo, prefix)
 		if err != nil {
 			return 1, err
