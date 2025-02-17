@@ -37,7 +37,6 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
-	"github.com/PlakarKorp/plakar/snapshot/header"
 	"golang.org/x/mod/semver"
 	"golang.org/x/term"
 	"golang.org/x/tools/blog/atom"
@@ -97,6 +96,7 @@ func GetSnapshotsList(repo *repository.Repository) ([]objects.MAC, error) {
 	return snapshots, nil
 }
 
+/*
 func GetHeaders(repo *repository.Repository, prefixes []string) ([]*header.Header, error) {
 	snapshotsList, err := GetSnapshotsList(repo)
 	if err != nil {
@@ -179,6 +179,7 @@ func GetHeaders(repo *repository.Repository, prefixes []string) ([]*header.Heade
 	}
 	return result, nil
 }
+*/
 
 func GetSnapshots(repo *repository.Repository, prefixes []string) ([]*snapshot.Snapshot, error) {
 	snapshotsList, err := GetSnapshotsList(repo)
