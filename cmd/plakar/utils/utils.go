@@ -70,16 +70,6 @@ func LookupSnapshotByPrefix(repo *repository.Repository, prefix string) []object
 	return ret
 }
 
-type LookupCriterias struct {
-	Name    string
-	Tag     string
-	Before  time.Time
-	After   time.Time
-	Offset  int
-	Limit   int
-	Reverse bool
-}
-
 func LocateSnapshotByPrefix(repo *repository.Repository, prefix string) (objects.MAC, error) {
 	snapshots := LookupSnapshotByPrefix(repo, prefix)
 	if len(snapshots) == 0 {
