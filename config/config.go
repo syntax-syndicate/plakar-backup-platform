@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -11,6 +10,27 @@ import (
 type Config struct {
 	pathname string
 	Labels   map[string]map[string]interface{} `yaml:"labels"`
+}
+
+func LoadOrCreate(configFile string) (*Config, error) {
+	f, err := os.Open(configFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			cfg := &Config{
+				pathname: configFile,
+				Labels:   make(map[string]map[string]interface{}),
+			}
+			return cfg, cfg.Save()
+		}
+		return nil, fmt.Errorf("error reading config file: %T", err)
+	}
+	defer f.Close()
+	var config Config
+	if err := yaml.NewDecoder(f).Decode(&config); err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	}
+	config.pathname = configFile
+	return &config, nil
 }
 
 func (c *Config) Save() error {
@@ -27,33 +47,23 @@ func (c *Config) Save() error {
 	return os.Rename(tmpFile.Name(), c.pathname)
 }
 
-func (c *Config) Lookup(label, key string) (interface{}, bool) {
+func (c *Config) Lookup(category, option string) (interface{}, bool) {
 	if c.Labels == nil {
 		return nil, false
 	}
-	if c.Labels[label] == nil {
+	if c.Labels[category] == nil {
 		return nil, false
 	}
-	value, ok := c.Labels[label][key]
+	value, ok := c.Labels[category][option]
 	return value, ok
 }
 
-func LoadOrCreate(configFile string) (*Config, error) {
-	data, err := os.ReadFile(configFile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			cfg := &Config{
-				pathname: configFile,
-				Labels:   make(map[string]map[string]interface{}),
-			}
-			return cfg, cfg.Save()
-		}
-		return nil, fmt.Errorf("error reading config file: %T", err)
+func (c *Config) Set(category, option string, value interface{}) {
+	if c.Labels == nil {
+		c.Labels = make(map[string]map[string]interface{})
 	}
-	var config Config
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		log.Fatalf("Error parsing YAML: %v", err)
+	if c.Labels[category] == nil {
+		c.Labels[category] = make(map[string]interface{})
 	}
-	config.pathname = configFile
-	return &config, nil
+	c.Labels[category][option] = value
 }

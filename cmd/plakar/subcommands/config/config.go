@@ -38,6 +38,10 @@ func parse_cmd_config(ctx *appcontext.AppContext, repo *repository.Repository, a
 	}
 
 	flags.Parse(args)
+	args = flags.Args()
+	if len(args) > 1 {
+		return nil, fmt.Errorf("too many arguments")
+	}
 
 	return &Config{
 		args: args,
@@ -59,38 +63,20 @@ func (cmd *Config) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		return 0, nil
 	}
 
-	if len(cmd.args) > 1 {
-		return 0, fmt.Errorf("config: too many arguments")
+	kv := strings.SplitN(cmd.args[0], "=", 2)
+	key := strings.TrimSpace(kv[0])
+	atoms := strings.Split(key, ".")
+	if len(atoms) < 2 {
+		return 0, fmt.Errorf("config: invalid key")
 	}
 
-	kv := strings.Split(cmd.args[0], "=")
 	if len(kv) == 1 {
-		key := strings.TrimSpace(kv[0])
-
-		atoms := strings.Split(key, ".")
-		if len(atoms) < 2 {
-			return 0, fmt.Errorf("config: invalid key")
+		if val, ok := ctx.Config.Lookup(atoms[0], atoms[1]); ok {
+			fmt.Println(val)
 		}
-		if ctx.Config.Labels != nil && ctx.Config.Labels[atoms[0]] != nil {
-			fmt.Println(ctx.Config.Labels[atoms[0]][atoms[1]])
-		}
-
 	} else {
-		key := strings.TrimSpace(kv[0])
-		value := strings.TrimSpace(strings.Join(kv[1:], "="))
-
-		atoms := strings.Split(key, ".")
-		if len(atoms) < 2 {
-			return 0, fmt.Errorf("config: invalid key")
-		}
-
-		if ctx.Config.Labels == nil {
-			ctx.Config.Labels = make(map[string]map[string]interface{})
-		}
-		if ctx.Config.Labels[atoms[0]] == nil {
-			ctx.Config.Labels[atoms[0]] = make(map[string]interface{})
-		}
-		ctx.Config.Labels[atoms[0]][atoms[1]] = value
+		value := strings.TrimSpace(kv[1])
+		ctx.Config.Set(atoms[0], atoms[1], value)
 		ctx.Config.Save()
 	}
 
