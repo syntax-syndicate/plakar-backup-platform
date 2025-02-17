@@ -73,8 +73,6 @@ func parse_cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, 
 		}
 	} else if flags.NArg() > 1 {
 		return nil, fmt.Errorf("multiple restore paths specified, please specify only one")
-	} else {
-
 	}
 
 	return &Restore{
