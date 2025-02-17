@@ -1,6 +1,3 @@
-//go:build !windows
-// +build !windows
-
 package objects
 
 import (
@@ -10,7 +7,6 @@ import (
 	"reflect"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -84,34 +80,6 @@ func (f FileInfo) Username() string {
 
 func (f FileInfo) Groupname() string {
 	return f.Lgroupname
-}
-
-func FileInfoFromStat(stat fs.FileInfo) FileInfo {
-	Ldev := uint64(0)
-	Lino := uint64(0)
-	Luid := uint64(0)
-	Lgid := uint64(0)
-	Lnlink := uint16(0)
-
-	if _, ok := stat.Sys().(*syscall.Stat_t); ok {
-		Ldev = uint64(stat.Sys().(*syscall.Stat_t).Dev)
-		Lino = uint64(stat.Sys().(*syscall.Stat_t).Ino)
-		Luid = uint64(stat.Sys().(*syscall.Stat_t).Uid)
-		Lgid = uint64(stat.Sys().(*syscall.Stat_t).Gid)
-		Lnlink = uint16(stat.Sys().(*syscall.Stat_t).Nlink)
-	}
-
-	return FileInfo{
-		Lname:    stat.Name(),
-		Lsize:    stat.Size(),
-		Lmode:    stat.Mode(),
-		LmodTime: stat.ModTime(),
-		Ldev:     Ldev,
-		Lino:     Lino,
-		Luid:     Luid,
-		Lgid:     Lgid,
-		Lnlink:   Lnlink,
-	}
 }
 
 func NewFileInfo(name string, size int64, mode os.FileMode, modTime time.Time, dev uint64, ino uint64, uid uint64, gid uint64, nlink uint16) FileInfo {
@@ -205,6 +173,7 @@ func ParseFileInfoSortKeys(sortKeysStr string) ([]string, error) {
 
 	return validKeys, nil
 }
+
 func SortFileInfos(infos []FileInfo, sortKeys []string) error {
 	var err error
 	sort.Slice(infos, func(i, j int) bool {
