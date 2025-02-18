@@ -14,7 +14,7 @@ import (
 
 type RestoreOptions struct {
 	MaxConcurrency uint64
-	Rebase         bool
+	Strip          string
 }
 
 type restoreContext struct {
@@ -31,12 +31,7 @@ func snapshotRestorePath(snap *Snapshot, fsc *vfs.Filesystem, exp exporter.Expor
 		return err
 	}
 
-	var dest string
-	if opts.Rebase && strings.HasPrefix(pathname, base) {
-		dest = path.Join(target, pathname[len(base):])
-	} else {
-		dest = path.Join(target, pathname)
-	}
+	dest := path.Join(target, strings.TrimPrefix(pathname, opts.Strip))
 
 	if entry.IsDir() {
 		snap.Event(events.DirectoryEvent(snap.Header.Identifier, pathname))
