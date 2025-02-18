@@ -30,6 +30,7 @@ func TestRestore(t *testing.T) {
 
 	opts := &RestoreOptions{
 		MaxConcurrency: 1,
+		Strip:          snap.Header.GetSource(0).Importer.Directory,
 	}
 
 	// search for the correct filepath as the path was mkdir temp we cannot hardcode it
@@ -38,14 +39,13 @@ func TestRestore(t *testing.T) {
 	require.NoError(t, err)
 	for pathname, err := range fs.Pathnames() {
 		require.NoError(t, err)
-		fmt.Println(pathname)
 		if strings.Contains(pathname, "dummy.txt") {
 			filepath = pathname
 		}
 	}
 	require.NotEmpty(t, filepath)
 
-	err = snap.Restore(exporterInstance, fmt.Sprintf("%s/dummy.txt", exporterInstance.Root()), filepath, opts)
+	err = snap.Restore(exporterInstance, fmt.Sprintf("%s/", exporterInstance.Root()), filepath, opts)
 	require.NoError(t, err)
 
 	files, err := os.ReadDir(exporterInstance.Root())
