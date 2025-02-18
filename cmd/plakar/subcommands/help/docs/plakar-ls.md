@@ -8,7 +8,15 @@ PLAKAR-LS(1) - General Commands Manual
 
 **plakar ls**
 \[**-uuid**]
+\[**-name**&nbsp;*name*]
+\[**-category**&nbsp;*category*]
+\[**-environment**&nbsp;*environment*]
+\[**-perimeter**&nbsp;*perimeter*]
+\[**-job**&nbsp;*job*]
 \[**-tag**&nbsp;*tag*]
+\[**-latest**]
+\[**-before**&nbsp;*date*]
+\[**-since**&nbsp;*date*]
 \[**-recursive**]
 \[*snapshotID*:*path*]
 
@@ -23,15 +31,60 @@ in a specified snapshot.
 
 The options are as follows:
 
-**-uuid**
+**-name** *name*
 
-> Display the full UUID for each snapshot instead of the shorter
-> snapshot ID.
+> Only apply command to snapshots that match
+> *name*.
+
+**-category** *category*
+
+> Only apply command to snapshots that match
+> *category*.
+
+**-environment** *environment*
+
+> Only apply command to snapshots that match
+> *environment*.
+
+**-perimeter** *perimeter*
+
+> Only apply command to snapshots that match
+> *perimeter*.
+
+**-job** *job*
+
+> Only apply command to snapshots that match
+> *job*.
 
 **-tag** *tag*
 
 > Filter snapshots by the specified tag, listing only those that contain
 > the given tag.
+
+**-latest**
+
+> Only apply command to latest snapshot matching filters.
+
+**-before** *date*
+
+> Only apply command to snapshots matching filters and older than the specified date.
+> Accepted formats include relative durations
+> (e.g. 2d for two days, 1w for one week)
+> or specific dates in various formats
+> (e.g. 2006-01-02 15:04:05).
+
+**-since** *date*
+
+> Only apply command to snapshots matching filters and created since the specified date, included.
+> Accepted formats include relative durations
+> (e.g. 2d for two days, 1w for one week)
+> or specific dates in various formats
+> (e.g. 2006-01-02 15:04:05).
+
+**-uuid**
+
+> Display the full UUID for each snapshot instead of the shorter
+> snapshot ID.
 
 **-recursive**
 
