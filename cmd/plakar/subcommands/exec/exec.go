@@ -68,9 +68,7 @@ func (cmd *Exec) Name() string {
 }
 
 func (cmd *Exec) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	prefix, pathname := utils.ParseSnapshotID(cmd.SnapshotPrefix)
-
-	snap, err := utils.OpenSnapshotByPrefix(repo, prefix)
+	snap, pathname, err := utils.OpenSnapshotByPath(repo, cmd.SnapshotPrefix)
 	if err != nil {
 		return 1, err
 	}

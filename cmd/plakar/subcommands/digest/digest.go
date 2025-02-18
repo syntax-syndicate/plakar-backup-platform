@@ -88,13 +88,10 @@ func (cmd *Digest) Name() string {
 func (cmd *Digest) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	errors := 0
 	for _, snapshotPath := range cmd.Targets {
-		prefix, pathname := utils.ParseSnapshotID(snapshotPath)
-		if pathname == "" {
-			pathname = "/"
-		}
-		snap, err := utils.OpenSnapshotByPrefix(repo, prefix)
+
+		snap, pathname, err := utils.OpenSnapshotByPath(repo, snapshotPath)
 		if err != nil {
-			ctx.GetLogger().Error("digest: %s: %s", prefix, err)
+			ctx.GetLogger().Error("digest: %s: %s", pathname, err)
 			errors++
 			continue
 		}

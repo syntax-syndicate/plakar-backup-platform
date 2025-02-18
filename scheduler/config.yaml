@@ -31,5 +31,8 @@ agent:
           direction: both
           peer: /tmp/foobar
 
-      cleanup:
+      retention:
         interval: 10s
+
+  maintenance:
+    interval: 10s
