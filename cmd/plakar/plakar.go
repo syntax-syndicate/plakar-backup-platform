@@ -111,7 +111,7 @@ func entryPoint() int {
 	flag.BoolVar(&opt_agentless, "no-agent", false, "run without agent")
 
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [on REPOSITORY] [OPTIONS] COMMAND [COMMAND_OPTIONS]...\n", flag.CommandLine.Name())
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [at REPOSITORY] [OPTIONS] COMMAND [COMMAND_OPTIONS]...\n", flag.CommandLine.Name())
 		fmt.Fprintf(flag.CommandLine.Output(), "\nBy default, the repository is $PLAKAR_REPOSITORY or $HOME/.plakar.\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "\nOPTIONS:\n")
 		flag.PrintDefaults()
@@ -232,7 +232,7 @@ func entryPoint() int {
 	command, args := flag.Args()[0], flag.Args()[1:]
 
 	var repositoryPath string
-	if flag.Arg(0) == "on" {
+	if flag.Arg(0) == "at" {
 		if len(flag.Args()) < 2 {
 			log.Fatalf("%s: missing plakar repository", flag.CommandLine.Name())
 		}
@@ -248,8 +248,30 @@ func entryPoint() int {
 		}
 	}
 
+	// create is a special case, it operates without a repository...
+	// but needs a repository location to store the new repository
+	if command == "create" {
+		repo, err := repository.Inexistant(ctx, repositoryPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+			return 1
+		}
+		defer repo.Close()
+
+		cmd, err := subcommands.Parse(ctx, repo, command, args)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+			return 1
+		}
+		retval, err := cmd.Execute(ctx, nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+		}
+		return retval
+	}
+
 	// these commands need to be ran before the repository is opened
-	if command == "agent" || command == "create" || command == "version" || command == "stdio" || command == "help" {
+	if command == "agent" || command == "version" || command == "stdio" || command == "help" {
 		cmd, err := subcommands.Parse(ctx, nil, command, args)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
