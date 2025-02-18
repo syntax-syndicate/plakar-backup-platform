@@ -92,6 +92,6 @@ func (fsc *Filesystem) Errors(beneath string) (iter.Seq2[*ErrorItem, error], err
 	}, nil
 }
 
-func (fsc *Filesystem) IterErrorNodes() (iterator.Iterator[objects.MAC, *btree.Node[string, objects.MAC, objects.MAC]], error) {
-	return fsc.errors.IterDFS(), nil
+func (fsc *Filesystem) IterErrorNodes() iterator.Iterator[objects.MAC, *btree.Node[string, objects.MAC, objects.MAC]] {
+	return fsc.errors.IterDFS()
 }
