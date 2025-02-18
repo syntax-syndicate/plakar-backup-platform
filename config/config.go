@@ -42,6 +42,7 @@ func (c *Config) Save() error {
 
 	err = yaml.NewEncoder(tmpFile).Encode(c)
 	if err != nil {
+		os.Remove(tmpFile.Name())
 		return err
 	}
 	return os.Rename(tmpFile.Name(), c.pathname)
