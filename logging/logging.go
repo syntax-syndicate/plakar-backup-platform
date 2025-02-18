@@ -4,6 +4,7 @@ import (
 	"io"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/charmbracelet/log"
 )
@@ -27,12 +28,21 @@ func NewLogger(stdout io.Writer, stderr io.Writer) *Logger {
 		enableTracing:   false,
 		stdoutLogger:    log.NewWithOptions(stdout, log.Options{}),
 		stderrLogger:    log.NewWithOptions(stderr, log.Options{}),
-		infoLogger:      log.NewWithOptions(stdout, log.Options{Prefix: "info"}),
-		warnLogger:      log.NewWithOptions(stderr, log.Options{Prefix: "warn"}),
-		debugLogger:     log.NewWithOptions(stdout, log.Options{Prefix: "debug"}),
-		traceLogger:     log.NewWithOptions(stdout, log.Options{Prefix: "trace"}),
+		infoLogger:      log.NewWithOptions(stdout, log.Options{ReportTimestamp: true, Level: log.InfoLevel, Prefix: "info", TimeFormat: time.RFC3339}),
+		warnLogger:      log.NewWithOptions(stderr, log.Options{ReportTimestamp: true, Level: log.InfoLevel, Prefix: "warn", TimeFormat: time.RFC3339}),
+		debugLogger:     log.NewWithOptions(stdout, log.Options{ReportTimestamp: true, Level: log.InfoLevel, Prefix: "debug", TimeFormat: time.RFC3339}),
+		traceLogger:     log.NewWithOptions(stdout, log.Options{ReportTimestamp: true, Level: log.InfoLevel, Prefix: "trace", TimeFormat: time.RFC3339}),
 		traceSubsystems: make(map[string]bool),
 	}
+}
+
+func (l *Logger) SetOutput(w io.Writer) {
+	l.stdoutLogger.SetOutput(w)
+	l.stderrLogger.SetOutput(w)
+	l.infoLogger.SetOutput(w)
+	l.warnLogger.SetOutput(w)
+	l.debugLogger.SetOutput(w)
+	l.traceLogger.SetOutput(w)
 }
 
 func (l *Logger) Printf(format string, args ...interface{}) {

@@ -83,8 +83,6 @@ func (s *Scheduler) backupTask(taskset TaskSet, task BackupConfig) error {
 				s.ctx.GetLogger().Error("Error creating backup: %s", err)
 				backupCtx.Close()
 				goto close
-			} else {
-				s.ctx.GetLogger().Info("Backup succeeded")
 			}
 			backupCtx.Close()
 
@@ -94,8 +92,6 @@ func (s *Scheduler) backupTask(taskset TaskSet, task BackupConfig) error {
 				retval, err = rmSubcommand.Execute(rmCtx, repo)
 				if err != nil || retval != 0 {
 					s.ctx.GetLogger().Error("Error removing obsolete backups: %s", err)
-				} else {
-					s.ctx.GetLogger().Info("Retention purge succeeded")
 				}
 				rmCtx.Close()
 			}
@@ -158,8 +154,6 @@ func (s *Scheduler) checkTask(taskset TaskSet, task CheckConfig) error {
 			retval, err := checkSubcommand.Execute(newCtx, repo)
 			if err != nil || retval != 0 {
 				s.ctx.GetLogger().Error("Error executing check: %s", err)
-			} else {
-				s.ctx.GetLogger().Info("Check succeeded")
 			}
 
 			newCtx.Close()
@@ -219,8 +213,6 @@ func (s *Scheduler) restoreTask(taskset TaskSet, task RestoreConfig) error {
 			retval, err := restoreSubcommand.Execute(newCtx, repo)
 			if err != nil || retval != 0 {
 				s.ctx.GetLogger().Error("Error executing restore: %s", err)
-			} else {
-				s.ctx.GetLogger().Info("Restore succeeded")
 			}
 
 			newCtx.Close()
@@ -292,8 +284,6 @@ func (s *Scheduler) syncTask(taskset TaskSet, task SyncConfig) error {
 			retval, err := syncSubcommand.Execute(newCtx, repo)
 			if err != nil || retval != 0 {
 				s.ctx.GetLogger().Error("Error executing sync: %s", err)
-			} else {
-				s.ctx.GetLogger().Info("Sync succeeded")
 			}
 
 			newCtx.Close()
@@ -347,8 +337,6 @@ func (s *Scheduler) cleanupTask(taskset TaskSet, task CleanupConfig) error {
 			retval, err := cleanupSubcommand.Execute(newCtx, repo)
 			if err != nil || retval != 0 {
 				s.ctx.GetLogger().Error("Error executing cleanup: %s", err)
-			} else {
-				s.ctx.GetLogger().Info("cleanup succeeded")
 			}
 
 			newCtx.Close()
