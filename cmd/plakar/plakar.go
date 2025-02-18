@@ -248,8 +248,30 @@ func entryPoint() int {
 		}
 	}
 
+	// create is a special case, it operates without a repository...
+	// but needs a repository location to store the new repository
+	if command == "create" {
+		repo, err := repository.Inexistant(ctx, repositoryPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+			return 1
+		}
+		defer repo.Close()
+
+		cmd, err := subcommands.Parse(ctx, repo, command, args)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+			return 1
+		}
+		retval, err := cmd.Execute(ctx, nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+		}
+		return retval
+	}
+
 	// these commands need to be ran before the repository is opened
-	if command == "agent" || command == "create" || command == "version" || command == "stdio" || command == "help" {
+	if command == "agent" || command == "version" || command == "stdio" || command == "help" {
 		cmd, err := subcommands.Parse(ctx, nil, command, args)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
