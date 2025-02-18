@@ -7,6 +7,15 @@ PLAKAR-RESTORE(1) - General Commands Manual
 # SYNOPSIS
 
 **plakar restore**
+\[**-name**&nbsp;*name*]
+\[**-category**&nbsp;*category*]
+\[**-environment**&nbsp;*environment*]
+\[**-perimeter**&nbsp;*perimeter*]
+\[**-job**&nbsp;*job*]
+\[**-tag**&nbsp;*tag*]
+\[**-latest**]
+\[**-before**&nbsp;*date*]
+\[**-since**&nbsp;*date*]
 \[**-concurrency**&nbsp;*number*]
 \[**-quiet**]
 \[**-rebase**]
@@ -31,6 +40,36 @@ is provided, the command attempts to restore the current working
 directory from the last matching snapshot.
 
 The options are as follows:
+
+**-name** *string*
+
+> Only apply command to snapshots that match
+> *name*.
+
+**-category** *string*
+
+> Only apply command to snapshots that match
+> *category*.
+
+**-environment** *string*
+
+> Only apply command to snapshots that match
+> *environment*.
+
+**-perimeter** *string*
+
+> Only apply command to snapshots that match
+> *perimeter*.
+
+**-job** *string*
+
+> Only apply command to snapshots that match
+> *job*.
+
+**-tag** *string*
+
+> Only apply command to snapshots that match
+> *tag*.
 
 **-concurrency** *number*
 

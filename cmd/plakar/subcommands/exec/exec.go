@@ -68,17 +68,13 @@ func (cmd *Exec) Name() string {
 }
 
 func (cmd *Exec) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	snapshots, err := utils.GetSnapshots(repo, []string{cmd.SnapshotPrefix})
-	if err != nil {
-		log.Fatal(err)
-	}
-	if len(snapshots) != 1 {
-		return 0, nil
-	}
-	snap := snapshots[0]
-	defer snap.Close()
+	prefix, pathname := utils.ParseSnapshotID(cmd.SnapshotPrefix)
 
-	_, pathname := utils.ParseSnapshotID(cmd.SnapshotPrefix)
+	snap, err := utils.OpenSnapshotByPrefix(repo, prefix)
+	if err != nil {
+		return 1, err
+	}
+	defer snap.Close()
 
 	rd, err := snap.NewReader(pathname)
 	if err != nil {

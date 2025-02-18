@@ -19,7 +19,6 @@ package restore
 import (
 	"flag"
 	"fmt"
-	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
@@ -34,10 +33,18 @@ func init() {
 }
 
 func parse_cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+	var opt_name string
+	var opt_category string
+	var opt_environment string
+	var opt_perimeter string
+	var opt_job string
+	var opt_tag string
+
 	var pullPath string
 	var pullRebase bool
 	var opt_concurrency uint64
 	var opt_quiet bool
+	var opt_silent bool
 
 	flags := flag.NewFlagSet("restore", flag.ExitOnError)
 	flags.Usage = func() {
@@ -47,19 +54,44 @@ func parse_cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, 
 	}
 
 	flags.Uint64Var(&opt_concurrency, "concurrency", uint64(ctx.MaxConcurrency), "maximum number of parallel tasks")
+	flags.StringVar(&opt_name, "name", "", "filter by name")
+	flags.StringVar(&opt_category, "category", "", "filter by category")
+	flags.StringVar(&opt_environment, "environment", "", "filter by environment")
+	flags.StringVar(&opt_perimeter, "perimeter", "", "filter by perimeter")
+	flags.StringVar(&opt_job, "job", "", "filter by job")
+	flags.StringVar(&opt_tag, "tag", "", "filter by tag")
+
 	flags.StringVar(&pullPath, "to", ctx.CWD, "base directory where pull will restore")
 	flags.BoolVar(&pullRebase, "rebase", false, "strip pathname when pulling")
 	flags.BoolVar(&opt_quiet, "quiet", false, "do not print progress")
+	flags.BoolVar(&opt_silent, "silent", false, "do not print ANY progress")
 	flags.Parse(args)
+
+	if flags.NArg() != 0 {
+		if opt_name != "" || opt_category != "" || opt_environment != "" || opt_perimeter != "" || opt_job != "" || opt_tag != "" {
+			ctx.GetLogger().Warn("snapshot specified, filters will be ignored")
+		}
+	} else if flags.NArg() > 1 {
+		return nil, fmt.Errorf("multiple restore paths specified, please specify only one")
+	}
 
 	return &Restore{
 		RepositoryLocation: repo.Location(),
 		RepositorySecret:   ctx.GetSecret(),
-		Path:               pullPath,
-		Rebase:             pullRebase,
-		Concurrency:        opt_concurrency,
-		Quiet:              opt_quiet,
-		Snapshots:          flags.Args(),
+
+		OptName:        opt_name,
+		OptCategory:    opt_category,
+		OptEnvironment: opt_environment,
+		OptPerimeter:   opt_perimeter,
+		OptJob:         opt_job,
+		OptTag:         opt_tag,
+
+		Target:      pullPath,
+		Rebase:      pullRebase,
+		Concurrency: opt_concurrency,
+		Quiet:       opt_quiet,
+		Silent:      opt_silent,
+		Snapshots:   flags.Args(),
 	}, nil
 }
 
@@ -67,10 +99,18 @@ type Restore struct {
 	RepositoryLocation string
 	RepositorySecret   []byte
 
-	Path        string
+	OptName        string
+	OptCategory    string
+	OptEnvironment string
+	OptPerimeter   string
+	OptJob         string
+	OptTag         string
+
+	Target      string
 	Rebase      bool
 	Concurrency uint64
 	Quiet       bool
+	Silent      bool
 	Snapshots   []string
 }
 
@@ -79,11 +119,66 @@ func (cmd *Restore) Name() string {
 }
 
 func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	go eventsProcessorStdio(ctx, cmd.Quiet)
+	if !cmd.Silent {
+		go eventsProcessorStdio(ctx, cmd.Quiet)
+	}
+	var snapshots []string
+	if len(cmd.Snapshots) == 0 {
+		locateOptions := utils.NewDefaultLocateOptions()
+		locateOptions.MaxConcurrency = ctx.MaxConcurrency
+		locateOptions.SortOrder = utils.LocateSortOrderAscending
+		locateOptions.Latest = true
+
+		locateOptions.Name = cmd.OptName
+		locateOptions.Category = cmd.OptCategory
+		locateOptions.Environment = cmd.OptEnvironment
+		locateOptions.Perimeter = cmd.OptPerimeter
+		locateOptions.Job = cmd.OptJob
+		locateOptions.Tag = cmd.OptTag
+
+		snapshotIDs, err := utils.LocateSnapshotIDs(repo, locateOptions)
+		if err != nil {
+			return 1, fmt.Errorf("ls: could not fetch snapshots list: %w", err)
+		}
+		for _, snapshotID := range snapshotIDs {
+			snapshots = append(snapshots, fmt.Sprintf("%x:/", snapshotID))
+		}
+	} else {
+		for _, snapshotPath := range cmd.Snapshots {
+			prefix, path := utils.ParseSnapshotPath(snapshotPath)
+
+			locateOptions := utils.NewDefaultLocateOptions()
+			locateOptions.MaxConcurrency = ctx.MaxConcurrency
+			locateOptions.SortOrder = utils.LocateSortOrderAscending
+			locateOptions.Latest = true
+
+			locateOptions.Name = cmd.OptName
+			locateOptions.Category = cmd.OptCategory
+			locateOptions.Environment = cmd.OptEnvironment
+			locateOptions.Perimeter = cmd.OptPerimeter
+			locateOptions.Job = cmd.OptJob
+			locateOptions.Tag = cmd.OptTag
+			locateOptions.Prefix = prefix
+
+			snapshotIDs, err := utils.LocateSnapshotIDs(repo, locateOptions)
+			if err != nil {
+				return 1, fmt.Errorf("ls: could not fetch snapshots list: %w", err)
+			}
+			for _, snapshotID := range snapshotIDs {
+				snapshots = append(snapshots, fmt.Sprintf("%x:%s", snapshotID, path))
+			}
+		}
+	}
+
+	if len(snapshots) == 0 {
+		return 1, fmt.Errorf("no snapshots found")
+	} else if len(snapshots) > 1 {
+		return 1, fmt.Errorf("multiple snapshots found, please specify one")
+	}
 
 	var exporterInstance exporter.Exporter
 	var err error
-	exporterInstance, err = exporter.NewExporter(cmd.Path)
+	exporterInstance, err = exporter.NewExporter(cmd.Target)
 	if err != nil {
 		return 1, err
 	}
@@ -94,34 +189,12 @@ func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 		Rebase:         cmd.Rebase,
 	}
 
-	if len(cmd.Snapshots) == 0 {
-		metadatas, err := utils.GetHeaders(repo, nil)
+	for _, snapPath := range snapshots {
+		prefix, pattern := utils.ParseSnapshotPath(snapPath)
+		snap, err := utils.OpenSnapshotByPrefix(repo, prefix)
 		if err != nil {
 			return 1, err
 		}
-
-		for i := len(metadatas); i != 0; i-- {
-			metadata := metadatas[i-1]
-			if ctx.CWD == metadata.GetSource(0).Importer.Directory || strings.HasPrefix(ctx.CWD, fmt.Sprintf("%s/", metadata.GetSource(0).Importer.Directory)) {
-				snap, err := snapshot.Load(repo, metadata.GetIndexID())
-				if err != nil {
-					return 1, err
-				}
-				snap.Restore(exporterInstance, ctx.CWD, ctx.CWD, opts)
-				snap.Close()
-				return 0, nil
-			}
-		}
-		return 1, fmt.Errorf("could not find a snapshot to restore this path from")
-	}
-
-	snapshots, err := utils.GetSnapshots(repo, cmd.Snapshots)
-	if err != nil {
-		return 1, err
-	}
-
-	for offset, snap := range snapshots {
-		_, pattern := utils.ParseSnapshotID(cmd.Snapshots[offset])
 		snap.Restore(exporterInstance, exporterInstance.Root(), pattern, opts)
 		snap.Close()
 	}

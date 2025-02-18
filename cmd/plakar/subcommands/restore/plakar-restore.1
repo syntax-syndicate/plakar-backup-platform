@@ -6,6 +6,15 @@
 .Nd Restore files from a Plakar snapshot
 .Sh SYNOPSIS
 .Nm
+.Op Fl name Ar name
+.Op Fl category Ar category
+.Op Fl environment Ar environment
+.Op Fl perimeter Ar perimeter
+.Op Fl job Ar job
+.Op Fl tag Ar tag
+.Op Fl latest
+.Op Fl before Ar date
+.Op Fl since Ar date
 .Op Fl concurrency Ar number
 .Op Fl quiet
 .Op Fl rebase
@@ -29,6 +38,24 @@ directory from the last matching snapshot.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl name Ar string
+Only apply command to snapshots that match
+.Ar name .
+.It Fl category Ar string
+Only apply command to snapshots that match
+.Ar category .
+.It Fl environment Ar string
+Only apply command to snapshots that match
+.Ar environment .
+.It Fl perimeter Ar string
+Only apply command to snapshots that match
+.Ar perimeter .
+.It Fl job Ar string
+Only apply command to snapshots that match
+.Ar job .
+.It Fl tag Ar string
+Only apply command to snapshots that match
+.Ar tag .
 .It Fl concurrency Ar number
 Set the maximum number of parallel tasks for faster
 processing.

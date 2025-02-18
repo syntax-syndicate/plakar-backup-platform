@@ -9,15 +9,12 @@ PLAKAR-CREATE(1) - General Commands Manual
 **plakar create**
 \[**-no-encryption**]
 \[**-no-compression**]
-\[*path*]
 
 # DESCRIPTION
 
 The
 **plakar create**
-command creates a new Plakar repository at the specified
-*path*,
-which defaults to
+command creates a new Plakar repository at the specified path which defaults to
 *~/.plakar*.
 
 The options are as follows:

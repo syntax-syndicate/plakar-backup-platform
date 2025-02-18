@@ -19,18 +19,14 @@ package rm
 import (
 	"flag"
 	"fmt"
-	"regexp"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
+	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/snapshot"
-	"github.com/dustin/go-humanize"
 )
 
 func init() {
@@ -38,8 +34,16 @@ func init() {
 }
 
 func parse_cmd_rm(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
-	var opt_older string
+	var opt_name string
+	var opt_category string
+	var opt_environment string
+	var opt_perimeter string
+	var opt_job string
 	var opt_tag string
+	var opt_before string
+	var opt_since string
+	var opt_latest bool
+
 	flags := flag.NewFlagSet("rm", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] SNAPSHOT...\n", flags.Name())
@@ -47,80 +51,61 @@ func parse_cmd_rm(ctx *appcontext.AppContext, repo *repository.Repository, args 
 		flags.PrintDefaults()
 	}
 
+	flags.StringVar(&opt_name, "name", "", "filter by name")
+	flags.StringVar(&opt_category, "category", "", "filter by category")
+	flags.StringVar(&opt_environment, "environment", "", "filter by environment")
+	flags.StringVar(&opt_perimeter, "perimeter", "", "filter by perimeter")
+	flags.StringVar(&opt_job, "job", "", "filter by job")
 	flags.StringVar(&opt_tag, "tag", "", "filter by tag")
-	flags.StringVar(&opt_older, "older", "", "remove snapshots older than this date")
+	flags.StringVar(&opt_before, "before", "", "filter by date")
+	flags.StringVar(&opt_since, "since", "", "filter by date")
+	flags.BoolVar(&opt_latest, "latest", false, "use latest snapshot")
 	flags.Parse(args)
 
+	var err error
+
 	var beforeDate time.Time
-	if opt_older != "" {
-		now := time.Now()
-
-		if reg, err := regexp.Compile(`^(\d)\s?([[:alpha:]]+)$`); err != nil {
-			return nil, fmt.Errorf("invalid regexp: %s", opt_older)
-		} else {
-
-			matches := reg.FindStringSubmatch(opt_older)
-			if len(matches) != 3 {
-				layouts := []string{
-					time.RFC3339,
-					"2006-01-02 15:04:05",
-					"02 Jan 06 15:04 MST",
-					"January 2, 2006 at 3:04pm (MST)",
-					"06/01/02 03:04 PM",
-				}
-				found := false
-				for _, layout := range layouts {
-					parsedTime, err := time.Parse(layout, opt_older)
-					if err != nil {
-						continue
-					} else {
-						beforeDate = parsedTime
-						found = true
-						break
-					}
-				}
-				if !found {
-					return nil, fmt.Errorf("invalid date format: %s", opt_older)
-				}
-			} else {
-				var duration time.Duration
-
-				if num, err := strconv.ParseInt(matches[1], 0, 64); err != nil {
-					return nil, fmt.Errorf("invalid date format: %s", opt_older)
-				} else {
-					switch strings.ToLower(matches[2]) {
-					case "minutes", "minute", "mins", "min", "m":
-						duration = time.Minute * time.Duration(num)
-					case "hours", "hour", "h":
-						duration = time.Hour * time.Duration(num)
-					case "days", "day", "d":
-						duration = 24 * time.Hour * time.Duration(num)
-					case "weeks", "week", "w":
-						duration = 7 * 24 * time.Hour * time.Duration(num)
-					case "months", "month":
-						duration = 31 * 24 * time.Hour * time.Duration(num)
-					case "years", "year":
-						duration = 365 * 24 * time.Hour * time.Duration(num)
-					default:
-						return nil, fmt.Errorf("invalid date format: %s", opt_older)
-					}
-				}
-
-				beforeDate = now.Add(-duration)
-			}
+	if opt_before != "" {
+		beforeDate, err = utils.ParseTimeFlag(opt_before)
+		if err != nil {
+			return nil, fmt.Errorf("invalid date format: %s", opt_before)
 		}
 	}
 
-	if flags.NArg() == 0 && opt_older == "" && opt_tag == "" {
-		return nil, fmt.Errorf("%s: need at least one snapshot ID to rm", flag.CommandLine.Name())
+	var sinceDate time.Time
+	if opt_since != "" {
+		sinceDate, err = utils.ParseTimeFlag(opt_since)
+		if err != nil {
+			return nil, fmt.Errorf("invalid date format: %s", opt_since)
+		}
+	}
+
+	if flags.NArg() != 0 {
+		if opt_name != "" || opt_category != "" || opt_environment != "" || opt_perimeter != "" || opt_job != "" || opt_tag != "" || !beforeDate.IsZero() || !sinceDate.IsZero() || opt_latest {
+			ctx.GetLogger().Warn("snapshot specified, filters will be ignored")
+		}
+	} else {
+		if opt_name == "" && opt_category == "" && opt_environment == "" && opt_perimeter == "" && opt_job == "" && opt_tag == "" && beforeDate.IsZero() && sinceDate.IsZero() && !opt_latest {
+			return nil, fmt.Errorf("no filter specified, not going to remove everything")
+		}
 	}
 
 	return &Rm{
 		RepositoryLocation: repo.Location(),
 		RepositorySecret:   ctx.GetSecret(),
-		Tag:                opt_tag,
-		BeforeDate:         beforeDate,
-		Prefixes:           flags.Args(),
+
+		OptBefore: beforeDate,
+		OptSince:  sinceDate,
+		OptLatest: opt_latest,
+
+		OptName:        opt_name,
+		OptCategory:    opt_category,
+		OptEnvironment: opt_environment,
+		OptPerimeter:   opt_perimeter,
+		OptJob:         opt_job,
+		OptTag:         opt_tag,
+
+		Snapshots: flags.Args(),
 	}, nil
 }
 
@@ -128,9 +113,18 @@ type Rm struct {
 	RepositoryLocation string
 	RepositorySecret   []byte
 
-	Tag        string
-	BeforeDate time.Time
-	Prefixes   []string
+	OptBefore time.Time
+	OptSince  time.Time
+	OptLatest bool
+
+	OptName        string
+	OptCategory    string
+	OptEnvironment string
+	OptPerimeter   string
+	OptJob         string
+	OptTag         string
+
+	Snapshots []string
 }
 
 func (cmd *Rm) Name() string {
@@ -138,63 +132,49 @@ func (cmd *Rm) Name() string {
 }
 
 func (cmd *Rm) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	var snapshots []*snapshot.Snapshot
-	if !cmd.BeforeDate.IsZero() || cmd.Tag != "" {
-		if len(cmd.Prefixes) != 0 {
-			tmp, err := utils.GetSnapshots(repo, cmd.Prefixes)
-			if err != nil {
-				return 1, err
-			}
-			snapshots = tmp
-		} else {
-			tmp, err := utils.GetSnapshots(repo, nil)
-			if err != nil {
-				return 1, err
-			}
-			snapshots = tmp
-		}
-	} else {
-		tmp, err := utils.GetSnapshots(repo, cmd.Prefixes)
+	var snapshots []objects.MAC
+	if len(cmd.Snapshots) == 0 {
+		locateOptions := utils.NewDefaultLocateOptions()
+		locateOptions.MaxConcurrency = ctx.MaxConcurrency
+		locateOptions.SortOrder = utils.LocateSortOrderAscending
+
+		locateOptions.Before = cmd.OptBefore
+		locateOptions.Since = cmd.OptSince
+		locateOptions.Latest = cmd.OptLatest
+
+		locateOptions.Name = cmd.OptName
+		locateOptions.Category = cmd.OptCategory
+		locateOptions.Environment = cmd.OptEnvironment
+		locateOptions.Perimeter = cmd.OptPerimeter
+		locateOptions.Job = cmd.OptJob
+		locateOptions.Tag = cmd.OptTag
+
+		snapshotIDs, err := utils.LocateSnapshotIDs(repo, locateOptions)
 		if err != nil {
 			return 1, err
 		}
-		snapshots = tmp
+		snapshots = append(snapshots, snapshotIDs...)
+	} else {
+		for _, prefix := range cmd.Snapshots {
+			snapshotID, err := utils.LocateSnapshotByPrefix(repo, prefix)
+			if err != nil {
+				continue
+			}
+			snapshots = append(snapshots, snapshotID)
+		}
 	}
 
 	errors := 0
 	wg := sync.WaitGroup{}
 	for _, snap := range snapshots {
-		if !cmd.BeforeDate.IsZero() && snap.Header.Timestamp.After(cmd.BeforeDate) {
-			continue
-		}
-		if cmd.Tag != "" {
-			found := false
-			for _, t := range snap.Header.Tags {
-				if cmd.Tag == t {
-					found = true
-					break
-				}
-			}
-			if !found {
-				continue
-			}
-		}
-
 		wg.Add(1)
-		go func(snap *snapshot.Snapshot) {
-			defer snap.Close()
-
-			t0 := time.Now()
-			err := repo.DeleteSnapshot(snap.Header.GetIndexID())
+		go func(snapshotID objects.MAC) {
+			err := repo.DeleteSnapshot(snapshotID)
 			if err != nil {
 				ctx.GetLogger().Error("%s", err)
 				errors++
 			}
 			wg.Done()
-			ctx.GetLogger().Info("removed snapshot %x of size %s in %s",
-				snap.Header.GetIndexShortID(),
-				humanize.Bytes(snap.Header.GetSource(0).Summary.Directory.Size+snap.Header.GetSource(0).Summary.Below.Size),
-				time.Since(t0))
 		}(snap)
 	}
 	wg.Wait()

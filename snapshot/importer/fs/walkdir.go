@@ -99,19 +99,7 @@ func walkDir_worker(jobs <-chan string, results chan<- *importer.ScanResult, wg 
 		}
 		results <- importer.NewScanRecord(filepath.ToSlash(path), originFile, fileinfo, extendedAttributes)
 		for _, attr := range extendedAttributes {
-			bytes, err := xattr.Get(path, attr)
-			if err != nil {
-				results <- importer.NewScanError(path, err)
-				continue
-			}
-
-			fileinfo := objects.FileInfo{
-				Lname:             filepath.Base(path) + ":" + attr,
-				Lsize:             int64(len(bytes)),
-				Lmode:             0,
-			}
-
-			results <- importer.NewScanXattr(filepath.ToSlash(path) + ":" + attr, fileinfo)
+			results <- importer.NewScanXattr(filepath.ToSlash(path), attr, objects.AttributeExtended)
 		}
 	}
 }
@@ -139,7 +127,7 @@ func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results ch
 
 func walkDir_walker(rootDir string, numWorkers int) (<-chan *importer.ScanResult, error) {
 	results := make(chan *importer.ScanResult, 1000) // Larger buffer for results
-	jobs := make(chan string, 1000)                 // Buffered channel to feed paths to workers
+	jobs := make(chan string, 1000)                  // Buffered channel to feed paths to workers
 	namecache := &namecache{
 		uidToName: make(map[uint64]string),
 		gidToName: make(map[uint64]string),

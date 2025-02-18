@@ -25,12 +25,12 @@ The sub-commands are as follows:
 
 **object** *objectID*
 
-> Display information about a specific object, including its checksum,
+> Display information about a specific object, including its mac,
 > type, tags, and associated data chunks.
 
 **packfile** *packfileID*
 
-> Show details of packfiles, including entries and checksums, which
+> Show details of packfiles, including entries and macs, which
 > store object data within the repository.
 
 **snapshot** *snapshotID*

@@ -108,11 +108,11 @@ func TestNew(t *testing.T) {
 		location string
 	}{
 		{"fs2", "fs://test/location"},
-		{"plakard", "ssh://test/location"},
 		{"http", "http://test/location"},
 		{"database", "sqlite:///test/location"},
 		{"s3", "s3://test/location"},
 		{"null", "null://test/location"},
+		{"sftp", "sftp://test/location"},
 	}
 
 	for _, l := range locations {

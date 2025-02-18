@@ -86,29 +86,27 @@ func (cmd *Digest) Name() string {
 }
 
 func (cmd *Digest) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	snapshots, err := utils.GetSnapshots(repo, cmd.Targets)
-	if err != nil {
-		ctx.GetLogger().Error("digest: could not obtain snapshots list: %s", err)
-		return 1, err
-	}
-
 	errors := 0
-	for offset, snap := range snapshots {
-		defer snap.Close()
-
-		fs, err := snap.Filesystem()
-		if err != nil {
-			continue
-		}
-
-		_, pathname := utils.ParseSnapshotID(cmd.Targets[offset])
+	for _, snapshotPath := range cmd.Targets {
+		prefix, pathname := utils.ParseSnapshotID(snapshotPath)
 		if pathname == "" {
-			ctx.GetLogger().Error("digest: missing filename for snapshot %x", snap.Header.GetIndexShortID())
+			pathname = "/"
+		}
+		snap, err := utils.OpenSnapshotByPrefix(repo, prefix)
+		if err != nil {
+			ctx.GetLogger().Error("digest: %s: %s", prefix, err)
 			errors++
 			continue
 		}
 
+		fs, err := snap.Filesystem()
+		if err != nil {
+			snap.Close()
+			continue
+		}
+
 		cmd.displayDigests(ctx, fs, repo, snap, pathname, cmd.Fast)
+		snap.Close()
 	}
 
 	return 0, nil
