@@ -54,6 +54,7 @@ import (
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/scheduler"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vmihailenco/msgpack/v5"
@@ -92,6 +93,7 @@ func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, ar
 	var opt_foreground bool
 	var opt_stop bool
 	var opt_prometheus string
+	var opt_tasks string
 
 	flags := flag.NewFlagSet("agent", flag.ExitOnError)
 	flags.Usage = func() {
@@ -100,6 +102,7 @@ func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, ar
 		flags.PrintDefaults()
 	}
 
+	flags.StringVar(&opt_tasks, "tasks", "", "tasks configuration file")
 	flags.StringVar(&opt_prometheus, "prometheus", "", "prometheus exporter interface, e.g. 127.0.0.1:9090")
 	flags.BoolVar(&opt_foreground, "foreground", false, "run in foreground")
 	flags.BoolVar(&opt_stop, "stop", false, "stop the agent")
@@ -119,14 +122,24 @@ func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, ar
 		os.Exit(retval)
 	}
 
+	var schedConfig *scheduler.Configuration
+	if opt_tasks != "" {
+		tmp, err := scheduler.ParseConfigFile(opt_tasks)
+		if err != nil {
+			return nil, err
+		}
+		schedConfig = tmp
+	}
+
 	if !opt_foreground && os.Getenv("REEXEC") == "" {
 		err := daemonize(os.Args)
 		return nil, err
 	}
 
 	return &Agent{
-		prometheus: opt_prometheus,
-		socketPath: filepath.Join(ctx.CacheDir, "agent.sock"),
+		prometheus:  opt_prometheus,
+		socketPath:  filepath.Join(ctx.CacheDir, "agent.sock"),
+		schedConfig: schedConfig,
 	}, nil
 }
 
@@ -144,6 +157,8 @@ type Agent struct {
 	socketPath string
 
 	listener net.Listener
+
+	schedConfig *scheduler.Configuration
 }
 
 func (cmd *Agent) checkSocket() bool {
@@ -174,6 +189,12 @@ func isDisconnectError(err error) bool {
 }
 
 func (cmd *Agent) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+	if cmd.schedConfig != nil {
+		go func() {
+			scheduler.NewScheduler(ctx, cmd.schedConfig).Run()
+		}()
+	}
+
 	if err := cmd.ListenAndServe(ctx); err != nil {
 		return 1, err
 	}
@@ -555,8 +576,8 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					return
 				}
 				subcommand = &cmd.Subcommand
-				repositoryLocation = cmd.Subcommand.RepositoryLocation
-				repositorySecret = cmd.Subcommand.RepositorySecret
+				repositoryLocation = cmd.Subcommand.SourceRepositoryLocation
+				repositorySecret = cmd.Subcommand.SourceRepositorySecret
 			case (&ui.Ui{}).Name():
 				var cmd struct {
 					Name       string

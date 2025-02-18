@@ -162,24 +162,12 @@ func (cmd *Ls) list_snapshots(ctx *appcontext.AppContext, repo *repository.Repos
 	locateOptions.Since = cmd.OptSince
 	locateOptions.Latest = cmd.OptLatest
 
-	if cmd.OptName != "" {
-		locateOptions.Name = cmd.OptName
-	}
-	if cmd.OptCategory != "" {
-		locateOptions.Category = cmd.OptCategory
-	}
-	if cmd.OptEnvironment != "" {
-		locateOptions.Environment = cmd.OptEnvironment
-	}
-	if cmd.OptPerimeter != "" {
-		locateOptions.Perimeter = cmd.OptPerimeter
-	}
-	if cmd.OptJob != "" {
-		locateOptions.Job = cmd.OptJob
-	}
-	if cmd.OptTag != "" {
-		locateOptions.Tag = cmd.OptTag
-	}
+	locateOptions.Name = cmd.OptName
+	locateOptions.Category = cmd.OptCategory
+	locateOptions.Environment = cmd.OptEnvironment
+	locateOptions.Perimeter = cmd.OptPerimeter
+	locateOptions.Job = cmd.OptJob
+	locateOptions.Tag = cmd.OptTag
 
 	snapshotIDs, err := utils.LocateSnapshotIDs(repo, locateOptions)
 	if err != nil {
@@ -224,7 +212,7 @@ func (cmd *Ls) list_snapshot(ctx *appcontext.AppContext, repo *repository.Reposi
 
 	snap, err := utils.OpenSnapshotByPrefix(repo, prefix)
 	if err != nil {
-		return fmt.Errorf("ls: could not fetch snapshot: %w", err)
+		return err
 	}
 	defer snap.Close()
 

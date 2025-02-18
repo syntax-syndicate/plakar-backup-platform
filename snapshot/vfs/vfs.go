@@ -13,10 +13,12 @@ import (
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/versioning"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 func init() {
 	versioning.Register(resources.RT_VFS_BTREE, versioning.FromString(btree.BTREE_VERSION))
+	versioning.Register(resources.RT_VFS_NODE, versioning.FromString(btree.NODE_VERSION))
 }
 
 type Score struct {
@@ -70,13 +72,19 @@ func isEntryBelow(parent, entry string) bool {
 	return true
 }
 
+func NodeFromBytes(data []byte) (*btree.Node[string, objects.MAC, objects.MAC], error) {
+	var node btree.Node[string, objects.MAC, objects.MAC]
+	err := msgpack.Unmarshal(data, &node)
+	return &node, err
+}
+
 func NewFilesystem(repo *repository.Repository, root, xattrs, errors objects.MAC) (*Filesystem, error) {
 	rd, err := repo.GetBlob(resources.RT_VFS_BTREE, root)
 	if err != nil {
 		return nil, err
 	}
 
-	fsstore := repository.NewRepositoryStore[string, objects.MAC](repo, resources.RT_VFS_BTREE)
+	fsstore := repository.NewRepositoryStore[string, objects.MAC](repo, resources.RT_VFS_NODE)
 	tree, err := btree.Deserialize(rd, fsstore, PathCmp)
 	if err != nil {
 		return nil, err
@@ -87,7 +95,7 @@ func NewFilesystem(repo *repository.Repository, root, xattrs, errors objects.MAC
 		return nil, err
 	}
 
-	xstore := repository.NewRepositoryStore[string, objects.MAC](repo, resources.RT_XATTR_BTREE)
+	xstore := repository.NewRepositoryStore[string, objects.MAC](repo, resources.RT_XATTR_NODE)
 	xtree, err := btree.Deserialize(rd, xstore, strings.Compare)
 	if err != nil {
 		return nil, err
@@ -98,7 +106,7 @@ func NewFilesystem(repo *repository.Repository, root, xattrs, errors objects.MAC
 		return nil, err
 	}
 
-	errstore := repository.NewRepositoryStore[string, objects.MAC](repo, resources.RT_ERROR_BTREE)
+	errstore := repository.NewRepositoryStore[string, objects.MAC](repo, resources.RT_ERROR_NODE)
 	errtree, err := btree.Deserialize(rd, errstore, strings.Compare)
 	if err != nil {
 		return nil, err
