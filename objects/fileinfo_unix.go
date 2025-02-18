@@ -1,7 +1,11 @@
+//go:build !windows
+// +build !windows
+
 package objects
 
 import (
 	"io/fs"
+	"syscall"
 )
 
 func FileInfoFromStat(stat fs.FileInfo) FileInfo {
@@ -11,13 +15,16 @@ func FileInfoFromStat(stat fs.FileInfo) FileInfo {
 	Lgid := uint64(0)
 	Lnlink := uint16(0)
 
-	name := stat.Name()
-	if name == "\\" {
-		name = "/"
+	if _, ok := stat.Sys().(*syscall.Stat_t); ok {
+		Ldev = uint64(stat.Sys().(*syscall.Stat_t).Dev)
+		Lino = uint64(stat.Sys().(*syscall.Stat_t).Ino)
+		Luid = uint64(stat.Sys().(*syscall.Stat_t).Uid)
+		Lgid = uint64(stat.Sys().(*syscall.Stat_t).Gid)
+		Lnlink = uint16(stat.Sys().(*syscall.Stat_t).Nlink)
 	}
 
 	return FileInfo{
-		Lname:    name,
+		Lname:    stat.Name(),
 		Lsize:    stat.Size(),
 		Lmode:    stat.Mode(),
 		LmodTime: stat.ModTime(),
@@ -28,3 +35,4 @@ func FileInfoFromStat(stat fs.FileInfo) FileInfo {
 		Lnlink:   Lnlink,
 	}
 }
+

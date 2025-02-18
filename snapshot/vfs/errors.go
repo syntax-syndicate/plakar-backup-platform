@@ -17,6 +17,7 @@ const VFS_ERROR_VERSION = "1.0.0"
 
 func init() {
 	versioning.Register(resources.RT_ERROR_BTREE, versioning.FromString(btree.BTREE_VERSION))
+	versioning.Register(resources.RT_ERROR_NODE, versioning.FromString(btree.NODE_VERSION))
 	versioning.Register(resources.RT_ERROR_ENTRY, versioning.FromString(VFS_ERROR_VERSION))
 }
 

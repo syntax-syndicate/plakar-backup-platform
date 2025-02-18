@@ -42,6 +42,20 @@ type Repository struct {
 	appContext *appcontext.AppContext
 }
 
+func Inexistant(ctx *appcontext.AppContext, repositoryPath string) (*Repository, error) {
+	st, err := storage.New(repositoryPath)
+	if err != nil {
+		return nil, err
+	}
+	defer st.Close()
+
+	return &Repository{
+		store:         st,
+		configuration: *storage.NewConfiguration(),
+		appContext:    ctx,
+	}, nil
+}
+
 func New(ctx *appcontext.AppContext, store storage.Store, config []byte) (*Repository, error) {
 	t0 := time.Now()
 	defer func() {
