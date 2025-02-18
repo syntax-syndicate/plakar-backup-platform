@@ -1,8 +1,6 @@
 package vfs
 
 import (
-	"strings"
-
 	"github.com/PlakarKorp/plakar/btree"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/resources"
@@ -50,27 +48,16 @@ func NewXattr(record *importer.ScanRecord, object *objects.Object) *Xattr {
 }
 
 func (x *Xattr) ToPath() string {
-	var sep rune
+	var sep string
 	switch x.Type {
 	case objects.AttributeExtended:
-		sep = ':'
+		sep = ":"
 	case objects.AttributeADS:
-		sep = '@'
+		sep = "@"
 	default:
-		sep = '#'
+		sep = "#"
 	}
-
-	var b strings.Builder
-	b.WriteString(x.Path)
-	b.WriteRune(sep)
-	for _, r := range x.Name {
-		if r == sep || r == '\\' {
-			b.WriteRune('\\')
-		}
-		b.WriteRune(r)
-	}
-
-	return b.String()
+	return x.Path + x.Name + sep
 }
 
 func XattrFromBytes(bytes []byte) (*Xattr, error) {
