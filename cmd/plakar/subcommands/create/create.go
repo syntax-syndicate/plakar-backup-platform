@@ -63,7 +63,7 @@ func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, a
 	flags.BoolVar(&opt_nocompression, "no-compression", false, "disable transparent compression")
 	flags.Parse(args)
 
-	if flags.NArg() > 1 {
+	if flags.NArg() != 0 {
 		return nil, fmt.Errorf("%s: too many parameters", flag.CommandLine.Name())
 	}
 
@@ -76,7 +76,7 @@ func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, a
 		Hashing:       opt_hashing,
 		NoEncryption:  opt_noencryption,
 		NoCompression: opt_nocompression,
-		Location:      flags.Arg(0),
+		Location:      repo.Location(),
 	}, nil
 }
 
