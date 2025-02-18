@@ -39,6 +39,9 @@ func TestFSImporter(t *testing.T) {
 	paths := []string{}
 	for record := range scanChan {
 		require.Nil(t, record.Error)
+		if record.Record.IsXattr {
+			continue
+		}
 		paths = append(paths, record.Record.Pathname)
 	}
 	expected := []string{"/", "/tmp", tmpImportDir, tmpImportDir + "/dummy.txt"}

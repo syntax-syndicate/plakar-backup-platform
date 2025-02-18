@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/PlakarKorp/plakar/caching"
+	"github.com/PlakarKorp/plakar/config"
 	"github.com/PlakarKorp/plakar/encryption/keypair"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
@@ -18,6 +19,7 @@ type AppContext struct {
 	logger  *logging.Logger  `msgpack:"-"`
 	context context.Context  `msgpack:"-"`
 	secret  []byte           `msgpack:"-"`
+	Config  *config.Config   `msgpack:"-"`
 
 	Stdout io.Writer `msgpack:"-"`
 	Stderr io.Writer `msgpack:"-"`
