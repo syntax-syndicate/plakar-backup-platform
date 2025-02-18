@@ -19,6 +19,7 @@ package restore
 import (
 	"flag"
 	"fmt"
+	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
@@ -60,7 +61,7 @@ func parse_cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, 
 	flags.StringVar(&opt_job, "job", "", "filter by job")
 	flags.StringVar(&opt_tag, "tag", "", "filter by tag")
 
-	flags.StringVar(&pullPath, "to", ctx.CWD, "base directory where pull will restore")
+	flags.StringVar(&pullPath, "to", "", "base directory where pull will restore")
 	flags.BoolVar(&opt_quiet, "quiet", false, "do not print progress")
 	flags.BoolVar(&opt_silent, "silent", false, "do not print ANY progress")
 	flags.Parse(args)
@@ -71,6 +72,10 @@ func parse_cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, 
 		}
 	} else if flags.NArg() > 1 {
 		return nil, fmt.Errorf("multiple restore paths specified, please specify only one")
+	}
+
+	if pullPath == "" {
+		pullPath = fmt.Sprintf("%s/plakar-%s", ctx.CWD, time.Now().Format(time.RFC3339))
 	}
 
 	return &Restore{
