@@ -26,7 +26,9 @@ func TestExecuteCmdCreateDefaultWithHashing(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
 
-	var repo *repository.Repository
+	repo, err := repository.Inexistant(ctx, tmpRepoDirRoot+"/repo")
+	require.NoError(t, err)
+
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = tmpRepoDirRoot
 	args := []string{"--no-encryption", "--hashing", "SHA256"}
@@ -39,7 +41,7 @@ func TestExecuteCmdCreateDefaultWithHashing(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
-	_, err = os.Stat(fmt.Sprintf("%s/.plakar/CONFIG", tmpRepoDirRoot))
+	_, err = os.Stat(fmt.Sprintf("%s/repo/CONFIG", tmpRepoDirRoot))
 	require.NoError(t, err)
 }
 
@@ -52,7 +54,8 @@ func TestExecuteCmdCreateDefaultWithoutCompression(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
 
-	var repo *repository.Repository
+	repo, err := repository.Inexistant(ctx, tmpRepoDirRoot+"/repo")
+	require.NoError(t, err)
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = tmpRepoDirRoot
 	args := []string{"--no-encryption", "--no-compression"}
@@ -65,7 +68,7 @@ func TestExecuteCmdCreateDefaultWithoutCompression(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
-	_, err = os.Stat(fmt.Sprintf("%s/.plakar/CONFIG", tmpRepoDirRoot))
+	_, err = os.Stat(fmt.Sprintf("%s/repo/CONFIG", tmpRepoDirRoot))
 	require.NoError(t, err)
 }
 
@@ -78,35 +81,11 @@ func TestExecuteCmdCreateDefaultWithoutEncryption(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
 
-	var repo *repository.Repository
+	repo, err := repository.Inexistant(ctx, tmpRepoDirRoot+"/repo")
+	require.NoError(t, err)
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = tmpRepoDirRoot
 	args := []string{"--no-encryption"}
-
-	subcommand, err := parse_cmd_create(ctx, repo, args)
-	require.NoError(t, err)
-	require.NotNil(t, subcommand)
-
-	status, err := subcommand.Execute(ctx, repo)
-	require.NoError(t, err)
-	require.Equal(t, 0, status)
-
-	_, err = os.Stat(fmt.Sprintf("%s/.plakar/CONFIG", tmpRepoDirRoot))
-	require.NoError(t, err)
-}
-
-func TestExecuteCmdCreateWithLocationWithoutEncryption(t *testing.T) {
-	tmpRepoDirRoot, err := os.MkdirTemp("", "tmp_repo")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		os.RemoveAll(tmpRepoDirRoot)
-	})
-
-	ctx := appcontext.NewAppContext()
-	defer ctx.Close()
-
-	var repo *repository.Repository
-	args := []string{"--no-encryption", fmt.Sprintf("%s/repo", tmpRepoDirRoot)}
 
 	subcommand, err := parse_cmd_create(ctx, repo, args)
 	require.NoError(t, err)
@@ -143,7 +122,8 @@ func TestExecuteCmdCreateDefaultWeakPassword(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
 
-	var repo *repository.Repository
+	repo, err := repository.Inexistant(ctx, tmpRepoDirRoot+"/repo")
+	require.NoError(t, err)
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = tmpRepoDirRoot
 	args := []string{}
@@ -175,7 +155,7 @@ func TestExecuteCmdCreateDefaultWeakPassword(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
-	_, err = os.Stat(fmt.Sprintf("%s/.plakar/CONFIG", tmpRepoDirRoot))
+	_, err = os.Stat(fmt.Sprintf("%s/repo/CONFIG", tmpRepoDirRoot))
 	require.NoError(t, err)
 }
 
@@ -188,7 +168,8 @@ func TestExecuteCmdCreateDefaultWithKeyfile(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
 
-	var repo *repository.Repository
+	repo, err := repository.Inexistant(ctx, tmpRepoDirRoot+"/repo")
+	require.NoError(t, err)
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = tmpRepoDirRoot
 	ctx.KeyFromFile = "aZeRtY123456$#@!@"
@@ -202,7 +183,7 @@ func TestExecuteCmdCreateDefaultWithKeyfile(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
-	_, err = os.Stat(fmt.Sprintf("%s/.plakar/CONFIG", tmpRepoDirRoot))
+	_, err = os.Stat(fmt.Sprintf("%s/repo/CONFIG", tmpRepoDirRoot))
 	require.NoError(t, err)
 }
 
@@ -215,7 +196,8 @@ func TestExecuteCmdCreateDefaultWithEnvPassphrase(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
 
-	var repo *repository.Repository
+	repo, err := repository.Inexistant(ctx, tmpRepoDirRoot+"/repo")
+	require.NoError(t, err)
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = tmpRepoDirRoot
 	args := []string{}
@@ -234,6 +216,6 @@ func TestExecuteCmdCreateDefaultWithEnvPassphrase(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
-	_, err = os.Stat(fmt.Sprintf("%s/.plakar/CONFIG", tmpRepoDirRoot))
+	_, err = os.Stat(fmt.Sprintf("%s/repo/CONFIG", tmpRepoDirRoot))
 	require.NoError(t, err)
 }
