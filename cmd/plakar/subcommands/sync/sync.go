@@ -17,11 +17,9 @@
 package sync
 
 import (
-	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
@@ -47,52 +45,37 @@ func parse_cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, arg
 		flags.PrintDefaults()
 	}
 	flags.Parse(args)
-	return &Sync{
-		RepositoryLocation: repo.Location(),
-		RepositorySecret:   ctx.GetSecret(),
-		Args:               flags.Args(),
-	}, nil
-}
 
-type Sync struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
-
-	Args []string
-}
-
-func (cmd *Sync) Name() string {
-	return "sync"
-}
-
-func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	syncSnapshotID := ""
 	direction := ""
 	peerRepositoryPath := ""
-	switch len(cmd.Args) {
-	case 2:
-		direction = cmd.Args[0]
-		peerRepositoryPath = cmd.Args[1]
 
+	args = flags.Args()
+	switch len(args) {
+	case 2:
+		direction = args[0]
+		peerRepositoryPath = args[1]
 	case 3:
-		syncSnapshotID = cmd.Args[0]
-		direction = cmd.Args[1]
-		peerRepositoryPath = cmd.Args[2]
+		syncSnapshotID = args[0]
+		direction = args[1]
+		peerRepositoryPath = args[2]
 
 	default:
-		return 1, fmt.Errorf("usage: sync [SNAPSHOT] to|from REPOSITORY")
+		return nil, fmt.Errorf("usage: sync [SNAPSHOT] to|from REPOSITORY")
+	}
+
+	if direction != "to" && direction != "from" && direction != "both" {
+		return nil, fmt.Errorf("invalid direction, must be to, from or both")
 	}
 
 	peerStore, peerStoreSerializedConfig, err := storage.Open(peerRepositoryPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: could not open repository: %s\n", peerRepositoryPath, err)
-		return 1, err
+		return nil, err
 	}
 
 	peerStoreConfig, err := storage.NewConfigurationFromWrappedBytes(peerStoreSerializedConfig)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: could not parse configuration: %s\n", peerStore.Location(), err)
-		return 1, err
+		return nil, err
 	}
 
 	var peerSecret []byte
@@ -120,6 +103,47 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 
 	peerCtx := appcontext.NewAppContextFrom(ctx)
 	peerCtx.SetSecret(peerSecret)
+	_, err = repository.New(peerCtx, peerStore, peerStoreSerializedConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Sync{
+		SourceRepositoryLocation: repo.Location(),
+		SourceRepositorySecret:   ctx.GetSecret(),
+		PeerRepositoryLocation:   peerRepositoryPath,
+		PeerRepositorySecret:     peerSecret,
+		Direction:                direction,
+		SnapshotPrefix:           syncSnapshotID,
+	}, nil
+}
+
+type Sync struct {
+	SourceRepositoryLocation string
+	SourceRepositorySecret   []byte
+
+	PeerRepositoryLocation string
+	PeerRepositorySecret   []byte
+
+	Direction string
+
+	SnapshotPrefix string
+}
+
+func (cmd *Sync) Name() string {
+	return "sync"
+}
+
+func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+
+	peerStore, peerStoreSerializedConfig, err := storage.Open(cmd.PeerRepositoryLocation)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: could not open repository: %s\n", cmd.PeerRepositoryLocation, err)
+		return 1, err
+	}
+
+	peerCtx := appcontext.NewAppContextFrom(ctx)
+	peerCtx.SetSecret(cmd.PeerRepositorySecret)
 	peerRepository, err := repository.New(peerCtx, peerStore, peerStoreSerializedConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not open repository: %s\n", peerStore.Location(), err)
@@ -129,13 +153,13 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	var srcRepository *repository.Repository
 	var dstRepository *repository.Repository
 
-	if direction == "to" {
+	if cmd.Direction == "to" {
 		srcRepository = repo
 		dstRepository = peerRepository
-	} else if direction == "from" {
+	} else if cmd.Direction == "from" {
 		srcRepository = peerRepository
 		dstRepository = repo
-	} else if direction == "with" {
+	} else if cmd.Direction == "both" {
 		srcRepository = repo
 		dstRepository = peerRepository
 	} else {
@@ -155,8 +179,6 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		return 1, err
 	}
 
-	_ = syncSnapshotID
-
 	srcSnapshotsMap := make(map[objects.MAC]struct{})
 	dstSnapshotsMap := make(map[objects.MAC]struct{})
 
@@ -169,13 +191,16 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	}
 
 	srcSyncList := make([]objects.MAC, 0)
-	for snapshotID := range srcSnapshotsMap {
-		if syncSnapshotID != "" {
-			hexSnapshotID := hex.EncodeToString(snapshotID[:])
-			if !strings.HasPrefix(hexSnapshotID, syncSnapshotID) {
-				continue
-			}
-		}
+
+	srcLocateOptions := utils.NewDefaultLocateOptions()
+	srcLocateOptions.Prefix = cmd.SnapshotPrefix
+	srcSnapshotIDs, err := utils.LocateSnapshotIDs(srcRepository, srcLocateOptions)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: could not locate snapshots in repository: %s\n", srcRepository.Location(), err)
+		return 1, err
+	}
+
+	for _, snapshotID := range srcSnapshotIDs {
 		if _, exists := dstSnapshotsMap[snapshotID]; !exists {
 			srcSyncList = append(srcSyncList, snapshotID)
 		}
@@ -190,15 +215,15 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		}
 	}
 
-	if direction == "with" {
+	if cmd.Direction == "both" {
+		dstSnapshotIDs, err := utils.LocateSnapshotIDs(dstRepository, srcLocateOptions)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: could not locate snapshots in repository: %s\n", srcRepository.Location(), err)
+			return 1, err
+		}
+
 		dstSyncList := make([]objects.MAC, 0)
-		for snapshotID := range dstSnapshotsMap {
-			if syncSnapshotID != "" {
-				hexSnapshotID := hex.EncodeToString(snapshotID[:])
-				if !strings.HasPrefix(hexSnapshotID, syncSnapshotID) {
-					continue
-				}
-			}
+		for _, snapshotID := range dstSnapshotIDs {
 			if _, exists := srcSnapshotsMap[snapshotID]; !exists {
 				dstSyncList = append(dstSyncList, snapshotID)
 			}

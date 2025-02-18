@@ -1,0 +1,35 @@
+agent:
+  tasks:
+    - name: system
+      repository:
+        url: /Users/gilles/.plakar
+      
+      backup:
+        path: /private/etc
+        interval: 5s
+        retention: 45s
+        check: true
+
+      check:
+        - interval: 10s
+          path: /
+          latest: true
+        - interval: 60s
+          path: /
+          since: 30s
+        - interval: 10s
+          path: /private/etc
+          latest: true
+
+      restore:
+        - interval: 10s
+          path: /private/etc/apache2
+          target: /tmp/foobarbaz
+
+      sync:
+        - interval: 10s
+          direction: both
+          peer: /tmp/foobar
+
+      cleanup:
+        interval: 10s
