@@ -13,6 +13,7 @@ import (
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/versioning"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 func init() {
@@ -69,6 +70,12 @@ func isEntryBelow(parent, entry string) bool {
 		return false
 	}
 	return true
+}
+
+func NodeFromBytes(data []byte) (*btree.Node[string, objects.MAC, objects.MAC], error) {
+	var node btree.Node[string, objects.MAC, objects.MAC]
+	err := msgpack.Unmarshal(data, &node)
+	return &node, err
 }
 
 func NewFilesystem(repo *repository.Repository, root, xattrs, errors objects.MAC) (*Filesystem, error) {

@@ -61,6 +61,12 @@ func (x *Xattr) ToPath() string {
 	return x.Path + x.Name + sep
 }
 
+func XattrNodeFromBytes(bytes []byte) (*btree.Node[string, objects.MAC, objects.MAC], error) {
+	var node btree.Node[string, objects.MAC, objects.MAC]
+	err := msgpack.Unmarshal(bytes, &node)
+	return &node, err
+}
+
 func XattrFromBytes(bytes []byte) (*Xattr, error) {
 	xattr := &Xattr{}
 	err := msgpack.Unmarshal(bytes, &xattr)
