@@ -429,6 +429,9 @@ func syncIndex(repo *repository.Repository, src *snapshot.Snapshot, dst *snapsho
 		if err != nil {
 			return err
 		}
+		if err := dst.PutBlob(resources.RT_BTREE_ROOT, index.Value, serialized); err != nil {
+			return err
+		}
 
 		store := repository.NewRepositoryStore[string, objects.MAC](repo, resources.RT_BTREE_NODE)
 		tree, err := btree.Deserialize(bytes.NewReader(serialized), store, strings.Compare)
