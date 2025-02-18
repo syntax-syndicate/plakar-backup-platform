@@ -41,7 +41,6 @@ func parse_cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, 
 	var opt_tag string
 
 	var pullPath string
-	var pullRebase bool
 	var opt_concurrency uint64
 	var opt_quiet bool
 	var opt_silent bool
@@ -62,7 +61,6 @@ func parse_cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, 
 	flags.StringVar(&opt_tag, "tag", "", "filter by tag")
 
 	flags.StringVar(&pullPath, "to", ctx.CWD, "base directory where pull will restore")
-	flags.BoolVar(&pullRebase, "rebase", false, "strip pathname when pulling")
 	flags.BoolVar(&opt_quiet, "quiet", false, "do not print progress")
 	flags.BoolVar(&opt_silent, "silent", false, "do not print ANY progress")
 	flags.Parse(args)
@@ -87,7 +85,6 @@ func parse_cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, 
 		OptTag:         opt_tag,
 
 		Target:      pullPath,
-		Rebase:      pullRebase,
 		Concurrency: opt_concurrency,
 		Quiet:       opt_quiet,
 		Silent:      opt_silent,
@@ -107,7 +104,7 @@ type Restore struct {
 	OptTag         string
 
 	Target      string
-	Rebase      bool
+	Strip       string
 	Concurrency uint64
 	Quiet       bool
 	Silent      bool
@@ -186,7 +183,6 @@ func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 
 	opts := &snapshot.RestoreOptions{
 		MaxConcurrency: cmd.Concurrency,
-		Rebase:         cmd.Rebase,
 	}
 
 	for _, snapPath := range snapshots {
@@ -195,6 +191,8 @@ func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 		if err != nil {
 			return 1, err
 		}
+		opts.Strip = snap.Header.GetSource(0).Importer.Directory
+
 		snap.Restore(exporterInstance, exporterInstance.Root(), pattern, opts)
 		snap.Close()
 	}
