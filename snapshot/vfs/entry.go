@@ -226,7 +226,7 @@ func (e *Entry) Info() (fs.FileInfo, error) {
 }
 
 func (e *Entry) Xattr(fsc *Filesystem, xattrName string) (io.ReadSeeker, error) {
-	p := fmt.Sprintf("%s:%s", e.Path(), xattrName)
+	p := fmt.Sprintf("%s%s:", e.Path(), xattrName)
 	csum, found, err := fsc.xattrs.Find(p)
 	if err != nil {
 		return nil, err
