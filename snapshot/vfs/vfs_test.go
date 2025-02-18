@@ -189,7 +189,7 @@ func generateSnapshot(t *testing.T) *snapshot.Snapshot {
 	cache := caching.NewManager(tmpCacheDir)
 	ctx.SetCache(cache)
 	logger := logging.NewLogger(os.Stdout, os.Stderr)
-	logger.EnableTrace("all")
+	//logger.EnableTrace("all")
 	ctx.SetLogger(logger)
 	repo, err := repository.New(ctx, r, serializedConfig)
 	require.NoError(t, err, "creating repository")
@@ -410,6 +410,12 @@ func TestFileMacs(t *testing.T) {
 		require.NotNil(t, m)
 		macs[m] = struct{}{}
 	}
+
+	err = fs.WalkDir("/", func(path string, entry *vfs.Entry, err error) error {
+		fmt.Println("###", path)
+		return err
+	})
+	fmt.Println("@@@@", err)
 
 	require.Equal(t, 5, len(macs))
 }
