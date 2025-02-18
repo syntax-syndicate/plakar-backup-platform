@@ -51,8 +51,8 @@ func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, a
 
 	flags := flag.NewFlagSet("create", flag.ExitOnError)
 	flags.Usage = func() {
-		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] /path/to/repository\n", flags.Name())
-		fmt.Fprintf(flags.Output(), "       %s [OPTIONS] s3://bucket/path\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "Usage: plakar [on /path/to/repository] %s [OPTIONS]\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       plakar [on s3://path/to/bucket] %s [OPTIONS]\n", flags.Name())
 		fmt.Fprintf(flags.Output(), "\nOPTIONS:\n")
 		flags.PrintDefaults()
 	}
