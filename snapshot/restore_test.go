@@ -30,7 +30,6 @@ func TestRestore(t *testing.T) {
 
 	opts := &RestoreOptions{
 		MaxConcurrency: 1,
-		Rebase:         true,
 	}
 
 	// search for the correct filepath as the path was mkdir temp we cannot hardcode it
