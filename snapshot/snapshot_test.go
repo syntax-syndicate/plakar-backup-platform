@@ -108,25 +108,6 @@ func TestSnapshot(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, snapFs)
 
-	iter, err := snap.ListObjects()
-	require.NoError(t, err)
-	require.NotNil(t, iter)
-	for o, err := range iter {
-		require.NoError(t, err)
-		require.NotNil(t, o)
-		lo, err := snap.LookupObject(o)
-		require.NoError(t, err)
-		require.NotNil(t, lo)
-	}
-
-	iter2, err := snap.ListChunks()
-	require.NoError(t, err)
-	require.NotNil(t, iter2)
-	for o, err := range iter2 {
-		require.NoError(t, err)
-		require.NotNil(t, o)
-	}
-
 	snap2, err := Load(snap.repository, snap.Header.Identifier)
 	require.NoError(t, err)
 	require.NotNil(t, snap2)

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"iter"
 	"runtime"
 	"time"
 
@@ -201,60 +200,6 @@ func (snap *Snapshot) LookupObject(mac objects.MAC) (*objects.Object, error) {
 		return nil, err
 	}
 	return objects.NewObjectFromBytes(buffer)
-}
-
-func (snap *Snapshot) ListChunks() (iter.Seq2[objects.MAC, error], error) {
-	fs, err := snap.Filesystem()
-	if err != nil {
-		return nil, err
-	}
-	return func(yield func(objects.MAC, error) bool) {
-		for filename, err := range fs.Files() {
-			if err != nil {
-				yield(objects.MAC{}, err)
-				return
-			}
-			fsentry, err := fs.GetEntry(filename)
-			if err != nil {
-				yield(objects.MAC{}, err)
-				return
-			}
-			if fsentry.ResolvedObject == nil {
-				continue
-			}
-			for _, chunk := range fsentry.ResolvedObject.Chunks {
-				if !yield(chunk.MAC, nil) {
-					return
-				}
-			}
-		}
-	}, nil
-}
-
-func (snap *Snapshot) ListObjects() (iter.Seq2[objects.MAC, error], error) {
-	fs, err := snap.Filesystem()
-	if err != nil {
-		return nil, err
-	}
-	return func(yield func(objects.MAC, error) bool) {
-		for filename, err := range fs.Files() {
-			if err != nil {
-				yield(objects.MAC{}, err)
-				return
-			}
-			fsentry, err := fs.GetEntry(filename)
-			if err != nil {
-				yield(objects.MAC{}, err)
-				return
-			}
-			if fsentry.ResolvedObject == nil {
-				continue
-			}
-			if !yield(fsentry.Object, nil) {
-				return
-			}
-		}
-	}, nil
 }
 
 func (snap *Snapshot) Logger() *logging.Logger {
