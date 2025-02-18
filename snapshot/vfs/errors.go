@@ -37,6 +37,12 @@ func ErrorItemFromBytes(bytes []byte) (*ErrorItem, error) {
 	return e, err
 }
 
+func ErrorNodeFromBytes(bytes []byte) (*btree.Node[string, objects.MAC, objects.MAC], error) {
+	var e btree.Node[string, objects.MAC, objects.MAC]
+	err := msgpack.Unmarshal(bytes, &e)
+	return &e, err
+}
+
 func NewErrorItem(path, error string) *ErrorItem {
 	return &ErrorItem{
 		Version: versioning.FromString(VFS_ERROR_VERSION),
