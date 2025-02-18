@@ -20,7 +20,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"path/filepath"
+	"path"
 	"sync"
 
 	"github.com/PlakarKorp/plakar/objects"
@@ -42,11 +42,11 @@ func NewBuckets(sftpClient *sftp.Client, path string) Buckets {
 func (buckets *Buckets) Create() error {
 
 	for i := 0; i < 256; i++ {
-		err := buckets.client.MkdirAll(filepath.Join(buckets.path, fmt.Sprintf("%02x", i)))
+		err := buckets.client.MkdirAll(path.Join(buckets.path, fmt.Sprintf("%02x", i)))
 		if err != nil {
 			return err
 		}
-		if err := buckets.client.Chmod(filepath.Join(buckets.path, fmt.Sprintf("%02x", i)), 0755); err != nil {
+		if err := buckets.client.Chmod(path.Join(buckets.path, fmt.Sprintf("%02x", i)), 0755); err != nil {
 			return err
 		}
 	}
@@ -59,7 +59,7 @@ func (buckets *Buckets) List() ([]objects.MAC, error) {
 
 	wg := sync.WaitGroup{}
 	for i := 0; i < 256; i++ {
-		path := filepath.Join(buckets.path, fmt.Sprintf("%02x", i))
+		path := path.Join(buckets.path, fmt.Sprintf("%02x", i))
 		wg.Add(1)
 		go func(path string) {
 			defer wg.Done()
@@ -92,7 +92,7 @@ func (buckets *Buckets) List() ([]objects.MAC, error) {
 }
 
 func (buckets *Buckets) Path(mac objects.MAC) string {
-	return filepath.Join(buckets.path,
+	return path.Join(buckets.path,
 		fmt.Sprintf("%02x", mac[0]),
 		fmt.Sprintf("%064x", mac))
 }

@@ -19,7 +19,6 @@ package sftp
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"io/ioutil"
@@ -27,7 +26,7 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"path/filepath"
+	"path"
 	"strings"
 	"sync"
 
@@ -73,10 +72,10 @@ func defaultSigners() ([]ssh.Signer, error) {
 
 	// List of default private key paths.
 	keyFiles := []string{
-		filepath.Join(home, ".ssh", "id_rsa"),
-		filepath.Join(home, ".ssh", "id_dsa"),
-		filepath.Join(home, ".ssh", "id_ecdsa"),
-		filepath.Join(home, ".ssh", "id_ed25519"),
+		path.Join(home, ".ssh", "id_rsa"),
+		path.Join(home, ".ssh", "id_dsa"),
+		path.Join(home, ".ssh", "id_ecdsa"),
+		path.Join(home, ".ssh", "id_ed25519"),
 	}
 
 	for _, file := range keyFiles {
@@ -120,7 +119,7 @@ func (repo *Repository) Path(args ...string) string {
 	copy(args[1:], args)
 	args[0] = root
 
-	return filepath.Join(args...)
+	return path.Join(args...)
 }
 
 func connect(location string) (*sftp.Client, error) {
@@ -129,13 +128,17 @@ func connect(location string) (*sftp.Client, error) {
 		return nil, err
 	}
 
-	sshHost := parsed.Host + ":22"
-
+	var sshHost string
+	if parsed.Port() == "" {
+		sshHost = parsed.Host + ":22"
+	} else {
+		sshHost = parsed.Host
+	}
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatalf("failed to get home directory: %v", err)
 	}
-	knownHostsPath := filepath.Join(homeDir, ".ssh", "known_hosts")
+	knownHostsPath := path.Join(homeDir, ".ssh", "known_hosts")
 
 	// Create the HostKeyCallback from the known_hosts file.
 	hostKeyCallback, err := knownhosts.New(knownHostsPath)
@@ -176,7 +179,6 @@ func (repo *Repository) Create(location string, config []byte) error {
 	}
 	repo.client = client
 
-	fmt.Println(repo.Path())
 	err = client.Mkdir(repo.Path())
 	if err != nil {
 		return err
