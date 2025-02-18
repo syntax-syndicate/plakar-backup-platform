@@ -38,12 +38,12 @@ func (cmd *InfoContentType) Execute(ctx *appcontext.AppContext, repo *repository
 		prefix += "/"
 	}
 
-	rd, err := repo.GetBlob(resources.RT_BTREE, snap.Header.GetSource(0).Indexes[0].Value)
+	rd, err := repo.GetBlob(resources.RT_BTREE_ROOT, snap.Header.GetSource(0).Indexes[0].Value)
 	if err != nil {
 		return 1, err
 	}
 
-	store := repository.NewRepositoryStore[string, objects.MAC](repo, resources.RT_BTREE)
+	store := repository.NewRepositoryStore[string, objects.MAC](repo, resources.RT_BTREE_NODE)
 	tree, err := btree.Deserialize(rd, store, strings.Compare)
 	if err != nil {
 		return 1, err

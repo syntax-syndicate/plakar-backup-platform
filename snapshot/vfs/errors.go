@@ -17,6 +17,7 @@ const VFS_ERROR_VERSION = "1.0.0"
 
 func init() {
 	versioning.Register(resources.RT_ERROR_BTREE, versioning.FromString(btree.BTREE_VERSION))
+	versioning.Register(resources.RT_ERROR_NODE, versioning.FromString(btree.NODE_VERSION))
 	versioning.Register(resources.RT_ERROR_ENTRY, versioning.FromString(VFS_ERROR_VERSION))
 }
 
@@ -34,6 +35,12 @@ func ErrorItemFromBytes(bytes []byte) (*ErrorItem, error) {
 	e := &ErrorItem{}
 	err := msgpack.Unmarshal(bytes, e)
 	return e, err
+}
+
+func ErrorNodeFromBytes(bytes []byte) (*btree.Node[string, objects.MAC, objects.MAC], error) {
+	var e btree.Node[string, objects.MAC, objects.MAC]
+	err := msgpack.Unmarshal(bytes, &e)
+	return &e, err
 }
 
 func NewErrorItem(path, error string) *ErrorItem {
@@ -91,6 +98,6 @@ func (fsc *Filesystem) Errors(beneath string) (iter.Seq2[*ErrorItem, error], err
 	}, nil
 }
 
-func (fsc *Filesystem) IterErrorNodes() (iterator.Iterator[objects.MAC, *btree.Node[string, objects.MAC, objects.MAC]], error) {
-	return fsc.errors.IterDFS(), nil
+func (fsc *Filesystem) IterErrorNodes() iterator.Iterator[objects.MAC, *btree.Node[string, objects.MAC, objects.MAC]] {
+	return fsc.errors.IterDFS()
 }

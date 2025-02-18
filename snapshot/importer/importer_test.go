@@ -119,12 +119,10 @@ func TestNewScanRecord(t *testing.T) {
 func TestNewScanXattr(t *testing.T) {
 	pathname := "/path/to/file"
 	xattrname := "foo/bar"
-	fileinfo := objects.NewFileInfo("file", 300000, 0644, time.Now().Local(), 1, 2, 3, 4, 5)
 
-	record := NewScanXattr(pathname, xattrname, fileinfo)
+	record := NewScanXattr(pathname, xattrname, objects.AttributeExtended)
 
 	require.Equal(t, pathname, record.Record.Pathname)
-	require.Equal(t, fileinfo, record.Record.FileInfo)
 	require.Equal(t, xattrname, record.Record.XattrName)
 	require.True(t, record.Record.IsXattr)
 }

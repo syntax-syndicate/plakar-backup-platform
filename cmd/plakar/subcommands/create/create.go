@@ -51,8 +51,8 @@ func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, a
 
 	flags := flag.NewFlagSet("create", flag.ExitOnError)
 	flags.Usage = func() {
-		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] /path/to/repository\n", flags.Name())
-		fmt.Fprintf(flags.Output(), "       %s [OPTIONS] s3://bucket/path\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "Usage: plakar [on /path/to/repository] %s [OPTIONS]\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       plakar [on s3://path/to/bucket] %s [OPTIONS]\n", flags.Name())
 		fmt.Fprintf(flags.Output(), "\nOPTIONS:\n")
 		flags.PrintDefaults()
 	}
@@ -63,7 +63,7 @@ func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, a
 	flags.BoolVar(&opt_nocompression, "no-compression", false, "disable transparent compression")
 	flags.Parse(args)
 
-	if flags.NArg() > 1 {
+	if flags.NArg() != 0 {
 		return nil, fmt.Errorf("%s: too many parameters", flag.CommandLine.Name())
 	}
 
@@ -76,7 +76,7 @@ func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, a
 		Hashing:       opt_hashing,
 		NoEncryption:  opt_noencryption,
 		NoCompression: opt_nocompression,
-		Location:      flags.Arg(0),
+		Location:      repo.Location(),
 	}, nil
 }
 
