@@ -305,7 +305,6 @@ func entryPoint() int {
 		skipPassphrase = true
 	}
 
-	//XXX
 	if strings.HasPrefix(repositoryPath, "@") {
 		tmp, exists := ctx.Config.Lookup(repositoryPath[1:], "URL")
 		if !exists {
@@ -314,7 +313,6 @@ func entryPoint() int {
 		}
 		repositoryPath = tmp.(string)
 	}
-	//XXX
 
 	store, serializedConfig, err := storage.Open(repositoryPath)
 	if err != nil {
