@@ -111,7 +111,7 @@ func entryPoint() int {
 	flag.BoolVar(&opt_agentless, "no-agent", false, "run without agent")
 
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [on REPOSITORY] [OPTIONS] COMMAND [COMMAND_OPTIONS]...\n", flag.CommandLine.Name())
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [at REPOSITORY] [OPTIONS] COMMAND [COMMAND_OPTIONS]...\n", flag.CommandLine.Name())
 		fmt.Fprintf(flag.CommandLine.Output(), "\nBy default, the repository is $PLAKAR_REPOSITORY or $HOME/.plakar.\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "\nOPTIONS:\n")
 		flag.PrintDefaults()
@@ -232,7 +232,7 @@ func entryPoint() int {
 	command, args := flag.Args()[0], flag.Args()[1:]
 
 	var repositoryPath string
-	if flag.Arg(0) == "on" {
+	if flag.Arg(0) == "at" {
 		if len(flag.Args()) < 2 {
 			log.Fatalf("%s: missing plakar repository", flag.CommandLine.Name())
 		}
