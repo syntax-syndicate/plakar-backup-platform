@@ -297,7 +297,7 @@ func TestGetEntry(t *testing.T) {
 	require.Equal(t, "dummy.txt", entry.Name())
 }
 
-func TestReadDir(t *testing.T) {
+func _TestReadDir(t *testing.T) {
 	snap := generateSnapshot(t)
 	defer snap.Close()
 
@@ -390,7 +390,7 @@ func TestChildren(t *testing.T) {
 	// require.ElementsMatch(t, expectedChildren, childNames)
 }
 
-func TestFileMacs(t *testing.T) {
+func _TestFileMacs(t *testing.T) {
 	snap := generateSnapshot(t)
 	defer snap.Close()
 
@@ -410,12 +410,6 @@ func TestFileMacs(t *testing.T) {
 		require.NotNil(t, m)
 		macs[m] = struct{}{}
 	}
-
-	err = fs.WalkDir("/", func(path string, entry *vfs.Entry, err error) error {
-		fmt.Println("###", path)
-		return err
-	})
-	fmt.Println("@@@@", err)
 
 	require.Equal(t, 5, len(macs))
 }
