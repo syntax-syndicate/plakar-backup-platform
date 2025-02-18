@@ -28,7 +28,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"sync"
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
@@ -243,25 +242,13 @@ func (repo *Repository) GetPackfile(mac objects.MAC) (io.Reader, error) {
 }
 
 func (repo *Repository) GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (io.Reader, error) {
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-
-	var res io.Reader
-	var err error
-
-	go func() {
-		defer wg.Done()
-		tmpres, tmperr := repo.packfiles.GetBlob(mac, offset, length)
-		if tmperr != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				tmperr = repository.ErrPackfileNotFound
-			}
+	res, err := repo.packfiles.GetBlob(mac, offset, length)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			err = repository.ErrPackfileNotFound
 		}
-		err = tmperr
-		res = tmpres
-	}()
-	wg.Wait()
-
+		return nil, err
+	}
 	return res, nil
 }
 
