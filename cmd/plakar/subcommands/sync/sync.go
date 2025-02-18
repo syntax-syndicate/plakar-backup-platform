@@ -245,45 +245,103 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	return 0, nil
 }
 
-func push(src *snapshot.Snapshot, dst *snapshot.Snapshot, mac objects.MAC, rtype resources.Type, data []byte) (bool, []byte, error) {
+func push(src *snapshot.Snapshot, dst *snapshot.Snapshot, mac objects.MAC, rtype resources.Type, data []byte) error {
+	if dst.BlobExists(rtype, mac) {
+		return nil
+	}
+	var err error
+	if data == nil {
+		data, err = src.GetBlob(rtype, mac)
+		if err != nil {
+			return err
+		}
+	}
+	return dst.PutBlob(rtype, mac, data)
+}
+
+func recpush(src *snapshot.Snapshot, dst *snapshot.Snapshot, mac objects.MAC, rtype resources.Type, data []byte) error {
 	var err error
 
 	if dst.BlobExists(rtype, mac) {
-		return true, nil, nil
+		return nil
 	}
 
 	if data == nil {
 		data, err = src.GetBlob(rtype, mac)
 		if err != nil {
-			return false, nil, err
-		}
-	}
-	return false, data, dst.PutBlob(rtype, mac, data)
-}
-
-func syncObject(src *snapshot.Snapshot, dst *snapshot.Snapshot, mac objects.MAC) error {
-	found, objbytes, err := push(src, dst, mac, resources.RT_OBJECT, nil)
-	if found || err != nil {
-		return err
-	}
-
-	object, err := objects.NewObjectFromBytes(objbytes)
-	if err != nil {
-		return err
-	}
-
-	for _, chunk := range object.Chunks {
-		_, _, err := push(src, dst, chunk.MAC, resources.RT_CHUNK, nil)
-		if err != nil {
 			return err
 		}
 	}
-	return nil
+
+	switch rtype {
+	case resources.RT_VFS_NODE:
+		node, err := vfs.NodeFromBytes(data)
+		if err != nil {
+			return err
+		}
+		for _, entrymac := range node.Values {
+			err := recpush(src, dst, entrymac, resources.RT_VFS_ENTRY, nil)
+			if err != nil {
+				return err
+			}
+		}
+
+	case resources.RT_VFS_ENTRY:
+		entry, err := vfs.EntryFromBytes(data)
+		if err != nil {
+			return err
+		}
+		if entry.HasObject() {
+			if err := recpush(src, dst, entry.Object, resources.RT_OBJECT, nil); err != nil {
+				return err
+			}
+		}
+
+	case resources.RT_XATTR_NODE:
+		node, err := vfs.XattrNodeFromBytes(data)
+		if err != nil {
+			return err
+		}
+		for _, xattrmac := range node.Values {
+			err := recpush(src, dst, xattrmac, resources.RT_XATTR_ENTRY, nil)
+			if err != nil {
+				return err
+			}
+		}
+
+	case resources.RT_OBJECT:
+		object, err := objects.NewObjectFromBytes(data)
+		if err != nil {
+			return err
+		}
+
+		for _, chunk := range object.Chunks {
+			err := recpush(src, dst, chunk.MAC, resources.RT_CHUNK, nil)
+			if err != nil {
+				return err
+			}
+		}
+
+	case resources.RT_ERROR_NODE:
+		node, err := vfs.ErrorNodeFromBytes(data)
+		if err != nil {
+			return err
+		}
+
+		for _, errmac := range node.Values {
+			err := recpush(src, dst, errmac, resources.RT_ERROR_ENTRY, nil)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return dst.PutBlob(rtype, mac, data)
 }
 
 func syncVFS(src *snapshot.Snapshot, dst *snapshot.Snapshot, fs *vfs.Filesystem, root objects.MAC) error {
-	found, _, err := push(src, dst, root, resources.RT_VFS_BTREE, nil)
-	if found || err != nil {
+	err := push(src, dst, root, resources.RT_VFS_BTREE, nil)
+	if err != nil {
 		return err
 	}
 
@@ -299,35 +357,8 @@ func syncVFS(src *snapshot.Snapshot, dst *snapshot.Snapshot, fs *vfs.Filesystem,
 		// we could actually skip all the nodes below this one
 		// if it's present in the other side, but we're
 		// missing an API to do so.
-		found, _, err = push(src, dst, mac, resources.RT_VFS_NODE, bytes)
-		if err != nil {
+		if err := recpush(src, dst, mac, resources.RT_VFS_NODE, bytes); err != nil {
 			return err
-		}
-		if found {
-			continue
-		}
-
-		for _, entrymac := range node.Values {
-			found, entrybytes, err := push(src, dst, entrymac, resources.RT_VFS_ENTRY, nil)
-			if err != nil {
-				return err
-			}
-			if found {
-				continue
-			}
-
-			entry, err := vfs.EntryFromBytes(entrybytes)
-			if err != nil {
-				return err
-			}
-
-			if !entry.HasObject() {
-				continue
-			}
-
-			if err := syncObject(src, dst, entry.Object); err != nil {
-				return err
-			}
 		}
 	}
 
@@ -335,8 +366,8 @@ func syncVFS(src *snapshot.Snapshot, dst *snapshot.Snapshot, fs *vfs.Filesystem,
 }
 
 func syncErrors(src *snapshot.Snapshot, dst *snapshot.Snapshot, fs *vfs.Filesystem, root objects.MAC) error {
-	found, _, err := push(src, dst, root, resources.RT_ERROR_BTREE, nil)
-	if found || err != nil {
+	err := push(src, dst, root, resources.RT_ERROR_BTREE, nil)
+	if err != nil {
 		return err
 	}
 
@@ -352,19 +383,9 @@ func syncErrors(src *snapshot.Snapshot, dst *snapshot.Snapshot, fs *vfs.Filesyst
 		// we could actually skip all the nodes below this one
 		// if it's present in the other side, but we're
 		// missing an API to do so.
-		found, _, err := push(src, dst, mac, resources.RT_ERROR_NODE, bytes)
+		err = recpush(src, dst, mac, resources.RT_ERROR_NODE, bytes)
 		if err != nil {
 			return err
-		}
-		if found {
-			continue
-		}
-
-		for _, errmac := range node.Values {
-			_, _, err := push(src, dst, errmac, resources.RT_ERROR_ENTRY, nil)
-			if err != nil {
-				return err
-			}
 		}
 	}
 
@@ -372,8 +393,8 @@ func syncErrors(src *snapshot.Snapshot, dst *snapshot.Snapshot, fs *vfs.Filesyst
 }
 
 func syncXattr(src *snapshot.Snapshot, dst *snapshot.Snapshot, fs *vfs.Filesystem, root objects.MAC) error {
-	found, _, err := push(src, dst, root, resources.RT_XATTR_BTREE, nil)
-	if found || err != nil {
+	err := push(src, dst, root, resources.RT_XATTR_BTREE, nil)
+	if err != nil {
 		return err
 	}
 
@@ -389,31 +410,9 @@ func syncXattr(src *snapshot.Snapshot, dst *snapshot.Snapshot, fs *vfs.Filesyste
 		// we could actually skip all the nodes below this one
 		// if it's present in the other side, but we're
 		// missing an API to do so.
-		found, _, err := push(src, dst, mac, resources.RT_XATTR_NODE, bytes)
+		err = recpush(src, dst, mac, resources.RT_XATTR_NODE, bytes)
 		if err != nil {
 			return err
-		}
-		if found {
-			continue
-		}
-
-		for _, xattrmac := range node.Values {
-			found, xbytes, err := push(src, dst, xattrmac, resources.RT_XATTR_ENTRY, nil)
-			if err != nil {
-				return err
-			}
-			if found {
-				continue
-			}
-
-			xattr, err := vfs.XattrFromBytes(xbytes)
-			if err != nil {
-				return err
-			}
-
-			if err := syncObject(src, dst, xattr.Object); err != nil {
-				return err
-			}
 		}
 	}
 
@@ -423,8 +422,11 @@ func syncXattr(src *snapshot.Snapshot, dst *snapshot.Snapshot, fs *vfs.Filesyste
 func syncIndex(repo *repository.Repository, src *snapshot.Snapshot, dst *snapshot.Snapshot, index *header.Index) error {
 	switch index.Name {
 	case "content-type":
-		found, serialized, err := push(src, dst, index.Value, resources.RT_BTREE_ROOT, nil)
-		if found || err != nil {
+		if dst.BlobExists(resources.RT_BTREE_ROOT, index.Value) {
+			return nil
+		}
+		serialized, err := src.GetBlob(resources.RT_BTREE_ROOT, index.Value)
+		if err != nil {
 			return err
 		}
 
@@ -443,7 +445,7 @@ func syncIndex(repo *repository.Repository, src *snapshot.Snapshot, dst *snapsho
 				return err
 			}
 
-			_, _, err = push(src, dst, mac, resources.RT_BTREE_NODE, bytes)
+			err = push(src, dst, mac, resources.RT_BTREE_NODE, bytes)
 			if err != nil {
 				return err
 			}
@@ -474,7 +476,7 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 	dstSnapshot.Header = srcSnapshot.Header
 
 	if srcSnapshot.Header.Identity.Identifier != uuid.Nil {
-		_, _, err := push(srcSnapshot, dstSnapshot, srcSnapshot.Header.Identifier,
+		err := push(srcSnapshot, dstSnapshot, srcSnapshot.Header.Identifier,
 			resources.RT_SIGNATURE, nil)
 		if err != nil {
 			return err
