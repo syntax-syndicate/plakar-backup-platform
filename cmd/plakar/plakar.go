@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"os/user"
-	"path"
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
@@ -18,6 +17,7 @@ import (
 	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
+	"github.com/PlakarKorp/plakar/config"
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
@@ -84,7 +84,13 @@ func entryPoint() int {
 	opt_machineIdDefault = strings.ToLower(opt_machineIdDefault)
 
 	opt_usernameDefault := opt_userDefault.Username
-	opt_configDefault := path.Join(opt_userDefault.HomeDir, ".plakarconfig")
+
+	configDir, err := utils.GetConfigDir("plakar")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: could not get config directory: %s\n", flag.CommandLine.Name(), err)
+		return 1
+	}
+	opt_configDefault := filepath.Join(configDir, "plakar.yml")
 
 	// command line overrides
 	var opt_cpuCount int
@@ -127,6 +133,13 @@ func entryPoint() int {
 
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
+
+	cfg, err := config.LoadOrCreate(opt_configfile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: could not load configuration: %s\n", flag.CommandLine.Name(), err)
+		return 1
+	}
+	ctx.Config = cfg
 
 	ctx.Client = "plakar/" + utils.GetVersion()
 	ctx.CWD = cwd
@@ -272,7 +285,7 @@ func entryPoint() int {
 	}
 
 	// these commands need to be ran before the repository is opened
-	if command == "agent" || command == "version" || command == "stdio" || command == "help" {
+	if command == "agent" || command == "config" || command == "version" || command == "help" {
 		cmd, err := subcommands.Parse(ctx, nil, command, args)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
@@ -290,6 +303,15 @@ func entryPoint() int {
 	if command == "server" {
 		opt_agentless = true
 		skipPassphrase = true
+	}
+
+	if strings.HasPrefix(repositoryPath, "@") {
+		tmp, exists := ctx.Config.Lookup(repositoryPath[1:], "URL")
+		if !exists {
+			fmt.Fprintf(os.Stderr, "%s: could not resolve repository: %s\n", flag.CommandLine.Name(), repositoryPath)
+			return 1
+		}
+		repositoryPath = tmp.(string)
 	}
 
 	store, serializedConfig, err := storage.Open(repositoryPath)
