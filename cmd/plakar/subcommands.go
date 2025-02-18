@@ -8,6 +8,7 @@ import (
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/cleanup"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/clone"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/config"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/create"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/diag"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/diff"

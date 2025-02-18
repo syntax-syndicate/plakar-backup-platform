@@ -151,10 +151,10 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 							if record.FileInfo.Mode().IsRegular() {
 								atomic.AddUint64(&size, uint64(record.FileInfo.Size()))
 							}
-						}
-						// if snapshot root is a file, then reset to the parent directory
-						if snap.Header.GetSource(0).Importer.Directory == record.Pathname {
-							snap.Header.GetSource(0).Importer.Directory = filepath.Dir(record.Pathname)
+							// if snapshot root is a file, then reset to the parent directory
+							if snap.Header.GetSource(0).Importer.Directory == record.Pathname {
+								snap.Header.GetSource(0).Importer.Directory = filepath.Dir(record.Pathname)
+							}
 						}
 					} else {
 						atomic.AddUint64(&nDirectories, +1)
@@ -253,7 +253,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 
 	ctstore := caching.DBStore[string, objects.MAC]{
 		Prefix: "__contenttype__",
-		Cache: snap.scanCache,
+		Cache:  snap.scanCache,
 	}
 	ctidx, err := btree.New(&ctstore, strings.Compare, 50)
 	if err != nil {
