@@ -17,11 +17,14 @@
 package sync
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/btree"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/encryption"
@@ -29,7 +32,10 @@ import (
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/snapshot"
+	"github.com/PlakarKorp/plakar/snapshot/header"
+	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/PlakarKorp/plakar/storage"
+	"github.com/google/uuid"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -239,8 +245,220 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	return 0, nil
 }
 
-func synchronize(srcRepository *repository.Repository, dstRepository *repository.Repository, snapshotID objects.MAC) error {
-	srcSnapshot, err := snapshot.Load(srcRepository, snapshotID)
+func push(src *snapshot.Snapshot, dst *snapshot.Snapshot, mac objects.MAC, rtype resources.Type, data []byte) (bool, []byte, error) {
+	var err error
+
+	if dst.BlobExists(rtype, mac) {
+		return true, nil, nil
+	}
+
+	if data == nil {
+		data, err = src.GetBlob(rtype, mac)
+		if err != nil {
+			return false, nil, err
+		}
+	}
+	return false, data, dst.PutBlob(rtype, mac, data)
+}
+
+func syncObject(src *snapshot.Snapshot, dst *snapshot.Snapshot, mac objects.MAC) error {
+	found, objbytes, err := push(src, dst, mac, resources.RT_OBJECT, nil)
+	if found || err != nil {
+		return err
+	}
+
+	object, err := objects.NewObjectFromBytes(objbytes)
+	if err != nil {
+		return err
+	}
+
+	for _, chunk := range object.Chunks {
+		_, _, err := push(src, dst, chunk.MAC, resources.RT_CHUNK, nil)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func syncVFS(src *snapshot.Snapshot, dst *snapshot.Snapshot, fs *vfs.Filesystem, root objects.MAC) error {
+	found, _, err := push(src, dst, root, resources.RT_VFS_BTREE, nil)
+	if found || err != nil {
+		return err
+	}
+
+	iter := fs.IterNodes()
+	for iter.Next() {
+		mac, node := iter.Current()
+
+		bytes, err := msgpack.Marshal(node)
+		if err != nil {
+			return err
+		}
+
+		// we could actually skip all the nodes below this one
+		// if it's present in the other side, but we're
+		// missing an API to do so.
+		found, _, err = push(src, dst, mac, resources.RT_VFS_NODE, bytes)
+		if err != nil {
+			return err
+		}
+		if found {
+			continue
+		}
+
+		for _, entrymac := range node.Values {
+			found, entrybytes, err := push(src, dst, entrymac, resources.RT_VFS_ENTRY, nil)
+			if err != nil {
+				return err
+			}
+			if found {
+				continue
+			}
+
+			entry, err := vfs.EntryFromBytes(entrybytes)
+			if err != nil {
+				return err
+			}
+
+			if !entry.HasObject() {
+				continue
+			}
+
+			if err := syncObject(src, dst, entry.Object); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func syncErrors(src *snapshot.Snapshot, dst *snapshot.Snapshot, fs *vfs.Filesystem, root objects.MAC) error {
+	found, _, err := push(src, dst, root, resources.RT_ERROR_BTREE, nil)
+	if found || err != nil {
+		return err
+	}
+
+	iter := fs.IterErrorNodes()
+	for iter.Next() {
+		mac, node := iter.Current()
+
+		bytes, err := msgpack.Marshal(node)
+		if err != nil {
+			return err
+		}
+
+		// we could actually skip all the nodes below this one
+		// if it's present in the other side, but we're
+		// missing an API to do so.
+		found, _, err := push(src, dst, mac, resources.RT_ERROR_NODE, bytes)
+		if err != nil {
+			return err
+		}
+		if found {
+			continue
+		}
+
+		for _, errmac := range node.Values {
+			_, _, err := push(src, dst, errmac, resources.RT_ERROR_ENTRY, nil)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func syncXattr(src *snapshot.Snapshot, dst *snapshot.Snapshot, fs *vfs.Filesystem, root objects.MAC) error {
+	found, _, err := push(src, dst, root, resources.RT_XATTR_BTREE, nil)
+	if found || err != nil {
+		return err
+	}
+
+	iter := fs.XattrNodes()
+	for iter.Next() {
+		mac, node := iter.Current()
+
+		bytes, err := msgpack.Marshal(node)
+		if err != nil {
+			return err
+		}
+
+		// we could actually skip all the nodes below this one
+		// if it's present in the other side, but we're
+		// missing an API to do so.
+		found, _, err := push(src, dst, mac, resources.RT_XATTR_NODE, bytes)
+		if err != nil {
+			return err
+		}
+		if found {
+			continue
+		}
+
+		for _, xattrmac := range node.Values {
+			found, xbytes, err := push(src, dst, xattrmac, resources.RT_XATTR_ENTRY, nil)
+			if err != nil {
+				return err
+			}
+			if found {
+				continue
+			}
+
+			xattr, err := vfs.XattrFromBytes(xbytes)
+			if err != nil {
+				return err
+			}
+
+			if err := syncObject(src, dst, xattr.Object); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func syncIndex(repo *repository.Repository, src *snapshot.Snapshot, dst *snapshot.Snapshot, index *header.Index) error {
+	switch index.Name {
+	case "content-type":
+		found, serialized, err := push(src, dst, index.Value, resources.RT_BTREE_ROOT, nil)
+		if found || err != nil {
+			return err
+		}
+
+		store := repository.NewRepositoryStore[string, objects.MAC](repo, resources.RT_BTREE_NODE)
+		tree, err := btree.Deserialize(bytes.NewReader(serialized), store, strings.Compare)
+		if err != nil {
+			return err
+		}
+
+		it := tree.IterDFS()
+		for it.Next() {
+			mac, node := it.Current()
+
+			bytes, err := msgpack.Marshal(node)
+			if err != nil {
+				return err
+			}
+
+			_, _, err = push(src, dst, mac, resources.RT_BTREE_NODE, bytes)
+			if err != nil {
+				return err
+			}
+		}
+
+	default:
+		return fmt.Errorf("don't know how to sync the index %s of type %s",
+			index.Name, index.Type)
+	}
+
+	return nil
+}
+
+func synchronize(srcRepository *repository.Repository, dstRepository *repository.Repository, snapshotId objects.MAC) error {
+	srcSnapshot, err := snapshot.Load(srcRepository, snapshotId)
 	if err != nil {
 		return err
 	}
@@ -252,78 +470,36 @@ func synchronize(srcRepository *repository.Repository, dstRepository *repository
 	}
 	defer dstSnapshot.Close()
 
-	// overwrite header, we want to keep the original snapshot info
+	// overwrite the header, we want to keep the original snapshot info
 	dstSnapshot.Header = srcSnapshot.Header
 
-	iter, err := srcSnapshot.ListChunks()
-	if err != nil {
-		return err
-	}
-	for chunkID, err := range iter {
+	if srcSnapshot.Header.Identity.Identifier != uuid.Nil {
+		_, _, err := push(srcSnapshot, dstSnapshot, srcSnapshot.Header.Identifier,
+			resources.RT_SIGNATURE, nil)
 		if err != nil {
 			return err
 		}
-		if !dstRepository.BlobExists(resources.RT_CHUNK, chunkID) {
-			chunkData, err := srcSnapshot.GetBlob(resources.RT_CHUNK, chunkID)
-			if err != nil {
-				return err
-			}
-			dstSnapshot.PutBlob(resources.RT_CHUNK, chunkID, chunkData)
-		}
 	}
 
-	iter, err = srcSnapshot.ListObjects()
-	if err != nil {
-		return err
-	}
-	for objectID, err := range iter {
-		if err != nil {
-			return err
-		}
-		if !dstRepository.BlobExists(resources.RT_OBJECT, objectID) {
-			objectData, err := srcSnapshot.GetBlob(resources.RT_OBJECT, objectID)
-			if err != nil {
-				return err
-			}
-			dstSnapshot.PutBlob(resources.RT_OBJECT, objectID, objectData)
-		}
-	}
-
+	source := srcSnapshot.Header.GetSource(0)
 	fs, err := srcSnapshot.Filesystem()
 	if err != nil {
 		return err
 	}
-
-	iter, err = fs.FileMacs()
-	if err != nil {
+	if err := syncVFS(srcSnapshot, dstSnapshot, fs, source.VFS.Root); err != nil {
 		return err
 	}
-	for entryID, err := range iter {
-		if err != nil {
+	if err := syncErrors(srcSnapshot, dstSnapshot, fs, source.VFS.Errors); err != nil {
+		return err
+	}
+	if err := syncXattr(srcSnapshot, dstSnapshot, fs, source.VFS.Xattrs); err != nil {
+		return err
+	}
+
+	for i := range source.Indexes {
+		if err := syncIndex(srcRepository, srcSnapshot, dstSnapshot, &source.Indexes[i]); err != nil {
 			return err
 		}
-		if !dstRepository.BlobExists(resources.RT_VFS_ENTRY, entryID) {
-			entryData, err := srcSnapshot.GetBlob(resources.RT_VFS_ENTRY, entryID)
-			if err != nil {
-				return err
-			}
-			dstSnapshot.PutBlob(resources.RT_VFS_ENTRY, entryID, entryData)
-		}
-	}
-
-	fsiter := fs.IterNodes()
-	for fsiter.Next() {
-		csum, node := fsiter.Current()
-		if !dstRepository.BlobExists(resources.RT_VFS_BTREE, csum) {
-			bytes, err := msgpack.Marshal(node)
-			if err != nil {
-				return err
-			}
-			dstSnapshot.PutBlob(resources.RT_VFS_BTREE, csum, bytes)
-		}
-	}
-	if err := fsiter.Err(); err != nil {
-		return err
 	}
 
 	return dstSnapshot.Commit()
