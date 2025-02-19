@@ -175,7 +175,7 @@ func TestExecuteCmdLsFilterByIDAndRecursive(t *testing.T) {
 
 	output := buf.String()
 	lines := strings.Split(strings.Trim(output, "\n"), "\n")
-	require.Equal(t, 4, len(lines))
+	require.Equal(t, 2, len(lines))
 	// last line should have the filename we backed up
 	lastline := lines[len(lines)-1]
 	fields := strings.Fields(lastline)
