@@ -45,10 +45,11 @@ func TestRestore(t *testing.T) {
 	}
 	require.NotEmpty(t, filepath)
 
-	err = snap.Restore(exporterInstance, fmt.Sprintf("%s/", exporterInstance.Root()), filepath, opts)
+	err = snap.Restore(exporterInstance, exporterInstance.Root(), filepath, opts)
 	require.NoError(t, err)
 
 	files, err := os.ReadDir(exporterInstance.Root())
+	fmt.Println(files)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(files))
 
