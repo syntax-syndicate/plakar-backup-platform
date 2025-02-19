@@ -193,6 +193,8 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 	}
 
 	if cmd.OptCheck {
+		repo.RebuildState()
+
 		checkOptions := &snapshot.CheckOptions{
 			MaxConcurrency: cmd.Concurrency,
 			FastCheck:      false,
