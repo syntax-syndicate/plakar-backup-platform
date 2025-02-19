@@ -197,7 +197,7 @@ func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 		}
 		opts.Strip = snap.Header.GetSource(0).Importer.Directory
 
-		err = snap.Restore(exporterInstance, exporterInstance.Root(), pattern, opts)
+		err = snap.Restore(exporterInstance, exporterInstance.Root(), pathname, opts)
 
 		if err != nil {
 			return 1, err
@@ -205,7 +205,7 @@ func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 		ctx.GetLogger().Info("%s: restoration of %x:%s at %s completed successfully",
 			cmd.Name(),
 			snap.Header.GetIndexShortID(),
-			pattern,
+			pathname,
 			cmd.Target)
 		snap.Close()
 	}
