@@ -39,17 +39,17 @@ func TestRestore(t *testing.T) {
 	require.NoError(t, err)
 	for pathname, err := range fs.Pathnames() {
 		require.NoError(t, err)
-		fmt.Println(pathname)
 		if strings.Contains(pathname, "dummy.txt") {
 			filepath = pathname
 		}
 	}
 	require.NotEmpty(t, filepath)
 
-	err = snap.Restore(exporterInstance, fmt.Sprintf("%s/", exporterInstance.Root()), filepath, opts)
+	err = snap.Restore(exporterInstance, exporterInstance.Root(), filepath, opts)
 	require.NoError(t, err)
 
 	files, err := os.ReadDir(exporterInstance.Root())
+	fmt.Println(files)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(files))
 
