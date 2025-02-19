@@ -32,7 +32,6 @@ func snapshotRestorePath(snap *Snapshot, fsc *vfs.Filesystem, exp exporter.Expor
 	}
 
 	dest := path.Join(target, strings.TrimPrefix(pathname, opts.Strip))
-
 	if entry.IsDir() {
 		snap.Event(events.DirectoryEvent(snap.Header.Identifier, pathname))
 
@@ -107,6 +106,10 @@ func snapshotRestorePath(snap *Snapshot, fsc *vfs.Filesystem, exp exporter.Expor
 			return
 		}
 		defer rd.Close()
+
+		if err := exp.CreateDirectory(path.Dir(dest)); err != nil {
+			snap.Event(events.FileErrorEvent(snap.Header.Identifier, pathname, err.Error()))
+		}
 
 		if err := exp.StoreFile(dest, rd); err != nil {
 			snap.Event(events.FileErrorEvent(snap.Header.Identifier, pathname, err.Error()))

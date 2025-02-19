@@ -214,8 +214,7 @@ func (cmd *Check) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 
 	failures := false
 	for _, arg := range snapshots {
-		snapshotPrefix, pathname := utils.ParseSnapshotPath(arg)
-		snap, err := utils.OpenSnapshotByPrefix(repo, snapshotPrefix)
+		snap, pathname, err := utils.OpenSnapshotByPath(repo, arg)
 		if err != nil {
 			return 1, err
 		}

@@ -2,7 +2,6 @@ package info
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
@@ -21,12 +20,7 @@ func (cmd *InfoErrors) Name() string {
 }
 
 func (cmd *InfoErrors) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	prefix, pathname := utils.ParseSnapshotID(cmd.SnapshotID)
-	if !strings.HasSuffix(pathname, "/") {
-		pathname = pathname + "/"
-	}
-
-	snap, err := utils.OpenSnapshotByPrefix(repo, prefix)
+	snap, pathname, err := utils.OpenSnapshotByPath(repo, cmd.SnapshotID)
 	if err != nil {
 		return 1, err
 	}

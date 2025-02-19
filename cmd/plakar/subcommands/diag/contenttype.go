@@ -24,18 +24,17 @@ func (cmd *InfoContentType) Name() string {
 }
 
 func (cmd *InfoContentType) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	snapshotPrefix, prefix := utils.ParseSnapshotID(cmd.SnapshotPath)
-	snap, err := utils.OpenSnapshotByPrefix(repo, snapshotPrefix)
+	snap, pathname, err := utils.OpenSnapshotByPath(repo, cmd.SnapshotPath)
 	if err != nil {
 		return 1, err
 	}
 	defer snap.Close()
 
-	if prefix == "" {
-		prefix = "/"
+	if pathname == "" {
+		pathname = "/"
 	}
-	if !strings.HasSuffix(prefix, "/") {
-		prefix += "/"
+	if !strings.HasSuffix(pathname, "/") {
+		pathname += "/"
 	}
 
 	rd, err := repo.GetBlob(resources.RT_BTREE_ROOT, snap.Header.GetSource(0).Indexes[0].Value)
@@ -49,14 +48,14 @@ func (cmd *InfoContentType) Execute(ctx *appcontext.AppContext, repo *repository
 		return 1, err
 	}
 
-	it, err := tree.ScanFrom(prefix)
+	it, err := tree.ScanFrom(pathname)
 	if err != nil {
 		return 1, err
 	}
 
 	for it.Next() {
 		path, _ := it.Current()
-		if !strings.HasPrefix(path, prefix) {
+		if !strings.HasPrefix(path, pathname) {
 			break
 		}
 

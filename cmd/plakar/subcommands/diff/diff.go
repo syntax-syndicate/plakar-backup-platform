@@ -52,17 +52,12 @@ func parse_cmd_diff(ctx *appcontext.AppContext, repo *repository.Repository, arg
 		return nil, fmt.Errorf("needs two snapshot ID and/or snapshot files to diff")
 	}
 
-	snapshotPrefix1, pathname1 := utils.ParseSnapshotID(flags.Arg(0))
-	snapshotPrefix2, pathname2 := utils.ParseSnapshotID(flags.Arg(1))
-
 	return &Diff{
 		RepositoryLocation: repo.Location(),
 		RepositorySecret:   ctx.GetSecret(),
 		Highlight:          opt_highlight,
-		SnapshotPrefix1:    snapshotPrefix1,
-		Pathname1:          pathname1,
-		SnapshotPrefix2:    snapshotPrefix2,
-		Pathname2:          pathname2,
+		SnapshotPath1:      flags.Arg(0),
+		SnapshotPath2:      flags.Arg(1),
 	}, nil
 }
 
@@ -70,11 +65,9 @@ type Diff struct {
 	RepositoryLocation string
 	RepositorySecret   []byte
 
-	Highlight       bool
-	SnapshotPrefix1 string
-	Pathname1       string
-	SnapshotPrefix2 string
-	Pathname2       string
+	Highlight     bool
+	SnapshotPath1 string
+	SnapshotPath2 string
 }
 
 func (cmd *Diff) Name() string {
@@ -82,18 +75,15 @@ func (cmd *Diff) Name() string {
 }
 
 func (cmd *Diff) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	pathname1 := cmd.Pathname1
-	pathname2 := cmd.Pathname2
-
-	snap1, err := utils.OpenSnapshotByPrefix(repo, cmd.SnapshotPrefix1)
+	snap1, pathname1, err := utils.OpenSnapshotByPath(repo, cmd.SnapshotPath1)
 	if err != nil {
-		return 1, fmt.Errorf("diff: could not open snapshot: %s", cmd.SnapshotPrefix1)
+		return 1, fmt.Errorf("diff: could not open snapshot: %s", cmd.SnapshotPath1)
 	}
 	defer snap1.Close()
 
-	snap2, err := utils.OpenSnapshotByPrefix(repo, cmd.SnapshotPrefix2)
+	snap2, pathname2, err := utils.OpenSnapshotByPath(repo, cmd.SnapshotPath2)
 	if err != nil {
-		return 1, fmt.Errorf("diff: could not open snapshot: %s", cmd.SnapshotPrefix2)
+		return 1, fmt.Errorf("diff: could not open snapshot: %s", cmd.SnapshotPath2)
 	}
 	defer snap2.Close()
 

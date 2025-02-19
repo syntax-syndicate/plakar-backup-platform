@@ -80,10 +80,9 @@ func (cmd *Cat) Name() string {
 func (cmd *Cat) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	errors := 0
 	for _, snapPath := range cmd.Paths {
-		snapID, pathname := utils.ParseSnapshotID(snapPath)
-		snap, err := utils.OpenSnapshotByPrefix(repo, snapID)
+		snap, pathname, err := utils.OpenSnapshotByPath(repo, snapPath)
 		if err != nil {
-			ctx.GetLogger().Error("cat: %s: %s", snapID, err)
+			ctx.GetLogger().Error("cat: %s: %s", snapPath, err)
 			errors++
 			continue
 		}

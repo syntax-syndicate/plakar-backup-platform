@@ -26,7 +26,7 @@ func (cmd *InfoSnapshot) Name() string {
 }
 
 func (cmd *InfoSnapshot) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	snap, err := utils.OpenSnapshotByPrefix(repo, cmd.SnapshotID)
+	snap, _, err := utils.OpenSnapshotByPath(repo, cmd.SnapshotID)
 	if err != nil {
 		return 1, err
 	}
