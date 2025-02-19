@@ -19,6 +19,7 @@ package utils
 import (
 	"encoding/hex"
 	"fmt"
+	"path"
 	"sort"
 	"strings"
 	"sync"
@@ -195,6 +196,19 @@ func LocateSnapshotIDs(repo *repository.Repository, opts *LocateOptions) ([]obje
 	return resultSet, nil
 }
 
+func ParseSnapshotPath(snapshotPath string) (string, string) {
+	if strings.HasPrefix(snapshotPath, "/") {
+		return "", snapshotPath
+	}
+	tmp := strings.SplitN(snapshotPath, ":", 2)
+	prefix := snapshotPath
+	pattern := ""
+	if len(tmp) == 2 {
+		prefix, pattern = tmp[0], tmp[1]
+	}
+	return prefix, pattern
+}
+
 func LookupSnapshotByPrefix(repo *repository.Repository, prefix string) []objects.MAC {
 	ret := make([]objects.MAC, 0)
 	for snapshotID := range repo.ListSnapshots() {
@@ -216,10 +230,24 @@ func LocateSnapshotByPrefix(repo *repository.Repository, prefix string) (objects
 	return snapshots[0], nil
 }
 
-func OpenSnapshotByPrefix(repo *repository.Repository, prefix string) (*snapshot.Snapshot, error) {
+func OpenSnapshotByPath(repo *repository.Repository, snapshotPath string) (*snapshot.Snapshot, string, error) {
+	prefix, pathname := ParseSnapshotPath(snapshotPath)
+
 	snapshotID, err := LocateSnapshotByPrefix(repo, prefix)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return snapshot.Load(repo, snapshotID)
+
+	snap, err := snapshot.Load(repo, snapshotID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var snapRoot string
+	if strings.HasPrefix(pathname, "/") {
+		snapRoot = pathname
+	} else {
+		snapRoot = path.Clean(path.Join(snap.Header.GetSource(0).Importer.Directory, pathname))
+	}
+	return snap, path.Clean(snapRoot), err
 }
