@@ -44,6 +44,7 @@ func init() {
 }
 
 func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+	var opt_hashing string
 	var opt_noencryption bool
 	var opt_nocompression bool
 	var opt_allowweak bool
@@ -57,6 +58,7 @@ func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, a
 	}
 
 	flags.BoolVar(&opt_allowweak, "weak-passphrase", false, "allow weak passphrase to protect the repository")
+	flags.StringVar(&opt_hashing, "hashing", hashing.DEFAULT_HASHING_ALGORITHM, "hashing algorithm to use for digests")
 	flags.BoolVar(&opt_noencryption, "no-encryption", false, "disable transparent encryption")
 	flags.BoolVar(&opt_nocompression, "no-compression", false, "disable transparent compression")
 	flags.Parse(args)
@@ -65,9 +67,13 @@ func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, a
 		return nil, fmt.Errorf("%s: too many parameters", flag.CommandLine.Name())
 	}
 
+	if hashing.GetHasher(strings.ToUpper(opt_hashing)) == nil {
+		return nil, fmt.Errorf("%s: unknown hashing algorithm", flag.CommandLine.Name())
+	}
+
 	return &Create{
 		AllowWeak:     opt_allowweak,
-		Hashing:       hashing.DEFAULT_HASHING_ALGORITHM,
+		Hashing:       opt_hashing,
 		NoEncryption:  opt_noencryption,
 		NoCompression: opt_nocompression,
 		Location:      repo.Location(),
