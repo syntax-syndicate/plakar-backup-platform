@@ -18,6 +18,7 @@ type Logger struct {
 	stderrLogger      *log.Logger
 	infoLogger        *log.Logger
 	warnLogger        *log.Logger
+	errorLogger       *log.Logger
 	debugLogger       *log.Logger
 	traceLogger       *log.Logger
 }
@@ -29,9 +30,10 @@ func NewLogger(stdout io.Writer, stderr io.Writer) *Logger {
 		stdoutLogger:    log.NewWithOptions(stdout, log.Options{}),
 		stderrLogger:    log.NewWithOptions(stderr, log.Options{}),
 		infoLogger:      log.NewWithOptions(stdout, log.Options{ReportTimestamp: true, Level: log.InfoLevel, Prefix: "info", TimeFormat: time.RFC3339}),
-		warnLogger:      log.NewWithOptions(stderr, log.Options{ReportTimestamp: true, Level: log.InfoLevel, Prefix: "warn", TimeFormat: time.RFC3339}),
-		debugLogger:     log.NewWithOptions(stdout, log.Options{ReportTimestamp: true, Level: log.InfoLevel, Prefix: "debug", TimeFormat: time.RFC3339}),
-		traceLogger:     log.NewWithOptions(stdout, log.Options{ReportTimestamp: true, Level: log.InfoLevel, Prefix: "trace", TimeFormat: time.RFC3339}),
+		warnLogger:      log.NewWithOptions(stderr, log.Options{ReportTimestamp: true, Level: log.WarnLevel, Prefix: "warn", TimeFormat: time.RFC3339}),
+		debugLogger:     log.NewWithOptions(stdout, log.Options{ReportTimestamp: true, Level: log.DebugLevel, Prefix: "debug", TimeFormat: time.RFC3339}),
+		traceLogger:     log.NewWithOptions(stdout, log.Options{ReportTimestamp: true, Level: log.DebugLevel, Prefix: "trace", TimeFormat: time.RFC3339}),
+		errorLogger:     log.NewWithOptions(stdout, log.Options{ReportTimestamp: true, Level: log.ErrorLevel, Prefix: "error", TimeFormat: time.RFC3339}),
 		traceSubsystems: make(map[string]bool),
 	}
 }
@@ -41,6 +43,7 @@ func (l *Logger) SetOutput(w io.Writer) {
 	l.stderrLogger.SetOutput(w)
 	l.infoLogger.SetOutput(w)
 	l.warnLogger.SetOutput(w)
+	l.errorLogger.SetOutput(w)
 	l.debugLogger.SetOutput(w)
 	l.traceLogger.SetOutput(w)
 }
@@ -68,7 +71,7 @@ func (l *Logger) Warn(format string, args ...interface{}) {
 }
 
 func (l *Logger) Error(format string, args ...interface{}) {
-	l.stderrLogger.Printf(format, args...)
+	l.errorLogger.Printf(format, args...)
 }
 
 func (l *Logger) Debug(format string, args ...interface{}) {

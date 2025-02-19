@@ -268,7 +268,7 @@ func (s *Scheduler) syncTask(taskset TaskSet, task SyncConfig) error {
 
 			store, config, err := storage.Open(syncSubcommand.SourceRepositoryLocation)
 			if err != nil {
-				s.ctx.GetLogger().Error("Error opening storage: %s", err)
+				s.ctx.GetLogger().Error("sync: error opening storage: %s", err)
 				continue
 			}
 
@@ -276,14 +276,14 @@ func (s *Scheduler) syncTask(taskset TaskSet, task SyncConfig) error {
 
 			repo, err := repository.New(newCtx, store, config)
 			if err != nil {
-				s.ctx.GetLogger().Error("Error opening repository: %s", err)
+				s.ctx.GetLogger().Error("sync: error opening repository: %s", err)
 				store.Close()
 				continue
 			}
 
 			retval, err := syncSubcommand.Execute(newCtx, repo)
 			if err != nil || retval != 0 {
-				s.ctx.GetLogger().Error("Error executing sync: %s", err)
+				s.ctx.GetLogger().Error("sync: %s", err)
 			}
 
 			newCtx.Close()
