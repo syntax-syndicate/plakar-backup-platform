@@ -174,7 +174,7 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		}
 		imp, err = importer.NewImporter("fs://" + scanDir)
 		if err != nil {
-			return 1, fmt.Errorf("failed to create an import for %s: %s", scanDir, err)
+			return 1, fmt.Errorf("failed to create an importer for %s: %s", scanDir, err)
 		}
 	}
 
@@ -192,12 +192,20 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 	}
 
 	if cmd.OptCheck {
+		repo.RebuildState()
+
 		checkOptions := &snapshot.CheckOptions{
 			MaxConcurrency: cmd.Concurrency,
 			FastCheck:      false,
 		}
-		repo.RebuildState()
-		ok, err := snap.Check("/", checkOptions)
+
+		checkSnap, err := snapshot.Load(repo, snap.Header.Identifier)
+		if err != nil {
+			return 1, fmt.Errorf("failed to load snapshot: %w", err)
+		}
+		defer checkSnap.Close()
+
+		ok, err := checkSnap.Check("/", checkOptions)
 		if err != nil {
 			return 1, fmt.Errorf("failed to check snapshot: %w", err)
 		}
