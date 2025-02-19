@@ -316,7 +316,7 @@ func recpush(src *snapshot.Snapshot, dst *snapshot.Snapshot, mac objects.MAC, rt
 		}
 
 		for _, chunk := range object.Chunks {
-			err := recpush(src, dst, chunk.MAC, resources.RT_CHUNK, nil)
+			err := recpush(src, dst, chunk.ContentMAC, resources.RT_CHUNK, nil)
 			if err != nil {
 				return err
 			}

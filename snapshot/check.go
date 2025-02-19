@@ -71,52 +71,52 @@ func snapshotCheckPath(snap *Snapshot, fsc *vfs.Filesystem, pathname string, opt
 		}
 
 		hasher := snap.repository.GetMACHasher()
-		snap.Event(events.ObjectEvent(snap.Header.Identifier, object.MAC))
+		snap.Event(events.ObjectEvent(snap.Header.Identifier, object.ContentMAC))
 		complete := true
 		for _, chunk := range object.Chunks {
-			snap.Event(events.ChunkEvent(snap.Header.Identifier, chunk.MAC))
+			snap.Event(events.ChunkEvent(snap.Header.Identifier, chunk.ContentMAC))
 			if opts.FastCheck {
-				exists := snap.BlobExists(resources.RT_CHUNK, chunk.MAC)
+				exists := snap.BlobExists(resources.RT_CHUNK, chunk.ContentMAC)
 				if !exists {
-					snap.Event(events.ChunkMissingEvent(snap.Header.Identifier, chunk.MAC))
+					snap.Event(events.ChunkMissingEvent(snap.Header.Identifier, chunk.ContentMAC))
 					complete = false
 					break
 				}
-				snap.Event(events.ChunkOKEvent(snap.Header.Identifier, chunk.MAC))
+				snap.Event(events.ChunkOKEvent(snap.Header.Identifier, chunk.ContentMAC))
 			} else {
-				exists := snap.BlobExists(resources.RT_CHUNK, chunk.MAC)
+				exists := snap.BlobExists(resources.RT_CHUNK, chunk.ContentMAC)
 				if !exists {
-					snap.Event(events.ChunkMissingEvent(snap.Header.Identifier, chunk.MAC))
+					snap.Event(events.ChunkMissingEvent(snap.Header.Identifier, chunk.ContentMAC))
 					complete = false
 					break
 				}
-				data, err := snap.GetBlob(resources.RT_CHUNK, chunk.MAC)
+				data, err := snap.GetBlob(resources.RT_CHUNK, chunk.ContentMAC)
 				if err != nil {
-					snap.Event(events.ChunkMissingEvent(snap.Header.Identifier, chunk.MAC))
+					snap.Event(events.ChunkMissingEvent(snap.Header.Identifier, chunk.ContentMAC))
 					complete = false
 					break
 				}
-				snap.Event(events.ChunkOKEvent(snap.Header.Identifier, chunk.MAC))
+				snap.Event(events.ChunkOKEvent(snap.Header.Identifier, chunk.ContentMAC))
 
 				hasher.Write(data)
 
 				mac := snap.repository.ComputeMAC(data)
-				if !bytes.Equal(mac[:], chunk.MAC[:]) {
-					snap.Event(events.ChunkCorruptedEvent(snap.Header.Identifier, chunk.MAC))
+				if !bytes.Equal(mac[:], chunk.ContentMAC[:]) {
+					snap.Event(events.ChunkCorruptedEvent(snap.Header.Identifier, chunk.ContentMAC))
 					complete = false
 					break
 				}
 			}
 		}
 		if !complete {
-			snap.Event(events.ObjectCorruptedEvent(snap.Header.Identifier, object.MAC))
+			snap.Event(events.ObjectCorruptedEvent(snap.Header.Identifier, object.ContentMAC))
 		} else {
-			snap.Event(events.ObjectOKEvent(snap.Header.Identifier, object.MAC))
+			snap.Event(events.ObjectOKEvent(snap.Header.Identifier, object.ContentMAC))
 		}
 
 		if !opts.FastCheck {
-			if !bytes.Equal(hasher.Sum(nil), object.MAC[:]) {
-				snap.Event(events.ObjectCorruptedEvent(snap.Header.Identifier, object.MAC))
+			if !bytes.Equal(hasher.Sum(nil), object.ContentMAC[:]) {
+				snap.Event(events.ObjectCorruptedEvent(snap.Header.Identifier, object.ContentMAC))
 				snap.Event(events.FileCorruptedEvent(snap.Header.Identifier, pathname))
 				return
 			}

@@ -31,19 +31,13 @@ type Xattr struct {
 	ResolvedObject *objects.Object `msgpack:"-" json:"object,omitempty"`
 }
 
-func NewXattr(record *importer.ScanRecord, object *objects.Object) *Xattr {
-	var size int64
-
-	for _, chunk := range object.Chunks {
-		size += int64(chunk.Length)
-	}
-
+func NewXattr(record *importer.ScanRecord, objectMAC objects.MAC, size int64) *Xattr {
 	return &Xattr{
 		Version: versioning.FromString(VFS_XATTR_VERSION),
 		Path:    record.Pathname,
 		Name:    record.XattrName,
 		Type:    record.XattrType,
-		Object:  object.MAC,
+		Object:  objectMAC,
 		Size:    size,
 	}
 }

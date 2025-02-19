@@ -70,8 +70,8 @@ func (bc *BackupContext) recordError(path string, err error) error {
 	return e
 }
 
-func (bc *BackupContext) recordXattr(record *importer.ScanRecord, object *objects.Object) error {
-	xattr := vfs.NewXattr(record, object)
+func (bc *BackupContext) recordXattr(record *importer.ScanRecord, objectMAC objects.MAC, size int64) error {
+	xattr := vfs.NewXattr(record, objectMAC, size)
 	bc.muxattridx.Lock()
 	err := bc.xattridx.Insert(xattr.ToPath(), xattr)
 	bc.muxattridx.Unlock()
@@ -291,6 +291,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 
 			var fileEntry *vfs.Entry
 			var object *objects.Object
+			var objectMAC objects.MAC
 
 			var cachedFileEntry *vfs.Entry
 			var cachedFileEntryMAC objects.MAC
@@ -311,6 +312,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 							if err != nil {
 								snap.Logger().Warn("VFS CACHE: Error getting object: %v", err)
 							} else if data != nil {
+								objectMAC = snap.Repository().ComputeMAC(data)
 								cachedObject, err := objects.NewObjectFromBytes(data)
 								if err != nil {
 									snap.Logger().Warn("VFS CACHE: Error unmarshaling object: %v", err)
@@ -325,7 +327,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 
 			// Chunkify the file if it is a regular file and we don't have a cached object
 			if record.FileInfo.Mode().IsRegular() {
-				if object == nil || !snap.BlobExists(resources.RT_OBJECT, object.MAC) {
+				if object == nil || !snap.BlobExists(resources.RT_OBJECT, objectMAC) {
 					object, err = snap.chunkify(imp, cf, record)
 					if err != nil {
 						backupCtx.recordError(record.Pathname, err)
@@ -337,8 +339,8 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
-
-					if err := vfsCache.PutObject(object.MAC, serializedObject); err != nil {
+					objectMAC = snap.repository.ComputeMAC(serializedObject)
+					if err := vfsCache.PutObject(objectMAC, serializedObject); err != nil {
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
@@ -346,13 +348,14 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			}
 
 			if object != nil {
-				if !snap.BlobExists(resources.RT_OBJECT, object.MAC) {
+				if !snap.BlobExists(resources.RT_OBJECT, objectMAC) {
 					data, err := object.Serialize()
 					if err != nil {
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
-					err = snap.PutBlob(resources.RT_OBJECT, object.MAC, data)
+					objectMAC = snap.repository.ComputeMAC(data)
+					err = snap.PutBlob(resources.RT_OBJECT, objectMAC, data)
 					if err != nil {
 						backupCtx.recordError(record.Pathname, err)
 						return
@@ -362,7 +365,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 
 			// xattrs are a special case
 			if record.IsXattr {
-				backupCtx.recordXattr(record, object)
+				backupCtx.recordXattr(record, objectMAC, object.Size())
 				return
 			}
 
@@ -372,7 +375,7 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 			} else {
 				fileEntry = vfs.NewEntry(path.Dir(record.Pathname), record)
 				if object != nil {
-					fileEntry.Object = object.MAC
+					fileEntry.Object = objectMAC
 				}
 
 				classifications := cf.Processor(record.Pathname).File(fileEntry)
@@ -773,7 +776,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 			}
 		}
 		chunk := objects.NewChunk()
-		chunk.MAC = chunk_t32
+		chunk.ContentMAC = chunk_t32
 		chunk.Length = uint32(len(data))
 		chunk.Entropy = entropyScore
 
@@ -783,8 +786,8 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 		totalEntropy += chunk.Entropy * float64(len(data))
 		totalDataSize += uint64(len(data))
 
-		if !snap.BlobExists(resources.RT_CHUNK, chunk.MAC) {
-			return snap.PutBlob(resources.RT_CHUNK, chunk.MAC, data)
+		if !snap.BlobExists(resources.RT_CHUNK, chunk.ContentMAC) {
+			return snap.PutBlob(resources.RT_CHUNK, chunk.ContentMAC, data)
 		}
 		return nil
 	}
@@ -833,7 +836,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 	}
 
 	copy(object_t32[:], objectHasher.Sum(nil))
-	object.MAC = object_t32
+	object.ContentMAC = object_t32
 	return object, nil
 }
 

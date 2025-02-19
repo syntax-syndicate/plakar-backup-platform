@@ -51,11 +51,11 @@ func (cmd *InfoObject) Execute(ctx *appcontext.AppContext, repo *repository.Repo
 		return 1, err
 	}
 
-	fmt.Fprintf(ctx.Stdout, "object: %x\n", object.MAC)
+	fmt.Fprintf(ctx.Stdout, "object: %x\n", object.ContentMAC)
 	fmt.Fprintln(ctx.Stdout, "  type:", object.ContentType)
 	fmt.Fprintln(ctx.Stdout, "  chunks:")
 	for _, chunk := range object.Chunks {
-		fmt.Fprintf(ctx.Stdout, "    MAC: %x\n", chunk.MAC)
+		fmt.Fprintf(ctx.Stdout, "    MAC: %x\n", chunk.ContentMAC)
 	}
 	return 0, nil
 }

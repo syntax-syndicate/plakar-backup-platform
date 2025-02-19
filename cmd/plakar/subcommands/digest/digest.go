@@ -139,7 +139,7 @@ func (cmd *Digest) displayDigests(ctx *appcontext.AppContext, fs *vfs.Filesystem
 		return err
 	}
 
-	digest := []byte(object.MAC[:])
+	digest := []byte(object.ContentMAC[:])
 	if !fastcheck {
 		rd, err := snap.NewReader(pathname)
 		if err != nil {
