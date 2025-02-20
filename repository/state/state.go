@@ -743,13 +743,17 @@ func (ls *LocalState) ListObjectsOfType(Type resources.Type) iter.Seq2[DeltaEntr
 
 }
 
-func (ls *LocalState) DeleteSnapshot(snapshotID objects.MAC) error {
+func (ls *LocalState) DeleteResource(rtype resources.Type, resource objects.MAC) error {
 	de := DeletedEntry{
-		Type: resources.RT_SNAPSHOT,
-		Blob: snapshotID,
+		Type: rtype,
+		Blob: resource,
 		When: time.Now(),
 	}
-	return ls.cache.PutDeleted(resources.RT_SNAPSHOT, snapshotID, de.ToBytes())
+	return ls.cache.PutDeleted(de.Type, de.Blob, de.ToBytes())
+}
+
+func (ls *LocalState) HasDeletedResource(rtype resources.Type, resource objects.MAC) (bool, error) {
+	return ls.cache.HasDeleted(rtype, resource)
 }
 
 // Public function to insert a new configuration, beware this is to be

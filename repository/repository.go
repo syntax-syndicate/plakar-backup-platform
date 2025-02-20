@@ -390,7 +390,7 @@ func (r *Repository) DeleteSnapshot(snapshotID objects.MAC) error {
 	}
 	deltaState := r.state.Derive(sc)
 
-	ret := deltaState.DeleteSnapshot(snapshotID)
+	ret := deltaState.DeleteResource(resources.RT_SNAPSHOT, snapshotID)
 	if ret != nil {
 		return ret
 	}
@@ -590,6 +590,15 @@ func (r *Repository) DeletePackfile(mac objects.MAC) error {
 	return r.store.DeletePackfile(mac)
 }
 
+func (r *Repository) HasDeletedPackfile(mac objects.MAC) (bool, error) {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "HasDeletedPackfile(%x): %s", mac, time.Since(t0))
+	}()
+
+	return r.state.HasDeletedResource(resources.RT_PACKFILE, mac)
+}
+
 func (r *Repository) GetPackfileForBlob(Type resources.Type, mac objects.MAC) (packfile objects.MAC, exists bool) {
 	t0 := time.Now()
 	defer func() {
@@ -615,7 +624,16 @@ func (r *Repository) GetBlob(Type resources.Type, mac objects.MAC) (io.ReadSeeke
 		return nil, ErrPackfileNotFound
 	}
 
-	rd, err := r.GetPackfileBlob(loc)
+	has, err := r.HasDeletedPackfile(packfileMAC)
+	if err != nil {
+		return nil, err
+	}
+
+	if has {
+		panic(fmt.Sprintf("Cleanup was too eager, we have a referenced blob (%x) in a deleted packfile (%x)\n", mac, packfileMAC))
+	}
+
+	rd, err := r.GetPackfileBlob(packfileMAC, offset, length)
 	if err != nil {
 		return nil, err
 	}
