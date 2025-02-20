@@ -207,7 +207,6 @@ func (cmd *Ls) list_snapshot(ctx *appcontext.AppContext, repo *repository.Reposi
 		return err
 	}
 	defer snap.Close()
-	fmt.Println("patnname", pathname)
 
 	pvfs, err := snap.Filesystem()
 	if err != nil {
