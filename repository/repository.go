@@ -598,7 +598,6 @@ func (r *Repository) GetBlob(Type resources.Type, mac objects.MAC) (io.ReadSeeke
 
 	loc, exists, err := r.state.GetSubpartForBlob(Type, mac)
 	if err != nil {
-		fmt.Printf("WE ARE FAILING WITH %s\n", err)
 		return nil, err
 	}
 
