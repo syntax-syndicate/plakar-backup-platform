@@ -144,6 +144,11 @@ func entryPoint() int {
 	ctx.CWD = cwd
 	ctx.KeyringDir = filepath.Join(opt_userDefault.HomeDir, ".plakar-keyring")
 
+	_, envAgentLess := os.LookupEnv("PLAKAR_AGENTLESS")
+	if envAgentLess {
+		opt_agentless = true
+	}
+
 	cacheSubDir := "plakar"
 	if opt_agentless {
 		cacheSubDir = "plakar-agentless"
