@@ -122,32 +122,16 @@ func (c *_RepositoryCache) GetStates() (map[objects.MAC][]byte, error) {
 	return ret, nil
 }
 
-func (c *_RepositoryCache) GetDelta(blobType resources.Type, blobCsum objects.MAC) ([]byte, error) {
-	return c.get("__delta__", fmt.Sprintf("%d:%x", blobType, blobCsum))
+func (c *_RepositoryCache) GetDelta(blobType resources.Type, blobCsum objects.MAC) iter.Seq2[objects.MAC, []byte] {
+	return c.getObjects(fmt.Sprintf("__delta__:%d:%x:", blobType, blobCsum))
 }
 
 func (c *_RepositoryCache) HasDelta(blobType resources.Type, blobCsum objects.MAC) (bool, error) {
 	return c.has("__delta__", fmt.Sprintf("%d:%x", blobType, blobCsum))
 }
 
-func (c *_RepositoryCache) GetDeltaByCsum(blobCsum objects.MAC) ([]byte, error) {
-	for typ := resources.RT_SNAPSHOT; typ <= resources.RT_ERROR_ENTRY; typ++ {
-		ret, err := c.GetDelta(typ, blobCsum)
-
-		if err != nil {
-			return nil, err
-		}
-
-		if ret != nil {
-			return ret, nil
-		}
-	}
-
-	return nil, nil
-}
-
-func (c *_RepositoryCache) PutDelta(blobType resources.Type, blobCsum objects.MAC, data []byte) error {
-	return c.put("__delta__", fmt.Sprintf("%d:%x", blobType, blobCsum), data)
+func (c *_RepositoryCache) PutDelta(blobType resources.Type, blobCsum, packfile objects.MAC, data []byte) error {
+	return c.put("__delta__", fmt.Sprintf("%d:%x:%x", blobType, blobCsum, packfile), data)
 }
 
 func (c *_RepositoryCache) GetDeltasByType(blobType resources.Type) iter.Seq2[objects.MAC, []byte] {
@@ -190,16 +174,16 @@ func (c *_RepositoryCache) GetDeleteds() iter.Seq2[objects.MAC, []byte] {
 	return c.getObjects("__deleted__:")
 }
 
-func (c *_RepositoryCache) PutPackfile(stateID, packfile objects.MAC, data []byte) error {
-	return c.put("__packfile__", fmt.Sprintf("%x:%x", stateID, packfile), data)
+func (c *_RepositoryCache) PutPackfile(packfile objects.MAC, data []byte) error {
+	return c.put("__packfile__", fmt.Sprintf("%x", packfile), data)
+}
+
+func (c *_RepositoryCache) HasPackfile(packfile objects.MAC) (bool, error) {
+	return c.has("__packfile__", fmt.Sprintf("%x", packfile))
 }
 
 func (c *_RepositoryCache) GetPackfiles() iter.Seq2[objects.MAC, []byte] {
 	return c.getObjects("__packfile__:")
-}
-
-func (c *_RepositoryCache) GetPackfilesForState(stateID objects.MAC) iter.Seq2[objects.MAC, []byte] {
-	return c.getObjects(fmt.Sprintf("__packfile__:%x", stateID))
 }
 
 func (c *_RepositoryCache) PutConfiguration(key string, data []byte) error {

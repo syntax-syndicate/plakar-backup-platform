@@ -31,7 +31,7 @@ func (or *ObjectReader) Read(p []byte) (int, error) {
 	for or.objoff < len(or.object.Chunks) {
 		if or.rd == nil {
 			rd, err := or.repo.GetBlob(resources.RT_CHUNK,
-				or.object.Chunks[or.objoff].MAC)
+				or.object.Chunks[or.objoff].ContentMAC)
 			if err != nil {
 				return -1, err
 			}
@@ -67,7 +67,7 @@ func (or *ObjectReader) Seek(offset int64, whence int) (int64, error) {
 			}
 			or.off += offset
 			rd, err := or.repo.GetBlob(resources.RT_CHUNK,
-				chunks[or.objoff].MAC)
+				chunks[or.objoff].ContentMAC)
 			if err != nil {
 				return 0, err
 			}
@@ -90,7 +90,7 @@ func (or *ObjectReader) Seek(offset int64, whence int) (int64, error) {
 			}
 			or.off -= offset
 			rd, err := or.repo.GetBlob(resources.RT_CHUNK,
-				chunks[or.objoff].MAC)
+				chunks[or.objoff].ContentMAC)
 			if err != nil {
 				return 0, err
 			}
@@ -125,7 +125,7 @@ func (or *ObjectReader) Seek(offset int64, whence int) (int64, error) {
 			}
 			or.off += offset
 			rd, err := or.repo.GetBlob(resources.RT_CHUNK,
-				chunks[or.objoff].MAC)
+				chunks[or.objoff].ContentMAC)
 			if err != nil {
 				return 0, err
 			}
