@@ -40,7 +40,7 @@ func TestObjectNew(t *testing.T) {
 	object := NewObject()
 
 	require.NotNil(t, object)
-	require.NotNil(t, object.MAC)
+	require.NotNil(t, object.ContentMAC)
 	require.Nil(t, object.Chunks)
 	require.Equal(t, "", object.ContentType)
 	require.Equal(t, float64(0), object.Entropy)

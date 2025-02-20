@@ -45,11 +45,19 @@ func (m *MAC) UnmarshalJSON(data []byte) error {
 
 type Object struct {
 	Version     versioning.Version `msgpack:"version" json:"version"`
-	MAC         MAC                `msgpack:"MAC" json:"MAC"`
+	ContentMAC  MAC                `msgpack:"contentMAC" json:"contentMAC"`
 	Chunks      []Chunk            `msgpack:"chunks" json:"chunks"`
 	ContentType string             `msgpack:"content_type,omitempty" json:"content_type"`
 	Entropy     float64            `msgpack:"entropy,omitempty" json:"entropy"`
 	Flags       uint32             `msgpack:"flags" json:"flags"`
+}
+
+func (o *Object) Size() int64 {
+	var size int64
+	for _, chunk := range o.Chunks {
+		size += int64(chunk.Length)
+	}
+	return size
 }
 
 // Return empty lists for nil slices.
@@ -84,11 +92,11 @@ func (o *Object) Serialize() ([]byte, error) {
 }
 
 type Chunk struct {
-	Version versioning.Version `msgpack:"version" json:"version"`
-	MAC     MAC                `msgpack:"MAC" json:"MAC"`
-	Length  uint32             `msgpack:"length" json:"length"`
-	Entropy float64            `msgpack:"entropy" json:"entropy"`
-	Flags   uint32             `msgpack:"flags" json:"flags"`
+	Version    versioning.Version `msgpack:"version" json:"version"`
+	ContentMAC MAC                `msgpack:"contentMAC" json:"contentMAC"`
+	Length     uint32             `msgpack:"length" json:"length"`
+	Entropy    float64            `msgpack:"entropy" json:"entropy"`
+	Flags      uint32             `msgpack:"flags" json:"flags"`
 }
 
 func NewChunk() *Chunk {

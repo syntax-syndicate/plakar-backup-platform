@@ -125,9 +125,13 @@ func (snap *Snapshot) GetBlob(Type resources.Type, mac [32]byte) ([]byte, error)
 	// XXX: Temporary workaround, once the state API changes to get from both sources (delta+aggregated state)
 	// we can remove this hack.
 	if snap.deltaState != nil {
-		packfilemac, offset, length, exists := snap.deltaState.GetSubpartForBlob(Type, mac)
+		loc, exists, err := snap.deltaState.GetSubpartForBlob(Type, mac)
+		if err != nil {
+			return nil, err
+		}
+
 		if exists {
-			rd, err := snap.repository.GetPackfileBlob(packfilemac, offset, length)
+			rd, err := snap.repository.GetPackfileBlob(loc)
 			if err != nil {
 				return nil, err
 			}
