@@ -19,9 +19,11 @@ type StateCache interface {
 	HasDelta(blobType resources.Type, blobCsum objects.MAC) (bool, error)
 	GetDeltasByType(blobType resources.Type) iter.Seq2[objects.MAC, []byte]
 	GetDeltas() iter.Seq2[objects.MAC, []byte]
+	DelDelta(blobType resources.Type, blobCsum objects.MAC) error
 
 	PutDeleted(blobType resources.Type, blobCsum objects.MAC, data []byte) error
 	HasDeleted(blobType resources.Type, blobCsum objects.MAC) (bool, error)
+	GetDeletedsByType(blobType resources.Type) iter.Seq2[objects.MAC, []byte]
 	GetDeleteds() iter.Seq2[objects.MAC, []byte]
 
 	PutPackfile(packfile objects.MAC, data []byte) error

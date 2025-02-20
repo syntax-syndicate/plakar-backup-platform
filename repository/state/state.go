@@ -625,6 +625,10 @@ func (ls *LocalState) PutDelta(de DeltaEntry) error {
 	return ls.cache.PutDelta(de.Type, de.Blob, de.Location.Packfile, de.ToBytes())
 }
 
+func (ls *LocalState) DelDelta(Type resources.Type, blobMAC objects.MAC) error {
+	return ls.cache.DelDelta(Type, blobMAC)
+}
+
 func (ls *LocalState) BlobExists(Type resources.Type, blobMAC objects.MAC) bool {
 	for _, buf := range ls.cache.GetDelta(Type, blobMAC) {
 		de, err := DeltaEntryFromBytes(buf)
@@ -797,6 +801,18 @@ func (ls *LocalState) insertOrUpdateConfiguration(ce ConfigurationEntry) error {
 	}
 
 	return nil
+}
+
+func (ls *LocalState) ListDeletedResources(rtype resources.Type) iter.Seq2[DeletedEntry, error] {
+	return func(yield func(DeletedEntry, error) bool) {
+		for _, buf := range ls.cache.GetDeletedsByType(rtype) {
+			de, err := DeletedEntryFromBytes(buf)
+
+			if !yield(de, err) {
+				return
+			}
+		}
+	}
 }
 
 func (mt *Metadata) ToBytes() ([]byte, error) {
