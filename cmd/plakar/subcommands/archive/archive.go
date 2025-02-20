@@ -92,10 +92,9 @@ func (cmd *Archive) Name() string {
 }
 
 func (cmd *Archive) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	snapshotPrefix, pathname := utils.ParseSnapshotID(cmd.SnapshotPrefix)
-	snap, err := utils.OpenSnapshotByPrefix(repo, snapshotPrefix)
+	snap, pathname, err := utils.OpenSnapshotByPath(repo, cmd.SnapshotPrefix)
 	if err != nil {
-		return 1, fmt.Errorf("archive: could not open snapshot: %s", snapshotPrefix)
+		return 1, fmt.Errorf("archive: could not open snapshot: %s", cmd.SnapshotPrefix)
 	}
 	defer snap.Close()
 

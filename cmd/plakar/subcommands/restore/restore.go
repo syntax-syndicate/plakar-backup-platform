@@ -191,14 +191,22 @@ func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 	}
 
 	for _, snapPath := range snapshots {
-		prefix, pattern := utils.ParseSnapshotPath(snapPath)
-		snap, err := utils.OpenSnapshotByPrefix(repo, prefix)
+		snap, pathname, err := utils.OpenSnapshotByPath(repo, snapPath)
 		if err != nil {
 			return 1, err
 		}
 		opts.Strip = snap.Header.GetSource(0).Importer.Directory
 
-		snap.Restore(exporterInstance, exporterInstance.Root(), pattern, opts)
+		err = snap.Restore(exporterInstance, exporterInstance.Root(), pathname, opts)
+
+		if err != nil {
+			return 1, err
+		}
+		ctx.GetLogger().Info("%s: restoration of %x:%s at %s completed successfully",
+			cmd.Name(),
+			snap.Header.GetIndexShortID(),
+			pathname,
+			cmd.Target)
 		snap.Close()
 	}
 	return 0, nil
