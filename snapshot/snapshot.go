@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"runtime"
 	"time"
 
@@ -202,60 +203,6 @@ func (snap *Snapshot) LookupObject(mac objects.MAC) (*objects.Object, error) {
 	return objects.NewObjectFromBytes(buffer)
 }
 
-func (snap *Snapshot) ListChunks() (iter.Seq2[objects.MAC, error], error) {
-	fs, err := snap.Filesystem()
-	if err != nil {
-		return nil, err
-	}
-	return func(yield func(objects.MAC, error) bool) {
-		for filename, err := range fs.Files() {
-			if err != nil {
-				yield(objects.MAC{}, err)
-				return
-			}
-			fsentry, err := fs.GetEntry(filename)
-			if err != nil {
-				yield(objects.MAC{}, err)
-				return
-			}
-			if fsentry.ResolvedObject == nil {
-				continue
-			}
-			for _, chunk := range fsentry.ResolvedObject.Chunks {
-				if !yield(chunk.MAC, nil) {
-					return
-				}
-			}
-		}
-	}, nil
-}
-
-func (snap *Snapshot) ListObjects() (iter.Seq2[objects.MAC, error], error) {
-	fs, err := snap.Filesystem()
-	if err != nil {
-		return nil, err
-	}
-	return func(yield func(objects.MAC, error) bool) {
-		for filename, err := range fs.Files() {
-			if err != nil {
-				yield(objects.MAC{}, err)
-				return
-			}
-			fsentry, err := fs.GetEntry(filename)
-			if err != nil {
-				yield(objects.MAC{}, err)
-				return
-			}
-			if fsentry.ResolvedObject == nil {
-				continue
-			}
-			if !yield(fsentry.Object, nil) {
-				return
-			}
-		}
-	}, nil
-}
-
 func (snap *Snapshot) ListPackfiles() (iter.Seq2[objects.MAC, error], error) {
 	pvfs, err := snap.Filesystem()
 	if err != nil {
@@ -263,8 +210,8 @@ func (snap *Snapshot) ListPackfiles() (iter.Seq2[objects.MAC, error], error) {
 	}
 
 	return func(yield func(objects.MAC, error) bool) {
-		packfile, exists := snap.repository.GetPackfileForBlob(resources.RT_SNAPSHOT, snap.Header.Identifier)
-		if !exists {
+		packfile, exists, err := snap.repository.GetPackfileForBlob(resources.RT_SNAPSHOT, snap.Header.Identifier)
+		if !exists || err != nil {
 			if !yield(objects.MAC{}, fmt.Errorf("snapshot packfile not found")) {
 				return
 			}
@@ -274,8 +221,8 @@ func (snap *Snapshot) ListPackfiles() (iter.Seq2[objects.MAC, error], error) {
 		}
 
 		if snap.Header.Identity.Identifier != uuid.Nil {
-			packfile, exists := snap.repository.GetPackfileForBlob(resources.RT_SIGNATURE, snap.Header.Identifier)
-			if !exists {
+			packfile, exists, err := snap.repository.GetPackfileForBlob(resources.RT_SIGNATURE, snap.Header.Identifier)
+			if !exists || err != nil {
 				if !yield(objects.MAC{}, fmt.Errorf("snapshot packfile not found")) {
 					return
 				}
@@ -285,8 +232,8 @@ func (snap *Snapshot) ListPackfiles() (iter.Seq2[objects.MAC, error], error) {
 			}
 		}
 
-		packfile, exists = snap.repository.GetPackfileForBlob(resources.RT_VFS_BTREE, snap.Header.Sources[0].VFS.Root)
-		if !exists {
+		packfile, exists, err = snap.repository.GetPackfileForBlob(resources.RT_VFS_BTREE, snap.Header.Sources[0].VFS.Root)
+		if !exists || err != nil {
 			if !yield(objects.MAC{}, fmt.Errorf("snapshot packfile not found")) {
 				return
 			}
@@ -299,8 +246,8 @@ func (snap *Snapshot) ListPackfiles() (iter.Seq2[objects.MAC, error], error) {
 		fsIter := pvfs.IterNodes()
 		for fsIter.Next() {
 			macNode, node := fsIter.Current()
-			packfile, exists := snap.repository.GetPackfileForBlob(resources.RT_VFS_BTREE, macNode)
-			if !exists {
+			packfile, exists, err := snap.repository.GetPackfileForBlob(resources.RT_VFS_BTREE, macNode)
+			if !exists || err != nil {
 				if !yield(objects.MAC{}, fmt.Errorf("snapshot packfile not found")) {
 					return
 				}
@@ -310,8 +257,8 @@ func (snap *Snapshot) ListPackfiles() (iter.Seq2[objects.MAC, error], error) {
 			}
 
 			for _, entry := range node.Values {
-				packfile, exists := snap.repository.GetPackfileForBlob(resources.RT_VFS_ENTRY, entry)
-				if !exists {
+				packfile, exists, err := snap.repository.GetPackfileForBlob(resources.RT_VFS_ENTRY, entry)
+				if !exists || err != nil {
 					if !yield(objects.MAC{}, fmt.Errorf("snapshot packfile not found")) {
 						return
 					}
@@ -328,8 +275,8 @@ func (snap *Snapshot) ListPackfiles() (iter.Seq2[objects.MAC, error], error) {
 				}
 
 				if vfsEntry.HasObject() {
-					packfile, exists := snap.repository.GetPackfileForBlob(resources.RT_OBJECT, vfsEntry.Object)
-					if !exists {
+					packfile, exists, err := snap.repository.GetPackfileForBlob(resources.RT_OBJECT, vfsEntry.Object)
+					if !exists || err != nil {
 						if !yield(objects.MAC{}, fmt.Errorf("snapshot packfile not found")) {
 							return
 						}
@@ -339,8 +286,8 @@ func (snap *Snapshot) ListPackfiles() (iter.Seq2[objects.MAC, error], error) {
 					}
 
 					for _, chunk := range vfsEntry.ResolvedObject.Chunks {
-						packfile, exists := snap.repository.GetPackfileForBlob(resources.RT_CHUNK, chunk.MAC)
-						if !exists {
+						packfile, exists, err := snap.repository.GetPackfileForBlob(resources.RT_CHUNK, chunk.ContentMAC)
+						if !exists || err != nil {
 							if !yield(objects.MAC{}, fmt.Errorf("snapshot packfile not found")) {
 								return
 							}
@@ -357,7 +304,7 @@ func (snap *Snapshot) ListPackfiles() (iter.Seq2[objects.MAC, error], error) {
 		}
 
 		/* Finally iterate over all errors */
-		errIter, err := pvfs.IterErrorNodes()
+		errIter := pvfs.IterErrorNodes()
 		if err != nil {
 			if !yield(objects.MAC{}, fmt.Errorf("Could not load errors btree: %s", err)) {
 				return
@@ -366,8 +313,8 @@ func (snap *Snapshot) ListPackfiles() (iter.Seq2[objects.MAC, error], error) {
 
 		for errIter.Next() {
 			macNode, node := errIter.Current()
-			packfile, exists := snap.repository.GetPackfileForBlob(resources.RT_ERROR_BTREE, macNode)
-			if !exists {
+			packfile, exists, err := snap.repository.GetPackfileForBlob(resources.RT_ERROR_BTREE, macNode)
+			if !exists || err != nil {
 				if !yield(objects.MAC{}, fmt.Errorf("snapshot packfile not found")) {
 					return
 				}
@@ -377,8 +324,8 @@ func (snap *Snapshot) ListPackfiles() (iter.Seq2[objects.MAC, error], error) {
 			}
 
 			for _, error := range node.Values {
-				packfile, exists := snap.repository.GetPackfileForBlob(resources.RT_ERROR_ENTRY, error)
-				if !exists {
+				packfile, exists, err := snap.repository.GetPackfileForBlob(resources.RT_ERROR_ENTRY, error)
+				if !exists || err != nil {
 					if !yield(objects.MAC{}, fmt.Errorf("snapshot packfile not found")) {
 						return
 					}

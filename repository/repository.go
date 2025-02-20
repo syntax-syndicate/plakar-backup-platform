@@ -610,7 +610,7 @@ func (r *Repository) ListDeletedPackfiles() iter.Seq2[objects.MAC, time.Time] {
 		for snap, err := range r.state.ListDeletedResources(resources.RT_SNAPSHOT) {
 
 			if err != nil {
-				r.Logger().Error("Failed to fetch deleted snapshot %w", err)
+				r.Logger().Error("Failed to fetch deleted snapshot %s", err)
 			}
 
 			if !yield(snap.Blob, snap.When) {
@@ -620,14 +620,15 @@ func (r *Repository) ListDeletedPackfiles() iter.Seq2[objects.MAC, time.Time] {
 	}
 }
 
-func (r *Repository) GetPackfileForBlob(Type resources.Type, mac objects.MAC) (packfile objects.MAC, exists bool) {
+func (r *Repository) GetPackfileForBlob(Type resources.Type, mac objects.MAC) (objects.MAC, bool, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "GetPackfileForBlob(%x): %s", mac, time.Since(t0))
 	}()
 
-	packfile, _, _, exists = r.state.GetSubpartForBlob(Type, mac)
-	return
+	packfile, exists, err := r.state.GetSubpartForBlob(Type, mac)
+
+	return packfile.Packfile, exists, err
 }
 
 func (r *Repository) GetBlob(Type resources.Type, mac objects.MAC) (io.ReadSeeker, error) {
@@ -645,17 +646,17 @@ func (r *Repository) GetBlob(Type resources.Type, mac objects.MAC) (io.ReadSeeke
 		return nil, ErrPackfileNotFound
 	}
 
-	has, err := r.HasDeletedPackfile(packfileMAC)
+	has, err := r.HasDeletedPackfile(loc.Packfile)
 	if err != nil {
 		return nil, err
 	}
 
 	if has {
-		error := fmt.Errorf("Cleanup was too eager, we have a referenced blob (%x) in a deleted packfile (%x)\n", mac, packfileMAC)
+		error := fmt.Errorf("Cleanup was too eager, we have a referenced blob (%x) in a deleted packfile (%x)\n", mac, loc.Packfile)
 		r.Logger().Error("GetBlob(%s, %x): %s", Type, mac, error)
 	}
 
-	rd, err := r.GetPackfileBlob(packfileMAC, offset, length)
+	rd, err := r.GetPackfileBlob(loc)
 	if err != nil {
 		return nil, err
 	}
