@@ -170,30 +170,36 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		return 1, fmt.Errorf("could not synchronize %s: invalid direction, must be to, from or with", peerStore.Location())
 	}
 
-	locateOptions := utils.NewDefaultLocateOptions()
-	locateOptions.Prefix = cmd.SnapshotPrefix
-
-	srcSnapshotIDs, err := utils.LocateSnapshotIDs(srcRepository, locateOptions)
+	srcSnapshots, err := srcRepository.GetSnapshots()
 	if err != nil {
-		return 1, fmt.Errorf("could not locate snapshots in source repository %s: %s", srcRepository.Location(), err)
+		return 1, fmt.Errorf("could not get list of snapshots from source repository %s: %s", srcRepository.Location(), err)
 	}
 
-	dstSnapshotIDs, err := utils.LocateSnapshotIDs(dstRepository, locateOptions)
+	dstSnapshots, err := dstRepository.GetSnapshots()
 	if err != nil {
-		return 1, fmt.Errorf("could not locate snapshots from peer repository %s: %s", dstRepository.Location(), err)
+		return 1, fmt.Errorf("could not get list of snapshots from peer repository %s: %s", dstRepository.Location(), err)
 	}
 
 	srcSnapshotsMap := make(map[objects.MAC]struct{})
-	for _, snapshotID := range srcSnapshotIDs {
+	dstSnapshotsMap := make(map[objects.MAC]struct{})
+
+	for _, snapshotID := range srcSnapshots {
 		srcSnapshotsMap[snapshotID] = struct{}{}
 	}
 
-	dstSnapshotsMap := make(map[objects.MAC]struct{})
-	for _, snapshotID := range dstSnapshotIDs {
+	for _, snapshotID := range dstSnapshots {
 		dstSnapshotsMap[snapshotID] = struct{}{}
 	}
 
 	srcSyncList := make([]objects.MAC, 0)
+
+	srcLocateOptions := utils.NewDefaultLocateOptions()
+	srcLocateOptions.Prefix = cmd.SnapshotPrefix
+	srcSnapshotIDs, err := utils.LocateSnapshotIDs(srcRepository, srcLocateOptions)
+	if err != nil {
+		return 1, fmt.Errorf("could not locate snapshots in source repository %s: %s", dstRepository.Location(), err)
+	}
+
 	for _, snapshotID := range srcSnapshotIDs {
 		if _, exists := dstSnapshotsMap[snapshotID]; !exists {
 			srcSyncList = append(srcSyncList, snapshotID)
@@ -209,6 +215,11 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	}
 
 	if cmd.Direction == "with" {
+		dstSnapshotIDs, err := utils.LocateSnapshotIDs(dstRepository, srcLocateOptions)
+		if err != nil {
+			return 1, fmt.Errorf("could not locate snapshots in peer repository %s: %s", dstRepository.Location(), err)
+		}
+
 		dstSyncList := make([]objects.MAC, 0)
 		for _, snapshotID := range dstSnapshotIDs {
 			if _, exists := srcSnapshotsMap[snapshotID]; !exists {
