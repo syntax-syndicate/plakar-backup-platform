@@ -33,7 +33,7 @@ import (
 )
 
 func init() {
-	subcommands.Register("cleanup", parse_cmd_cleanup)
+	//subcommands.Register("cleanup", parse_cmd_cleanup)
 }
 
 func parse_cmd_cleanup(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
