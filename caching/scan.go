@@ -215,8 +215,8 @@ func (c *ScanCache) GetDeltas() iter.Seq2[objects.MAC, []byte] {
 	return c.getObjects("__delta__:")
 }
 
-func (c *ScanCache) DelDelta(blobType resources.Type, blobCsum objects.MAC) error {
-	return c.delete("__delta__", fmt.Sprintf("%d:%x", blobType, blobCsum))
+func (c *ScanCache) DelDelta(blobType resources.Type, blobCsum, packfileMAC objects.MAC) error {
+	return c.delete("__delta__", fmt.Sprintf("%d:%x:%x", blobType, blobCsum, packfileMAC))
 }
 
 func (c *ScanCache) PutDeleted(blobType resources.Type, blobCsum objects.MAC, data []byte) error {
@@ -230,8 +230,13 @@ func (c *ScanCache) HasDeleted(blobType resources.Type, blobCsum objects.MAC) (b
 func (c *ScanCache) GetDeleteds() iter.Seq2[objects.MAC, []byte] {
 	return c.getObjects(fmt.Sprintf("__deleted__:"))
 }
+
 func (c *ScanCache) GetDeletedsByType(blobType resources.Type) iter.Seq2[objects.MAC, []byte] {
 	return c.getObjects(fmt.Sprintf("__deleted__:%d", blobType))
+}
+
+func (c *ScanCache) DelDeleted(blobType resources.Type, blobCsum objects.MAC) error {
+	return c.delete("__deleted__", fmt.Sprintf("%d:%x", blobType, blobCsum))
 }
 
 func (c *ScanCache) PutPackfile(packfile objects.MAC, data []byte) error {
@@ -240,6 +245,10 @@ func (c *ScanCache) PutPackfile(packfile objects.MAC, data []byte) error {
 
 func (c *ScanCache) HasPackfile(packfile objects.MAC) (bool, error) {
 	return c.has("__packfile__", fmt.Sprintf("%x", packfile))
+}
+
+func (c *ScanCache) DelPackfile(packfile objects.MAC) error {
+	return c.delete("__packfile__", fmt.Sprintf("%x", packfile))
 }
 
 func (c *ScanCache) GetPackfiles() iter.Seq2[objects.MAC, []byte] {

@@ -582,6 +582,7 @@ func (r *Repository) PutPackfile(mac objects.MAC, rd io.Reader) error {
 	return r.store.PutPackfile(mac, rd)
 }
 
+// Deletes a packfile from the store. Warning this is a true delete and is unrecoverable.
 func (r *Repository) DeletePackfile(mac objects.MAC) error {
 	t0 := time.Now()
 	defer func() {
@@ -589,6 +590,15 @@ func (r *Repository) DeletePackfile(mac objects.MAC) error {
 	}()
 
 	return r.store.DeletePackfile(mac)
+}
+
+// Removes the packfile from the state, making it unreachable.
+func (r *Repository) RemovePackfile(packfileMAC objects.MAC) error {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "RemovePackfile(%x): %s", packfileMAC, time.Since(t0))
+	}()
+	return r.state.DelPackfile(packfileMAC)
 }
 
 func (r *Repository) HasDeletedPackfile(mac objects.MAC) (bool, error) {
@@ -607,7 +617,7 @@ func (r *Repository) ListDeletedPackfiles() iter.Seq2[objects.MAC, time.Time] {
 	}()
 
 	return func(yield func(objects.MAC, time.Time) bool) {
-		for snap, err := range r.state.ListDeletedResources(resources.RT_SNAPSHOT) {
+		for snap, err := range r.state.ListDeletedResources(resources.RT_PACKFILE) {
 
 			if err != nil {
 				r.Logger().Error("Failed to fetch deleted snapshot %s", err)
@@ -618,6 +628,16 @@ func (r *Repository) ListDeletedPackfiles() iter.Seq2[objects.MAC, time.Time] {
 			}
 		}
 	}
+}
+
+// Removes the deleted packfile entry from the state.
+func (r *Repository) RemoveDeletedPackfile(packfileMAC objects.MAC) error {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "RemoveDeletedPackfile(%x): %s", packfileMAC, time.Since(t0))
+	}()
+
+	return r.state.DelDeletedResource(resources.RT_PACKFILE, packfileMAC)
 }
 
 func (r *Repository) GetPackfileForBlob(Type resources.Type, mac objects.MAC) (objects.MAC, bool, error) {
@@ -672,12 +692,21 @@ func (r *Repository) BlobExists(Type resources.Type, mac objects.MAC) bool {
 	return r.state.BlobExists(Type, mac)
 }
 
-func (r *Repository) RemoveBlob(Type resources.Type, mac objects.MAC) error {
+// Removes the provided blob from our state, making it unreachable
+func (r *Repository) RemoveBlob(Type resources.Type, mac, packfileMAC objects.MAC) error {
 	t0 := time.Now()
 	defer func() {
-		r.Logger().Trace("repository", "DeleteBlob(%s, %x): %s", Type, mac, time.Since(t0))
+		r.Logger().Trace("repository", "DeleteBlob(%s, %x, %x): %s", Type, mac, packfileMAC, time.Since(t0))
 	}()
-	return r.state.DelDelta(Type, mac)
+	return r.state.DelDelta(Type, mac, packfileMAC)
+}
+
+func (r *Repository) ListOrphanBlobs() iter.Seq2[state.DeltaEntry, error] {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "ListSnapshots(): %s", time.Since(t0))
+	}()
+	return r.state.ListOrphanDeltas()
 }
 
 func (r *Repository) ListSnapshots() iter.Seq[objects.MAC] {

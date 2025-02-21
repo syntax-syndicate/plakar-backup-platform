@@ -625,8 +625,8 @@ func (ls *LocalState) PutDelta(de DeltaEntry) error {
 	return ls.cache.PutDelta(de.Type, de.Blob, de.Location.Packfile, de.ToBytes())
 }
 
-func (ls *LocalState) DelDelta(Type resources.Type, blobMAC objects.MAC) error {
-	return ls.cache.DelDelta(Type, blobMAC)
+func (ls *LocalState) DelDelta(Type resources.Type, blobMAC, packfileMAC objects.MAC) error {
+	return ls.cache.DelDelta(Type, blobMAC, packfileMAC)
 }
 
 func (ls *LocalState) BlobExists(Type resources.Type, blobMAC objects.MAC) bool {
@@ -687,6 +687,10 @@ func (ls *LocalState) PutPackfile(stateId, packfile objects.MAC) error {
 	return ls.cache.PutPackfile(pe.Packfile, pe.ToBytes())
 }
 
+func (ls *LocalState) DelPackfile(packfile objects.MAC) error {
+	return ls.cache.DelPackfile(packfile)
+}
+
 func (ls *LocalState) ListPackfiles() iter.Seq[objects.MAC] {
 	return func(yield func(objects.MAC) bool) {
 		for st, _ := range ls.cache.GetPackfiles() {
@@ -744,7 +748,33 @@ func (ls *LocalState) ListObjectsOfType(Type resources.Type) iter.Seq2[DeltaEntr
 			}
 		}
 	}
+}
 
+func (ls *LocalState) ListOrphanDeltas() iter.Seq2[DeltaEntry, error] {
+	return func(yield func(DeltaEntry, error) bool) {
+		for _, buf := range ls.cache.GetDeltas() {
+			de, err := DeltaEntryFromBytes(buf)
+
+			if err != nil {
+				if !yield(DeltaEntry{}, err) {
+					return
+				}
+			}
+
+			ok, err := ls.cache.HasPackfile(de.Location.Packfile)
+			if err != nil {
+				if !yield(DeltaEntry{}, err) {
+					return
+				}
+			}
+
+			if !ok {
+				if !yield(de, nil) {
+					return
+				}
+			}
+		}
+	}
 }
 
 func (ls *LocalState) DeleteResource(rtype resources.Type, resource objects.MAC) error {
@@ -813,6 +843,10 @@ func (ls *LocalState) ListDeletedResources(rtype resources.Type) iter.Seq2[Delet
 			}
 		}
 	}
+}
+
+func (ls *LocalState) DelDeletedResource(rtype resources.Type, resourceMAC objects.MAC) error {
+	return ls.cache.DelDeleted(rtype, resourceMAC)
 }
 
 func (mt *Metadata) ToBytes() ([]byte, error) {
