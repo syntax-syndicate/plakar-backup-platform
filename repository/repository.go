@@ -27,6 +27,7 @@ import (
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/PlakarKorp/plakar/versioning"
+	"github.com/google/uuid"
 )
 
 var (
@@ -390,7 +391,7 @@ func (r *Repository) DeleteSnapshot(snapshotID objects.MAC) error {
 	}
 	deltaState := r.state.Derive(sc)
 
-	ret := deltaState.DeleteSnapshot(snapshotID)
+	ret := deltaState.DeleteResource(resources.RT_SNAPSHOT, snapshotID)
 	if ret != nil {
 		return ret
 	}
@@ -581,6 +582,7 @@ func (r *Repository) PutPackfile(mac objects.MAC, rd io.Reader) error {
 	return r.store.PutPackfile(mac, rd)
 }
 
+// Deletes a packfile from the store. Warning this is a true delete and is unrecoverable.
 func (r *Repository) DeletePackfile(mac objects.MAC) error {
 	t0 := time.Now()
 	defer func() {
@@ -588,6 +590,65 @@ func (r *Repository) DeletePackfile(mac objects.MAC) error {
 	}()
 
 	return r.store.DeletePackfile(mac)
+}
+
+// Removes the packfile from the state, making it unreachable.
+func (r *Repository) RemovePackfile(packfileMAC objects.MAC) error {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "RemovePackfile(%x): %s", packfileMAC, time.Since(t0))
+	}()
+	return r.state.DelPackfile(packfileMAC)
+}
+
+func (r *Repository) HasDeletedPackfile(mac objects.MAC) (bool, error) {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "HasDeletedPackfile(%x): %s", mac, time.Since(t0))
+	}()
+
+	return r.state.HasDeletedResource(resources.RT_PACKFILE, mac)
+}
+
+func (r *Repository) ListDeletedPackfiles() iter.Seq2[objects.MAC, time.Time] {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "ListDeletedPackfiles(): %s", time.Since(t0))
+	}()
+
+	return func(yield func(objects.MAC, time.Time) bool) {
+		for snap, err := range r.state.ListDeletedResources(resources.RT_PACKFILE) {
+
+			if err != nil {
+				r.Logger().Error("Failed to fetch deleted snapshot %s", err)
+			}
+
+			if !yield(snap.Blob, snap.When) {
+				return
+			}
+		}
+	}
+}
+
+// Removes the deleted packfile entry from the state.
+func (r *Repository) RemoveDeletedPackfile(packfileMAC objects.MAC) error {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "RemoveDeletedPackfile(%x): %s", packfileMAC, time.Since(t0))
+	}()
+
+	return r.state.DelDeletedResource(resources.RT_PACKFILE, packfileMAC)
+}
+
+func (r *Repository) GetPackfileForBlob(Type resources.Type, mac objects.MAC) (objects.MAC, bool, error) {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "GetPackfileForBlob(%x): %s", mac, time.Since(t0))
+	}()
+
+	packfile, exists, err := r.state.GetSubpartForBlob(Type, mac)
+
+	return packfile.Packfile, exists, err
 }
 
 func (r *Repository) GetBlob(Type resources.Type, mac objects.MAC) (io.ReadSeeker, error) {
@@ -603,6 +664,16 @@ func (r *Repository) GetBlob(Type resources.Type, mac objects.MAC) (io.ReadSeeke
 
 	if !exists {
 		return nil, ErrPackfileNotFound
+	}
+
+	has, err := r.HasDeletedPackfile(loc.Packfile)
+	if err != nil {
+		return nil, err
+	}
+
+	if has {
+		error := fmt.Errorf("Cleanup was too eager, we have a referenced blob (%x) in a deleted packfile (%x)\n", mac, loc.Packfile)
+		r.Logger().Error("GetBlob(%s, %x): %s", Type, mac, error)
 	}
 
 	rd, err := r.GetPackfileBlob(loc)
@@ -621,12 +692,57 @@ func (r *Repository) BlobExists(Type resources.Type, mac objects.MAC) bool {
 	return r.state.BlobExists(Type, mac)
 }
 
+// Removes the provided blob from our state, making it unreachable
+func (r *Repository) RemoveBlob(Type resources.Type, mac, packfileMAC objects.MAC) error {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "DeleteBlob(%s, %x, %x): %s", Type, mac, packfileMAC, time.Since(t0))
+	}()
+	return r.state.DelDelta(Type, mac, packfileMAC)
+}
+
+func (r *Repository) ListOrphanBlobs() iter.Seq2[state.DeltaEntry, error] {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "ListSnapshots(): %s", time.Since(t0))
+	}()
+	return r.state.ListOrphanDeltas()
+}
+
 func (r *Repository) ListSnapshots() iter.Seq[objects.MAC] {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "ListSnapshots(): %s", time.Since(t0))
 	}()
 	return r.state.ListSnapshots()
+}
+
+func (r *Repository) ListPackfiles() iter.Seq[objects.MAC] {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "ListPackfiles(): %s", time.Since(t0))
+	}()
+	return r.state.ListPackfiles()
+}
+
+// Saves the full aggregated state to the repository, might be heavy handed use
+// with care.
+func (r *Repository) PutCurrentState() error {
+	pr, pw := io.Pipe()
+
+	/* By using a pipe and a goroutine we bound the max size in memory. */
+	go func() {
+		defer pw.Close()
+		if err := r.state.SerializeToStream(pw); err != nil {
+			pw.CloseWithError(err)
+		}
+	}()
+
+	newSerial := uuid.New()
+	r.state.Metadata.Serial = newSerial
+	id := r.ComputeMAC(newSerial[:])
+
+	return r.PutState(id, pr)
 }
 
 func (r *Repository) Logger() *logging.Logger {
