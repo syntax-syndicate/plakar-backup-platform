@@ -242,8 +242,8 @@ func (s *Scheduler) syncTask(taskset TaskSet, task SyncConfig) error {
 		syncSubcommand.Direction = "to"
 	} else if task.Direction == "from" {
 		syncSubcommand.Direction = "from"
-	} else if task.Direction == "both" || task.Direction == "" {
-		syncSubcommand.Direction = "both"
+	} else if task.Direction == "with" || task.Direction == "" {
+		syncSubcommand.Direction = "with"
 	} else {
 		return fmt.Errorf("invalid sync direction: %s", task.Direction)
 	}
@@ -284,6 +284,8 @@ func (s *Scheduler) syncTask(taskset TaskSet, task SyncConfig) error {
 			retval, err := syncSubcommand.Execute(newCtx, repo)
 			if err != nil || retval != 0 {
 				s.ctx.GetLogger().Error("sync: %s", err)
+			} else {
+				s.ctx.GetLogger().Info("sync: synchronization succeeded")
 			}
 
 			newCtx.Close()

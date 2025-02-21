@@ -23,5 +23,5 @@ agent:
 
       sync:
         - interval: 10s
-          direction: both
+          direction: with
           peer: /tmp/foobar
