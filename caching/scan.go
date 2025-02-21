@@ -111,32 +111,6 @@ func (c *ScanCache) GetDirectory(directory string) ([]byte, error) {
 	return c.get("__directory__", directory)
 }
 
-func (c *ScanCache) PutMAC(pathname string, mac objects.MAC) error {
-	pathname = strings.TrimSuffix(pathname, "/")
-	if pathname == "" {
-		pathname = "/"
-	}
-	return c.put("__mac__", pathname, mac[:])
-}
-
-func (c *ScanCache) GetMAC(pathname string) (objects.MAC, error) {
-	pathname = strings.TrimSuffix(pathname, "/")
-	if pathname == "" {
-		pathname = "/"
-	}
-
-	data, err := c.get("__mac__", pathname)
-	if err != nil {
-		return objects.MAC{}, err
-	}
-
-	if len(data) != 32 {
-		return objects.MAC{}, fmt.Errorf("invalid MAC length: %d", len(data))
-	}
-
-	return objects.MAC(data), nil
-}
-
 func (c *ScanCache) PutSummary(pathname string, data []byte) error {
 	pathname = strings.TrimSuffix(pathname, "/")
 	if pathname == "" {
