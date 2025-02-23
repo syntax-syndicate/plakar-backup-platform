@@ -6,7 +6,7 @@
 .Nd Calculate digests for files in a Plakar snapshot
 .Sh SYNOPSIS
 .Nm
-.Op Fl fast
+.Op Fl hashing Ar algorithm
 .Ar snapshotID Ns No : Ns Ar filepath Op ...
 .Sh DESCRIPTION
 The
@@ -25,11 +25,11 @@ contents.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl fast
-Return the pre-recorded digest for the file without re-computing it
-from the file contents.
-It's faster, but it does not verify the integrity against the current
-contents.
+.It Fl hashing Ar algorithm
+Use
+.Ar algorithm
+to compute the digest.
+Defaults to SHA256.
 .El
 .Sh EXAMPLES
 Calculate the digest of a file within a snapshot:
@@ -37,9 +37,9 @@ Calculate the digest of a file within a snapshot:
 $ plakar digest abc123:/etc/passwd
 .Ed
 .Pp
-Retrieve the pre-recorded digest for faster output:
+Use BLAKE3 as the digest algorithm:
 .Bd -literal -offset indent
-$ plakar digest -fast abc123:/etc/netstart
+$ plakar digest -hashing BLAKE3 abc123:/etc/netstart
 .Ed
 .Sh DIAGNOSTICS
 .Ex -std
