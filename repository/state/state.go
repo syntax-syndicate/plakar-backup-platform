@@ -625,6 +625,10 @@ func (ls *LocalState) PutDelta(de DeltaEntry) error {
 	return ls.cache.PutDelta(de.Type, de.Blob, de.Location.Packfile, de.ToBytes())
 }
 
+func (ls *LocalState) DelDelta(Type resources.Type, blobMAC, packfileMAC objects.MAC) error {
+	return ls.cache.DelDelta(Type, blobMAC, packfileMAC)
+}
+
 func (ls *LocalState) BlobExists(Type resources.Type, blobMAC objects.MAC) bool {
 	for _, buf := range ls.cache.GetDelta(Type, blobMAC) {
 		de, err := DeltaEntryFromBytes(buf)
@@ -683,6 +687,20 @@ func (ls *LocalState) PutPackfile(stateId, packfile objects.MAC) error {
 	return ls.cache.PutPackfile(pe.Packfile, pe.ToBytes())
 }
 
+func (ls *LocalState) DelPackfile(packfile objects.MAC) error {
+	return ls.cache.DelPackfile(packfile)
+}
+
+func (ls *LocalState) ListPackfiles() iter.Seq[objects.MAC] {
+	return func(yield func(objects.MAC) bool) {
+		for st, _ := range ls.cache.GetPackfiles() {
+			if !yield(st) {
+				return
+			}
+		}
+	}
+}
+
 func (ls *LocalState) ListSnapshots() iter.Seq[objects.MAC] {
 	return func(yield func(objects.MAC) bool) {
 		for _, buf := range ls.cache.GetDeltasByType(resources.RT_SNAPSHOT) {
@@ -730,16 +748,46 @@ func (ls *LocalState) ListObjectsOfType(Type resources.Type) iter.Seq2[DeltaEntr
 			}
 		}
 	}
-
 }
 
-func (ls *LocalState) DeleteSnapshot(snapshotID objects.MAC) error {
+func (ls *LocalState) ListOrphanDeltas() iter.Seq2[DeltaEntry, error] {
+	return func(yield func(DeltaEntry, error) bool) {
+		for _, buf := range ls.cache.GetDeltas() {
+			de, err := DeltaEntryFromBytes(buf)
+
+			if err != nil {
+				if !yield(DeltaEntry{}, err) {
+					return
+				}
+			}
+
+			ok, err := ls.cache.HasPackfile(de.Location.Packfile)
+			if err != nil {
+				if !yield(DeltaEntry{}, err) {
+					return
+				}
+			}
+
+			if !ok {
+				if !yield(de, nil) {
+					return
+				}
+			}
+		}
+	}
+}
+
+func (ls *LocalState) DeleteResource(rtype resources.Type, resource objects.MAC) error {
 	de := DeletedEntry{
-		Type: resources.RT_SNAPSHOT,
-		Blob: snapshotID,
+		Type: rtype,
+		Blob: resource,
 		When: time.Now(),
 	}
-	return ls.cache.PutDeleted(resources.RT_SNAPSHOT, snapshotID, de.ToBytes())
+	return ls.cache.PutDeleted(de.Type, de.Blob, de.ToBytes())
+}
+
+func (ls *LocalState) HasDeletedResource(rtype resources.Type, resource objects.MAC) (bool, error) {
+	return ls.cache.HasDeleted(rtype, resource)
 }
 
 // Public function to insert a new configuration, beware this is to be
@@ -783,6 +831,22 @@ func (ls *LocalState) insertOrUpdateConfiguration(ce ConfigurationEntry) error {
 	}
 
 	return nil
+}
+
+func (ls *LocalState) ListDeletedResources(rtype resources.Type) iter.Seq2[DeletedEntry, error] {
+	return func(yield func(DeletedEntry, error) bool) {
+		for _, buf := range ls.cache.GetDeletedsByType(rtype) {
+			de, err := DeletedEntryFromBytes(buf)
+
+			if !yield(de, err) {
+				return
+			}
+		}
+	}
+}
+
+func (ls *LocalState) DelDeletedResource(rtype resources.Type, resourceMAC objects.MAC) error {
+	return ls.cache.DelDeleted(rtype, resourceMAC)
 }
 
 func (mt *Metadata) ToBytes() ([]byte, error) {

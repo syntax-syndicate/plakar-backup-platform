@@ -452,12 +452,6 @@ func (snap *Snapshot) Backup(scanDir string, imp importer.Importer, options *Bac
 				return
 			}
 
-			// Record the MAC of the FileEntry in the cache
-			err = snap.scanCache.PutMAC(record.Pathname, fileEntryMAC)
-			if err != nil {
-				backupCtx.recordError(record.Pathname, err)
-				return
-			}
 			snap.Event(events.FileOKEvent(snap.Header.Identifier, record.Pathname, record.FileInfo.Size()))
 		}(_record)
 	}
