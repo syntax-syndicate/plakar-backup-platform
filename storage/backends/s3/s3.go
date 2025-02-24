@@ -88,9 +88,24 @@ func (repository *Repository) Create(location string, config []byte) error {
 	}
 	repository.bucketName = parsed.RequestURI()[1:]
 
-	err = repository.minioClient.MakeBucket(context.Background(), repository.bucketName, minio.MakeBucketOptions{})
+	exists, err := repository.minioClient.BucketExists(context.Background(), repository.bucketName)
 	if err != nil {
 		return err
+	}
+	if !exists {
+		err = repository.minioClient.MakeBucket(context.Background(), repository.bucketName, minio.MakeBucketOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = repository.minioClient.StatObject(context.Background(), repository.bucketName, "CONFIG", minio.StatObjectOptions{})
+	if err != nil {
+		if minio.ToErrorResponse(err).Code != "NoSuchKey" {
+			return err
+		}
+	} else {
+		return fmt.Errorf("bucket already initialized")
 	}
 
 	_, err = repository.minioClient.PutObject(context.Background(), repository.bucketName, "CONFIG", bytes.NewReader(config), int64(len(config)), minio.PutObjectOptions{})
