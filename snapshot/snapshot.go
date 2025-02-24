@@ -309,6 +309,9 @@ func (snap *Snapshot) ListPackfiles() (iter.Seq2[objects.MAC, error], error) {
 		}
 
 		// Lastly going over the indexes.
+		if !yield(getPackfileForBlobWithError(snap, resources.RT_BTREE_ROOT, snap.Header.GetSource(0).Indexes[0].Value)) {
+			return
+		}
 		rd, err := snap.Repository().GetBlob(resources.RT_BTREE_ROOT, snap.Header.GetSource(0).Indexes[0].Value)
 		if err != nil {
 			if !yield(objects.MAC{}, fmt.Errorf("Failed to load Index root entry %s", err)) {
