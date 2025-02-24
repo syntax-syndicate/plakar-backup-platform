@@ -110,7 +110,6 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 		Concurrency:        opt_concurrency,
 		Tags:               opt_tags,
 		Excludes:           excludes,
-		Exclude:            opt_exclude,
 		Quiet:              opt_quiet,
 		Path:               flags.Arg(0),
 		OptCheck:           opt_check,
@@ -125,7 +124,6 @@ type Backup struct {
 	Concurrency uint64
 	Tags        string
 	Excludes    []glob.Glob
-	Exclude     []string
 	Silent      bool
 	Quiet       bool
 	Path        string
