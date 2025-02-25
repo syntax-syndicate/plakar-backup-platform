@@ -113,6 +113,6 @@ func cmd_repository(ctx *appcontext.AppContext, repo *repository.Repository, arg
 		return fmt.Errorf("validtion not implemented")
 
 	default:
-		return fmt.Errorf("usage: plakar config repository [create | set | validate]")
+		return fmt.Errorf("usage: plakar config repository [create | default | set | validate]")
 	}
 }
