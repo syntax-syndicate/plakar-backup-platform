@@ -181,7 +181,7 @@ func generateSnapshot(t *testing.T) *snapshot.Snapshot {
 	require.NoError(t, err)
 
 	// open the storage to load the configuration
-	r, serializedConfig, err := storage.Open("fs://" + tmpRepoDir)
+	r, serializedConfig, err := storage.Open(map[string]string{"location": "fs://" + tmpRepoDir})
 	require.NoError(t, err)
 
 	// create a repository
