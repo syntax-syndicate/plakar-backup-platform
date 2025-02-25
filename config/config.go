@@ -22,7 +22,8 @@ func LoadOrCreate(configFile string) (*Config, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			cfg := &Config{
-				pathname: configFile,
+				pathname:     configFile,
+				Repositories: make(map[string]RepositoryConfig),
 			}
 			return cfg, cfg.Save()
 		}
@@ -34,6 +35,9 @@ func LoadOrCreate(configFile string) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 	config.pathname = configFile
+	if config.Repositories == nil {
+		config.Repositories = make(map[string]RepositoryConfig)
+	}
 	return &config, nil
 }
 
