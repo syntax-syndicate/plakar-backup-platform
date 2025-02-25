@@ -34,7 +34,6 @@ import (
 )
 
 type Repository struct {
-	config      storage.Configuration
 	location    string
 	Repository  string
 	minioClient *minio.Client
@@ -50,8 +49,24 @@ func init() {
 }
 
 func NewRepository(storeConfig map[string]string) (storage.Store, error) {
+	var accessKey string
+	if value, ok := storeConfig["access_key"]; !ok {
+		return nil, fmt.Errorf("missing access_key")
+	} else {
+		accessKey = value
+	}
+
+	var secretAccessKey string
+	if value, ok := storeConfig["secret_access_key"]; !ok {
+		return nil, fmt.Errorf("missing secret_access_key")
+	} else {
+		secretAccessKey = value
+	}
+
 	return &Repository{
-		location: storeConfig["location"],
+		location:        storeConfig["location"],
+		accessKey:       accessKey,
+		secretAccessKey: secretAccessKey,
 	}, nil
 }
 
@@ -61,13 +76,11 @@ func (repo *Repository) Location() string {
 
 func (repository *Repository) connect(location *url.URL) error {
 	endpoint := location.Host
-	accessKeyID := location.User.Username()
-	secretAccessKey, _ := location.User.Password()
 	useSSL := false
 
 	// Initialize minio client object.
 	minioClient, err := minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
+		Creds:  credentials.NewStaticV4(repository.accessKey, repository.secretAccessKey, ""),
 		Secure: useSSL,
 	})
 	if err != nil {
