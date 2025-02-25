@@ -277,7 +277,12 @@ func entryPoint() int {
 			fmt.Fprintf(os.Stderr, "%s: could not resolve repository: %s\n", flag.CommandLine.Name(), repositoryPath)
 			return 1
 		}
-		repositoryPath = remote["location"] // xxx
+		if value, ok := remote["location"]; !ok {
+			fmt.Fprintf(os.Stderr, "%s: could not resolve repository location: %s\n", flag.CommandLine.Name(), repositoryPath)
+			return 1
+		} else {
+			repositoryPath = value
+		}
 	}
 
 	// create is a special case, it operates without a repository...
