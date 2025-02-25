@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -9,9 +10,12 @@ import (
 )
 
 type Config struct {
-	pathname string
-	Labels   map[string]map[string]interface{} `yaml:"labels"`
+	pathname          string
+	DefaultRepository string                      `yaml:"default-repo"`
+	Repositories      map[string]RepositoryConfig `yaml:"repositories"`
 }
+
+type RepositoryConfig map[string]string
 
 func LoadOrCreate(configFile string) (*Config, error) {
 	f, err := os.Open(configFile)
@@ -19,7 +23,6 @@ func LoadOrCreate(configFile string) (*Config, error) {
 		if os.IsNotExist(err) {
 			cfg := &Config{
 				pathname: configFile,
-				Labels:   make(map[string]map[string]interface{}),
 			}
 			return cfg, cfg.Save()
 		}
@@ -34,6 +37,10 @@ func LoadOrCreate(configFile string) (*Config, error) {
 	return &config, nil
 }
 
+func (c *Config) Render(w io.Writer) error {
+	return yaml.NewEncoder(w).Encode(c)
+}
+
 func (c *Config) Save() error {
 	dir := filepath.Dir(c.pathname)
 	tmpFile, err := os.CreateTemp(dir, "config.*.yaml")
@@ -41,7 +48,7 @@ func (c *Config) Save() error {
 		return err
 	}
 
-	err = yaml.NewEncoder(tmpFile).Encode(c)
+	err = c.Render(tmpFile)
 	tmpFile.Close()
 	if err != nil {
 		os.Remove(tmpFile.Name())
@@ -50,23 +57,12 @@ func (c *Config) Save() error {
 	return os.Rename(tmpFile.Name(), c.pathname)
 }
 
-func (c *Config) Lookup(category, option string) (interface{}, bool) {
-	if c.Labels == nil {
-		return nil, false
-	}
-	if c.Labels[category] == nil {
-		return nil, false
-	}
-	value, ok := c.Labels[category][option]
-	return value, ok
+func (c *Config) HasRepository(name string) bool {
+	_, ok := c.Repositories[name]
+	return ok
 }
 
-func (c *Config) Set(category, option string, value interface{}) {
-	if c.Labels == nil {
-		c.Labels = make(map[string]map[string]interface{})
-	}
-	if c.Labels[category] == nil {
-		c.Labels[category] = make(map[string]interface{})
-	}
-	c.Labels[category][option] = value
+func (c *Config) GetRepository(name string) (map[string]string, bool) {
+	kv, ok := c.Repositories[name]
+	return kv, ok
 }
