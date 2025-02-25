@@ -22,7 +22,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
 	"net/url"
 	"strings"
 
@@ -69,15 +68,15 @@ func (repository *Repository) connect(location *url.URL) error {
 		Secure: useSSL,
 	})
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	repository.minioClient = minioClient
 	return nil
 }
 
-func (repository *Repository) Create(location string, config []byte) error {
-	parsed, err := url.Parse(location)
+func (repository *Repository) Create(config []byte) error {
+	parsed, err := url.Parse(repository.location)
 	if err != nil {
 		return err
 	}
@@ -116,8 +115,8 @@ func (repository *Repository) Create(location string, config []byte) error {
 	return nil
 }
 
-func (repository *Repository) Open(location string) ([]byte, error) {
-	parsed, err := url.Parse(location)
+func (repository *Repository) Open() ([]byte, error) {
+	parsed, err := url.Parse(repository.location)
 	if err != nil {
 		return nil, err
 	}

@@ -31,10 +31,10 @@ func TestDatabaseBackend(t *testing.T) {
 	serializedConfig, err := config.ToBytes()
 	require.NoError(t, err)
 
-	err = repo.Create("sqlite:///tmp/testdb.db", serializedConfig)
+	err = repo.Create(serializedConfig)
 	require.NoError(t, err)
 
-	_, err = repo.Open("sqlite:///tmp/testdb.db")
+	_, err = repo.Open()
 	require.NoError(t, err)
 	//	require.Equal(t, repo.Configuration().Version, versioning.FromString(storage.VERSION))
 

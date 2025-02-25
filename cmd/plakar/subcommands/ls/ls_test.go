@@ -65,7 +65,7 @@ func generateSnapshot(t *testing.T, keyPair *keypair.KeyPair) *snapshot.Snapshot
 	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 	require.NoError(t, err)
 
-	err = r.Create("fs://"+tmpRepoDir, wrappedConfig)
+	err = r.Create(wrappedConfig)
 	require.NoError(t, err)
 
 	// open the storage to load the configuration

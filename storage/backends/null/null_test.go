@@ -24,10 +24,10 @@ func TestNullBackend(t *testing.T) {
 	serializedConfig, err := config.ToBytes()
 	require.NoError(t, err)
 
-	err = repo.Create(location, serializedConfig)
+	err = repo.Create(serializedConfig)
 	require.NoError(t, err)
 
-	_, err = repo.Open(location)
+	_, err = repo.Open()
 	require.NoError(t, err)
 	// only test one field
 	//require.Equal(t, repo.Configuration().Version, versioning.FromString(storage.VERSION))

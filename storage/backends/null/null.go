@@ -44,12 +44,12 @@ func (repo *Repository) Location() string {
 	return repo.location
 }
 
-func (repository *Repository) Create(location string, config []byte) error {
+func (repository *Repository) Create(config []byte) error {
 	repository.config = config
 	return nil
 }
 
-func (repository *Repository) Open(location string) ([]byte, error) {
+func (repository *Repository) Open() ([]byte, error) {
 	return repository.config, nil
 }
 

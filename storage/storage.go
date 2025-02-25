@@ -105,8 +105,8 @@ func (c *Configuration) ToBytes() ([]byte, error) {
 }
 
 type Store interface {
-	Create(repository string, config []byte) error
-	Open(repository string) ([]byte, error)
+	Create(config []byte) error
+	Open() ([]byte, error)
 	Location() string
 
 	GetStates() ([]objects.MAC, error)
@@ -201,7 +201,7 @@ func Open(location string) (Store, []byte, error) {
 		return nil, nil, err
 	}
 
-	serializedConfig, err := store.Open(location)
+	serializedConfig, err := store.Open()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -216,7 +216,7 @@ func Create(location string, configuration []byte) (Store, error) {
 		return nil, err
 	}
 
-	if err = store.Create(location, configuration); err != nil {
+	if err = store.Create(configuration); err != nil {
 		return nil, err
 	} else {
 		return store, nil
