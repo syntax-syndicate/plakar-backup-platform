@@ -95,7 +95,7 @@ func generateSnapshot(t *testing.T, keyPair *keypair.KeyPair) *snapshot.Snapshot
 
 	imp, err := fs.NewFSImporter(map[string]string{"location": tmpBackupDir})
 	require.NoError(t, err)
-	snap.Backup(tmpBackupDir, imp, &snapshot.BackupOptions{Name: "test_backup", MaxConcurrency: 1})
+	snap.Backup(imp, &snapshot.BackupOptions{Name: "test_backup", MaxConcurrency: 1})
 
 	err = snap.Repository().RebuildState()
 	require.NoError(t, err)
