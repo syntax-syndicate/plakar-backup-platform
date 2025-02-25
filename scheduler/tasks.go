@@ -1,7 +1,9 @@
 package scheduler
 
 import (
+	"flag"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -11,9 +13,74 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
+	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/plakar/versioning"
 )
+
+func (s *Scheduler) locationToConfig(location string) (map[string]string, error) {
+	if strings.HasPrefix(location, "@") {
+		remote, ok := s.ctx.Config.GetRepository(location[1:])
+		if !ok {
+			return nil, fmt.Errorf("could not resolve repository: %s", location)
+		}
+		if _, ok := remote["location"]; !ok {
+			return nil, fmt.Errorf("could not resolve repository location: %s", location)
+		} else {
+			return remote, nil
+		}
+	}
+	return map[string]string{"location": location}, nil
+}
+
+func (s *Scheduler) openRepository(storeConfig map[string]string) (*repository.Repository, error) {
+	store, wrappedConfig, err := storage.Open(storeConfig)
+	if err != nil {
+		return nil, fmt.Errorf("error opening storage: %s", err)
+	}
+
+	repoConfig, err := storage.NewConfigurationFromWrappedBytes(wrappedConfig)
+	if err != nil {
+		store.Close()
+		return nil, fmt.Errorf("error opening storage: %s", err)
+	}
+
+	if repoConfig.Version != versioning.FromString(storage.VERSION) {
+		store.Close()
+		return nil, fmt.Errorf("%s: incompatible repository version: %s != %s\n",
+			flag.CommandLine.Name(), repoConfig.Version, storage.VERSION)
+	}
+
+	newCtx := appcontext.NewAppContextFrom(s.ctx)
+	if repoConfig.Encryption != nil {
+		var secret []byte
+		derived := false
+		if passphrase, ok := storeConfig["passphrase"]; ok {
+			key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, []byte(passphrase))
+			if err == nil {
+				if encryption.VerifyCanary(repoConfig.Encryption, key) {
+					secret = key
+					derived = true
+				}
+			}
+		}
+		if !derived {
+			store.Close()
+			return nil, fmt.Errorf("could not derive secret")
+
+		}
+		newCtx.SetSecret(secret)
+	}
+
+	repo, err := repository.New(newCtx, store, wrappedConfig)
+	if err != nil {
+		store.Close()
+		return nil, fmt.Errorf("Error opening repository: %s", err)
+	}
+
+	return repo, nil
+}
 
 func (s *Scheduler) backupTask(taskset TaskSet, task BackupConfig) error {
 	interval, err := stringToDuration(task.Interval)
@@ -27,6 +94,11 @@ func (s *Scheduler) backupTask(taskset TaskSet, task BackupConfig) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	storeConfig, err := s.locationToConfig(taskset.Repository.URL)
+	if err != nil {
+		return fmt.Errorf("could not resolve repository: %s", storeConfig["location"])
 	}
 
 	backupSubcommand := &backup.Backup{}
@@ -62,22 +134,14 @@ func (s *Scheduler) backupTask(taskset TaskSet, task BackupConfig) error {
 				time.Sleep(interval)
 			}
 
-			store, config, err := storage.Open(map[string]string{"location": backupSubcommand.RepositoryLocation})
-			if err != nil {
-				s.ctx.GetLogger().Error("Error opening storage: %s", err)
-				continue
-			}
-
-			newCtx := appcontext.NewAppContextFrom(s.ctx)
-
-			repo, err := repository.New(newCtx, store, config)
+			repo, err := s.openRepository(storeConfig)
 			if err != nil {
 				s.ctx.GetLogger().Error("Error opening repository: %s", err)
-				store.Close()
 				continue
 			}
 
-			backupCtx := appcontext.NewAppContextFrom(newCtx)
+			backupCtx := appcontext.NewAppContextFrom(repo.AppContext())
+			backupCtx.SetSecret(repo.AppContext().GetSecret())
 			retval, err := backupSubcommand.Execute(backupCtx, repo)
 			if err != nil || retval != 0 {
 				s.ctx.GetLogger().Error("Error creating backup: %s", err)
@@ -87,7 +151,8 @@ func (s *Scheduler) backupTask(taskset TaskSet, task BackupConfig) error {
 			backupCtx.Close()
 
 			if task.Retention != "" {
-				rmCtx := appcontext.NewAppContextFrom(newCtx)
+				rmCtx := appcontext.NewAppContextFrom(repo.AppContext())
+				rmCtx.SetSecret(repo.AppContext().GetSecret())
 				rmSubcommand.OptBefore = time.Now().Add(-retention)
 				retval, err = rmSubcommand.Execute(rmCtx, repo)
 				if err != nil || retval != 0 {
@@ -97,9 +162,7 @@ func (s *Scheduler) backupTask(taskset TaskSet, task BackupConfig) error {
 			}
 
 		close:
-			newCtx.Close()
 			repo.Close()
-			store.Close()
 		}
 	}()
 
@@ -110,6 +173,11 @@ func (s *Scheduler) checkTask(taskset TaskSet, task CheckConfig) error {
 	interval, err := stringToDuration(task.Interval)
 	if err != nil {
 		return err
+	}
+
+	storeConfig, err := s.locationToConfig(taskset.Repository.URL)
+	if err != nil {
+		return fmt.Errorf("could not resolve repository: %s", storeConfig["location"])
 	}
 
 	checkSubcommand := &check.Check{}
@@ -136,29 +204,21 @@ func (s *Scheduler) checkTask(taskset TaskSet, task CheckConfig) error {
 				time.Sleep(interval)
 			}
 
-			store, config, err := storage.Open(map[string]string{"location": checkSubcommand.RepositoryLocation})
-			if err != nil {
-				s.ctx.GetLogger().Error("Error opening storage: %s", err)
-				continue
-			}
-
-			newCtx := appcontext.NewAppContextFrom(s.ctx)
-
-			repo, err := repository.New(newCtx, store, config)
+			repo, err := s.openRepository(storeConfig)
 			if err != nil {
 				s.ctx.GetLogger().Error("Error opening repository: %s", err)
-				store.Close()
 				continue
 			}
 
-			retval, err := checkSubcommand.Execute(newCtx, repo)
+			checkCtx := appcontext.NewAppContextFrom(repo.AppContext())
+			checkCtx.SetSecret(repo.AppContext().GetSecret())
+			retval, err := checkSubcommand.Execute(checkCtx, repo)
 			if err != nil || retval != 0 {
 				s.ctx.GetLogger().Error("Error executing check: %s", err)
 			}
+			checkCtx.Close()
 
-			newCtx.Close()
 			repo.Close()
-			store.Close()
 		}
 	}()
 
@@ -169,6 +229,11 @@ func (s *Scheduler) restoreTask(taskset TaskSet, task RestoreConfig) error {
 	interval, err := stringToDuration(task.Interval)
 	if err != nil {
 		return err
+	}
+
+	storeConfig, err := s.locationToConfig(taskset.Repository.URL)
+	if err != nil {
+		return fmt.Errorf("could not resolve repository: %s", storeConfig["location"])
 	}
 
 	restoreSubcommand := &restore.Restore{}
@@ -195,29 +260,21 @@ func (s *Scheduler) restoreTask(taskset TaskSet, task RestoreConfig) error {
 				time.Sleep(interval)
 			}
 
-			store, config, err := storage.Open(map[string]string{"location": restoreSubcommand.RepositoryLocation})
-			if err != nil {
-				s.ctx.GetLogger().Error("Error opening storage: %s", err)
-				continue
-			}
-
-			newCtx := appcontext.NewAppContextFrom(s.ctx)
-
-			repo, err := repository.New(newCtx, store, config)
+			repo, err := s.openRepository(storeConfig)
 			if err != nil {
 				s.ctx.GetLogger().Error("Error opening repository: %s", err)
-				store.Close()
 				continue
 			}
 
-			retval, err := restoreSubcommand.Execute(newCtx, repo)
+			restoreCtx := appcontext.NewAppContextFrom(repo.AppContext())
+			restoreCtx.SetSecret(repo.AppContext().GetSecret())
+			retval, err := restoreSubcommand.Execute(restoreCtx, repo)
 			if err != nil || retval != 0 {
 				s.ctx.GetLogger().Error("Error executing restore: %s", err)
 			}
+			restoreCtx.Close()
 
-			newCtx.Close()
 			repo.Close()
-			store.Close()
 		}
 	}()
 
@@ -228,6 +285,11 @@ func (s *Scheduler) syncTask(taskset TaskSet, task SyncConfig) error {
 	interval, err := stringToDuration(task.Interval)
 	if err != nil {
 		return err
+	}
+
+	storeConfig, err := s.locationToConfig(taskset.Repository.URL)
+	if err != nil {
+		return fmt.Errorf("could not resolve repository: %s", storeConfig["location"])
 	}
 
 	syncSubcommand := &sync.Sync{}
@@ -266,31 +328,23 @@ func (s *Scheduler) syncTask(taskset TaskSet, task SyncConfig) error {
 				time.Sleep(interval)
 			}
 
-			store, config, err := storage.Open(map[string]string{"location": syncSubcommand.SourceRepositoryLocation})
+			repo, err := s.openRepository(storeConfig)
 			if err != nil {
-				s.ctx.GetLogger().Error("sync: error opening storage: %s", err)
+				s.ctx.GetLogger().Error("Error opening repository: %s", err)
 				continue
 			}
 
-			newCtx := appcontext.NewAppContextFrom(s.ctx)
-
-			repo, err := repository.New(newCtx, store, config)
-			if err != nil {
-				s.ctx.GetLogger().Error("sync: error opening repository: %s", err)
-				store.Close()
-				continue
-			}
-
-			retval, err := syncSubcommand.Execute(newCtx, repo)
+			syncCtx := appcontext.NewAppContextFrom(repo.AppContext())
+			syncCtx.SetSecret(repo.AppContext().GetSecret())
+			retval, err := syncSubcommand.Execute(syncCtx, repo)
 			if err != nil || retval != 0 {
 				s.ctx.GetLogger().Error("sync: %s", err)
 			} else {
 				s.ctx.GetLogger().Info("sync: synchronization succeeded")
 			}
+			syncCtx.Close()
 
-			newCtx.Close()
 			repo.Close()
-			store.Close()
 		}
 	}()
 
@@ -301,6 +355,11 @@ func (s *Scheduler) cleanupTask(task CleanupConfig) error {
 	interval, err := stringToDuration(task.Interval)
 	if err != nil {
 		return err
+	}
+
+	storeConfig, err := s.locationToConfig(task.Repository.URL)
+	if err != nil {
+		return fmt.Errorf("could not resolve repository: %s", storeConfig["location"])
 	}
 
 	cleanupSubcommand := &cleanup.Cleanup{}
@@ -317,14 +376,6 @@ func (s *Scheduler) cleanupTask(task CleanupConfig) error {
 		_ = rmSubcommand.RepositorySecret
 	}
 
-	var retention time.Duration
-	if task.Retention != "" {
-		retention, err = stringToDuration(task.Retention)
-		if err != nil {
-			return err
-		}
-	}
-
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
@@ -336,43 +387,24 @@ func (s *Scheduler) cleanupTask(task CleanupConfig) error {
 				time.Sleep(interval)
 			}
 
-			store, config, err := storage.Open(map[string]string{"location": cleanupSubcommand.RepositoryLocation})
-			if err != nil {
-				s.ctx.GetLogger().Error("Error opening storage: %s", err)
-				continue
-			}
-
-			newCtx := appcontext.NewAppContextFrom(s.ctx)
-
-			repo, err := repository.New(newCtx, store, config)
+			repo, err := s.openRepository(storeConfig)
 			if err != nil {
 				s.ctx.GetLogger().Error("Error opening repository: %s", err)
-				store.Close()
 				continue
 			}
 
-			retval, err := cleanupSubcommand.Execute(newCtx, repo)
+			cleanupCtx := appcontext.NewAppContextFrom(repo.AppContext())
+			cleanupCtx.SetSecret(repo.AppContext().GetSecret())
+
+			retval, err := cleanupSubcommand.Execute(cleanupCtx, repo)
 			if err != nil || retval != 0 {
 				s.ctx.GetLogger().Error("Error executing cleanup: %s", err)
 			} else {
 				s.ctx.GetLogger().Info("maintenance of repository %s succeeded", cleanupSubcommand.RepositoryLocation)
 			}
+			cleanupCtx.Close()
 
-			if task.Retention != "" {
-				rmCtx := appcontext.NewAppContextFrom(newCtx)
-				rmSubcommand.OptBefore = time.Now().Add(-retention)
-				retval, err = rmSubcommand.Execute(rmCtx, repo)
-				if err != nil || retval != 0 {
-					s.ctx.GetLogger().Error("Error removing obsolete backups: %s", err)
-				} else {
-					s.ctx.GetLogger().Info("Retention purge succeeded")
-				}
-				rmCtx.Close()
-			}
-
-			newCtx.Close()
 			repo.Close()
-			store.Close()
 		}
 	}()
 

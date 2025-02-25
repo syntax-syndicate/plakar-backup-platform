@@ -1,14 +1,8 @@
 agent:
-  cleanup:
-    - interval: 10s
-      repository:
-        url: /Users/gilles/.plakar
-      retention: 24h
-
   tasks:
     - name: system
       repository:
-        url: /Users/gilles/.plakar
+        url: "@foobar"
       
       backup:
         path: /private/etc
@@ -21,7 +15,7 @@ agent:
           path: /
           latest: true
 
-      sync:
-        - interval: 10s
-          direction: with
-          peer: /tmp/foobar
+      #sync:
+      #  - interval: 10s
+      #    direction: with
+      #    peer: /tmp/foobar
