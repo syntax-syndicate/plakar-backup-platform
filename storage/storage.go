@@ -124,7 +124,7 @@ type Store interface {
 }
 
 var muBackends sync.Mutex
-var backends map[string]func(map[string]string) Store = make(map[string]func(map[string]string) Store)
+var backends map[string]func(map[string]string) (Store, error) = make(map[string]func(map[string]string) (Store, error))
 
 func NewStore(name string, storeConfig map[string]string) (Store, error) {
 	muBackends.Lock()
@@ -133,12 +133,11 @@ func NewStore(name string, storeConfig map[string]string) (Store, error) {
 	if backend, exists := backends[name]; !exists {
 		return nil, fmt.Errorf("backend '%s' does not exist", name)
 	} else {
-		backendInstance := backend(storeConfig)
-		return backendInstance, nil
+		return backend(storeConfig)
 	}
 }
 
-func Register(name string, backend func(map[string]string) Store) {
+func Register(name string, backend func(map[string]string) (Store, error)) {
 	muBackends.Lock()
 	defer muBackends.Unlock()
 

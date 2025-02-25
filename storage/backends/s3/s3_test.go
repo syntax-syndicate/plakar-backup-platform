@@ -22,9 +22,9 @@ func TestS3Backend(t *testing.T) {
 	defer ts.Close()
 
 	// create a repository
-	repo := NewRepository(map[string]string{"location": ts.URL + "/testbucket"})
-	if repo == nil {
-		t.Fatal("error creating repository")
+	repo, err := NewRepository(map[string]string{"location": ts.URL + "/testbucket"})
+	if err != nil {
+		t.Fatal("error creating repository", err)
 	}
 
 	location := repo.Location()

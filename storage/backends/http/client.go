@@ -39,10 +39,10 @@ func init() {
 	storage.Register("http", NewRepository)
 }
 
-func NewRepository(storeConfig map[string]string) storage.Store {
+func NewRepository(storeConfig map[string]string) (storage.Store, error) {
 	return &Repository{
 		location: storeConfig["location"],
-	}
+	}, nil
 }
 
 func (repo *Repository) Location() string {
