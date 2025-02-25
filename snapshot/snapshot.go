@@ -5,10 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/btree"
 	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
@@ -200,6 +203,139 @@ func (snap *Snapshot) LookupObject(mac objects.MAC) (*objects.Object, error) {
 		return nil, err
 	}
 	return objects.NewObjectFromBytes(buffer)
+}
+
+func getPackfileForBlobWithError(snap *Snapshot, res resources.Type, mac objects.MAC) (objects.MAC, error) {
+	packfile, exists, err := snap.repository.GetPackfileForBlob(res, mac)
+	if err != nil {
+		return objects.MAC{}, fmt.Errorf("Error %s while trying to locate packfile for blob %x of type %s", err, mac, res)
+	} else if !exists {
+		return objects.MAC{}, fmt.Errorf("Could not find packfile for blob %x of type %s", mac, res)
+	} else {
+		return packfile, nil
+	}
+}
+
+func (snap *Snapshot) ListPackfiles() (iter.Seq2[objects.MAC, error], error) {
+	pvfs, err := snap.Filesystem()
+	if err != nil {
+		return nil, err
+	}
+
+	return func(yield func(objects.MAC, error) bool) {
+		if !yield(getPackfileForBlobWithError(snap, resources.RT_SNAPSHOT, snap.Header.Identifier)) {
+			return
+		}
+
+		if snap.Header.Identity.Identifier != uuid.Nil {
+			if !yield(getPackfileForBlobWithError(snap, resources.RT_SIGNATURE, snap.Header.Identifier)) {
+				return
+			}
+		}
+
+		if !yield(getPackfileForBlobWithError(snap, resources.RT_VFS_BTREE, snap.Header.Sources[0].VFS.Root)) {
+			return
+		}
+
+		/* Iterate over all the VFS, resolving both Nodes and actual VFS entries. */
+		fsIter := pvfs.IterNodes()
+		for fsIter.Next() {
+			macNode, node := fsIter.Current()
+			if !yield(getPackfileForBlobWithError(snap, resources.RT_VFS_NODE, macNode)) {
+				return
+			}
+
+			for _, entry := range node.Values {
+				if !yield(getPackfileForBlobWithError(snap, resources.RT_VFS_ENTRY, entry)) {
+					return
+				}
+
+				vfsEntry, err := pvfs.ResolveEntry(entry)
+				if err != nil {
+					if !yield(objects.MAC{}, fmt.Errorf("Failed to resolve entry %x", entry)) {
+						return
+					}
+				}
+
+				if vfsEntry.HasObject() {
+					if !yield(getPackfileForBlobWithError(snap, resources.RT_OBJECT, vfsEntry.Object)) {
+						return
+					}
+
+					for _, chunk := range vfsEntry.ResolvedObject.Chunks {
+						if !yield(getPackfileForBlobWithError(snap, resources.RT_CHUNK, chunk.ContentMAC)) {
+							return
+						}
+					}
+
+				}
+
+			}
+
+		}
+
+		if !yield(getPackfileForBlobWithError(snap, resources.RT_ERROR_BTREE, snap.Header.Sources[0].VFS.Errors)) {
+			return
+		}
+		errIter := pvfs.IterErrorNodes()
+		for errIter.Next() {
+			macNode, node := errIter.Current()
+			if !yield(getPackfileForBlobWithError(snap, resources.RT_ERROR_NODE, macNode)) {
+				return
+			}
+
+			for _, error := range node.Values {
+				if !yield(getPackfileForBlobWithError(snap, resources.RT_ERROR_ENTRY, error)) {
+					return
+				}
+			}
+		}
+
+		if !yield(getPackfileForBlobWithError(snap, resources.RT_XATTR_BTREE, snap.Header.Sources[0].VFS.Xattrs)) {
+			return
+		}
+		xattrIter := pvfs.XattrNodes()
+		for xattrIter.Next() {
+			mac, node := xattrIter.Current()
+			if !yield(getPackfileForBlobWithError(snap, resources.RT_XATTR_NODE, mac)) {
+				return
+			}
+
+			for _, error := range node.Values {
+				if !yield(getPackfileForBlobWithError(snap, resources.RT_XATTR_ENTRY, error)) {
+					return
+				}
+			}
+		}
+
+		// Lastly going over the indexes.
+		if !yield(getPackfileForBlobWithError(snap, resources.RT_BTREE_ROOT, snap.Header.GetSource(0).Indexes[0].Value)) {
+			return
+		}
+		rd, err := snap.Repository().GetBlob(resources.RT_BTREE_ROOT, snap.Header.GetSource(0).Indexes[0].Value)
+		if err != nil {
+			if !yield(objects.MAC{}, fmt.Errorf("Failed to load Index root entry %s", err)) {
+				return
+			}
+		}
+
+		store := repository.NewRepositoryStore[string, objects.MAC](snap.Repository(), resources.RT_BTREE_NODE)
+		tree, err := btree.Deserialize(rd, store, strings.Compare)
+		if err != nil {
+			if !yield(objects.MAC{}, fmt.Errorf("Failed to deserialize root entry %s", err)) {
+				return
+			}
+		}
+
+		indexIter := tree.IterDFS()
+		for indexIter.Next() {
+			mac, _ := indexIter.Current()
+			if !yield(getPackfileForBlobWithError(snap, resources.RT_BTREE_NODE, mac)) {
+				return
+			}
+		}
+
+	}, nil
 }
 
 func (snap *Snapshot) Logger() *logging.Logger {

@@ -7,7 +7,7 @@ PLAKAR-DIGEST(1) - General Commands Manual
 # SYNOPSIS
 
 **plakar digest**
-\[**-fast**]
+\[**-hashing**&nbsp;*algorithm*]
 *snapshotID*:*filepath*&nbsp;\[...]
 
 # DESCRIPTION
@@ -28,12 +28,12 @@ contents.
 
 The options are as follows:
 
-**-fast**
+**-hashing** *algorithm*
 
-> Return the pre-recorded digest for the file without re-computing it
-> from the file contents.
-> It's faster, but it does not verify the integrity against the current
-> contents.
+> Use
+> *algorithm*
+> to compute the digest.
+> Defaults to SHA256.
 
 # EXAMPLES
 
@@ -41,9 +41,9 @@ Calculate the digest of a file within a snapshot:
 
 	$ plakar digest abc123:/etc/passwd
 
-Retrieve the pre-recorded digest for faster output:
+Use BLAKE3 as the digest algorithm:
 
-	$ plakar digest -fast abc123:/etc/netstart
+	$ plakar digest -hashing BLAKE3 abc123:/etc/netstart
 
 # DIAGNOSTICS
 

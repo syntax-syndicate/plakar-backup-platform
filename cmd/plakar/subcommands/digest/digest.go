@@ -19,7 +19,6 @@ package digest
 import (
 	"flag"
 	"fmt"
-	"hash"
 	"io"
 	"path"
 	"strings"
@@ -38,7 +37,6 @@ func init() {
 }
 
 func parse_cmd_digest(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
-	var opt_fastDigest bool
 	var opt_hashing string
 
 	flags := flag.NewFlagSet("digest", flag.ExitOnError)
@@ -48,8 +46,7 @@ func parse_cmd_digest(ctx *appcontext.AppContext, repo *repository.Repository, a
 		flags.PrintDefaults()
 	}
 
-	flags.BoolVar(&opt_fastDigest, "fast", false, "enable fast digest (return recorded digest)")
-	flags.StringVar(&opt_hashing, "hashing", "BLAKE3", "hashing algorithm to use")
+	flags.StringVar(&opt_hashing, "hashing", "SHA256", "hashing algorithm to use")
 	flags.Parse(args)
 
 	if flags.NArg() == 0 {
@@ -58,8 +55,7 @@ func parse_cmd_digest(ctx *appcontext.AppContext, repo *repository.Repository, a
 	}
 
 	hashingFunction := strings.ToUpper(opt_hashing)
-	if hashing.GetHasher(strings.TrimPrefix(hashingFunction, "HMAC-")) == nil {
-		ctx.GetLogger().Error("%s: unsupported hashing algorithm: %s", flags.Name(), hashingFunction)
+	if hashing.GetHasher(hashingFunction) == nil {
 		return nil, fmt.Errorf("unsupported hashing algorithm: %s", hashingFunction)
 	}
 
@@ -67,7 +63,6 @@ func parse_cmd_digest(ctx *appcontext.AppContext, repo *repository.Repository, a
 		RepositoryLocation: repo.Location(),
 		RepositorySecret:   ctx.GetSecret(),
 		HashingFunction:    hashingFunction,
-		Fast:               opt_fastDigest,
 		Targets:            flags.Args(),
 	}, nil
 }
@@ -77,7 +72,6 @@ type Digest struct {
 	RepositorySecret   []byte
 
 	HashingFunction string
-	Fast            bool
 	Targets         []string
 }
 
@@ -102,14 +96,14 @@ func (cmd *Digest) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 			continue
 		}
 
-		cmd.displayDigests(ctx, fs, repo, snap, pathname, cmd.Fast)
+		cmd.displayDigests(ctx, fs, repo, snap, pathname)
 		snap.Close()
 	}
 
 	return 0, nil
 }
 
-func (cmd *Digest) displayDigests(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repository.Repository, snap *snapshot.Snapshot, pathname string, fastcheck bool) error {
+func (cmd *Digest) displayDigests(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repository.Repository, snap *snapshot.Snapshot, pathname string) error {
 	fsinfo, err := fs.GetEntry(pathname)
 	if err != nil {
 		return err
@@ -121,7 +115,7 @@ func (cmd *Digest) displayDigests(ctx *appcontext.AppContext, fs *vfs.Filesystem
 			return err
 		}
 		for child := range iter {
-			if err := cmd.displayDigests(ctx, fs, repo, snap, path.Join(pathname, child.Stat().Name()), fastcheck); err != nil {
+			if err := cmd.displayDigests(ctx, fs, repo, snap, path.Join(pathname, child.Stat().Name())); err != nil {
 				return err
 			}
 		}
@@ -131,36 +125,18 @@ func (cmd *Digest) displayDigests(ctx *appcontext.AppContext, fs *vfs.Filesystem
 		return nil
 	}
 
-	object, err := snap.LookupObject(fsinfo.Object)
+	rd, err := snap.NewReader(pathname)
 	if err != nil {
 		return err
 	}
+	defer rd.Close()
 
-	digest := []byte(object.ContentMAC[:])
-	if !fastcheck {
-		rd, err := snap.NewReader(pathname)
-		if err != nil {
-			return err
-		}
-		defer rd.Close()
-
-		var hasher hash.Hash
-
-		if strings.HasPrefix(cmd.HashingFunction, "HMAC-") {
-			secret := repo.AppContext().GetSecret()
-			if secret == nil {
-				tmp := repo.Configuration().RepositoryID
-				secret = tmp[:]
-			}
-			hasher = hashing.GetMACHasher(strings.TrimPrefix(cmd.HashingFunction, "HMAC-"), secret)
-		} else {
-			hasher = hashing.GetHasher(repo.Configuration().Hashing.Algorithm)
-		}
-		if _, err := io.Copy(hasher, rd); err != nil {
-			return err
-		}
-		digest = hasher.Sum(nil)
+	algorithm := cmd.HashingFunction
+	hasher := hashing.GetHasher(algorithm)
+	if _, err := io.Copy(hasher, rd); err != nil {
+		return err
 	}
-	fmt.Fprintf(ctx.Stdout, "%s (%s) = %x\n", repo.Configuration().Hashing.Algorithm, pathname, digest)
+	digest := hasher.Sum(nil)
+	fmt.Fprintf(ctx.Stdout, "%s (%s) = %x\n", algorithm, pathname, digest)
 	return nil
 }
