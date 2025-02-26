@@ -13,9 +13,11 @@ type Config struct {
 	pathname          string
 	DefaultRepository string                      `yaml:"default-repo"`
 	Repositories      map[string]RepositoryConfig `yaml:"repositories"`
+	Remotes           map[string]RemoteConfig     `yaml:"remotes"`
 }
 
 type RepositoryConfig map[string]string
+type RemoteConfig map[string]string
 
 func LoadOrCreate(configFile string) (*Config, error) {
 	f, err := os.Open(configFile)
@@ -24,6 +26,7 @@ func LoadOrCreate(configFile string) (*Config, error) {
 			cfg := &Config{
 				pathname:     configFile,
 				Repositories: make(map[string]RepositoryConfig),
+				Remotes:      make(map[string]RemoteConfig),
 			}
 			return cfg, cfg.Save()
 		}
@@ -37,6 +40,9 @@ func LoadOrCreate(configFile string) (*Config, error) {
 	config.pathname = configFile
 	if config.Repositories == nil {
 		config.Repositories = make(map[string]RepositoryConfig)
+	}
+	if config.Remotes == nil {
+		config.Remotes = make(map[string]RemoteConfig)
 	}
 	return &config, nil
 }
@@ -68,5 +74,15 @@ func (c *Config) HasRepository(name string) bool {
 
 func (c *Config) GetRepository(name string) (map[string]string, bool) {
 	kv, ok := c.Repositories[name]
+	return kv, ok
+}
+
+func (c *Config) HasRemote(name string) bool {
+	_, ok := c.Remotes[name]
+	return ok
+}
+
+func (c *Config) GetRemote(name string) (map[string]string, bool) {
+	kv, ok := c.Remotes[name]
 	return kv, ok
 }
