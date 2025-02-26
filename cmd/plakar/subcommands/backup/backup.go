@@ -171,7 +171,7 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		"location": scanDir,
 	}
 	if strings.HasPrefix(scanDir, "@") {
-		remote, ok := ctx.Config.GetRepository(scanDir[1:])
+		remote, ok := ctx.Config.GetRemote(scanDir[1:])
 		if !ok {
 			return 1, fmt.Errorf("could not resolve importer: %s", scanDir)
 		}
