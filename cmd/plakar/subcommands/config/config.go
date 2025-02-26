@@ -55,6 +55,8 @@ func (cmd *Config) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 
 	var err error
 	switch cmd.args[0] {
+	case "remote":
+		err = cmd_remote(ctx, repo, cmd.args[1:])
 	case "repository", "repo":
 		err = cmd_repository(ctx, repo, cmd.args[1:])
 	default:
@@ -65,6 +67,45 @@ func (cmd *Config) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		return 1, err
 	}
 	return 0, nil
+}
+
+func cmd_remote(ctx *appcontext.AppContext, repo *repository.Repository, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: plakar config remote [create | default | set | validate]")
+	}
+
+	switch args[0] {
+	case "create":
+		if len(args) != 2 {
+			return fmt.Errorf("usage: plakar config remote create name")
+		}
+		name := args[1]
+		if ctx.Config.HasRemote(name) {
+			return fmt.Errorf("remote %q already exists", name)
+		}
+		ctx.Config.Remotes[name] = make(map[string]string)
+		return ctx.Config.Save()
+
+	case "set":
+		if len(args) != 4 {
+			return fmt.Errorf("usage: plakar config remote set name key value")
+		}
+		name, key, value := args[1], args[2], args[3]
+		if !ctx.Config.HasRemote(name) {
+			return fmt.Errorf("remote %q does not exists", name)
+		}
+		ctx.Config.Remotes[name][key] = value
+		return ctx.Config.Save()
+
+	case "validate":
+		if len(args) != 2 {
+			return fmt.Errorf("usage: plakar config remote validate name")
+		}
+		return fmt.Errorf("validtion not implemented")
+
+	default:
+		return fmt.Errorf("usage: plakar config remote [create | default | set | validate]")
+	}
 }
 
 func cmd_repository(ctx *appcontext.AppContext, repo *repository.Repository, args []string) error {
@@ -86,7 +127,7 @@ func cmd_repository(ctx *appcontext.AppContext, repo *repository.Repository, arg
 
 	case "default":
 		if len(args) != 2 {
-			return fmt.Errorf("usage: plakar config default name")
+			return fmt.Errorf("usage: plakar config repository default name")
 		}
 		name := args[1]
 		if !ctx.Config.HasRepository(name) {
