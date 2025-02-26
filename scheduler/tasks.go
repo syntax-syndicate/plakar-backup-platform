@@ -48,7 +48,7 @@ func (s *Scheduler) openRepository(storeConfig map[string]string) (*repository.R
 
 	if repoConfig.Version != versioning.FromString(storage.VERSION) {
 		store.Close()
-		return nil, fmt.Errorf("%s: incompatible repository version: %s != %s\n",
+		return nil, fmt.Errorf("%s: incompatible repository version: %s != %s",
 			flag.CommandLine.Name(), repoConfig.Version, storage.VERSION)
 	}
 
@@ -76,7 +76,7 @@ func (s *Scheduler) openRepository(storeConfig map[string]string) (*repository.R
 	repo, err := repository.New(newCtx, store, wrappedConfig)
 	if err != nil {
 		store.Close()
-		return nil, fmt.Errorf("Error opening repository: %s", err)
+		return nil, fmt.Errorf("error opening repository: %s", err)
 	}
 
 	return repo, nil
@@ -206,7 +206,7 @@ func (s *Scheduler) checkTask(taskset TaskSet, task CheckConfig) error {
 
 			repo, err := s.openRepository(storeConfig)
 			if err != nil {
-				s.ctx.GetLogger().Error("Error opening repository: %s", err)
+				s.ctx.GetLogger().Error("error opening repository: %s", err)
 				continue
 			}
 
@@ -214,7 +214,7 @@ func (s *Scheduler) checkTask(taskset TaskSet, task CheckConfig) error {
 			checkCtx.SetSecret(repo.AppContext().GetSecret())
 			retval, err := checkSubcommand.Execute(checkCtx, repo)
 			if err != nil || retval != 0 {
-				s.ctx.GetLogger().Error("Error executing check: %s", err)
+				s.ctx.GetLogger().Error("error executing check: %s", err)
 			}
 			checkCtx.Close()
 
@@ -330,7 +330,7 @@ func (s *Scheduler) syncTask(taskset TaskSet, task SyncConfig) error {
 
 			repo, err := s.openRepository(storeConfig)
 			if err != nil {
-				s.ctx.GetLogger().Error("Error opening repository: %s", err)
+				s.ctx.GetLogger().Error("error opening repository: %s", err)
 				continue
 			}
 
@@ -369,13 +369,6 @@ func (s *Scheduler) cleanupTask(task CleanupConfig) error {
 		_ = cleanupSubcommand.RepositorySecret
 	}
 
-	rmSubcommand := &rm.Rm{}
-	rmSubcommand.RepositoryLocation = task.Repository.URL
-	if task.Repository.Passphrase != "" {
-		rmSubcommand.RepositorySecret = []byte(task.Repository.Passphrase)
-		_ = rmSubcommand.RepositorySecret
-	}
-
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
@@ -389,7 +382,7 @@ func (s *Scheduler) cleanupTask(task CleanupConfig) error {
 
 			repo, err := s.openRepository(storeConfig)
 			if err != nil {
-				s.ctx.GetLogger().Error("Error opening repository: %s", err)
+				s.ctx.GetLogger().Error("error opening repository: %s", err)
 				continue
 			}
 
@@ -398,7 +391,7 @@ func (s *Scheduler) cleanupTask(task CleanupConfig) error {
 
 			retval, err := cleanupSubcommand.Execute(cleanupCtx, repo)
 			if err != nil || retval != 0 {
-				s.ctx.GetLogger().Error("Error executing cleanup: %s", err)
+				s.ctx.GetLogger().Error("error executing cleanup: %s", err)
 			} else {
 				s.ctx.GetLogger().Info("maintenance of repository %s succeeded", cleanupSubcommand.RepositoryLocation)
 			}
