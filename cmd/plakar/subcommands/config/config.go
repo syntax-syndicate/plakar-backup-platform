@@ -55,9 +55,9 @@ func (cmd *Config) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 	var err error
 	switch cmd.args[0] {
 	case "remote":
-		err = cmd_remote(ctx, repo, cmd.args[1:])
+		err = cmd_remote(ctx, cmd.args[1:])
 	case "repository", "repo":
-		err = cmd_repository(ctx, repo, cmd.args[1:])
+		err = cmd_repository(ctx, cmd.args[1:])
 	default:
 		err = fmt.Errorf("unknown subcommand %s", cmd.args[0])
 	}
@@ -68,7 +68,7 @@ func (cmd *Config) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 	return 0, nil
 }
 
-func cmd_remote(ctx *appcontext.AppContext, repo *repository.Repository, args []string) error {
+func cmd_remote(ctx *appcontext.AppContext, args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("usage: plakar config remote [create | set | validate]")
 	}
@@ -107,7 +107,7 @@ func cmd_remote(ctx *appcontext.AppContext, repo *repository.Repository, args []
 	}
 }
 
-func cmd_repository(ctx *appcontext.AppContext, repo *repository.Repository, args []string) error {
+func cmd_repository(ctx *appcontext.AppContext, args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("usage: plakar config repository [create | default | set | validate]")
 	}
