@@ -332,7 +332,7 @@ func entryPoint() int {
 
 	store, serializedConfig, err := storage.Open(storeConfig)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+		fmt.Fprintf(os.Stderr, "%s: failed to open the repository at %s: %s\nTo specify an alternative repository, please use \"plakar at <location> <command>\".\n", flag.CommandLine.Name(), storeConfig["location"], err)
 		return 1
 	}
 
