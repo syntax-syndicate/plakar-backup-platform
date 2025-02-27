@@ -87,24 +87,24 @@ func cmd_remote(ctx *appcontext.AppContext, args []string) error {
 
 	case "set":
 		if len(args) != 4 {
-			return fmt.Errorf("usage: plakar config remote set name key value")
+			return fmt.Errorf("usage: plakar config remote set name option value")
 		}
-		name, key, value := args[1], args[2], args[3]
+		name, option, value := args[1], args[2], args[3]
 		if !ctx.Config.HasRemote(name) {
 			return fmt.Errorf("remote %q does not exists", name)
 		}
-		ctx.Config.Remotes[name][key] = value
+		ctx.Config.Remotes[name][option] = value
 		return ctx.Config.Save()
 
 	case "unset":
 		if len(args) != 3 {
-			return fmt.Errorf("usage: plakar config remote unset name key")
+			return fmt.Errorf("usage: plakar config remote unset name option")
 		}
-		name, key := args[1], args[2]
+		name, option := args[1], args[2]
 		if !ctx.Config.HasRemote(name) {
 			return fmt.Errorf("remote %q does not exists", name)
 		}
-		delete(ctx.Config.Remotes[name], key)
+		delete(ctx.Config.Remotes[name], option)
 		return ctx.Config.Save()
 
 	case "validate":
@@ -148,24 +148,24 @@ func cmd_repository(ctx *appcontext.AppContext, args []string) error {
 
 	case "set":
 		if len(args) != 4 {
-			return fmt.Errorf("usage: plakar config repository set name key value")
+			return fmt.Errorf("usage: plakar config repository set name option value")
 		}
-		name, key, value := args[1], args[2], args[3]
+		name, option, value := args[1], args[2], args[3]
 		if !ctx.Config.HasRepository(name) {
 			return fmt.Errorf("repository %q does not exists", name)
 		}
-		ctx.Config.Repositories[name][key] = value
+		ctx.Config.Repositories[name][option] = value
 		return ctx.Config.Save()
 
 	case "unset":
 		if len(args) != 3 {
-			return fmt.Errorf("usage: plakar config repository unset name key")
+			return fmt.Errorf("usage: plakar config repository unset name option")
 		}
-		name, key := args[1], args[2]
+		name, option := args[1], args[2]
 		if !ctx.Config.HasRepository(name) {
 			return fmt.Errorf("repository %q does not exists", name)
 		}
-		delete(ctx.Config.Repositories[name], key)
+		delete(ctx.Config.Repositories[name], option)
 		return ctx.Config.Save()
 
 	case "validate":
