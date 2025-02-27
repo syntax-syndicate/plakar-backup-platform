@@ -66,9 +66,7 @@ func NewS3Exporter(config map[string]string) (exporter.Exporter, error) {
 	}
 
 	useSsl := true
-	if value, ok := config["use_ssl"]; !ok {
-		return nil, fmt.Errorf("missing secret_access_key")
-	} else {
+	if value, ok := config["use_ssl"]; ok {
 		tmp, err := strconv.ParseBool(value)
 		if err != nil {
 			return nil, fmt.Errorf("invalid use_ssl value")
