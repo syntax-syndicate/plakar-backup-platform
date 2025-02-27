@@ -111,7 +111,7 @@ func cmd_remote(ctx *appcontext.AppContext, args []string) error {
 		if len(args) != 2 {
 			return fmt.Errorf("usage: plakar config remote validate name")
 		}
-		return fmt.Errorf("validtion not implemented")
+		return fmt.Errorf("validation not implemented")
 
 	default:
 		return fmt.Errorf("usage: plakar config remote [create | set | validate]")
@@ -172,7 +172,7 @@ func cmd_repository(ctx *appcontext.AppContext, args []string) error {
 		if len(args) != 2 {
 			return fmt.Errorf("usage: plakar config repository validate name")
 		}
-		return fmt.Errorf("validtion not implemented")
+		return fmt.Errorf("validation not implemented")
 
 	default:
 		return fmt.Errorf("usage: plakar config repository [create | default | set | unset | validate]")
