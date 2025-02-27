@@ -354,30 +354,40 @@ func entryPoint() int {
 			derived := false
 			envPassphrase := os.Getenv("PLAKAR_PASSPHRASE")
 			if ctx.KeyFromFile == "" {
-				for attempts := 0; attempts < 3; attempts++ {
-					var passphrase []byte
-					if envPassphrase == "" {
-						passphrase, err = utils.GetPassphrase("repository")
-						if err != nil {
-							break
+				if passphrase, ok := storeConfig["passphrase"]; ok {
+					key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, []byte(passphrase))
+					if err == nil {
+						if encryption.VerifyCanary(repoConfig.Encryption, key) {
+							secret = key
+							derived = true
 						}
-					} else {
-						passphrase = []byte(envPassphrase)
 					}
+				} else {
+					for attempts := 0; attempts < 3; attempts++ {
+						var passphrase []byte
+						if envPassphrase == "" {
+							passphrase, err = utils.GetPassphrase("repository")
+							if err != nil {
+								break
+							}
+						} else {
+							passphrase = []byte(envPassphrase)
+						}
 
-					key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, passphrase)
-					if err != nil {
-						continue
-					}
-					if !encryption.VerifyCanary(repoConfig.Encryption, key) {
-						if envPassphrase != "" {
-							break
+						key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, passphrase)
+						if err != nil {
+							continue
 						}
-						continue
+						if !encryption.VerifyCanary(repoConfig.Encryption, key) {
+							if envPassphrase != "" {
+								break
+							}
+							continue
+						}
+						secret = key
+						derived = true
+						break
 					}
-					secret = key
-					derived = true
-					break
 				}
 			} else {
 				key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, []byte(ctx.KeyFromFile))
