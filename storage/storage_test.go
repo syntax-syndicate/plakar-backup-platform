@@ -43,19 +43,19 @@ func TestCreateStore(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	_, err = storage.Create("/test/location", serializedConfig)
+	_, err = storage.Create(map[string]string{"location": "/test/location"}, serializedConfig)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
 	// should return an error as the backend Create will return an error
-	_, err = storage.Create("/test/location/musterror", serializedConfig)
+	_, err = storage.Create(map[string]string{"location": "/test/location/musterror"}, serializedConfig)
 	if err.Error() != "creating error" {
 		t.Fatalf("Expected %s but got %v", "opening error", err)
 	}
 
 	// should return an error as the backend does not exist
-	_, err = storage.Create("unknown://dummy", serializedConfig)
+	_, err = storage.Create(map[string]string{"location": "unknown://dummy"}, serializedConfig)
 	if err.Error() != "unsupported plakar protocol" {
 		t.Fatalf("Expected %s but got %v", "unsupported plakar protocol", err)
 	}
@@ -66,7 +66,7 @@ func TestOpenStore(t *testing.T) {
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
 	ctx.MaxConcurrency = runtime.NumCPU()*8 + 1
 
-	store, _, err := storage.Open("/test/location")
+	store, _, err := storage.Open(map[string]string{"location": "/test/location"})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -76,13 +76,13 @@ func TestOpenStore(t *testing.T) {
 	}
 
 	// should return an error as the backend Open will return an error
-	_, _, err = storage.Open("/test/location/musterror")
+	_, _, err = storage.Open(map[string]string{"location": "/test/location/musterror"})
 	if err.Error() != "opening error" {
 		t.Fatalf("Expected %s but got %v", "opening error", err)
 	}
 
 	// should return an error as the backend does not exist
-	_, _, err = storage.Open("unknown://dummy")
+	_, _, err = storage.Open(map[string]string{"location": "unknown://dummy"})
 	if err.Error() != "unsupported plakar protocol" {
 		t.Fatalf("Expected %s but got %v", "unsupported plakar protocol", err)
 	}

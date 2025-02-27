@@ -72,7 +72,7 @@ func generateFixtures(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 	require.NoError(t, err)
 
 	// open the storage to load the configuration
-	r, serializedConfig, err := storage.Open("fs://" + tmpRepoDir)
+	r, serializedConfig, err := storage.Open(map[string]string{"location": "fs://" + tmpRepoDir})
 	require.NoError(t, err)
 
 	// create a repository

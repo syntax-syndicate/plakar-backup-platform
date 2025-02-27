@@ -272,24 +272,25 @@ func entryPoint() int {
 		}
 	}
 
+	storeConfig := map[string]string{"location": repositoryPath}
 	if strings.HasPrefix(repositoryPath, "@") {
 		remote, ok := ctx.Config.GetRepository(repositoryPath[1:])
 		if !ok {
 			fmt.Fprintf(os.Stderr, "%s: could not resolve repository: %s\n", flag.CommandLine.Name(), repositoryPath)
 			return 1
 		}
-		if value, ok := remote["location"]; !ok {
+		if _, ok := remote["location"]; !ok {
 			fmt.Fprintf(os.Stderr, "%s: could not resolve repository location: %s\n", flag.CommandLine.Name(), repositoryPath)
 			return 1
 		} else {
-			repositoryPath = value
+			storeConfig = remote
 		}
 	}
 
 	// create is a special case, it operates without a repository...
 	// but needs a repository location to store the new repository
 	if command == "create" {
-		repo, err := repository.Inexistant(ctx, repositoryPath)
+		repo, err := repository.Inexistant(ctx, storeConfig["location"])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
@@ -329,27 +330,27 @@ func entryPoint() int {
 		skipPassphrase = true
 	}
 
-	store, serializedConfig, err := storage.Open(repositoryPath)
+	store, serializedConfig, err := storage.Open(storeConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		return 1
 	}
 
-	storeConfig, err := storage.NewConfigurationFromWrappedBytes(serializedConfig)
+	repoConfig, err := storage.NewConfigurationFromWrappedBytes(serializedConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		return 1
 	}
 
-	if storeConfig.Version != versioning.FromString(storage.VERSION) {
+	if repoConfig.Version != versioning.FromString(storage.VERSION) {
 		fmt.Fprintf(os.Stderr, "%s: incompatible repository version: %s != %s\n",
-			flag.CommandLine.Name(), storeConfig.Version, storage.VERSION)
+			flag.CommandLine.Name(), repoConfig.Version, storage.VERSION)
 		return 1
 	}
 
 	var secret []byte
 	if !skipPassphrase {
-		if storeConfig.Encryption != nil {
+		if repoConfig.Encryption != nil {
 			derived := false
 			envPassphrase := os.Getenv("PLAKAR_PASSPHRASE")
 			if ctx.KeyFromFile == "" {
@@ -364,11 +365,11 @@ func entryPoint() int {
 						passphrase = []byte(envPassphrase)
 					}
 
-					key, err := encryption.DeriveKey(storeConfig.Encryption.KDFParams, passphrase)
+					key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, passphrase)
 					if err != nil {
 						continue
 					}
-					if !encryption.VerifyCanary(storeConfig.Encryption, key) {
+					if !encryption.VerifyCanary(repoConfig.Encryption, key) {
 						if envPassphrase != "" {
 							break
 						}
@@ -379,9 +380,9 @@ func entryPoint() int {
 					break
 				}
 			} else {
-				key, err := encryption.DeriveKey(storeConfig.Encryption.KDFParams, []byte(ctx.KeyFromFile))
+				key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, []byte(ctx.KeyFromFile))
 				if err == nil {
-					if encryption.VerifyCanary(storeConfig.Encryption, key) {
+					if encryption.VerifyCanary(repoConfig.Encryption, key) {
 						secret = key
 						derived = true
 					}

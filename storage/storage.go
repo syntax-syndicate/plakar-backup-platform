@@ -194,8 +194,8 @@ func New(location string) (Store, error) {
 	return NewStore(backendName, location)
 }
 
-func Open(location string) (Store, []byte, error) {
-	store, err := New(location)
+func Open(storeConfig map[string]string) (Store, []byte, error) {
+	store, err := New(storeConfig["location"])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		return nil, nil, err
@@ -209,8 +209,8 @@ func Open(location string) (Store, []byte, error) {
 	return store, serializedConfig, nil
 }
 
-func Create(location string, configuration []byte) (Store, error) {
-	store, err := New(location)
+func Create(storeConfig map[string]string, configuration []byte) (Store, error) {
+	store, err := New(storeConfig["location"])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		return nil, err

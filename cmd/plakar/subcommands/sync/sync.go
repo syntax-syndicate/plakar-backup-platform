@@ -66,7 +66,7 @@ func parse_cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, arg
 		return nil, fmt.Errorf("invalid direction, must be to, from or with")
 	}
 
-	peerStore, peerStoreSerializedConfig, err := storage.Open(peerRepositoryPath)
+	peerStore, peerStoreSerializedConfig, err := storage.Open(map[string]string{"location": peerRepositoryPath})
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (cmd *Sync) Name() string {
 
 func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 
-	peerStore, peerStoreSerializedConfig, err := storage.Open(cmd.PeerRepositoryLocation)
+	peerStore, peerStoreSerializedConfig, err := storage.Open(map[string]string{"location": cmd.PeerRepositoryLocation})
 	if err != nil {
 		return 1, fmt.Errorf("could not open peer store %s: %s", cmd.PeerRepositoryLocation, err)
 	}
