@@ -93,7 +93,7 @@ func TestBackends(t *testing.T) {
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
 	ctx.MaxConcurrency = runtime.NumCPU()*8 + 1
 
-	storage.Register("test", func(storeConfig map[string]string) storage.Store { return &ptesting.MockBackend{} })
+	storage.Register("test", func(storeConfig map[string]string) (storage.Store, error) { return &ptesting.MockBackend{}, nil })
 
 	expected := []string{"fs", "test"}
 	actual := storage.Backends()
@@ -121,8 +121,8 @@ func TestNew(t *testing.T) {
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
 			ctx.MaxConcurrency = runtime.NumCPU()*8 + 1
 
-			storage.Register(l.name, func(storeConfig map[string]string) storage.Store {
-				return ptesting.NewMockBackend(storeConfig)
+			storage.Register(l.name, func(storeConfig map[string]string) (storage.Store, error) {
+				return ptesting.NewMockBackend(storeConfig), nil
 			})
 
 			store, err := storage.New(map[string]string{"location": l.location})

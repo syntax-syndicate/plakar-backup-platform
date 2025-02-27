@@ -16,9 +16,9 @@ func TestFsBackend(t *testing.T) {
 		os.RemoveAll("/tmp/testfs")
 	})
 	// create a repository
-	repo := NewRepository(map[string]string{"location": "fs:///tmp/testfs"})
-	if repo == nil {
-		t.Fatal("error creating repository")
+	repo, err := NewRepository(map[string]string{"location": "fs:///tmp/testfs"})
+	if err != nil {
+		t.Fatal("error creating repository", err)
 	}
 
 	location := repo.Location()

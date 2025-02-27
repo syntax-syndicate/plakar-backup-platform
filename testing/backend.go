@@ -16,8 +16,8 @@ import (
 )
 
 func init() {
-	storage.Register("fs", func(storeConfig map[string]string) storage.Store {
-		return &MockBackend{location: storeConfig["location"]}
+	storage.Register("fs", func(storeConfig map[string]string) (storage.Store, error) {
+		return &MockBackend{location: storeConfig["location"]}, nil
 	})
 }
 

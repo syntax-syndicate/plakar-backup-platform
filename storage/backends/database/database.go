@@ -47,10 +47,10 @@ func init() {
 	storage.Register("database", NewRepository)
 }
 
-func NewRepository(storeConfig map[string]string) storage.Store {
+func NewRepository(storeConfig map[string]string) (storage.Store, error) {
 	return &Repository{
 		location: storeConfig["location"],
-	}
+	}, nil
 }
 
 func (repo *Repository) Location() string {

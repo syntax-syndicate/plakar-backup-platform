@@ -43,8 +43,9 @@ func generateSnapshot(t *testing.T, keyPair *keypair.KeyPair) *Snapshot {
 	require.NoError(t, err)
 
 	// create a storage
-	r := bfs.NewRepository(map[string]string{"location": "fs://" + tmpRepoDir})
+	r, err := bfs.NewRepository(map[string]string{"location": "fs://" + tmpRepoDir})
 	require.NotNil(t, r)
+	require.NoError(t, err)
 	config := storage.NewConfiguration()
 	serialized, err := config.ToBytes()
 	require.NoError(t, err)
