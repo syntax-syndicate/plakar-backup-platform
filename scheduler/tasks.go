@@ -62,7 +62,7 @@ func (s *Scheduler) backupTask(taskset Task, task BackupConfig) error {
 				time.Sleep(interval)
 			}
 
-			store, config, err := storage.Open(backupSubcommand.RepositoryLocation)
+			store, config, err := storage.Open(map[string]string{"location": backupSubcommand.RepositoryLocation})
 			if err != nil {
 				s.ctx.GetLogger().Error("Error opening storage: %s", err)
 				continue
@@ -136,7 +136,7 @@ func (s *Scheduler) checkTask(taskset Task, task CheckConfig) error {
 				time.Sleep(interval)
 			}
 
-			store, config, err := storage.Open(checkSubcommand.RepositoryLocation)
+			store, config, err := storage.Open(map[string]string{"location": checkSubcommand.RepositoryLocation})
 			if err != nil {
 				s.ctx.GetLogger().Error("Error opening storage: %s", err)
 				continue
@@ -195,7 +195,7 @@ func (s *Scheduler) restoreTask(taskset Task, task RestoreConfig) error {
 				time.Sleep(interval)
 			}
 
-			store, config, err := storage.Open(restoreSubcommand.RepositoryLocation)
+			store, config, err := storage.Open(map[string]string{"location": restoreSubcommand.RepositoryLocation})
 			if err != nil {
 				s.ctx.GetLogger().Error("Error opening storage: %s", err)
 				continue
@@ -266,7 +266,7 @@ func (s *Scheduler) syncTask(taskset Task, task SyncConfig) error {
 				time.Sleep(interval)
 			}
 
-			store, config, err := storage.Open(syncSubcommand.SourceRepositoryLocation)
+			store, config, err := storage.Open(map[string]string{"location": syncSubcommand.SourceRepositoryLocation})
 			if err != nil {
 				s.ctx.GetLogger().Error("sync: error opening storage: %s", err)
 				continue
@@ -336,7 +336,7 @@ func (s *Scheduler) cleanupTask(task CleanupConfig) error {
 				time.Sleep(interval)
 			}
 
-			store, config, err := storage.Open(cleanupSubcommand.RepositoryLocation)
+			store, config, err := storage.Open(map[string]string{"location": cleanupSubcommand.RepositoryLocation})
 			if err != nil {
 				s.ctx.GetLogger().Error("Error opening storage: %s", err)
 				continue
