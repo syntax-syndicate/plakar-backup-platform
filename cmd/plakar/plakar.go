@@ -248,9 +248,9 @@ func entryPoint() int {
 
 	ctx.SetLogger(logger)
 
-	command, args := flag.Args()[0], flag.Args()[1:]
-
 	var repositoryPath string
+
+	command, args := flag.Args()[0], flag.Args()[1:]
 	if flag.Arg(0) == "at" {
 		if len(flag.Args()) < 2 {
 			log.Fatalf("%s: missing plakar repository", flag.CommandLine.Name())
@@ -263,8 +263,22 @@ func entryPoint() int {
 	} else {
 		repositoryPath = os.Getenv("PLAKAR_REPOSITORY")
 		if repositoryPath == "" {
-			repositoryPath = filepath.Join(ctx.HomeDir, ".plakar")
+			def := ctx.Config.DefaultRepository
+			if def != "" {
+				repositoryPath = "@" + def
+			} else {
+				repositoryPath = filepath.Join(ctx.HomeDir, ".plakar")
+			}
 		}
+	}
+
+	if strings.HasPrefix(repositoryPath, "@") {
+		remote, ok := ctx.Config.GetRepository(repositoryPath[1:])
+		if !ok {
+			fmt.Fprintf(os.Stderr, "%s: could not resolve repository: %s\n", flag.CommandLine.Name(), repositoryPath)
+			return 1
+		}
+		repositoryPath = remote["location"] // xxx
 	}
 
 	// create is a special case, it operates without a repository...
@@ -308,15 +322,6 @@ func entryPoint() int {
 	if command == "server" {
 		opt_agentless = true
 		skipPassphrase = true
-	}
-
-	if strings.HasPrefix(repositoryPath, "@") {
-		tmp, exists := ctx.Config.Lookup(repositoryPath[1:], "URL")
-		if !exists {
-			fmt.Fprintf(os.Stderr, "%s: could not resolve repository: %s\n", flag.CommandLine.Name(), repositoryPath)
-			return 1
-		}
-		repositoryPath = tmp.(string)
 	}
 
 	store, serializedConfig, err := storage.Open(repositoryPath)
