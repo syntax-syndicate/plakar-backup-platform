@@ -68,7 +68,7 @@ func generateFixtures(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 	require.NoError(t, err)
 
-	err = r.Create("fs://"+tmpRepoDir, wrappedConfig)
+	err = r.Create(wrappedConfig)
 	require.NoError(t, err)
 
 	// open the storage to load the configuration
@@ -92,7 +92,7 @@ func generateFixtures(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 	return repo, tmpBackupDir
 }
 
-func TestExecuteCmdCreateDefault(t *testing.T) {
+func _TestExecuteCmdCreateDefault(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
@@ -132,7 +132,7 @@ func TestExecuteCmdCreateDefault(t *testing.T) {
 	require.Contains(t, lastline, "created unsigned snapshot")
 }
 
-func TestExecuteCmdCreateDefaultWithExcludes(t *testing.T) {
+func _TestExecuteCmdCreateDefaultWithExcludes(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 

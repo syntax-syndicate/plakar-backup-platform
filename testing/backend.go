@@ -73,8 +73,8 @@ func NewMockBackend(location string) *MockBackend {
 	return &MockBackend{location: location}
 }
 
-func (mb *MockBackend) Create(repository string, configuration []byte) error {
-	if strings.Contains(repository, "musterror") {
+func (mb *MockBackend) Create(configuration []byte) error {
+	if strings.Contains(mb.location, "musterror") {
 		return errors.New("creating error")
 	}
 	mb.configuration = configuration
@@ -82,7 +82,7 @@ func (mb *MockBackend) Create(repository string, configuration []byte) error {
 
 	mb.behavior = "default"
 
-	u, err := url.Parse(repository)
+	u, err := url.Parse(mb.location)
 	if err != nil {
 		return err
 	}
@@ -96,8 +96,8 @@ func (mb *MockBackend) Create(repository string, configuration []byte) error {
 	return nil
 }
 
-func (mb *MockBackend) Open(repository string) ([]byte, error) {
-	if strings.Contains(repository, "musterror") {
+func (mb *MockBackend) Open() ([]byte, error) {
+	if strings.Contains(mb.location, "musterror") {
 		return nil, errors.New("opening error")
 	}
 	fmt.Println("CONFIG", mb.configuration)

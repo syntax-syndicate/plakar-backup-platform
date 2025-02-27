@@ -28,10 +28,10 @@ func TestFsBackend(t *testing.T) {
 	serialized, err := config.ToBytes()
 	require.NoError(t, err)
 
-	err = repo.Create("fs:///tmp/testfs", serialized)
+	err = repo.Create(serialized)
 	require.NoError(t, err)
 
-	_, err = repo.Open("fs:///tmp/testfs")
+	_, err = repo.Open()
 	require.NoError(t, err)
 	//require.Equal(t, repo.Configuration().Version, versioning.FromString(storage.VERSION))
 

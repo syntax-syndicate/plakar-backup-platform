@@ -87,8 +87,8 @@ func (repo *Repository) connect(addr string) error {
 	return nil
 }
 
-func (repo *Repository) Create(location string, config []byte) error {
-	err := repo.connect(location)
+func (repo *Repository) Create(config []byte) error {
+	err := repo.connect(repo.location)
 	if err != nil {
 		return err
 	}
@@ -136,8 +136,8 @@ func (repo *Repository) Create(location string, config []byte) error {
 	return nil
 }
 
-func (repo *Repository) Open(location string) ([]byte, error) {
-	err := repo.connect(location)
+func (repo *Repository) Open() ([]byte, error) {
+	err := repo.connect(repo.location)
 	if err != nil {
 		return nil, err
 	}
