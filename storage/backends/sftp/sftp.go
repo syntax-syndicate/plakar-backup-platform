@@ -26,6 +26,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"os/user"
 	"path"
 	"strings"
 
@@ -151,8 +152,17 @@ func connect(location string) (*sftp.Client, error) {
 		panic(err)
 	}
 
+	username := parsed.User.Username()
+	if username == "" {
+		u, err := user.Current()
+		if err != nil {
+			return nil, err
+		}
+		username = u.Username
+	}
+
 	config := &ssh.ClientConfig{
-		User: parsed.User.Username(),
+		User: username,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signers...),
 		},
