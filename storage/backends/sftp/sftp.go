@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -79,7 +78,7 @@ func defaultSigners() ([]ssh.Signer, error) {
 	}
 
 	for _, file := range keyFiles {
-		data, err := ioutil.ReadFile(file)
+		data, err := os.ReadFile(file)
 		if err != nil {
 			continue // Skip files that don't exist.
 		}
