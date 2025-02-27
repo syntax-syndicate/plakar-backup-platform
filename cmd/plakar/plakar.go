@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -428,7 +429,11 @@ func entryPoint() int {
 			defer ctx.GetCache().Close()
 
 			if err := repo.RebuildState(); err != nil {
-				fmt.Fprintf(os.Stderr, "%s: failed to rebuild state: %s\n", flag.CommandLine.Name(), err)
+				if errors.Is(err, caching.ErrInUse) {
+					fmt.Fprintf(os.Stderr, "%s: the agentless cache is locked by another process. To run multiple processes concurrently, start `plakar agent` and run your command again.\n", flag.CommandLine.Name())
+				} else {
+					fmt.Fprintf(os.Stderr, "%s: failed to rebuild state: %s\n", flag.CommandLine.Name(), err)
+				}
 				return 1
 			}
 
