@@ -12,7 +12,7 @@ import (
 
 func TestNullBackend(t *testing.T) {
 	// create a repository
-	repo := NewRepository("/test/location")
+	repo := NewRepository(map[string]string{"location": "/test/location"})
 	if repo == nil {
 		t.Fatal("error creating repository")
 	}

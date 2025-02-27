@@ -92,9 +92,9 @@ func defaultSigners() ([]ssh.Signer, error) {
 	return signers, nil
 }
 
-func NewRepository(location string) storage.Store {
+func NewRepository(storeConfig map[string]string) storage.Store {
 	return &Repository{
-		location: location,
+		location: storeConfig["location"],
 	}
 }
 

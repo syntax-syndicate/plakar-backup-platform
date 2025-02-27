@@ -55,7 +55,7 @@ func generateFixtures(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 	require.NoError(t, err)
 
 	// create a storage
-	r := bfs.NewRepository("fs://" + tmpRepoDir)
+	r := bfs.NewRepository(map[string]string{"location": "fs://" + tmpRepoDir})
 	require.NotNil(t, r)
 	config := storage.NewConfiguration()
 	serialized, err := config.ToBytes()

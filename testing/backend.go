@@ -16,7 +16,9 @@ import (
 )
 
 func init() {
-	storage.Register("fs", func(location string) storage.Store { return &MockBackend{location: location} })
+	storage.Register("fs", func(storeConfig map[string]string) storage.Store {
+		return &MockBackend{location: storeConfig["location"]}
+	})
 }
 
 type mockedBackendBehavior struct {
@@ -69,8 +71,8 @@ type MockBackend struct {
 	behavior string
 }
 
-func NewMockBackend(location string) *MockBackend {
-	return &MockBackend{location: location}
+func NewMockBackend(storeConfig map[string]string) *MockBackend {
+	return &MockBackend{location: storeConfig["location"]}
 }
 
 func (mb *MockBackend) Create(configuration []byte) error {
