@@ -70,7 +70,7 @@ func (cmd *Config) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 
 func cmd_remote(ctx *appcontext.AppContext, args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: plakar config remote [create | set | validate]")
+		return fmt.Errorf("usage: plakar config remote [create | set | unset | validate]")
 	}
 
 	switch args[0] {
@@ -96,6 +96,17 @@ func cmd_remote(ctx *appcontext.AppContext, args []string) error {
 		ctx.Config.Remotes[name][key] = value
 		return ctx.Config.Save()
 
+	case "unset":
+		if len(args) != 3 {
+			return fmt.Errorf("usage: plakar config remote unset name key")
+		}
+		name, key := args[1], args[2]
+		if !ctx.Config.HasRemote(name) {
+			return fmt.Errorf("remote %q does not exists", name)
+		}
+		delete(ctx.Config.Remotes[name], key)
+		return ctx.Config.Save()
+
 	case "validate":
 		if len(args) != 2 {
 			return fmt.Errorf("usage: plakar config remote validate name")
@@ -109,7 +120,7 @@ func cmd_remote(ctx *appcontext.AppContext, args []string) error {
 
 func cmd_repository(ctx *appcontext.AppContext, args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: plakar config repository [create | default | set | validate]")
+		return fmt.Errorf("usage: plakar config repository [create | default | set | unset | validate]")
 	}
 
 	switch args[0] {
@@ -146,6 +157,17 @@ func cmd_repository(ctx *appcontext.AppContext, args []string) error {
 		ctx.Config.Repositories[name][key] = value
 		return ctx.Config.Save()
 
+	case "unset":
+		if len(args) != 3 {
+			return fmt.Errorf("usage: plakar config repository unset name key")
+		}
+		name, key := args[1], args[2]
+		if !ctx.Config.HasRepository(name) {
+			return fmt.Errorf("repository %q does not exists", name)
+		}
+		delete(ctx.Config.Repositories[name], key)
+		return ctx.Config.Save()
+
 	case "validate":
 		if len(args) != 2 {
 			return fmt.Errorf("usage: plakar config repository validate name")
@@ -153,6 +175,6 @@ func cmd_repository(ctx *appcontext.AppContext, args []string) error {
 		return fmt.Errorf("validtion not implemented")
 
 	default:
-		return fmt.Errorf("usage: plakar config repository [create | default | set | validate]")
+		return fmt.Errorf("usage: plakar config repository [create | default | set | unset | validate]")
 	}
 }
