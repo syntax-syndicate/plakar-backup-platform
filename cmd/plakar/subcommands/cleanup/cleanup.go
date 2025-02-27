@@ -34,7 +34,7 @@ import (
 )
 
 func init() {
-	//subcommands.Register("cleanup", parse_cmd_cleanup)
+	subcommands.Register("cleanup", parse_cmd_cleanup)
 }
 
 func parse_cmd_cleanup(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
@@ -177,8 +177,8 @@ func colourPass(ctx *appcontext.AppContext, repo *repository.Repository, cache *
 
 func sweepPass(ctx *appcontext.AppContext, repo *repository.Repository, cache *caching.MaintainanceCache) error {
 	// These need to be configurable per repo, but we don't have a mechanism yet (comes in a PR soon!)
-	cutoff := time.Now() //.AddDate(0, 0, -3)
-	doDeletion := true
+	cutoff := time.Now().AddDate(0, 0, -30)
+	doDeletion := false
 
 	// First go over all the packfiles coloured by first pass.
 	packfileremoved := 0
