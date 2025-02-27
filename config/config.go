@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
@@ -34,13 +35,14 @@ func LoadOrCreate(configFile string) (*Config, error) {
 }
 
 func (c *Config) Save() error {
-	tmpFile, err := os.CreateTemp("", "config.*.yaml")
+	dir := filepath.Dir(c.pathname)
+	tmpFile, err := os.CreateTemp(dir, "config.*.yaml")
 	if err != nil {
 		return err
 	}
-	defer tmpFile.Close()
 
 	err = yaml.NewEncoder(tmpFile).Encode(c)
+	tmpFile.Close()
 	if err != nil {
 		os.Remove(tmpFile.Name())
 		return err
