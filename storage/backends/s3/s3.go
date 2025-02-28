@@ -312,19 +312,47 @@ func (repository *Repository) DeletePackfile(mac objects.MAC) error {
 	return nil
 }
 
-/* Locks */
-func (repo *Repository) GetLocks() ([]objects.MAC, error) {
-	panic("Not implemented yet")
+func (repository *Repository) GetLocks() ([]objects.MAC, error) {
+	ret := make([]objects.MAC, 0)
+	for object := range repository.minioClient.ListObjects(context.Background(), repository.bucketName, minio.ListObjectsOptions{
+		Prefix:    "locks/",
+		Recursive: true,
+	}) {
+		if strings.HasPrefix(object.Key, "locks/") && len(object.Key) >= 6 {
+			t, err := hex.DecodeString(object.Key[6:])
+			if err != nil {
+				return nil, err
+			}
+			if len(t) != 32 {
+				continue
+			}
+			ret = append(ret, objects.MAC(t))
+		}
+	}
+
+	return ret, nil
 }
 
-func (repo *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
-	panic("Not implemented yet")
+func (repository *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
+	_, err := repository.minioClient.PutObject(context.Background(), repository.bucketName, fmt.Sprintf("locks/%016x", lockID), rd, -1, minio.PutObjectOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func (repo *Repository) GetLock(lockID objects.MAC) (io.Reader, error) {
-	panic("Not implemented yet")
+func (repository *Repository) GetLock(lockID objects.MAC) (io.Reader, error) {
+	object, err := repository.minioClient.GetObject(context.Background(), repository.bucketName, fmt.Sprintf("locks/%016x", lockID), minio.GetObjectOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return object, nil
 }
 
-func (repo *Repository) DeleteLock(lockID objects.MAC) error {
-	panic("Not implemented yet")
+func (repository *Repository) DeleteLock(lockID objects.MAC) error {
+	err := repository.minioClient.RemoveObject(context.Background(), repository.bucketName, fmt.Sprintf("locks/%016x", lockID), minio.RemoveObjectOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
 }

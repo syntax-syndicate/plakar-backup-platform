@@ -62,6 +62,7 @@ func (buckets *Buckets) Create() error {
 
 func (buckets *Buckets) List() ([]objects.MAC, error) {
 	ret := make([]objects.MAC, 0)
+	var mu sync.Mutex
 
 	wg := sync.WaitGroup{}
 	for i := 0; i < 256; i++ {
@@ -89,7 +90,10 @@ func (buckets *Buckets) List() ([]objects.MAC, error) {
 				}
 				var t32 objects.MAC
 				copy(t32[:], t)
+
+				mu.Lock()
 				ret = append(ret, t32)
+				mu.Unlock()
 			}
 		}(path)
 	}
