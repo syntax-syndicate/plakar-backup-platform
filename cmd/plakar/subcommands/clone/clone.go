@@ -131,7 +131,6 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 			rd, err := sourceStore.GetPackfile(packfileMAC)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "could not get packfile from repository: %s\n", err)
-
 				return
 			}
 
