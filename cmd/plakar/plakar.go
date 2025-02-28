@@ -111,7 +111,7 @@ func entryPoint() int {
 	flag.IntVar(&opt_cpuCount, "cpu", opt_cpuDefault, "limit the number of usable cores")
 	flag.StringVar(&opt_username, "username", opt_usernameDefault, "default username")
 	flag.StringVar(&opt_hostname, "hostname", opt_hostnameDefault, "default hostname")
-	flag.StringVar(&opt_ntpserver, "ntp", "pool.ntp.org", "NTP server to use")
+	flag.StringVar(&opt_ntpserver, "ntp", "ntp.plakar.io", "NTP server to use")
 	flag.StringVar(&opt_cpuProfile, "profile-cpu", "", "profile CPU usage")
 	flag.StringVar(&opt_memProfile, "profile-mem", "", "profile MEM usage")
 	flag.BoolVar(&opt_time, "time", false, "display command execution time")
@@ -134,15 +134,21 @@ func entryPoint() int {
 	}
 	flag.Parse()
 
-	response, err := ntp.Query(opt_ntpserver)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
-		return 1
-	}
-	err = response.Validate()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
-		return 1
+	if opt_ntpserver != "" {
+		response, err := ntp.Query(opt_ntpserver)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+			return 1
+		}
+		err = response.Validate()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+			return 1
+		}
+		if response.ClockOffset.Minutes() > 5 {
+			fmt.Fprintf(os.Stderr, "Error: NTP server offset is too high: %s\n", response.ClockOffset)
+			return 1
+		}
 	}
 
 	ctx := appcontext.NewAppContext()
