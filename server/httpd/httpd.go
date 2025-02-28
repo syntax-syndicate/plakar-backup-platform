@@ -10,7 +10,6 @@ import (
 	"github.com/PlakarKorp/plakar/network"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/storage"
-	"github.com/gorilla/mux"
 )
 
 var store storage.Store
@@ -242,19 +241,18 @@ func Server(repo *repository.Repository, addr string, noDelete bool) error {
 	lNoDelete = noDelete
 	store = repo.Store()
 
-	r := mux.NewRouter()
-	r.HandleFunc("/", openRepository).Methods("GET")
+	http.HandleFunc("GET /", openRepository)
 
-	r.HandleFunc("/states", getStates).Methods("GET")
-	r.HandleFunc("/state", putState).Methods("PUT")
-	r.HandleFunc("/state", getState).Methods("GET")
-	r.HandleFunc("/state", deleteState).Methods("DELETE")
+	http.HandleFunc("GET /states", getStates)
+	http.HandleFunc("PUT /state", putState)
+	http.HandleFunc("GET /state", getState)
+	http.HandleFunc("DELETE /state", deleteState)
 
-	r.HandleFunc("/packfiles", getPackfiles).Methods("GET")
-	r.HandleFunc("/packfile", putPackfile).Methods("PUT")
-	r.HandleFunc("/packfile", getPackfile).Methods("GET")
-	r.HandleFunc("/packfile/blob", GetPackfileBlob).Methods("GET")
-	r.HandleFunc("/packfile", deletePackfile).Methods("DELETE")
+	http.HandleFunc("GET /packfiles", getPackfiles)
+	http.HandleFunc("PUT /packfile", putPackfile)
+	http.HandleFunc("GET /packfile", getPackfile)
+	http.HandleFunc("GET /packfile/blob", GetPackfileBlob)
+	http.HandleFunc("DELETE /packfile", deletePackfile)
 
-	return http.ListenAndServe(addr, r)
+	return http.ListenAndServe(addr, nil)
 }
