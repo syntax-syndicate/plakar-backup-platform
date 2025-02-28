@@ -77,8 +77,8 @@ func (repo *Repository) Create(config []byte) error {
 		}
 	} else {
 		defer dirfp.Close()
-		entries, err := dirfp.Readdir(0)
-		if err != nil {
+		entries, err := dirfp.Readdir(1)
+		if err != nil && !errors.Is(err, io.EOF) {
 			return err
 		}
 		if len(entries) > 0 {
