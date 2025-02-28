@@ -541,6 +541,18 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
+			case (&diag.DiagLocks{}).Name():
+				var cmd struct {
+					Name       string
+					Subcommand diag.DiagLocks
+				}
+				if err := msgpack.Unmarshal(request, &cmd); err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
+					return
+				}
+				subcommand = &cmd.Subcommand
+				repositoryLocation = cmd.Subcommand.RepositoryLocation
+				repositorySecret = cmd.Subcommand.RepositorySecret
 			case (&rm.Rm{}).Name():
 				var cmd struct {
 					Name       string

@@ -110,12 +110,17 @@ func parse_cmd_diag(ctx *appcontext.AppContext, repo *repository.Repository, arg
 		}, nil
 	case "contenttype":
 		if len(flags.Args()) < 2 {
-			return nil, fmt.Errorf("usage: %s contettype SNAPSHOT[:PATH]", flags.Name())
+			return nil, fmt.Errorf("usage: %s contenttype SNAPSHOT[:PATH]", flags.Name())
 		}
 		return &DiagContentType{
 			RepositoryLocation: repo.Location(),
 			RepositorySecret:   ctx.GetSecret(),
 			SnapshotPath:       flags.Args()[1],
+		}, nil
+	case "locks":
+		return &DiagLocks{
+			RepositoryLocation: repo.Location(),
+			RepositorySecret:   ctx.GetSecret(),
 		}, nil
 	}
 	return nil, fmt.Errorf("Invalid parameter. usage: diag [contenttype|snapshot|object|state|packfile|vfs|xattr|errors]")
