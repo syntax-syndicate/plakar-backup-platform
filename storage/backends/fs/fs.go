@@ -65,7 +65,12 @@ func (repo *Repository) Path(args ...string) string {
 
 func (repo *Repository) Create(config []byte) error {
 
-	err := os.Mkdir(repo.Path(), 0700)
+	err := os.Remove(repo.Path())
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+
+	err = os.Mkdir(repo.Path(), 0700)
 	if err != nil {
 		return err
 	}

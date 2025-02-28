@@ -186,6 +186,11 @@ func (repo *Repository) Create(config []byte) error {
 	}
 	repo.client = client
 
+	err = client.Remove(repo.Path())
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+
 	err = client.Mkdir(repo.Path())
 	if err != nil {
 		return err
