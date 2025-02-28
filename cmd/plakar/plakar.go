@@ -312,7 +312,7 @@ func entryPoint() int {
 	// create is a special case, it operates without a repository...
 	// but needs a repository location to store the new repository
 	if command == "create" {
-		repo, err := repository.Inexistant(ctx, storeConfig["location"])
+		repo, err := repository.Inexistant(ctx, storeConfig)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
