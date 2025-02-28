@@ -9,6 +9,8 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
+const LOCK_REFRESH_RATE = 5 * time.Minute
+const LOCK_TTL = 2 * LOCK_REFRESH_RATE
 const LOCK_VERSION = "1.0.0"
 
 func init() {
@@ -49,4 +51,8 @@ func NewLockFromStream(version versioning.Version, rd io.Reader) (*Lock, error) 
 
 func (lock *Lock) SerializeToStream(w io.Writer) error {
 	return msgpack.NewEncoder(w).Encode(lock)
+}
+
+func (lock *Lock) IsStale() bool {
+	return time.Since(lock.Timestamp) >= LOCK_TTL
 }

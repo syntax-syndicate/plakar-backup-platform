@@ -353,6 +353,47 @@ func (snap *Snapshot) Lock() (chan bool, error) {
 		return nil, err
 	}
 
+	// We installed the lock, now let's see if there is a conflicting exclusive lock or not.
+	locksID, err := snap.repository.GetLocks()
+	if err != nil {
+		// We still need to delete it, and we need to do so manually.
+		snap.repository.DeleteLock(snap.Header.Identifier)
+		return nil, err
+	}
+
+	for _, lockID := range locksID {
+		version, rd, err := snap.repository.GetLock(lockID)
+		if err != nil {
+			snap.repository.DeleteLock(snap.Header.Identifier)
+			return nil, err
+		}
+
+		lock, err := repository.NewLockFromStream(version, rd)
+		if err != nil {
+			snap.repository.DeleteLock(snap.Header.Identifier)
+			return nil, err
+		}
+
+		/* Kick out stale locks */
+		if lock.IsStale() {
+			err := snap.repository.DeleteLock(lockID)
+			if err != nil {
+				snap.repository.DeleteLock(snap.Header.Identifier)
+				return nil, err
+			}
+		}
+
+		// There is an exclusive lock in place, we need to abort.
+		if lock.Exclusive {
+			err := snap.repository.DeleteLock(snap.Header.Identifier)
+			if err != nil {
+				return nil, err
+			}
+
+			return nil, fmt.Errorf("Can't take repository lock, it's already locked by maintainance.")
+		}
+	}
+
 	// The following bit is a "ping" mechanism, Lock() is a bit badly named at this point,
 	// we are just refreshing the existing lock so that the watchdog doesn't removes us.
 	lockDone := make(chan bool)
@@ -361,7 +402,7 @@ func (snap *Snapshot) Lock() (chan bool, error) {
 			select {
 			case <-lockDone:
 				return
-			case <-time.After(5 * time.Minute):
+			case <-time.After(repository.LOCK_REFRESH_RATE):
 				lock := repository.NewSharedLock(snap.AppContext().Hostname)
 
 				buffer := &bytes.Buffer{}

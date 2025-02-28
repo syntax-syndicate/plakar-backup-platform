@@ -246,12 +246,6 @@ func (cmd *Cleanup) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 	// 6. remove the packfile in repository once it's flagged as deleted AND all snapshots have been `snapshot.Check`-ed
 	// 7. rebuild a new aggregate state with a new serial without the deleted packfiles
 
-	cache, err := repo.AppContext().GetCache().Maintainance(repo.Configuration().RepositoryID)
-	if err != nil {
-		fmt.Fprintf(ctx.Stderr, "cleanup: Failed to open local cache %s\n", err)
-		return 1, err
-	}
-
 	cmd.repository = repo
 	// This random id generation for non snapshot state should probably be encapsulated somewhere.
 	n, err := rand.Read(cmd.maintainanceID[:])
@@ -262,6 +256,18 @@ func (cmd *Cleanup) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 	if n != len(cmd.maintainanceID) {
 		fmt.Fprintf(ctx.Stderr, "cleanup: Failed to read from random source.%s\n", err)
 		return 1, io.ErrShortWrite
+	}
+
+	done, err := cmd.Lock()
+	if err != nil {
+		return 1, err
+	}
+	defer cmd.Unlock(done)
+
+	cache, err := repo.AppContext().GetCache().Maintainance(repo.Configuration().RepositoryID)
+	if err != nil {
+		fmt.Fprintf(ctx.Stderr, "cleanup: Failed to open local cache %s\n", err)
+		return 1, err
 	}
 
 	if err := cmd.updateCache(ctx, cache); err != nil {
@@ -280,4 +286,91 @@ func (cmd *Cleanup) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 	}
 
 	return 0, nil
+}
+
+func (cmd *Cleanup) Lock() (chan bool, error) {
+	lock := repository.NewExclusiveLock(cmd.repository.AppContext().Hostname)
+
+	buffer := &bytes.Buffer{}
+	err := lock.SerializeToStream(buffer)
+	if err != nil {
+		return nil, err
+	}
+
+	err = cmd.repository.PutLock(cmd.maintainanceID, buffer)
+	if err != nil {
+		return nil, err
+	}
+
+	// We installed the lock, now let's see if there is a conflicting exclusive lock or not.
+	locksID, err := cmd.repository.GetLocks()
+	if err != nil {
+		// We still need to delete it, and we need to do so manually.
+		cmd.repository.DeleteLock(cmd.maintainanceID)
+		return nil, err
+	}
+
+	for _, lockID := range locksID {
+		if lockID == cmd.maintainanceID {
+			continue
+		}
+
+		version, rd, err := cmd.repository.GetLock(lockID)
+		if err != nil {
+			cmd.repository.DeleteLock(cmd.maintainanceID)
+			return nil, err
+		}
+
+		lock, err := repository.NewLockFromStream(version, rd)
+		if err != nil {
+			cmd.repository.DeleteLock(cmd.maintainanceID)
+			return nil, err
+		}
+
+		/* Kick out stale locks */
+		if lock.IsStale() {
+			err := cmd.repository.DeleteLock(lockID)
+			if err != nil {
+				cmd.repository.DeleteLock(cmd.maintainanceID)
+				return nil, err
+			}
+		}
+
+		// There is a lock in place, we need to abort.
+		err = cmd.repository.DeleteLock(cmd.maintainanceID)
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, fmt.Errorf("Can't take exclusive lock, repository is already locked")
+	}
+
+	// The following bit is a "ping" mechanism, Lock() is a bit badly named at this point,
+	// we are just refreshing the existing lock so that the watchdog doesn't removes us.
+	lockDone := make(chan bool)
+	go func() {
+		for {
+			select {
+			case <-lockDone:
+				return
+			case <-time.After(repository.LOCK_REFRESH_RATE):
+				lock := repository.NewExclusiveLock(cmd.repository.AppContext().Hostname)
+
+				buffer := &bytes.Buffer{}
+
+				// We ignore errors here on purpose, it's tough to handle them
+				// correctly, and if they happen we will be ripped by the
+				// watchdog anyway.
+				lock.SerializeToStream(buffer)
+				cmd.repository.PutLock(cmd.maintainanceID, buffer)
+			}
+		}
+	}()
+
+	return lockDone, nil
+}
+
+func (cmd *Cleanup) Unlock(ping chan bool) error {
+	close(ping)
+	return cmd.repository.DeleteLock(cmd.maintainanceID)
 }
