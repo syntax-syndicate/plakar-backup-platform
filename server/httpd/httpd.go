@@ -237,6 +237,88 @@ func deletePackfile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func getLocks(w http.ResponseWriter, r *http.Request) {
+	var req network.ReqGetLocks
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	locks, err := store.GetLocks()
+	res := network.ResGetLocks{
+		Locks: locks,
+	}
+	if err != nil {
+		res.Err = err.Error()
+	}
+	if err := json.NewEncoder(w).Encode(&res); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func putLock(w http.ResponseWriter, r *http.Request) {
+	var req network.ReqPutLock
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var res network.ResPutLock
+	if err := store.PutLock(req.Mac, bytes.NewReader(req.Data)); err != nil {
+		res.Err = err.Error()
+	}
+
+	if err := json.NewEncoder(w).Encode(&res); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func getLock(w http.ResponseWriter, r *http.Request) {
+	var req network.ReqGetLock
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var res network.ResGetLock
+	rd, err := store.GetLock(req.Mac)
+	if err != nil {
+		res.Err = err.Error()
+	} else {
+		data, err := io.ReadAll(rd)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		res.Data = data
+	}
+
+	if err := json.NewEncoder(w).Encode(&res); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func deleteLock(w http.ResponseWriter, r *http.Request) {
+	var req network.ReqDeleteLock
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var res network.ResDeleteLock
+	if err := store.DeleteLock(req.Mac); err != nil {
+		res.Err = err.Error()
+	}
+
+	if err := json.NewEncoder(w).Encode(&res); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func Server(repo *repository.Repository, addr string, noDelete bool) error {
 	lNoDelete = noDelete
 	store = repo.Store()
@@ -253,6 +335,11 @@ func Server(repo *repository.Repository, addr string, noDelete bool) error {
 	http.HandleFunc("GET /packfile", getPackfile)
 	http.HandleFunc("GET /packfile/blob", GetPackfileBlob)
 	http.HandleFunc("DELETE /packfile", deletePackfile)
+
+	http.HandleFunc("GET /locks", getLocks)
+	http.HandleFunc("PUT /lock", putLock)
+	http.HandleFunc("GET /lock", getLock)
+	http.HandleFunc("DELETE /lock", deleteLock)
 
 	return http.ListenAndServe(addr, nil)
 }
