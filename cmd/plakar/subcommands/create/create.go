@@ -23,7 +23,6 @@ import (
 	"hash"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -165,30 +164,9 @@ func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		return 1, err
 	}
 
-	if cmd.Location == "" {
-		repo, err := storage.Create(map[string]string{"location": filepath.Join(ctx.HomeDir, ".plakar")}, wrappedConfig)
-		if err != nil {
-			return 1, err
-		}
-		repo.Close()
-	} else {
-		storeConfig := map[string]string{"location": cmd.Location}
-		if strings.HasPrefix(cmd.Location, "@") {
-			remote, ok := ctx.Config.GetRepository(cmd.Location[1:])
-			if !ok {
-				return 1, fmt.Errorf("could not resolve repository: %s", cmd.Location)
-			}
-			if _, ok := remote["location"]; !ok {
-				return 1, fmt.Errorf("could not resolve repository location: %s", cmd.Location)
-			} else {
-				storeConfig = remote
-			}
-		}
-		repo, err := storage.Create(storeConfig, wrappedConfig)
-		if err != nil {
-			return 1, err
-		}
-		repo.Close()
+	if err := repo.Store().Create(wrappedConfig); err != nil {
+		return 1, err
 	}
+
 	return 0, nil
 }
