@@ -26,7 +26,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/PlakarKorp/plakar/network"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/storage"
 
@@ -46,7 +45,6 @@ type Repository struct {
 }
 
 func init() {
-	network.ProtocolRegister()
 	storage.Register("s3", NewRepository)
 }
 

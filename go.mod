@@ -20,7 +20,6 @@ require (
 	github.com/gobwas/glob v0.2.3
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
-	github.com/gorilla/mux v1.8.0
 	github.com/johannesboyne/gofakes3 v0.0.0-20250106100439-5c39aecd6999
 	github.com/minio/minio-go/v7 v7.0.61
 	github.com/muesli/termenv v0.15.3-0.20240618155329-98d742f6907a
