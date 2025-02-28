@@ -42,6 +42,7 @@ import (
 
 	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
 	_ "github.com/PlakarKorp/plakar/snapshot/exporter/s3"
+	_ "github.com/PlakarKorp/plakar/snapshot/exporter/sftp"
 
 	_ "github.com/PlakarKorp/plakar/classifier/backend/noop"
 )
