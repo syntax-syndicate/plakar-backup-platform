@@ -18,6 +18,7 @@ package sftp
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -299,18 +300,41 @@ func (repo *Repository) DeleteState(mac objects.MAC) error {
 }
 
 /* Locks */
-func (repo *Repository) GetLocks() ([]objects.MAC, error) {
-	panic("Not implemented yet")
+func (repo *Repository) GetLocks() (ret []objects.MAC, err error) {
+	entries, err := repo.client.ReadDir(repo.Path("locks"))
+	if err != nil {
+		return
+	}
+
+	for i := range entries {
+		var t []byte
+		t, err = hex.DecodeString(entries[i].Name())
+		if err != nil {
+			return
+		}
+		if len(t) != 32 {
+			continue
+		}
+		ret = append(ret, objects.MAC(t))
+	}
+	return
 }
 
 func (repo *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
-	panic("Not implemented yet")
+	return WriteToFileAtomicTempDir(repo.client, repo.Path("locks"), rd, repo.Path(""))
 }
 
 func (repo *Repository) GetLock(lockID objects.MAC) (io.Reader, error) {
-	panic("Not implemented yet")
+	name := fmt.Sprintf("%064x", lockID)
+	fp, err := repo.client.Open(repo.Path(name))
+	if err != nil {
+		return nil, err
+	}
+
+	return ClosingReader(fp)
 }
 
 func (repo *Repository) DeleteLock(lockID objects.MAC) error {
-	panic("Not implemented yet")
+	name := fmt.Sprintf("%064x", lockID)
+	return repo.client.Remove(repo.Path(name))
 }
