@@ -26,7 +26,7 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-const VERSION = "v0.4.22-alpha"
+const VERSION = "v1.0.0-beta.1"
 
 func init() {
 	subcommands.Register("version", parse_cmd_version)
