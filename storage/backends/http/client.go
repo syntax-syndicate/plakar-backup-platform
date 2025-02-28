@@ -278,17 +278,83 @@ func (repo *Repository) DeletePackfile(MAC objects.MAC) error {
 
 /* Locks */
 func (repo *Repository) GetLocks() ([]objects.MAC, error) {
-	panic("Not implemented yet")
+	r, err := repo.sendRequest("GET", "/locks", &network.ReqGetLocks{})
+	if err != nil {
+		return []objects.MAC{}, err
+	}
+
+	var res network.ResGetLocks
+	if err := json.NewDecoder(r.Body).Decode(&res); err != nil {
+		return []objects.MAC{}, err
+	}
+	if res.Err != "" {
+		return []objects.MAC{}, fmt.Errorf("%s", res.Err)
+	}
+	return res.Locks, nil
 }
 
 func (repo *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
-	panic("Not implemented yet")
+	data, err := io.ReadAll(rd)
+	if err != nil {
+		return err
+	}
+
+	req := network.ReqPutLock{
+		Mac: lockID,
+		Data: data,
+	}
+	r, err := repo.sendRequest("PUT", "/lock", &req);
+	if err != nil {
+		return err
+	}
+
+	var res network.ResPutLock
+	if err := json.NewDecoder(r.Body).Decode(&res); err != nil {
+		return err
+	}
+	if res.Err != "" {
+		return fmt.Errorf("%s", res.Err)
+	}
+	return nil
 }
 
 func (repo *Repository) GetLock(lockID objects.MAC) (io.Reader, error) {
-	panic("Not implemented yet")
+	req := network.ReqGetLock{
+		Mac: lockID,
+	}
+	r, err := repo.sendRequest("GET", "/lock", &req)
+	if err != nil {
+		return nil, err
+	}
+
+	var res network.ResGetLock
+	if err := json.NewDecoder(r.Body).Decode(&res); err != nil {
+		return nil, err
+	}
+
+	if res.Err != "" {
+		return nil, fmt.Errorf("%s", res.Err)
+	}
+
+	return bytes.NewReader(res.Data), nil
 }
 
 func (repo *Repository) DeleteLock(lockID objects.MAC) error {
-	panic("Not implemented yet")
+	req := network.ReqDeleteLock{
+		Mac: lockID,
+	}
+	r, err := repo.sendRequest("DELETE", "/lock", &req)
+	if err != nil {
+		return err
+	}
+
+	var res network.ResDeleteLock
+	if err := json.NewDecoder(r.Body).Decode(&res); err != nil {
+		return err
+	}
+
+	if res.Err != "" {
+		return fmt.Errorf("%s", res.Err)
+	}
+	return nil
 }
