@@ -401,6 +401,7 @@ func (snap *Snapshot) Lock() (chan bool, error) {
 		for {
 			select {
 			case <-lockDone:
+				snap.repository.DeleteLock(snap.Header.Identifier)
 				return
 			case <-time.After(repository.LOCK_REFRESH_RATE):
 				lock := repository.NewSharedLock(snap.AppContext().Hostname)
@@ -419,9 +420,8 @@ func (snap *Snapshot) Lock() (chan bool, error) {
 	return lockDone, nil
 }
 
-func (snap *Snapshot) Unlock(ping chan bool) error {
+func (snap *Snapshot) Unlock(ping chan bool) {
 	close(ping)
-	return snap.repository.DeleteLock(snap.Header.Identifier)
 }
 
 func (snap *Snapshot) Logger() *logging.Logger {

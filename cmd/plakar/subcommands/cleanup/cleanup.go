@@ -352,6 +352,7 @@ func (cmd *Cleanup) Lock() (chan bool, error) {
 		for {
 			select {
 			case <-lockDone:
+				cmd.repository.DeleteLock(cmd.maintainanceID)
 				return
 			case <-time.After(repository.LOCK_REFRESH_RATE):
 				lock := repository.NewExclusiveLock(cmd.repository.AppContext().Hostname)
@@ -370,7 +371,6 @@ func (cmd *Cleanup) Lock() (chan bool, error) {
 	return lockDone, nil
 }
 
-func (cmd *Cleanup) Unlock(ping chan bool) error {
+func (cmd *Cleanup) Unlock(ping chan bool) {
 	close(ping)
-	return cmd.repository.DeleteLock(cmd.maintainanceID)
 }
