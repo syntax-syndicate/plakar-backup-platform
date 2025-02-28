@@ -192,6 +192,9 @@ func (repo *Repository) GetLocks() ([]objects.MAC, error) {
 		if !lock.Type().IsRegular() {
 			continue
 		}
+		if len(lock.Name()) != 32 {
+			continue
+		}
 
 		lockID, err := hex.DecodeString(lock.Name())
 		if err != nil {

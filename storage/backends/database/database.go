@@ -345,6 +345,10 @@ func (repo *Repository) GetLocks() ([]objects.MAC, error) {
 			return nil, err
 		}
 
+		if len(mac) != 32 {
+			continue
+		}
+
 		lockID, err := hex.DecodeString(mac)
 		if err != nil {
 			return nil, err
