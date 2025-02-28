@@ -209,7 +209,7 @@ func (repo *Repository) GetLocks() ([]objects.MAC, error) {
 }
 
 func (repo *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
-	return WriteToFileAtomic(filepath.Join(repo.Path("locks"), hex.EncodeToString(lockID[:])), rd)
+	return WriteToFileAtomicTempDir(filepath.Join(repo.Path("locks"), hex.EncodeToString(lockID[:])), rd, repo.Path(""))
 }
 
 func (repo *Repository) GetLock(lockID objects.MAC) (io.Reader, error) {
