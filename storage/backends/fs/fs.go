@@ -18,6 +18,7 @@ package fs
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -93,6 +94,11 @@ func (repo *Repository) Create(config []byte) error {
 
 	repo.states = NewBuckets(repo.Path("states"))
 	if err := repo.states.Create(); err != nil {
+		return err
+	}
+
+	err = os.Mkdir(repo.Path("locks"), 0700)
+	if err != nil {
 		return err
 	}
 
@@ -172,4 +178,49 @@ func (repo *Repository) GetState(mac objects.MAC) (io.Reader, error) {
 
 func (repo *Repository) DeleteState(mac objects.MAC) error {
 	return repo.states.Remove(mac)
+}
+
+func (repo *Repository) GetLocks() ([]objects.MAC, error) {
+	ret := make([]objects.MAC, 0)
+
+	locksdir, err := os.ReadDir(repo.Path("locks"))
+	if err != nil {
+		return nil, err
+	}
+
+	for _, lock := range locksdir {
+		if !lock.Type().IsRegular() {
+			continue
+		}
+
+		lockID, err := hex.DecodeString(lock.Name())
+		if err != nil {
+			return nil, err
+		}
+
+		ret = append(ret, objects.MAC(lockID))
+	}
+
+	return ret, nil
+}
+
+func (repo *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
+	return WriteToFileAtomic(filepath.Join(repo.Path("locks"), hex.EncodeToString(lockID[:])), rd)
+}
+
+func (repo *Repository) GetLock(lockID objects.MAC) (io.Reader, error) {
+	fp, err := os.Open(filepath.Join(repo.Path("locks"), hex.EncodeToString(lockID[:])))
+	if err != nil {
+		return nil, err
+	}
+
+	return ClosingReader(fp)
+}
+
+func (repo *Repository) DeleteLock(lockID objects.MAC) error {
+	if err := os.Remove(filepath.Join(repo.Path("locks"), hex.EncodeToString(lockID[:]))); err != nil {
+		return err
+	}
+
+	return nil
 }

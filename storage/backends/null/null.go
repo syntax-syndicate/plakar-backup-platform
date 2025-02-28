@@ -111,3 +111,20 @@ func (repository *Repository) GetPackfileBlob(mac objects.MAC, offset uint64, le
 func (repository *Repository) DeletePackfile(mac objects.MAC) error {
 	return nil
 }
+
+/* Locks */
+func (repo *Repository) GetLocks() ([]objects.MAC, error) {
+	return []objects.MAC{}, nil
+}
+
+func (repo *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
+	return nil
+}
+
+func (repo *Repository) GetLock(lockID objects.MAC) (io.Reader, error) {
+	return bytes.NewBuffer([]byte{}), nil
+}
+
+func (repo *Repository) DeleteLock(lockID objects.MAC) error {
+	return nil
+}

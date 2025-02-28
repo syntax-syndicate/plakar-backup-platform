@@ -184,3 +184,20 @@ func (mb *MockBackend) DeletePackfile(MAC objects.MAC) error {
 func (mb *MockBackend) Close() error {
 	return nil
 }
+
+/* Locks */
+func (mb *MockBackend) GetLocks() ([]objects.MAC, error) {
+	panic("Not implemented yet")
+}
+
+func (mb *MockBackend) PutLock(lockID objects.MAC, rd io.Reader) error {
+	panic("Not implemented yet")
+}
+
+func (mb *MockBackend) GetLock(lockID objects.MAC) (io.Reader, error) {
+	panic("Not implemented yet")
+}
+
+func (mb *MockBackend) DeleteLock(lockID objects.MAC) error {
+	panic("Not implemented yet")
+}

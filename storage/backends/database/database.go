@@ -19,6 +19,7 @@ package database
 import (
 	"bytes"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -113,6 +114,16 @@ func (repo *Repository) Create(config []byte) error {
 	statement.Exec()
 
 	statement, err = repo.conn.Prepare(`CREATE TABLE IF NOT EXISTS packfiles (
+		mac	VARCHAR(64) NOT NULL PRIMARY KEY,
+		data		BLOB
+	);`)
+	if err != nil {
+		return err
+	}
+	defer statement.Close()
+	statement.Exec()
+
+	statement, err = repo.conn.Prepare(`CREATE TABLE IF NOT EXISTS locks (
 		mac	VARCHAR(64) NOT NULL PRIMARY KEY,
 		data		BLOB
 	);`)
@@ -311,6 +322,86 @@ func (repo *Repository) DeletePackfile(mac objects.MAC) error {
 
 	repo.wrMutex.Lock()
 	_, err = statement.Exec(mac[:])
+	repo.wrMutex.Unlock()
+	if err != nil {
+		// if err is that it's already present, we should discard err and assume a concurrent write
+		return err
+	}
+	return nil
+}
+
+func (repo *Repository) GetLocks() ([]objects.MAC, error) {
+	rows, err := repo.conn.Query("SELECT mac FROM locks")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	ret := make([]objects.MAC, 0)
+	for rows.Next() {
+		var mac string
+		err = rows.Scan(&mac)
+		if err != nil {
+			return nil, err
+		}
+
+		lockID, err := hex.DecodeString(mac)
+		if err != nil {
+			return nil, err
+		}
+
+		ret = append(ret, objects.MAC(lockID))
+	}
+
+	return ret, nil
+}
+
+func (repo *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
+	data, err := io.ReadAll(rd)
+	if err != nil {
+		return err
+	}
+
+	statement, err := repo.conn.Prepare(`INSERT INTO locks (mac, data) VALUES(?, ?)`)
+	if err != nil {
+		return err
+	}
+	defer statement.Close()
+
+	repo.wrMutex.Lock()
+	_, err = statement.Exec(hex.EncodeToString(lockID[:]), data)
+	repo.wrMutex.Unlock()
+	if err != nil {
+		var sqliteErr *sqlite.Error
+		if !errors.As(err, &sqliteErr) {
+			return err
+		}
+		if sqliteErr.Code() != sqlite3.SQLITE_CONSTRAINT {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (repo *Repository) GetLock(lockID objects.MAC) (io.Reader, error) {
+	var data []byte
+	err := repo.conn.QueryRow(`SELECT data FROM locks WHERE mac=?`, hex.EncodeToString(lockID[:])).Scan(&data)
+	if err != nil {
+		return nil, err
+	}
+	return bytes.NewBuffer(data), nil
+}
+
+func (repo *Repository) DeleteLock(lockID objects.MAC) error {
+	statement, err := repo.conn.Prepare(`DELETE FROM locks WHERE mac=?`)
+	if err != nil {
+		return err
+	}
+	defer statement.Close()
+
+	repo.wrMutex.Lock()
+	_, err = statement.Exec(hex.EncodeToString(lockID[:]))
 	repo.wrMutex.Unlock()
 	if err != nil {
 		// if err is that it's already present, we should discard err and assume a concurrent write

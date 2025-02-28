@@ -107,3 +107,33 @@ type ReqDeletePackfile struct {
 type ResDeletePackfile struct {
 	Err string
 }
+
+// Locks
+type ReqGetLocks struct{}
+type ResGetLocks struct {
+	Locks []objects.MAC
+	Err   string
+}
+
+type ReqPutLock struct {
+	Mac  objects.MAC
+	Data []byte
+}
+type ResPutLock struct {
+	Err string
+}
+
+type ReqGetLock struct {
+	Mac objects.MAC
+}
+type ResGetLock struct {
+	Data []byte
+	Err  string
+}
+
+type ReqDeleteLock struct {
+	Mac objects.MAC
+}
+type ResDeleteLock struct {
+	Err  string
+}

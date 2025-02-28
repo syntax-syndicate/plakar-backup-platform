@@ -196,6 +196,12 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 	snap.Event(events.StartEvent())
 	defer snap.Event(events.DoneEvent())
 
+	done, err := snap.Lock()
+	if err != nil {
+		return err
+	}
+	defer snap.Unlock(done)
+
 	vfsCache, err := snap.AppContext().GetCache().VFS(imp.Type(), imp.Origin())
 	if err != nil {
 		return err
