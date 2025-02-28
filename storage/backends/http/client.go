@@ -35,7 +35,6 @@ type Repository struct {
 }
 
 func init() {
-	network.ProtocolRegister()
 	storage.Register("http", NewRepository)
 }
 

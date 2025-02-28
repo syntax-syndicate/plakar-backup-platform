@@ -259,11 +259,8 @@ func deletePackfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func Server(repo *repository.Repository, addr string, noDelete bool) error {
-
 	lNoDelete = noDelete
-
 	lrepository = repo
-	network.ProtocolRegister()
 
 	r := mux.NewRouter()
 	r.HandleFunc("/", openRepository).Methods("GET")
