@@ -758,3 +758,63 @@ func (r *Repository) PutCurrentState() error {
 func (r *Repository) Logger() *logging.Logger {
 	return r.AppContext().GetLogger()
 }
+
+func (r *Repository) GetLocks() ([]objects.MAC, error) {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "GetLocks(): %s", time.Since(t0))
+	}()
+
+	return r.store.GetLocks()
+}
+
+func (r *Repository) GetLock(lockID objects.MAC) (versioning.Version, io.Reader, error) {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "GetLock(%s): %s", lockID, time.Since(t0))
+	}()
+
+	rd, err := r.store.GetLock(lockID)
+	if err != nil {
+		return versioning.Version(0), nil, err
+	}
+
+	version, rd, err := storage.Deserialize(r.GetMACHasher(), resources.RT_LOCK, rd)
+	if err != nil {
+		return versioning.Version(0), nil, err
+	}
+
+	rd, err = r.Decode(rd)
+	if err != nil {
+		return versioning.Version(0), nil, err
+	}
+	return version, rd, err
+}
+
+func (r *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "PutLock(%s, ...): %s", lockID, time.Since(t0))
+	}()
+
+	rd, err := r.Encode(rd)
+	if err != nil {
+		return err
+	}
+
+	rd, err = storage.Serialize(r.GetMACHasher(), resources.RT_LOCK, versioning.GetCurrentVersion(resources.RT_LOCK), rd)
+	if err != nil {
+		return err
+	}
+
+	return r.store.PutLock(lockID, rd)
+}
+
+func (r *Repository) DeleteLock(lockID objects.MAC) error {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "DeleteLock(%x, ...): %s", lockID, time.Since(t0))
+	}()
+
+	return r.store.DeleteLock(lockID)
+}
