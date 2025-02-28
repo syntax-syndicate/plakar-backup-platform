@@ -1,6 +1,7 @@
 package snapshot
 
 import (
+	"bytes"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -336,6 +337,50 @@ func (snap *Snapshot) ListPackfiles() (iter.Seq2[objects.MAC, error], error) {
 		}
 
 	}, nil
+}
+
+func (snap *Snapshot) Lock() (chan bool, error) {
+	lock := repository.NewSharedLock(snap.AppContext().Hostname)
+
+	buffer := &bytes.Buffer{}
+	err := lock.SerializeToStream(buffer)
+	if err != nil {
+		return nil, err
+	}
+
+	err = snap.repository.PutLock(snap.Header.Identifier, buffer)
+	if err != nil {
+		return nil, err
+	}
+
+	// The following bit is a "ping" mechanism, Lock() is a bit badly named at this point,
+	// we are just refreshing the existing lock so that the watchdog doesn't removes us.
+	lockDone := make(chan bool)
+	go func() {
+		for {
+			select {
+			case <-lockDone:
+				return
+			case <-time.After(5 * time.Minute):
+				lock := repository.NewSharedLock(snap.AppContext().Hostname)
+
+				buffer := &bytes.Buffer{}
+
+				// We ignore errors here on purpose, it's tough to handle them
+				// correctly, and if they happen we will be ripped by the
+				// watchdog anyway.
+				lock.SerializeToStream(buffer)
+				snap.repository.PutLock(snap.Header.Identifier, buffer)
+			}
+		}
+	}()
+
+	return lockDone, nil
+}
+
+func (snap *Snapshot) Unlock(ping chan bool) error {
+	close(ping)
+	return snap.repository.DeleteLock(snap.Header.Identifier)
 }
 
 func (snap *Snapshot) Logger() *logging.Logger {
