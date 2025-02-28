@@ -186,20 +186,24 @@ func (repo *Repository) Create(config []byte) error {
 	}
 	repo.client = client
 
-	err = client.Remove(repo.Path())
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return err
-	}
-
-	err = client.Mkdir(repo.Path())
+	dirfp, err := client.ReadDir(repo.Path())
 	if err != nil {
-		return err
+		if !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+		err = client.MkdirAll(repo.Path())
+		if err != nil {
+			return err
+		}
+		err = client.Chmod(repo.Path(), 0700)
+		if err != nil {
+			return err
+		}
+	} else {
+		if len(dirfp) > 0 {
+			return fmt.Errorf("directory %s is not empty", repo.Location())
+		}
 	}
-	err = client.Chmod(repo.Path(), 0700)
-	if err != nil {
-		return err
-	}
-
 	repo.packfiles = NewBuckets(client, repo.Path("packfiles"))
 	if err := repo.packfiles.Create(); err != nil {
 		return err
