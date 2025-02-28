@@ -144,7 +144,6 @@ func entryPoint() int {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		return 1
 	}
-	fmt.Println(response)
 
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
