@@ -275,3 +275,20 @@ func (repo *Repository) DeletePackfile(MAC objects.MAC) error {
 	}
 	return nil
 }
+
+/* Locks */
+func (repo *Repository) GetLocks() ([]objects.MAC, error) {
+	panic("Not implemented yet")
+}
+
+func (repo *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
+	panic("Not implemented yet")
+}
+
+func (repo *Repository) GetLock(lockID objects.MAC) (io.Reader, error) {
+	panic("Not implemented yet")
+}
+
+func (repo *Repository) DeleteLock(lockID objects.MAC) error {
+	panic("Not implemented yet")
+}

@@ -120,6 +120,11 @@ type Store interface {
 	GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (io.Reader, error)
 	DeletePackfile(mac objects.MAC) error
 
+	GetLocks() ([]objects.MAC, error)
+	PutLock(lockID objects.MAC, rd io.Reader) error
+	GetLock(lockID objects.MAC) (io.Reader, error)
+	DeleteLock(lockID objects.MAC) error
+
 	Close() error
 }
 

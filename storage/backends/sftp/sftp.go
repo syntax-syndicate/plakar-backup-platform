@@ -297,3 +297,20 @@ func (repo *Repository) GetState(mac objects.MAC) (io.Reader, error) {
 func (repo *Repository) DeleteState(mac objects.MAC) error {
 	return repo.states.Remove(mac)
 }
+
+/* Locks */
+func (repo *Repository) GetLocks() ([]objects.MAC, error) {
+	panic("Not implemented yet")
+}
+
+func (repo *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
+	panic("Not implemented yet")
+}
+
+func (repo *Repository) GetLock(lockID objects.MAC) (io.Reader, error) {
+	panic("Not implemented yet")
+}
+
+func (repo *Repository) DeleteLock(lockID objects.MAC) error {
+	panic("Not implemented yet")
+}
