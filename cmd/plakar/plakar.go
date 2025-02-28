@@ -37,6 +37,7 @@ import (
 	_ "github.com/PlakarKorp/plakar/snapshot/importer/fs"
 	_ "github.com/PlakarKorp/plakar/snapshot/importer/ftp"
 	_ "github.com/PlakarKorp/plakar/snapshot/importer/s3"
+	_ "github.com/PlakarKorp/plakar/snapshot/importer/sftp"
 
 	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
 	_ "github.com/PlakarKorp/plakar/snapshot/exporter/s3"
