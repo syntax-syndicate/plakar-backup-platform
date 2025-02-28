@@ -48,12 +48,12 @@ func (repo *Repository) Location() string {
 	return repo.location
 }
 
-func (repo *Repository) sendRequest(method string, url string, requestType string, payload interface{}) (*http.Response, error) {
+func (repo *Repository) sendRequest(method string, requestType string, payload interface{}) (*http.Response, error) {
 	requestBody, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequest(method, url+requestType, bytes.NewBuffer(requestBody))
+	req, err := http.NewRequest(method, repo.location+requestType, bytes.NewBuffer(requestBody))
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (repo *Repository) Create(config []byte) error {
 
 func (repo *Repository) Open() ([]byte, error) {
 	repo.Repository = repo.location
-	r, err := repo.sendRequest("GET", repo.location, "/", network.ReqOpen{
+	r, err := repo.sendRequest("GET", "/", network.ReqOpen{
 		Repository: "",
 	})
 	if err != nil {
@@ -95,7 +95,7 @@ func (repo *Repository) Configuration() storage.Configuration {
 
 // states
 func (repo *Repository) GetStates() ([]objects.MAC, error) {
-	r, err := repo.sendRequest("GET", repo.Repository, "/states", network.ReqGetStates{})
+	r, err := repo.sendRequest("GET", "/states", network.ReqGetStates{})
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func (repo *Repository) PutState(MAC objects.MAC, rd io.Reader) error {
 		return err
 	}
 
-	r, err := repo.sendRequest("PUT", repo.Repository, "/state", network.ReqPutState{
+	r, err := repo.sendRequest("PUT", "/state", network.ReqPutState{
 		MAC:  MAC,
 		Data: data,
 	})
@@ -140,7 +140,7 @@ func (repo *Repository) PutState(MAC objects.MAC, rd io.Reader) error {
 }
 
 func (repo *Repository) GetState(MAC objects.MAC) (io.Reader, error) {
-	r, err := repo.sendRequest("GET", repo.Repository, "/state", network.ReqGetState{
+	r, err := repo.sendRequest("GET", "/state", network.ReqGetState{
 		MAC: MAC,
 	})
 	if err != nil {
@@ -158,7 +158,7 @@ func (repo *Repository) GetState(MAC objects.MAC) (io.Reader, error) {
 }
 
 func (repo *Repository) DeleteState(MAC objects.MAC) error {
-	r, err := repo.sendRequest("DELETE", repo.Repository, "/state", network.ReqDeleteState{
+	r, err := repo.sendRequest("DELETE", "/state", network.ReqDeleteState{
 		MAC: MAC,
 	})
 	if err != nil {
@@ -177,7 +177,7 @@ func (repo *Repository) DeleteState(MAC objects.MAC) error {
 
 // packfiles
 func (repo *Repository) GetPackfiles() ([]objects.MAC, error) {
-	r, err := repo.sendRequest("GET", repo.Repository, "/packfiles", network.ReqGetPackfiles{})
+	r, err := repo.sendRequest("GET", "/packfiles", network.ReqGetPackfiles{})
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +202,7 @@ func (repo *Repository) PutPackfile(MAC objects.MAC, rd io.Reader) error {
 	if err != nil {
 		return err
 	}
-	r, err := repo.sendRequest("PUT", repo.Repository, "/packfile", network.ReqPutPackfile{
+	r, err := repo.sendRequest("PUT", "/packfile", network.ReqPutPackfile{
 		MAC:  MAC,
 		Data: data,
 	})
@@ -221,7 +221,7 @@ func (repo *Repository) PutPackfile(MAC objects.MAC, rd io.Reader) error {
 }
 
 func (repo *Repository) GetPackfile(MAC objects.MAC) (io.Reader, error) {
-	r, err := repo.sendRequest("GET", repo.Repository, "/packfile", network.ReqGetPackfile{
+	r, err := repo.sendRequest("GET", "/packfile", network.ReqGetPackfile{
 		MAC: MAC,
 	})
 	if err != nil {
@@ -239,7 +239,7 @@ func (repo *Repository) GetPackfile(MAC objects.MAC) (io.Reader, error) {
 }
 
 func (repo *Repository) GetPackfileBlob(MAC objects.MAC, offset uint64, length uint32) (io.Reader, error) {
-	r, err := repo.sendRequest("GET", repo.Repository, "/packfile/blob", network.ReqGetPackfileBlob{
+	r, err := repo.sendRequest("GET", "/packfile/blob", network.ReqGetPackfileBlob{
 		MAC:    MAC,
 		Offset: offset,
 		Length: length,
@@ -259,7 +259,7 @@ func (repo *Repository) GetPackfileBlob(MAC objects.MAC, offset uint64, length u
 }
 
 func (repo *Repository) DeletePackfile(MAC objects.MAC) error {
-	r, err := repo.sendRequest("DELETE", repo.Repository, "/packfile", network.ReqDeletePackfile{
+	r, err := repo.sendRequest("DELETE", "/packfile", network.ReqDeletePackfile{
 		MAC: MAC,
 	})
 	if err != nil {
