@@ -53,7 +53,7 @@ func (r Type) String() string {
 	case RT_CONFIG:
 		return "config"
 	case RT_LOCK:
-		return "config"
+		return "lock"
 	case RT_STATE:
 		return "state"
 	case RT_PACKFILE:
