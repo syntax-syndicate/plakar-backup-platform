@@ -273,11 +273,24 @@ func entryPoint() int {
 	}
 
 	storeConfig := map[string]string{"location": repositoryPath}
+	if strings.HasPrefix(repositoryPath, "@") {
+		remote, ok := ctx.Config.GetRepository(repositoryPath[1:])
+		if !ok {
+			fmt.Fprintf(os.Stderr, "%s: could not resolve repository: %s\n", flag.CommandLine.Name(), repositoryPath)
+			return 1
+		}
+		if _, ok := remote["location"]; !ok {
+			fmt.Fprintf(os.Stderr, "%s: could not resolve repository location: %s\n", flag.CommandLine.Name(), repositoryPath)
+			return 1
+		} else {
+			storeConfig = remote
+		}
+	}
 
 	// create is a special case, it operates without a repository...
 	// but needs a repository location to store the new repository
 	if command == "create" {
-		repo, err := repository.Inexistant(ctx, storeConfig)
+		repo, err := repository.Inexistant(ctx, storeConfig["location"])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
@@ -294,20 +307,6 @@ func entryPoint() int {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		}
 		return retval
-	}
-
-	if strings.HasPrefix(repositoryPath, "@") {
-		remote, ok := ctx.Config.GetRepository(repositoryPath[1:])
-		if !ok {
-			fmt.Fprintf(os.Stderr, "%s: could not resolve repository: %s\n", flag.CommandLine.Name(), repositoryPath)
-			return 1
-		}
-		if _, ok := remote["location"]; !ok {
-			fmt.Fprintf(os.Stderr, "%s: could not resolve repository location: %s\n", flag.CommandLine.Name(), repositoryPath)
-			return 1
-		} else {
-			storeConfig = remote
-		}
 	}
 
 	// these commands need to be ran before the repository is opened

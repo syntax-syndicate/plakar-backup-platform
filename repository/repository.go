@@ -43,8 +43,8 @@ type Repository struct {
 	appContext *appcontext.AppContext
 }
 
-func Inexistant(ctx *appcontext.AppContext, storeConfig map[string]string) (*Repository, error) {
-	st, err := storage.New(storeConfig)
+func Inexistant(ctx *appcontext.AppContext, repositoryPath string) (*Repository, error) {
+	st, err := storage.New(map[string]string{"location": repositoryPath})
 	if err != nil {
 		return nil, err
 	}
