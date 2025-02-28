@@ -29,14 +29,6 @@ type ResOpen struct {
 	Err           string
 }
 
-type ReqClose struct {
-	Uuid string
-}
-
-type ResClose struct {
-	Err string
-}
-
 // states
 type ReqGetStates struct {
 }
