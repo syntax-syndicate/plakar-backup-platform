@@ -132,7 +132,7 @@ func TestExecuteCmdCreateDefaultWeakPassword(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	input := "azerty\nazerty\n"
+	input := "azerty\nazerty\nazerty\n"
 	_, err = pty.WriteString(input)
 	require.NoError(t, err)
 
