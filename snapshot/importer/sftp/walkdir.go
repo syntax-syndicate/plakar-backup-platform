@@ -21,16 +21,16 @@ package sftp
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"os/user"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
-	"github.com/pkg/xattr"
+	"github.com/pkg/sftp"
 )
 
 type namecache struct {
@@ -41,17 +41,11 @@ type namecache struct {
 }
 
 // Worker pool to handle file scanning in parallel
-func walkDir_worker(jobs <-chan string, results chan<- *importer.ScanResult, wg *sync.WaitGroup, namecache *namecache) {
+func (p *SFTPImporter) walkDir_worker(jobs <-chan string, results chan<- *importer.ScanResult, wg *sync.WaitGroup, namecache *namecache) {
 	defer wg.Done()
 
 	for path := range jobs {
-		info, err := os.Lstat(path)
-		if err != nil {
-			results <- importer.NewScanError(path, err)
-			continue
-		}
-
-		extendedAttributes, err := xattr.List(path)
+		info, err := p.client.Lstat(path)
 		if err != nil {
 			results <- importer.NewScanError(path, err)
 			continue
@@ -91,22 +85,19 @@ func walkDir_worker(jobs <-chan string, results chan<- *importer.ScanResult, wg 
 
 		var originFile string
 		if fileinfo.Mode()&os.ModeSymlink != 0 {
-			originFile, err = os.Readlink(path)
+			originFile, err = p.client.ReadLink(path)
 			if err != nil {
 				results <- importer.NewScanError(path, err)
 				continue
 			}
 		}
-		results <- importer.NewScanRecord(filepath.ToSlash(path), originFile, fileinfo, extendedAttributes)
-		for _, attr := range extendedAttributes {
-			results <- importer.NewScanXattr(filepath.ToSlash(path), attr, objects.AttributeExtended)
-		}
+		results <- importer.NewScanRecord(filepath.ToSlash(path), originFile, fileinfo, []string{})
 	}
 }
 
-func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results chan<- *importer.ScanResult) {
+func (p *SFTPImporter) walkDir_addPrefixDirectories(jobs chan<- string, results chan<- *importer.ScanResult) {
 	// Clean the directory and split the path into components
-	directory := filepath.Clean(rootDir)
+	directory := filepath.Clean(p.rootDir)
 	atoms := strings.Split(directory, string(os.PathSeparator))
 
 	for i := 0; i < len(atoms)-1; i++ {
@@ -116,7 +107,7 @@ func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results ch
 			path = "/" + path
 		}
 
-		if _, err := os.Stat(path); err != nil {
+		if _, err := p.client.Stat(path); err != nil {
 			results <- importer.NewScanError(path, err)
 			continue
 		}
@@ -125,7 +116,7 @@ func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results ch
 	}
 }
 
-func walkDir_walker(rootDir string, numWorkers int) (<-chan *importer.ScanResult, error) {
+func (p *SFTPImporter) walkDir_walker(numWorkers int) (<-chan *importer.ScanResult, error) {
 	results := make(chan *importer.ScanResult, 1000) // Larger buffer for results
 	jobs := make(chan string, 1000)                  // Buffered channel to feed paths to workers
 	namecache := &namecache{
@@ -138,36 +129,36 @@ func walkDir_walker(rootDir string, numWorkers int) (<-chan *importer.ScanResult
 	// Launch worker pool
 	for w := 1; w <= numWorkers; w++ {
 		wg.Add(1)
-		go walkDir_worker(jobs, results, &wg, namecache)
+		go p.walkDir_worker(jobs, results, &wg, namecache)
 	}
 
 	// Start walking the directory and sending file paths to workers
 	go func() {
 		defer close(jobs)
 
-		info, err := os.Lstat(rootDir)
+		info, err := p.client.Lstat(p.rootDir)
 		if err != nil {
-			results <- importer.NewScanError(rootDir, err)
+			results <- importer.NewScanError(p.rootDir, err)
 			return
 		}
 		if info.Mode()&os.ModeSymlink != 0 {
-			originFile, err := os.Readlink(rootDir)
+			originFile, err := p.client.ReadLink(p.rootDir)
 			if err != nil {
-				results <- importer.NewScanError(rootDir, err)
+				results <- importer.NewScanError(p.rootDir, err)
 				return
 			}
 
 			if !filepath.IsAbs(originFile) {
-				originFile = filepath.Join(filepath.Dir(rootDir), originFile)
+				originFile = filepath.Join(filepath.Dir(p.rootDir), originFile)
 			}
-			jobs <- rootDir
-			rootDir = originFile
+			jobs <- p.rootDir
+			p.rootDir = originFile
 		}
 
 		// Add prefix directories first
-		walkDir_addPrefixDirectories(rootDir, jobs, results)
+		p.walkDir_addPrefixDirectories(jobs, results)
 
-		err = filepath.WalkDir(rootDir, func(path string, d fs.DirEntry, err error) error {
+		err = SFTPWalk(p.client, p.rootDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				results <- importer.NewScanError(path, err)
 				return nil
@@ -176,7 +167,7 @@ func walkDir_walker(rootDir string, numWorkers int) (<-chan *importer.ScanResult
 			return nil
 		})
 		if err != nil {
-			results <- importer.NewScanError(rootDir, err)
+			results <- importer.NewScanError(p.rootDir, err)
 		}
 	}()
 
@@ -187,4 +178,33 @@ func walkDir_walker(rootDir string, numWorkers int) (<-chan *importer.ScanResult
 	}()
 
 	return results, nil
+}
+
+func SFTPWalk(client *sftp.Client, remotePath string, walkFn func(path string, info os.FileInfo, err error) error) error {
+	info, err := client.Stat(remotePath)
+	if err != nil {
+		// If we can't stat the file, call walkFn with the error.
+		return walkFn(remotePath, nil, err)
+	}
+	// Call the walk function for the current file/directory.
+	if err := walkFn(remotePath, info, nil); err != nil {
+		return err
+	}
+	// If it's not a directory, nothing more to do.
+	if !info.IsDir() {
+		return nil
+	}
+	// List the directory contents.
+	entries, err := client.ReadDir(remotePath)
+	if err != nil {
+		return walkFn(remotePath, info, err)
+	}
+	// Recursively walk each entry.
+	for _, entry := range entries {
+		newPath := path.Join(remotePath, entry.Name()) // Use "path" since remote paths are POSIX style.
+		if err := SFTPWalk(client, newPath, walkFn); err != nil {
+			return err
+		}
+	}
+	return nil
 }

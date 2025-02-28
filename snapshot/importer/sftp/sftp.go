@@ -17,92 +17,179 @@
 package sftp
 
 import (
-	"bytes"
+	"fmt"
 	"io"
-	"io/ioutil"
+	"net"
+	"net/url"
 	"os"
-	"path/filepath"
-	"runtime"
-	"strings"
+	"os/user"
+	"path"
 
 	"github.com/PlakarKorp/plakar/snapshot/importer"
-	"github.com/pkg/xattr"
+	"github.com/pkg/sftp"
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
-type FSImporter struct {
-	rootDir string
+type SFTPImporter struct {
+	rootDir    string
+	remoteHost string
+	client     *sftp.Client
 }
 
 func init() {
-	importer.Register("fs", NewFSImporter)
+	importer.Register("sftp", NewSFTPImporter)
 }
 
-func NewFSImporter(config map[string]string) (importer.Importer, error) {
+func defaultSigners() ([]ssh.Signer, error) {
+	var signers []ssh.Signer
+
+	// Try the SSH agent first.
+	if sock := os.Getenv("SSH_AUTH_SOCK"); sock != "" {
+		conn, err := net.Dial("unix", sock)
+		if err == nil {
+			ag := agent.NewClient(conn)
+			if s, err := ag.Signers(); err == nil {
+				signers = append(signers, s...)
+			}
+		}
+	}
+
+	// Fallback: load from default key files.
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return signers, err
+	}
+
+	// List of default private key paths.
+	keyFiles := []string{
+		path.Join(home, ".ssh", "id_rsa"),
+		path.Join(home, ".ssh", "id_dsa"),
+		path.Join(home, ".ssh", "id_ecdsa"),
+		path.Join(home, ".ssh", "id_ed25519"),
+	}
+
+	for _, file := range keyFiles {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			continue // Skip files that don't exist.
+		}
+		signer, err := ssh.ParsePrivateKey(data)
+		if err != nil {
+			continue // Skip unparseable keys.
+		}
+		signers = append(signers, signer)
+	}
+
+	return signers, nil
+}
+
+func connect(endpoint *url.URL) (*sftp.Client, error) {
+
+	var sshHost string
+	if endpoint.Port() == "" {
+		sshHost = endpoint.Host + ":22"
+	} else {
+		sshHost = endpoint.Host
+	}
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get home directory: %v", err)
+	}
+	knownHostsPath := path.Join(homeDir, ".ssh", "known_hosts")
+
+	// Create the HostKeyCallback from the known_hosts file.
+	hostKeyCallback, err := knownhosts.New(knownHostsPath)
+	if err != nil {
+		return nil, fmt.Errorf("could not create hostkeycallback function: %v", err)
+	}
+
+	signers, err := defaultSigners()
+	if err != nil {
+		return nil, err
+	}
+
+	username := endpoint.User.Username()
+	if username == "" {
+		u, err := user.Current()
+		if err != nil {
+			return nil, err
+		}
+		username = u.Username
+	}
+
+	config := &ssh.ClientConfig{
+		User: username,
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signers...),
+		},
+		HostKeyCallback: hostKeyCallback,
+	}
+
+	client, err := ssh.Dial("tcp", sshHost, config)
+	if err != nil {
+		return nil, err
+	}
+	sftpClient, err := sftp.NewClient(client)
+	if err != nil {
+		client.Close()
+		return nil, err
+	}
+	return sftpClient, nil
+}
+
+func NewSFTPImporter(config map[string]string) (importer.Importer, error) {
 	var err error
 
 	location := config["location"]
 
-	if strings.HasPrefix(location, "fs://") {
-		location = location[4:]
+	parsed, err := url.Parse(location)
+	if err != nil {
+		return nil, err
 	}
+	location = parsed.Path
 
-	location, err = filepath.Abs(location)
+	client, err := connect(parsed)
 	if err != nil {
 		return nil, err
 	}
 
-	return &FSImporter{
-		rootDir: location,
+	return &SFTPImporter{
+		rootDir:    location,
+		remoteHost: parsed.Host,
+		client:     client,
 	}, nil
 }
 
-func (p *FSImporter) Origin() string {
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = "localhost"
-	}
-	return hostname
+func (p *SFTPImporter) Origin() string {
+	return p.remoteHost
 }
 
-func (p *FSImporter) Type() string {
-	return "fs"
+func (p *SFTPImporter) Type() string {
+	return "sftp"
 }
 
-func (p *FSImporter) Scan() (<-chan *importer.ScanResult, error) {
-	return walkDir_walker(p.rootDir, 256)
+func (p *SFTPImporter) Scan() (<-chan *importer.ScanResult, error) {
+	return p.walkDir_walker(256)
 }
 
-func (p *FSImporter) NewReader(pathname string) (io.ReadCloser, error) {
-	if pathname[0] == '/' && runtime.GOOS == "windows" {
-		pathname = pathname[1:]
-	}
-	return os.Open(pathname)
+func (p *SFTPImporter) NewReader(pathname string) (io.ReadCloser, error) {
+	return p.client.Open(pathname)
 }
 
-func (p *FSImporter) NewExtendedAttributeReader(pathname string, attribute string) (io.ReadCloser, error) {
-	if pathname[0] == '/' && runtime.GOOS == "windows" {
-		pathname = pathname[1:]
-	}
-
-	data, err := xattr.Get(pathname, attribute)
-	if err != nil {
-		return nil, err
-	}
-	return ioutil.NopCloser(bytes.NewReader(data)), nil
+func (p *SFTPImporter) NewExtendedAttributeReader(pathname string, attribute string) (io.ReadCloser, error) {
+	return nil, fmt.Errorf("extended attributes are not supported by the sftp importer yet")
 }
 
-func (p *FSImporter) GetExtendedAttributes(pathname string) ([]importer.ExtendedAttributes, error) {
-	if pathname[0] == '/' && runtime.GOOS == "windows" {
-		pathname = pathname[1:]
-	}
-
-	return getExtendedAttributes(pathname)
+func (p *SFTPImporter) GetExtendedAttributes(pathname string) ([]importer.ExtendedAttributes, error) {
+	return nil, fmt.Errorf("extended attributes are not supported by the sftp importer yet")
 }
 
-func (p *FSImporter) Close() error {
+func (p *SFTPImporter) Close() error {
 	return nil
 }
 
-func (p *FSImporter) Root() string {
+func (p *SFTPImporter) Root() string {
 	return p.rootDir
 }
