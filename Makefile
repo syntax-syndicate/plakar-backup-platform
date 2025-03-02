@@ -1,5 +1,4 @@
 GO =		go
-GOBUILDFLAGS =	-v
 
 DESTDIR =
 PREFIX =	/usr/local
@@ -13,7 +12,7 @@ INSTALL_MAN =	${INSTALL} -m 0444
 all: plakar
 
 plakar:
-	${GO} build ${GOBUILDFLAGS} ./cmd/plakar
+	${GO} build -v ./cmd/plakar
 
 install:
 	mkdir -p ${DESTDIR}${BINDIR}
@@ -22,4 +21,8 @@ install:
 	find cmd/plakar -iname \*.1 -exec \
 		${INSTALL_MAN} {} ${DESTDIR}${MANDIR}/man1 \;
 
-.PHONY: all plakar install
+check: test
+test:
+	${GO} test ./...
+
+.PHONY: all plakar install check test
