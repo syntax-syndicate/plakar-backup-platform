@@ -255,7 +255,7 @@ func GetConfigDir(appName string) (string, error) {
 	return configDir, nil
 }
 
-const VERSION = "v0.4.24-alpha"
+const VERSION = "v1.0.0-beta.2"
 
 func GetVersion() string {
 	return VERSION
