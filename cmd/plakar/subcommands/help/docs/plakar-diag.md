@@ -7,7 +7,7 @@ PLAKAR-DIAG(1) - General Commands Manual
 # SYNOPSIS
 
 **plakar diag**
-\[**errors**&nbsp;|&nbsp;**object**&nbsp;|&nbsp;**packfile**&nbsp;|&nbsp;**snapshot**&nbsp;|&nbsp;**state**&nbsp;|&nbsp;**vfs**]
+\[**errors**&nbsp;|&nbsp;**locks**&nbsp;|&nbsp;**object**&nbsp;|&nbsp;**packfile**&nbsp;|&nbsp;**snapshot**&nbsp;|&nbsp;**state**&nbsp;|&nbsp;**vfs**]
 
 # DESCRIPTION
 
@@ -22,6 +22,10 @@ The sub-commands are as follows:
 **errors** *snapshotID*
 
 > Display the list of errors in the given snapshot.
+
+**locks**
+
+> Display the list of locks currently held on the repository.
 
 **object** *objectID*
 

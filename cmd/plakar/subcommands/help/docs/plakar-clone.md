@@ -18,8 +18,6 @@ command creates a full clone of an existing Plakar repository,
 including all snapshots, packfiles, and repository states, and saves
 it at the specified
 *path*.
-The cloned repository is assigned a new unique ID to distinguish it
-from the source repository.
 
 # EXAMPLES
 

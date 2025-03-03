@@ -7,6 +7,7 @@ PLAKAR-CREATE(1) - General Commands Manual
 # SYNOPSIS
 
 **plakar create**
+\[**-hashing**&nbsp;*algorithm*]
 \[**-no-encryption**]
 \[**-no-compression**]
 

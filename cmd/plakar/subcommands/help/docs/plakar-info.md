@@ -7,7 +7,7 @@ PLAKAR-INFO(1) - General Commands Manual
 # SYNOPSIS
 
 **plakar info**
-\[**\[\[SNAPSHOT]\[:/path/to/file-or-directory]]**]
+\[*snapshot*\[:*/path/to/file*]]
 
 # DESCRIPTION
 

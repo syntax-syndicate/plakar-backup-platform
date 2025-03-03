@@ -170,18 +170,20 @@ $ plakar create
 .Pp
 Create an encrypted repository on AWS S3:
 .Bd -literal -offset indent
-$ plakar config repository create s3
-$ plakar config repository set s3 access_key "access_key"
-$ plakar config repository set s3 secret_access_key "secret_key"
-$ plakar at @s3 create
+$ plakar config repository create mys3bucket
+$ plakar config repository set mys3bucket location \e
+	s3://s3.eu-west-3.amazonaws.com/backups
+$ plakar config repository set mys3bucket access_key "access_key"
+$ plakar config repository set mys3bucket secret_access_key "secret_key"
+$ plakar at @mys3bucket create
 .Ed
 .Pp
 Set the
-.Dq s3
+.Dq mys3bucket
 repository just created as the default one used by
 .Nm :
 .Bd -literal -offset indent
-$ plakar config repository default s3
+$ plakar config repository default mys3bucket
 .Ed
 .Pp
 Create a snapshot of the current directory:

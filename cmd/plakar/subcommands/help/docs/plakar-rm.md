@@ -35,43 +35,43 @@ must be specified to filter the snapshots to delete.
 
 The arguments are as follows:
 
-**-name** *string*
+**-name** *name*
 
-> Only apply command to snapshots that match
+> Filter snapshots that match
 > *name*.
 
-**-category** *string*
+**-category** *category*
 
-> Only apply command to snapshots that match
+> Filter snapshots that match
 > *category*.
 
-**-environment** *string*
+**-environment** *environment*
 
-> Only apply command to snapshots that match
+> Filter snapshots that match
 > *environment*.
 
-**-perimeter** *string*
+**-perimeter** *perimeter*
 
-> Only apply command to snapshots that match
+> Filter snapshots that match
 > *perimeter*.
 
-**-job** *string*
+**-job** *job*
 
-> Only apply command to snapshots that match
+> Filter snapshots that match
 > *job*.
 
-**-tag** *string*
+**-tag** *tag*
 
-> Only apply command to snapshots that match
+> Filter snapshots that match
 > *tag*.
 
 **-latest**
 
-> Only apply command to latest snapshot matching filters.
+> Filter latest snapshot matching filters.
 
 **-before** *date*
 
-> Only apply command to snapshots matching filters and older than the specified date.
+> Filter snapshots matching filters and older than the specified date.
 > Accepted formats include relative durations
 > (e.g. 2d for two days, 1w for one week)
 > or specific dates in various formats
@@ -79,7 +79,7 @@ The arguments are as follows:
 
 **-since** *date*
 
-> Only apply command to snapshots matching filters and created since the specified date, included.
+> Filter snapshots matching filters and created since the specified date, included.
 > Accepted formats include relative durations
 > (e.g. 2d for two days, 1w for one week)
 > or specific dates in various formats
@@ -93,7 +93,7 @@ Remove a specific snapshot by ID:
 
 Remove snapshots older than 30 days:
 
-	$ plakar rm -older 30d
+	$ plakar rm -before 30d
 
 Remove snapshots with a specific tag:
 
@@ -101,7 +101,7 @@ Remove snapshots with a specific tag:
 
 Remove snapshots older than 1 year with a specific tag:
 
-	$ plakar rm -older 1y -tag daily-backup
+	$ plakar rm -before 1y -tag daily-backup
 
 # DIAGNOSTICS
 

@@ -19,7 +19,7 @@ at the specified
 This allows users to access snapshot contents as if they were part of
 the local file system, providing easy browsing and retrieval of files
 without needing to explicitly restore them.
-This command requires a Linux or Darwin (macOS) environment.
+This command may not work on all Operating Systems.
 
 # EXAMPLES
 
