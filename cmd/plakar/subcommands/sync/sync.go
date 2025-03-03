@@ -92,24 +92,33 @@ func parse_cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, arg
 
 	var peerSecret []byte
 	if peerStoreConfig.Encryption != nil {
-		for {
-			passphrase, err := utils.GetPassphrase("destination repository")
+		if pass, ok := storeConfig["passphrase"]; ok {
+			key, err := encryption.DeriveKey(peerStoreConfig.Encryption.KDFParams, []byte(pass))
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s\n", err)
-				continue
-			}
-
-			key, err := encryption.DeriveKey(peerStoreConfig.Encryption.KDFParams, passphrase)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s\n", err)
-				continue
+				return nil, err
 			}
 			if !encryption.VerifyCanary(peerStoreConfig.Encryption, key) {
-				fmt.Fprintf(os.Stderr, "invalid passphrase\n")
-				continue
+				return nil, fmt.Errorf("invalid passphrase")
 			}
 			peerSecret = key
-			break
+		} else {
+			for {
+				passphrase, err := utils.GetPassphrase("destination repository")
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "%s\n", err)
+					continue
+				}
+
+				key, err := encryption.DeriveKey(peerStoreConfig.Encryption.KDFParams, passphrase)
+				if err != nil {
+					return nil, err
+				}
+				if !encryption.VerifyCanary(peerStoreConfig.Encryption, key) {
+					return nil, fmt.Errorf("invalid passphrase")
+				}
+				peerSecret = key
+				break
+			}
 		}
 	}
 
