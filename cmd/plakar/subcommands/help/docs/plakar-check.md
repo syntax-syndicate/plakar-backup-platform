@@ -2,7 +2,7 @@ PLAKAR(CHECK) - CHECK (1)
 
 # NAME
 
-**plakar check** - Check data integrity in a Plakar repository or snapshot
+**plakar check** - Check data integrity in a Plakar repository
 
 # SYNOPSIS
 
@@ -134,4 +134,4 @@ The **plakar check** utility exits&#160;0 on success, and&#160;&gt;0 if an error
 
 plakar(1)
 
-Plakar - February 3, 2025
+Plakar - March 3, 2025

@@ -2,7 +2,7 @@ PLAKAR-DIGEST(1) - General Commands Manual
 
 # NAME
 
-**plakar digest** - Calculate digests for files in a Plakar snapshot
+**plakar digest** - Compute digests for files in a Plakar snapshot
 
 # SYNOPSIS
 
@@ -14,7 +14,7 @@ PLAKAR-DIGEST(1) - General Commands Manual
 
 The
 **plakar digest**
-command calculates and displays digests for specified
+command computes and displays digests for specified
 *filepath*
 in a the given
 *snapshotID*.
@@ -37,7 +37,7 @@ The options are as follows:
 
 # EXAMPLES
 
-Calculate the digest of a file within a snapshot:
+Compute the digest of a file within a snapshot:
 
 	$ plakar digest abc123:/etc/passwd
 
@@ -62,4 +62,4 @@ The **plakar digest** utility exits&#160;0 on success, and&#160;&gt;0 if an erro
 
 plakar(1)
 
-Plakar - February 3, 2025
+Plakar - March 3, 2025

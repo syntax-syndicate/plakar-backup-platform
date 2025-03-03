@@ -1,9 +1,9 @@
-.Dd February 3, 2025
+.Dd March 3, 2025
 .Dt PLAKAR-DIGEST 1
 .Os
 .Sh NAME
 .Nm plakar digest
-.Nd Calculate digests for files in a Plakar snapshot
+.Nd Compute digests for files in a Plakar snapshot
 .Sh SYNOPSIS
 .Nm
 .Op Fl hashing Ar algorithm
@@ -11,7 +11,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-command calculates and displays digests for specified
+command computes and displays digests for specified
 .Ar filepath
 in a the given
 .Ar snapshotID .
@@ -32,7 +32,7 @@ to compute the digest.
 Defaults to SHA256.
 .El
 .Sh EXAMPLES
-Calculate the digest of a file within a snapshot:
+Compute the digest of a file within a snapshot:
 .Bd -literal -offset indent
 $ plakar digest abc123:/etc/passwd
 .Ed

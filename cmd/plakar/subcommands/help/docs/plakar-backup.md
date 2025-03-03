@@ -2,7 +2,7 @@ PLAKAR-BACKUP(1) - General Commands Manual
 
 # NAME
 
-**plakar backup** - Create a new snapshot of a directory in a Plakar repository
+**plakar backup** - Create a new snapshot in a Plakar repository
 
 # SYNOPSIS
 
@@ -12,7 +12,6 @@ PLAKAR-BACKUP(1) - General Commands Manual
 \[**-excludes**&nbsp;*file*]
 \[**-check**]
 \[**-quiet**]
-\[**-stdio**]
 \[**-tag**&nbsp;*tag*]
 \[*directory*]
 
@@ -37,14 +36,14 @@ The options are as follows:
 
 **-exclude** *pattern*
 
-> Specify individual exclusion patterns to ignore files or directories
-> in the backup.
+> Specify individual glob exclusion patterns to ignore files or
+> directories in the backup.
 > This option can be repeated.
 
 **-excludes** *file*
 
-> Specify a file containing exclusion patterns, one per line, to ignore
-> files or directories in the backup.
+> Specify a file containing glob exclusion patterns, one per line, to
+> ignore files or directories in the backup.
 
 **-check**
 
@@ -53,11 +52,6 @@ The options are as follows:
 **-quiet**
 
 > Suppress output to standard input, only logging errors and warnings.
-
-**-stdio**
-
-> Output one line per file to standard output instead of the default
-> interactive output.
 
 **-tag** *tag*
 
@@ -94,4 +88,4 @@ The **plakar backup** utility exits&#160;0 on success, and&#160;&gt;0 if an erro
 
 plakar(1)
 
-Plakar - February 3, 2025
+Plakar - March 3, 2025

@@ -2,7 +2,7 @@ PLAKAR-INFO(1) - General Commands Manual
 
 # NAME
 
-**plakar info** - Display detailed information about a Plakar repository, snapshot and filesystem entries
+**plakar info** - Display detailed information about internal structures
 
 # SYNOPSIS
 
@@ -50,4 +50,4 @@ The **plakar info** utility exits&#160;0 on success, and&#160;&gt;0 if an error 
 plakar(1),
 plakar-snapshot(1)
 
-Plakar - February 3, 2025
+Plakar - March 3, 2025

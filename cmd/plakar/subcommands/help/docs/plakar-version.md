@@ -2,7 +2,7 @@ PLAKAR-VERSION(1) - General Commands Manual
 
 # NAME
 
-**plakar version** - Display the current version of Plakar
+**plakar version** - Display the current Plakar version
 
 # SYNOPSIS
 
@@ -22,4 +22,4 @@ The **plakar version** utility exits&#160;0 on success, and&#160;&gt;0 if an err
 
 plakar(1)
 
-Plakar - January 29, 2025
+Plakar - March 3, 2025

@@ -2,7 +2,7 @@ PLAKAR-UI(1) - General Commands Manual
 
 # NAME
 
-**plakar ui** - Serve the Plakar user interface over HTTP
+**plakar ui** - Serve the Plakar web user interface
 
 # SYNOPSIS
 
@@ -70,4 +70,4 @@ The **plakar ui** utility exits&#160;0 on success, and&#160;&gt;0 if an error oc
 
 plakar(1)
 
-Plakar - February 3, 2024
+Plakar - March 3, 2024
