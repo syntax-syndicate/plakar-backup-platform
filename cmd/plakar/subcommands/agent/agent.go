@@ -37,7 +37,6 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/backup"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/cat"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/cleanup"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/clone"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/diag"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/diff"
@@ -46,6 +45,7 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/info"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/locate"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ls"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/maintenance"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/mount"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
@@ -601,10 +601,10 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				subcommand = &cmd.Subcommand
 				repositoryLocation = cmd.Subcommand.RepositoryLocation
 				repositorySecret = cmd.Subcommand.RepositorySecret
-			case (&cleanup.Cleanup{}).Name():
+			case (&maintenance.Maintenance{}).Name():
 				var cmd struct {
 					Name       string
-					Subcommand cleanup.Cleanup
+					Subcommand maintenance.Maintenance
 				}
 				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)

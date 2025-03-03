@@ -22,9 +22,9 @@ type RepositoryConfig struct {
 }
 
 type AgentConfig struct {
-	Alerting *AlertingConfig
-	Cleanup  []CleanupConfig `validate:"dive"`
-	Tasks    []Task          `mapstructure:"tasks" validate:"dive"`
+	Alerting    *AlertingConfig
+	Maintenance []MaintenanceConfig `validate:"dive"`
+	Tasks       []Task              `mapstructure:"tasks" validate:"dive"`
 }
 
 type AlertingConfig struct {
@@ -142,7 +142,7 @@ type SyncConfig struct {
 	Interval  string        `validate:"required"`
 }
 
-type CleanupConfig struct {
+type MaintenanceConfig struct {
 	Interval   string `validate:"required"`
 	Retention  string `validate:"required"`
 	Repository RepositoryConfig

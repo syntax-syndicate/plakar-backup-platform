@@ -1,8 +1,8 @@
 .Dd February 1, 2025
-.Dt PLAKAR-CLEANUP 1
+.Dt PLAKAR-MAINTENANCE 1
 .Os
 .Sh NAME
-.Nm plakar cleanup
+.Nm plakar maintenance
 .Nd Remove unused data from a Plakar repository
 .Sh SYNOPSIS
 .Nm
@@ -13,15 +13,16 @@ command removes unused blobs, objects, and chunks from a Plakar
 repository to reduce storage space.
 It identifies unreferenced data and reorganizes packfiles to ensure
 only active snapshots and their dependencies are retained.
-The cleanup process updates snapshot indexes to reflect these changes.
+The maintenance process updates snapshot indexes to reflect these
+changes.
 .Sh DIAGNOSTICS
 .Ex -std
 .Bl -tag -width Ds
 .It 0
 Command completed successfully.
 .It >0
-An error occurred during cleanup, such as failure to update indexes or
-remove data.
+An error occurred during maintenance, such as failure to update indexes
+or remove data.
 .El
 .Sh SEE ALSO
 .Xr plakar 1
