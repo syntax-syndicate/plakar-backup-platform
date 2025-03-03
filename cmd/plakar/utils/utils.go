@@ -266,7 +266,7 @@ func NormalizePath(path string) (string, error) {
 	parts := strings.Split(path, string(filepath.Separator))[1:]
 
 	if len(parts) == 0 || parts[0] == "" {
-		return "", fmt.Errorf("invalid path")
+		return "/", nil
 	}
 
 	var normalizedPath string
