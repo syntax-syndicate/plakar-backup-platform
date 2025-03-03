@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-package cleanup
+package maintenance
 
 import (
 	"bytes"
@@ -34,36 +34,36 @@ import (
 )
 
 func init() {
-	subcommands.Register("cleanup", parse_cmd_cleanup)
+	subcommands.Register("maintenance", parse_cmd_maintenance)
 }
 
-func parse_cmd_cleanup(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
-	flags := flag.NewFlagSet("cleanup", flag.ExitOnError)
+func parse_cmd_maintenance(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+	flags := flag.NewFlagSet("maintenance", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s\n", flags.Name())
 	}
 	flags.Parse(args)
 
-	return &Cleanup{
+	return &Maintenance{
 		RepositoryLocation: repo.Location(),
 		RepositorySecret:   ctx.GetSecret(),
 	}, nil
 }
 
-type Cleanup struct {
+type Maintenance struct {
 	RepositoryLocation string
 	RepositorySecret   []byte
 
-	repository     *repository.Repository
-	maintainanceID objects.MAC
+	repository    *repository.Repository
+	maintenanceID objects.MAC
 }
 
-func (cmd *Cleanup) Name() string {
-	return "cleanup"
+func (cmd *Maintenance) Name() string {
+	return "maintenance"
 }
 
 // Builds the local cache of snapshot -> packfiles
-func (cmd *Cleanup) updateCache(ctx *appcontext.AppContext, cache *caching.MaintainanceCache) error {
+func (cmd *Maintenance) updateCache(ctx *appcontext.AppContext, cache *caching.MaintenanceCache) error {
 	for snapshotID := range cmd.repository.ListSnapshots() {
 		snapshot, err := snapshot.Load(cmd.repository, snapshotID)
 		if err != nil {
@@ -119,7 +119,7 @@ func (cmd *Cleanup) updateCache(ctx *appcontext.AppContext, cache *caching.Maint
 	return nil
 }
 
-func (cmd *Cleanup) colourPass(ctx *appcontext.AppContext, cache *caching.MaintainanceCache) error {
+func (cmd *Maintenance) colourPass(ctx *appcontext.AppContext, cache *caching.MaintenanceCache) error {
 	var packfiles map[objects.MAC]struct{} = make(map[objects.MAC]struct{})
 
 	for packfileMAC := range cmd.repository.ListPackfiles() {
@@ -128,7 +128,7 @@ func (cmd *Cleanup) colourPass(ctx *appcontext.AppContext, cache *caching.Mainta
 		}
 	}
 
-	sc, err := cmd.repository.AppContext().GetCache().Scan(cmd.maintainanceID)
+	sc, err := cmd.repository.AppContext().GetCache().Scan(cmd.maintenanceID)
 	if err != nil {
 		return err
 	}
@@ -161,14 +161,14 @@ func (cmd *Cleanup) colourPass(ctx *appcontext.AppContext, cache *caching.Mainta
 		return err
 	}
 
-	if err := cmd.repository.PutState(cmd.maintainanceID, buf); err != nil {
+	if err := cmd.repository.PutState(cmd.maintenanceID, buf); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (cmd *Cleanup) sweepPass(ctx *appcontext.AppContext, cache *caching.MaintainanceCache) error {
+func (cmd *Maintenance) sweepPass(ctx *appcontext.AppContext, cache *caching.MaintenanceCache) error {
 	// These need to be configurable per repo, but we don't have a mechanism yet (comes in a PR soon!)
 	cutoff := time.Now().AddDate(0, 0, -30)
 	doDeletion := false
@@ -185,7 +185,7 @@ func (cmd *Cleanup) sweepPass(ctx *appcontext.AppContext, cache *caching.Maintai
 		// because we could have had a concurrent backup with the coloring
 		// phase.
 		if cache.HasPackfile(packfileMAC) {
-			fmt.Fprintf(ctx.Stderr, "cleanup: Concurrent backup used %x, uncolouring the packfile.\n", packfileMAC)
+			fmt.Fprintf(ctx.Stderr, "maintenance: Concurrent backup used %x, uncolouring the packfile.\n", packfileMAC)
 			cmd.repository.RemoveDeletedPackfile(packfileMAC)
 			continue
 		}
@@ -193,7 +193,7 @@ func (cmd *Cleanup) sweepPass(ctx *appcontext.AppContext, cache *caching.Maintai
 		// First thing we remove the packfile entry from our state, this means
 		// that now effectively all of its blob are unreachable
 		if err := cmd.repository.RemovePackfile(packfileMAC); err != nil {
-			fmt.Fprintf(ctx.Stderr, "cleanup: Failed to remove packfile %s from state\n", packfileMAC)
+			fmt.Fprintf(ctx.Stderr, "maintenance: Failed to remove packfile %s from state\n", packfileMAC)
 		} else {
 			cmd.repository.RemoveDeletedPackfile(packfileMAC)
 		}
@@ -206,7 +206,7 @@ func (cmd *Cleanup) sweepPass(ctx *appcontext.AppContext, cache *caching.Maintai
 	toDelete := map[objects.MAC]struct{}{}
 	for blob, err := range cmd.repository.ListOrphanBlobs() {
 		if err != nil {
-			fmt.Fprintf(ctx.Stderr, "cleanup: Failed to fetch orphaned blob\n")
+			fmt.Fprintf(ctx.Stderr, "maintenance: Failed to fetch orphaned blob\n")
 			continue
 		}
 
@@ -214,11 +214,11 @@ func (cmd *Cleanup) sweepPass(ctx *appcontext.AppContext, cache *caching.Maintai
 		toDelete[blob.Location.Packfile] = struct{}{}
 		if err := cmd.repository.RemoveBlob(blob.Type, blob.Blob, blob.Location.Packfile); err != nil {
 			// No hurt in this failing, we just have cruft left around, but they are unreachable anyway.
-			fmt.Fprintf(ctx.Stderr, "cleanup: garbage orphaned blobs pass failed to remove blob %x, type %s\n", blob.Blob, blob.Type)
+			fmt.Fprintf(ctx.Stderr, "maintenance: garbage orphaned blobs pass failed to remove blob %x, type %s\n", blob.Blob, blob.Type)
 		}
 	}
 
-	fmt.Fprintf(ctx.Stdout, "cleanup: %d blobs and %d packfiles were removed\n", blobRemoved, packfileremoved)
+	fmt.Fprintf(ctx.Stdout, "maintenance: %d blobs and %d packfiles were removed\n", blobRemoved, packfileremoved)
 	if err := cmd.repository.PutCurrentState(); err != nil {
 		return err
 	}
@@ -226,7 +226,7 @@ func (cmd *Cleanup) sweepPass(ctx *appcontext.AppContext, cache *caching.Maintai
 	if doDeletion {
 		for packfileMAC := range toDelete {
 			if err := cmd.repository.DeletePackfile(packfileMAC); err != nil {
-				fmt.Fprintf(ctx.Stderr, "cleanup: Sweep pass failed to delete packfile %x, skipping it\n", packfileMAC)
+				fmt.Fprintf(ctx.Stderr, "maintenance: Sweep pass failed to delete packfile %x, skipping it\n", packfileMAC)
 			}
 		}
 	}
@@ -234,8 +234,8 @@ func (cmd *Cleanup) sweepPass(ctx *appcontext.AppContext, cache *caching.Maintai
 	return nil
 }
 
-func (cmd *Cleanup) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	// the cleanup algorithm is a bit tricky and needs to be done in the correct sequence,
+func (cmd *Maintenance) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+	// the maintenance algorithm is a bit tricky and needs to be done in the correct sequence,
 	// here's what it has to do:
 	//
 	// 1. fetch all packfiles in the repository
@@ -248,13 +248,13 @@ func (cmd *Cleanup) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 
 	cmd.repository = repo
 	// This random id generation for non snapshot state should probably be encapsulated somewhere.
-	n, err := rand.Read(cmd.maintainanceID[:])
+	n, err := rand.Read(cmd.maintenanceID[:])
 	if err != nil {
-		fmt.Fprintf(ctx.Stderr, "cleanup: Failed to read from random source.%s\n", err)
+		fmt.Fprintf(ctx.Stderr, "maintenance: Failed to read from random source.%s\n", err)
 		return 1, err
 	}
-	if n != len(cmd.maintainanceID) {
-		fmt.Fprintf(ctx.Stderr, "cleanup: Failed to read from random source.%s\n", err)
+	if n != len(cmd.maintenanceID) {
+		fmt.Fprintf(ctx.Stderr, "maintenance: Failed to read from random source.%s\n", err)
 		return 1, io.ErrShortWrite
 	}
 
@@ -266,29 +266,29 @@ func (cmd *Cleanup) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 
 	cache, err := repo.AppContext().GetCache().Maintenance(repo.Configuration().RepositoryID)
 	if err != nil {
-		fmt.Fprintf(ctx.Stderr, "cleanup: Failed to open local cache %s\n", err)
+		fmt.Fprintf(ctx.Stderr, "maintenance: Failed to open local cache %s\n", err)
 		return 1, err
 	}
 
 	if err := cmd.updateCache(ctx, cache); err != nil {
-		fmt.Fprintf(ctx.Stderr, "cleanup: Failed to update local cache %s\n", err)
+		fmt.Fprintf(ctx.Stderr, "maintenance: Failed to update local cache %s\n", err)
 		return 1, err
 	}
 
 	if err := cmd.colourPass(ctx, cache); err != nil {
-		fmt.Fprintf(ctx.Stderr, "cleanup: Colouring pass failed %s\n", err)
+		fmt.Fprintf(ctx.Stderr, "maintenance: Colouring pass failed %s\n", err)
 		return 1, err
 	}
 
 	if err := cmd.sweepPass(ctx, cache); err != nil {
-		fmt.Fprintf(ctx.Stderr, "cleanup: Sweep pass failed %s\n", err)
+		fmt.Fprintf(ctx.Stderr, "maintenance: Sweep pass failed %s\n", err)
 		return 1, err
 	}
 
 	return 0, nil
 }
 
-func (cmd *Cleanup) Lock() (chan bool, error) {
+func (cmd *Maintenance) Lock() (chan bool, error) {
 	lock := repository.NewExclusiveLock(cmd.repository.AppContext().Hostname)
 
 	buffer := &bytes.Buffer{}
@@ -297,7 +297,7 @@ func (cmd *Cleanup) Lock() (chan bool, error) {
 		return nil, err
 	}
 
-	err = cmd.repository.PutLock(cmd.maintainanceID, buffer)
+	err = cmd.repository.PutLock(cmd.maintenanceID, buffer)
 	if err != nil {
 		return nil, err
 	}
@@ -306,24 +306,24 @@ func (cmd *Cleanup) Lock() (chan bool, error) {
 	locksID, err := cmd.repository.GetLocks()
 	if err != nil {
 		// We still need to delete it, and we need to do so manually.
-		cmd.repository.DeleteLock(cmd.maintainanceID)
+		cmd.repository.DeleteLock(cmd.maintenanceID)
 		return nil, err
 	}
 
 	for _, lockID := range locksID {
-		if lockID == cmd.maintainanceID {
+		if lockID == cmd.maintenanceID {
 			continue
 		}
 
 		version, rd, err := cmd.repository.GetLock(lockID)
 		if err != nil {
-			cmd.repository.DeleteLock(cmd.maintainanceID)
+			cmd.repository.DeleteLock(cmd.maintenanceID)
 			return nil, err
 		}
 
 		lock, err := repository.NewLockFromStream(version, rd)
 		if err != nil {
-			cmd.repository.DeleteLock(cmd.maintainanceID)
+			cmd.repository.DeleteLock(cmd.maintenanceID)
 			return nil, err
 		}
 
@@ -331,13 +331,13 @@ func (cmd *Cleanup) Lock() (chan bool, error) {
 		if lock.IsStale() {
 			err := cmd.repository.DeleteLock(lockID)
 			if err != nil {
-				cmd.repository.DeleteLock(cmd.maintainanceID)
+				cmd.repository.DeleteLock(cmd.maintenanceID)
 				return nil, err
 			}
 		}
 
 		// There is a lock in place, we need to abort.
-		err = cmd.repository.DeleteLock(cmd.maintainanceID)
+		err = cmd.repository.DeleteLock(cmd.maintenanceID)
 		if err != nil {
 			return nil, err
 		}
@@ -352,7 +352,7 @@ func (cmd *Cleanup) Lock() (chan bool, error) {
 		for {
 			select {
 			case <-lockDone:
-				cmd.repository.DeleteLock(cmd.maintainanceID)
+				cmd.repository.DeleteLock(cmd.maintenanceID)
 				return
 			case <-time.After(repository.LOCK_REFRESH_RATE):
 				lock := repository.NewExclusiveLock(cmd.repository.AppContext().Hostname)
@@ -363,7 +363,7 @@ func (cmd *Cleanup) Lock() (chan bool, error) {
 				// correctly, and if they happen we will be ripped by the
 				// watchdog anyway.
 				lock.SerializeToStream(buffer)
-				cmd.repository.PutLock(cmd.maintainanceID, buffer)
+				cmd.repository.PutLock(cmd.maintenanceID, buffer)
 			}
 		}
 	}()
@@ -371,6 +371,6 @@ func (cmd *Cleanup) Lock() (chan bool, error) {
 	return lockDone, nil
 }
 
-func (cmd *Cleanup) Unlock(ping chan bool) {
+func (cmd *Maintenance) Unlock(ping chan bool) {
 	close(ping)
 }

@@ -20,17 +20,17 @@ type Manager struct {
 	vfsCache      map[string]*_VFSCache
 	vfsCacheMutex sync.Mutex
 
-	maintainanceCache      map[uuid.UUID]*MaintainanceCache
-	maintainanceCacheMutex sync.Mutex
+	maintenanceCache      map[uuid.UUID]*MaintenanceCache
+	maintenanceCacheMutex sync.Mutex
 }
 
 func NewManager(cacheDir string) *Manager {
 	return &Manager{
 		cacheDir: filepath.Join(cacheDir, CACHE_VERSION),
 
-		repositoryCache:   make(map[uuid.UUID]*_RepositoryCache),
-		vfsCache:          make(map[string]*_VFSCache),
-		maintainanceCache: make(map[uuid.UUID]*MaintainanceCache),
+		repositoryCache:  make(map[uuid.UUID]*_RepositoryCache),
+		vfsCache:         make(map[string]*_VFSCache),
+		maintenanceCache: make(map[uuid.UUID]*MaintenanceCache),
 	}
 }
 
@@ -85,18 +85,18 @@ func (m *Manager) Repository(repositoryID uuid.UUID) (*_RepositoryCache, error) 
 	}
 }
 
-func (m *Manager) Maintenance(repositoryID uuid.UUID) (*MaintainanceCache, error) {
-	m.maintainanceCacheMutex.Lock()
-	defer m.maintainanceCacheMutex.Unlock()
+func (m *Manager) Maintenance(repositoryID uuid.UUID) (*MaintenanceCache, error) {
+	m.maintenanceCacheMutex.Lock()
+	defer m.maintenanceCacheMutex.Unlock()
 
-	if cache, ok := m.maintainanceCache[repositoryID]; ok {
+	if cache, ok := m.maintenanceCache[repositoryID]; ok {
 		return cache, nil
 	}
 
-	if cache, err := newMaintainanceCache(m, repositoryID); err != nil {
+	if cache, err := newMaintenanceCache(m, repositoryID); err != nil {
 		return nil, err
 	} else {
-		m.maintainanceCache[repositoryID] = cache
+		m.maintenanceCache[repositoryID] = cache
 		return cache, nil
 	}
 }
