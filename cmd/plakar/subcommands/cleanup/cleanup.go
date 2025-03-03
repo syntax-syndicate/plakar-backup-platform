@@ -136,7 +136,7 @@ func (cmd *Cleanup) colourPass(ctx *appcontext.AppContext, cache *caching.Mainta
 	// First pass, coloring, we just flag those packfiles as being selected for deletion.
 	// For now we keep the same serial so that those delete gets merged in.
 	// Once we do the real deletion we will rebuild the aggregated view
-	// excluding those ressources alltogether.
+	// excluding those resources alltogether.
 	deltaState := cmd.repository.NewStateDelta(sc)
 
 	coloredPackfiles := 0
@@ -264,7 +264,7 @@ func (cmd *Cleanup) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 	}
 	defer cmd.Unlock(done)
 
-	cache, err := repo.AppContext().GetCache().Maintainance(repo.Configuration().RepositoryID)
+	cache, err := repo.AppContext().GetCache().Maintenance(repo.Configuration().RepositoryID)
 	if err != nil {
 		fmt.Fprintf(ctx.Stderr, "cleanup: Failed to open local cache %s\n", err)
 		return 1, err

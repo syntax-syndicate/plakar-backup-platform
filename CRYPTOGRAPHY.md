@@ -120,7 +120,7 @@ providing MAC integrity check.
 
 
 ### Configuration
-The configuration supposedly contains no sensitive informations.
+The configuration supposedly contains no sensitive information.
 
 In addition to the crypto parameters described above,
 it contains a UUID, a timestamp, the chunking settings for deduplication, the settings for compression (algorithm, level, ...).
@@ -275,7 +275,7 @@ $
 
 ## State synchronization
 
-Everytime a client opens a repository, regardless of the operation being performed, a state synchronization is performed to keep a local cache updated.
+Every time a client opens a repository, regardless of the operation being performed, a state synchronization is performed to keep a local cache updated.
 
 The client requests the repository for a list of state identifiers,
 fetches the states that are absent from its local cache and decodes them to update the cache accordingly.
@@ -284,7 +284,7 @@ When the synchronization is done,
 the local cache has a full representation of the repository state.
 It can be used to check existence or location of blobs within the repository without having to query the repository directly for packfile and packfile indexes.
 
-It is technically possible to check if a local filesystem exists within a repository without emiting a single query to the repository.
+It is technically possible to check if a local filesystem exists within a repository without emitting a single query to the repository.
 
 
 ## Snapshots

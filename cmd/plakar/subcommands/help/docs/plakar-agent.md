@@ -7,7 +7,9 @@ PLAKAR-AGENT(1) - General Commands Manual
 # SYNOPSIS
 
 **plakar agent**
-\[**-prometheus**&nbsp;*address*]
+\[**-foreground**]
+\[**-log**&nbsp;*filename*]
+\[**-stop**]
 
 # DESCRIPTION
 
@@ -21,13 +23,19 @@ continues running indefinitely.
 
 The options are as follows:
 
-**-prometheus** *address*
+**-foreground**
 
-> Expose a prometheus server at
-> *address*.
-> Metrics are available at the
-> */metrics*
-> endpoint.
+> Do not daemonize agent,
+> run in foreground.
+
+**-log** *filename*
+
+> Redirect all output to
+> *filename*.
+
+**-stop**
+
+> Terminate an agent running in the background.
 
 # DIAGNOSTICS
 

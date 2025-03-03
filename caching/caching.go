@@ -85,7 +85,7 @@ func (m *Manager) Repository(repositoryID uuid.UUID) (*_RepositoryCache, error) 
 	}
 }
 
-func (m *Manager) Maintainance(repositoryID uuid.UUID) (*MaintainanceCache, error) {
+func (m *Manager) Maintenance(repositoryID uuid.UUID) (*MaintainanceCache, error) {
 	m.maintainanceCacheMutex.Lock()
 	defer m.maintainanceCacheMutex.Unlock()
 

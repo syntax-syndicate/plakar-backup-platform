@@ -114,7 +114,7 @@ const (
 
 // DirectionDecodeHook is a mapstructure decode hook to force the direction to
 // be one of "to", "from", or "with". Note that the hook is not called if the
-// optinal field "Direction" is not present.
+// optional field "Direction" is not present.
 func SyncDirectionDecodeHook() mapstructure.DecodeHookFunc {
 	return func(
 		from reflect.Type,

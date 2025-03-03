@@ -15,7 +15,7 @@ The
 **plakar diag**
 command provides detailed information about various internal data structures.
 The type of information displayed depends on the specified argument.
-Without any arguents, display information about the repository.
+Without any arguments, display information about the repository.
 
 The sub-commands are as follows:
 

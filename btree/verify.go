@@ -102,7 +102,7 @@ func (b *BTree[K, P, V]) verifyNode(cur, parent *Node[K, P, V], ptrIdx int, stat
 				return fmt.Errorf("InternalNode: broken invariant: Parent/Child ordering is wrong Parent ('-inf' / '%v') -> Child('%v')", parent.Keys[ptrIdx], cur.Keys[len(cur.Keys)-1])
 			}
 		} else if ptrIdx == len(parent.Pointers)-1 {
-			// right-most value. dito.
+			// right-most value. ditto.
 			if b.compare(cur.Keys[0], parent.Keys[ptrIdx-1]) < 0 {
 				return fmt.Errorf("InternalNode: broken invariant: Parent/Child ordering is wrong Parent ('%v' / '+inf') -> Child('%v')", parent.Keys[ptrIdx-1], cur.Keys[0])
 			}
@@ -129,7 +129,7 @@ func (b *BTree[K, P, V]) verifyNode(cur, parent *Node[K, P, V], ptrIdx int, stat
 				return fmt.Errorf("InternalNode: broken invariant: Parent/Child ordering is wrong Parent ('-inf' / '%v') -> Child('%v')", parent.Keys[ptrIdx], cur.Keys[len(cur.Keys)-1])
 			}
 		} else if ptrIdx == len(parent.Pointers)-1 {
-			// right-most value. dito.
+			// right-most value. ditto.
 			if b.compare(cur.Keys[0], parent.Keys[ptrIdx-1]) < 0 {
 				return fmt.Errorf("InternalNode: broken invariant: Parent/Child ordering is wrong Parent ('%v' / '+inf') -> Child('%v')", parent.Keys[ptrIdx-1], cur.Keys[0])
 			}

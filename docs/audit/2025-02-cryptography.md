@@ -307,7 +307,7 @@ Looks good, no problem found, OK with the tink package usage.
 > it no longer resort to digests recorded in the snapshot.
 >
 > [PR #469](https://github.com/PlakarKorp/plakar/pull/469/files): the type objects.Checksum was renamed to objects.MAC,
-> and mecanical change to rename all types and variables for consistency.
+> and mechanical change to rename all types and variables for consistency.
 >
 
 Looks good, no problem found.
