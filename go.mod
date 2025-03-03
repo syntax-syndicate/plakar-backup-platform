@@ -6,7 +6,6 @@ require (
 	github.com/PlakarKorp/go-cdc-chunkers v0.0.8
 	github.com/alecthomas/chroma v0.10.0
 	github.com/anacrolix/fuse v0.3.1
-	github.com/beevik/ntp v1.4.3
 	github.com/charmbracelet/bubbletea v1.2.4
 	github.com/charmbracelet/glamour v0.8.0
 	github.com/charmbracelet/lipgloss v1.0.0
