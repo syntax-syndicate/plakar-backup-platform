@@ -26,15 +26,21 @@ import (
 )
 
 type ClosingFileReader struct {
-	reader io.Reader
-	file   *sftp.File
+	reader     io.Reader
+	file       *sftp.File
+	fileClosed bool
 }
 
 func (cr *ClosingFileReader) Read(p []byte) (int, error) {
+	if cr.fileClosed {
+		return 0, io.EOF
+	}
+
 	n, err := cr.reader.Read(p)
 	if err == io.EOF {
 		// Close the file when EOF is reached
 		closeErr := cr.file.Close()
+		cr.fileClosed = true
 		if closeErr != nil {
 			return n, fmt.Errorf("error closing file: %w", closeErr)
 		}
@@ -44,8 +50,9 @@ func (cr *ClosingFileReader) Read(p []byte) (int, error) {
 
 func ClosingReader(file *sftp.File) (io.Reader, error) {
 	return &ClosingFileReader{
-		reader: file,
-		file:   file,
+		reader:     file,
+		file:       file,
+		fileClosed: false,
 	}, nil
 }
 
