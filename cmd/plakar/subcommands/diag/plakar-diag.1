@@ -6,7 +6,7 @@
 .Nd Display detailed information about Plakar internal structures
 .Sh SYNOPSIS
 .Nm
-.Op Cm errors | object | packfile | snapshot | state | vfs
+.Op Cm errors | locks | object | packfile | snapshot | state | vfs
 .Sh DESCRIPTION
 The
 .Nm
@@ -18,6 +18,8 @@ The sub-commands are as follows:
 .Bl -tag -width Ds
 .It Cm errors Ar snapshotID
 Display the list of errors in the given snapshot.
+.It Cm locks
+Display the list of locks currently held on the repository.
 .It Cm object Ar objectID
 Display information about a specific object, including its mac,
 type, tags, and associated data chunks.
