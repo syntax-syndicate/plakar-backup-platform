@@ -3,7 +3,7 @@
 .Os
 .Sh NAME
 .Nm plakar config
-.Nd Manages plakar configuration
+.Nd Manage Plakar configuration
 .Sh SYNOPSIS
 .Nm
 .Op Cm remote | repository
@@ -73,10 +73,19 @@ to ensure whether the parameters are correct.
 .El
 .El
 .Sh EXAMPLES
-Create a new repository configuration:
+Create a new repository configuration called
+.Dq nas
+that connects over SFTP:
 .Bd -literal -offset indent
 $ plakar config repository create nas
 $ plakar config repository set nas location sftp://mynas/var/plakar
+.Ed
+.Pp
+Perform a backup on the
+.Dq nas
+repository:
+.Bd -literal -offset indent
+$ plakar at nas backup /var/www
 .Ed
 .Pp
 The set the
