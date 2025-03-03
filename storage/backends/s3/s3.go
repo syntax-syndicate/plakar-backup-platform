@@ -64,10 +64,10 @@ func NewRepository(storeConfig map[string]string) (storage.Store, error) {
 	}
 
 	useSsl := true
-	if value, ok := storeConfig["use_ssl"]; ok {
+	if value, ok := storeConfig["use_tls"]; ok {
 		tmp, err := strconv.ParseBool(value)
 		if err != nil {
-			return nil, fmt.Errorf("invalid use_ssl value")
+			return nil, fmt.Errorf("invalid use_tls value")
 		}
 		useSsl = tmp
 	}

@@ -76,10 +76,10 @@ func NewS3Importer(config map[string]string) (importer.Importer, error) {
 	}
 
 	useSsl := true
-	if value, ok := config["use_ssl"]; ok {
+	if value, ok := config["use_tls"]; ok {
 		tmp, err := strconv.ParseBool(value)
 		if err != nil {
-			return nil, fmt.Errorf("invalid use_ssl value")
+			return nil, fmt.Errorf("invalid use_tls value")
 		}
 		useSsl = tmp
 	}
