@@ -42,7 +42,7 @@ func NewFSImporter(config map[string]string) (importer.Importer, error) {
 	location := config["location"]
 
 	if strings.HasPrefix(location, "fs://") {
-		location = location[4:]
+		location = location[5:]
 	}
 
 	if !path.IsAbs(location) {
