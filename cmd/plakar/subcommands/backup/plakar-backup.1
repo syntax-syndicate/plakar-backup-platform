@@ -1,9 +1,9 @@
-.Dd February 3, 2025
+.Dd March 3, 2025
 .Dt PLAKAR-BACKUP 1
 .Os
 .Sh NAME
 .Nm plakar backup
-.Nd Create a new snapshot of a directory in a Plakar repository
+.Nd Create a new snapshot in a Plakar repository
 .Sh SYNOPSIS
 .Nm
 .Op Fl concurrency Ar number
@@ -31,12 +31,12 @@ Set the maximum number of parallel tasks for faster processing.
 Defaults to
 .Dv 8 * CPU count + 1 .
 .It Fl exclude Ar pattern
-Specify individual exclusion patterns to ignore files or directories
-in the backup.
+Specify individual glob exclusion patterns to ignore files or
+directories in the backup.
 This option can be repeated.
 .It Fl excludes Ar file
-Specify a file containing exclusion patterns, one per line, to ignore
-files or directories in the backup.
+Specify a file containing glob exclusion patterns, one per line, to
+ignore files or directories in the backup.
 .It Fl check
 Perform a full check on the backup after success.
 .It Fl quiet

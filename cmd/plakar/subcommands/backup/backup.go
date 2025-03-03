@@ -71,7 +71,7 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 	flags.Uint64Var(&opt_concurrency, "concurrency", uint64(ctx.MaxConcurrency), "maximum number of parallel tasks")
 	flags.StringVar(&opt_tags, "tag", "", "tag to assign to this snapshot")
 	flags.StringVar(&opt_excludes, "excludes", "", "path to a file containing newline-separated regex patterns, treated as -exclude")
-	flags.Var(&opt_exclude, "exclude", "regex pattern to exclude files, can be specified multiple times to add several exclusion patterns")
+	flags.Var(&opt_exclude, "exclude", "glob pattern to exclude files, can be specified multiple times to add several exclusion patterns")
 	flags.BoolVar(&opt_quiet, "quiet", false, "suppress output")
 	flags.BoolVar(&opt_silent, "silent", false, "suppress ALL output")
 	flags.BoolVar(&opt_check, "check", false, "check the snapshot after creating it")
