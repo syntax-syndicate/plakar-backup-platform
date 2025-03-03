@@ -241,17 +241,19 @@ Create an encrypted repository at the default location:
 
 Create an encrypted repository on AWS S3:
 
-	$ plakar config repository create s3
-	$ plakar config repository set s3 access_key "access_key"
-	$ plakar config repository set s3 secret_access_key "secret_key"
-	$ plakar at @s3 create
+	$ plakar config repository create mys3bucket
+	$ plakar config repository set mys3bucket location \
+		s3://s3.eu-west-3.amazonaws.com/backups
+	$ plakar config repository set mys3bucket access_key "access_key"
+	$ plakar config repository set mys3bucket secret_access_key "secret_key"
+	$ plakar at @mys3bucket create
 
 Set the
-"s3"
+"mys3bucket"
 repository just created as the default one used by
 **plakar**:
 
-	$ plakar config repository default s3
+	$ plakar config repository default mys3bucket
 
 Create a snapshot of the current directory:
 

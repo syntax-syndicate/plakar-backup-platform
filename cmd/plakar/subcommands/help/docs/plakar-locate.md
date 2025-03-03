@@ -115,7 +115,7 @@ plakar-backup(1)
 
 # CAVEATS
 
-The patterns may have to be quote to avoid the shell attempting to
+The patterns may have to be quoted to avoid the shell attempting to
 expand them.
 
 Plakar - February 1, 2025

@@ -17,8 +17,7 @@ PLAKAR-UI(1) - General Commands Manual
 The
 **plakar ui**
 command serves the Plakar webapp user interface.
-By default, this command spawns the a web browser to browse the
-interface.
+By default, this command opens the default web browser to use the interface.
 
 The options are as follows:
 
@@ -43,9 +42,7 @@ The options are as follows:
 
 **-no-spawn**
 
-> Do not automatically spawn a web browser.
-> The UI will launch, but the user must manually open it by navigating
-> to the specified address.
+> Do not automatically open the web browser.
 
 # EXAMPLES
 
