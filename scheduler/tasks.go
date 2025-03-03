@@ -7,7 +7,7 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/backup"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/cleanup"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/maintenance"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
@@ -297,17 +297,17 @@ func (s *Scheduler) syncTask(taskset Task, task SyncConfig) error {
 	return nil
 }
 
-func (s *Scheduler) cleanupTask(task CleanupConfig) error {
+func (s *Scheduler) maintenanceTask(task MaintenanceConfig) error {
 	interval, err := stringToDuration(task.Interval)
 	if err != nil {
 		return err
 	}
 
-	cleanupSubcommand := &cleanup.Cleanup{}
-	cleanupSubcommand.RepositoryLocation = task.Repository.Location
+	maintenanceSubcommand := &maintenance.Maintenance{}
+	maintenanceSubcommand.RepositoryLocation = task.Repository.Location
 	if task.Repository.Passphrase != "" {
-		cleanupSubcommand.RepositorySecret = []byte(task.Repository.Passphrase)
-		_ = cleanupSubcommand.RepositorySecret
+		maintenanceSubcommand.RepositorySecret = []byte(task.Repository.Passphrase)
+		_ = maintenanceSubcommand.RepositorySecret
 	}
 
 	rmSubcommand := &rm.Rm{}
@@ -336,7 +336,7 @@ func (s *Scheduler) cleanupTask(task CleanupConfig) error {
 				time.Sleep(interval)
 			}
 
-			store, config, err := storage.Open(map[string]string{"location": cleanupSubcommand.RepositoryLocation})
+			store, config, err := storage.Open(map[string]string{"location": maintenanceSubcommand.RepositoryLocation})
 			if err != nil {
 				s.ctx.GetLogger().Error("Error opening storage: %s", err)
 				continue
@@ -351,11 +351,11 @@ func (s *Scheduler) cleanupTask(task CleanupConfig) error {
 				continue
 			}
 
-			retval, err := cleanupSubcommand.Execute(newCtx, repo)
+			retval, err := maintenanceSubcommand.Execute(newCtx, repo)
 			if err != nil || retval != 0 {
-				s.ctx.GetLogger().Error("Error executing cleanup: %s", err)
+				s.ctx.GetLogger().Error("Error executing maintenance: %s", err)
 			} else {
-				s.ctx.GetLogger().Info("maintenance of repository %s succeeded", cleanupSubcommand.RepositoryLocation)
+				s.ctx.GetLogger().Info("maintenance of repository %s succeeded", maintenanceSubcommand.RepositoryLocation)
 			}
 
 			if task.Retention != "" {

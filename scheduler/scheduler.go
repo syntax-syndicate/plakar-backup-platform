@@ -30,10 +30,10 @@ func NewScheduler(ctx *appcontext.AppContext, config *Configuration) *Scheduler 
 }
 
 func (s *Scheduler) Run() {
-	for _, cleanupCfg := range s.config.Agent.Cleanup {
-		err := s.cleanupTask(cleanupCfg)
+	for _, cleanupCfg := range s.config.Agent.Maintenance {
+		err := s.maintenanceTask(cleanupCfg)
 		if err != nil {
-			s.ctx.GetLogger().Error("Error configuring cleanup task: %s", err)
+			s.ctx.GetLogger().Error("Error configuring maintenance task: %s", err)
 		}
 	}
 
