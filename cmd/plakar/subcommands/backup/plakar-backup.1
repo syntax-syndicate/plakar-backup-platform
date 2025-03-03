@@ -11,7 +11,6 @@
 .Op Fl excludes Ar file
 .Op Fl check
 .Op Fl quiet
-.Op Fl stdio
 .Op Fl tag Ar tag
 .Op Ar directory
 .Sh DESCRIPTION
@@ -41,9 +40,6 @@ ignore files or directories in the backup.
 Perform a full check on the backup after success.
 .It Fl quiet
 Suppress output to standard input, only logging errors and warnings.
-.It Fl stdio
-Output one line per file to standard output instead of the default
-interactive output.
 .It Fl tag Ar tag
 Specify a tag to assign to the snapshot for easier identification.
 .El
