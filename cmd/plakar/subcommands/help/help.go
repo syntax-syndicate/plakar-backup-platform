@@ -66,15 +66,12 @@ type Help struct {
 }
 
 func (cmd *Help) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	if cmd.Command == "" {
-		fmt.Fprintf(os.Stderr, "available commands:\n")
-		for _, command := range subcommands.List() {
-			fmt.Fprintf(os.Stderr, "  %s\n", command)
-		}
-		return 0, nil
+	document := "docs/plakar.md"
+	if cmd.Command != "" {
+		document = fmt.Sprintf("docs/plakar-%s.md", cmd.Command)
 	}
 
-	content, err := docs.ReadFile(fmt.Sprintf("docs/plakar-%s.md", cmd.Command))
+	content, err := docs.ReadFile(document)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", cmd.Command)
 		return 1, err
