@@ -67,7 +67,20 @@ func parse_cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, arg
 		return nil, fmt.Errorf("invalid direction, must be to, from or with")
 	}
 
-	peerStore, peerStoreSerializedConfig, err := storage.Open(map[string]string{"location": peerRepositoryPath})
+	storeConfig := map[string]string{"location": peerRepositoryPath}
+	if strings.HasPrefix(peerRepositoryPath, "@") {
+		remote, ok := ctx.Config.GetRepository(peerRepositoryPath[1:])
+		if !ok {
+			return nil, fmt.Errorf("could not resolve peer repository: %s", peerRepositoryPath)
+		}
+		if _, ok := remote["location"]; !ok {
+			return nil, fmt.Errorf("could not resolve peer repository location: %s", peerRepositoryPath)
+		} else {
+			storeConfig = remote
+		}
+	}
+
+	peerStore, peerStoreSerializedConfig, err := storage.Open(storeConfig)
 	if err != nil {
 		return nil, err
 	}
