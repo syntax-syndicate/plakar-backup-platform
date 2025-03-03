@@ -18,23 +18,28 @@ package fs
 
 import (
 	"bytes"
-	"path/filepath"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 )
 
-
 type ClosingFileReader struct {
-	reader io.Reader
-	file *os.File
+	reader     io.Reader
+	file       *os.File
+	fileClosed bool
 }
 
 func (cr *ClosingFileReader) Read(p []byte) (int, error) {
+	if cr.fileClosed {
+		return 0, io.EOF
+	}
+
 	n, err := cr.reader.Read(p)
 	if err == io.EOF {
 		// Close the file when EOF is reached
 		closeErr := cr.file.Close()
+		cr.fileClosed = true
 		if closeErr != nil {
 			return n, fmt.Errorf("error closing file: %w", closeErr)
 		}
@@ -42,11 +47,11 @@ func (cr *ClosingFileReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-
 func ClosingReader(file *os.File) (io.Reader, error) {
 	return &ClosingFileReader{
-		reader: file,
-		file: file,
+		reader:     file,
+		file:       file,
+		fileClosed: false,
 	}, nil
 }
 
@@ -77,11 +82,9 @@ func ClosingLimitedReaderFromOffset(file *os.File, offset, length int64) (io.Rea
 	}, nil
 }
 
-
 func WriteToFileAtomic(filename string, rd io.Reader) error {
 	return WriteToFileAtomicTempDir(filename, rd, filepath.Dir(filename))
 }
-
 
 func WriteToFileAtomicTempDir(filename string, rd io.Reader, tmpdir string) error {
 	f, err := os.CreateTemp(tmpdir, "tmp.")

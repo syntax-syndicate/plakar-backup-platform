@@ -211,7 +211,7 @@ func (repository *Repository) GetStates() ([]objects.MAC, error) {
 }
 
 func (repository *Repository) PutState(mac objects.MAC, rd io.Reader) error {
-	_, err := repository.minioClient.PutObject(context.Background(), repository.bucketName, fmt.Sprintf("states/%02x/%016x", mac[0], mac), io.NopCloser(rd), -1, minio.PutObjectOptions{})
+	_, err := repository.minioClient.PutObject(context.Background(), repository.bucketName, fmt.Sprintf("states/%02x/%016x", mac[0], mac), rd, -1, minio.PutObjectOptions{})
 	if err != nil {
 		return err
 	}
@@ -259,7 +259,7 @@ func (repository *Repository) GetPackfiles() ([]objects.MAC, error) {
 }
 
 func (repository *Repository) PutPackfile(mac objects.MAC, rd io.Reader) error {
-	_, err := repository.minioClient.PutObject(context.Background(), repository.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), io.NopCloser(rd), -1, minio.PutObjectOptions{})
+	_, err := repository.minioClient.PutObject(context.Background(), repository.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), rd, -1, minio.PutObjectOptions{})
 	if err != nil {
 		return err
 	}
@@ -321,7 +321,7 @@ func (repository *Repository) GetLocks() ([]objects.MAC, error) {
 }
 
 func (repository *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
-	_, err := repository.minioClient.PutObject(context.Background(), repository.bucketName, fmt.Sprintf("locks/%016x", lockID), io.NopCloser(rd), -1, minio.PutObjectOptions{})
+	_, err := repository.minioClient.PutObject(context.Background(), repository.bucketName, fmt.Sprintf("locks/%016x", lockID), rd, -1, minio.PutObjectOptions{})
 	if err != nil {
 		return err
 	}
