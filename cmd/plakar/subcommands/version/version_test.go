@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/stretchr/testify/require"
 )
@@ -48,6 +49,6 @@ func TestExecuteCmdVersion(t *testing.T) {
 	io.Copy(&buf, r)
 
 	output := buf.String()
-	require.Equal(t, fmt.Sprintf("%s\n", VERSION), output)
+	require.Equal(t, fmt.Sprintf("%s\n", utils.GetVersion()), output)
 
 }
