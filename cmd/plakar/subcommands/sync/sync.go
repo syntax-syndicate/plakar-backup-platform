@@ -142,7 +142,7 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 			return 1, fmt.Errorf("could not resolve repository: %s", cmd.PeerRepositoryLocation)
 		}
 		if _, ok := remote["location"]; !ok {
-			return 1, fmt.Errorf("could not resolve repositor location: %s", cmd.PeerRepositoryLocation)
+			return 1, fmt.Errorf("could not resolve repository location: %s", cmd.PeerRepositoryLocation)
 		} else {
 			storeConfig = remote
 		}

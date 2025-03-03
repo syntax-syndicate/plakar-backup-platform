@@ -7,7 +7,7 @@ PLAKAR-CONFIG(1) - General Commands Manual
 # SYNOPSIS
 
 **plakar config**
-\[*key*\[=*value*]]
+\[**remote**&nbsp;|&nbsp;**repository**]
 
 # DESCRIPTION
 
@@ -15,18 +15,95 @@ The
 **plakar config**
 command manages configuration of the Plakar software.
 
-Without arguments show all the configuration options currently set on the repository.
-With just
-*key*,
-show the value defined for that key.
-Otherwise, set
-*key*
-to
-*value*.
+Without arguments show all the configuration options currently set on
+the repository.
 
-*key*
-is of the form
-'*category*.*option*'.
+The subcommands are as follows:
+
+**remote**
+
+> Manage remotes configuration.
+> The arguments are as follows:
+
+> **create** *name*
+
+> > Create a new remote identified by
+> > *name*.
+
+> **set** *name option value*
+
+> > Set the
+> > *option*
+> > to
+> > *value*
+> > for the remote identified by
+> > *name*.
+> > Different remotes have different options available.
+
+> **unset** *name option*
+
+> > Remove the
+> > *option*
+> > for the remote identified by
+> > *name*.
+
+> **validate** *name*
+
+> > Attempt to validate the configuration for the remote
+> > *name*
+> > to ensure whether it is working.
+
+**repository** or **repo**
+
+> Manage repositories configuration.
+> The arguments are as follows:
+
+> **create** *name*
+
+> > Create a new repository configuration for
+> > *name*.
+
+> **default** *name*
+
+> > Set the repository identified by
+> > *name*
+> > as the default repository used by
+> > plakar(1).
+
+> **set** *name option value*
+
+> > Set the
+> > *option*
+> > to
+> > *value*
+> > for the repository identified by
+> > *name*.
+
+> **unset** *name option*
+
+> > Remove the
+> > *option*
+> > for the repository
+> > *name*.
+
+> **validate** *name*
+
+> > Attempt to validate the configuration for the repository
+> > *name*
+> > to ensure whether the parameters are correct.
+
+# EXAMPLES
+
+Create a new repository configuration:
+
+	$ plakar config repository create nas
+	$ plakar config repository set nas location sftp://mynas/var/plakar
+
+The set the
+"nas"
+repository as the default one:
+
+	$ plakar config repository default nas
 
 # DIAGNOSTICS
 
@@ -36,4 +113,4 @@ The **plakar config** utility exits&#160;0 on success, and&#160;&gt;0 if an erro
 
 plakar(1)
 
-Plakar - February 17, 2025
+Plakar - February 27, 2025

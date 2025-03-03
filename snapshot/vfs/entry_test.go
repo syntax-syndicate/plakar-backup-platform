@@ -51,7 +51,7 @@ func TestVfile(t *testing.T) {
 
 	entryJson, err := json.Marshal(entry)
 	require.NoError(t, err)
-	// cant test the whole json content as there are some random part included
+	// can't test the whole json content as there are some random part included
 	require.Contains(t, string(entryJson), `"file_info":{"name":"dummy.txt","size":5,"mode":420`)
 
 	vFile := entry.Open(fs, filepath)

@@ -111,7 +111,7 @@ func Ui(repo *repository.Repository, addr string, opts *UiOptions) error {
 			return err
 		}
 	} else {
-		fmt.Println("lauching webUI at", url)
+		fmt.Println("launching webUI at", url)
 	}
 
 	if opts.Cors {

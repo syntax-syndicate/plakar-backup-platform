@@ -20,7 +20,7 @@ type MaintainanceCache struct {
 }
 
 func newMaintainanceCache(cacheManager *Manager, repositoryID uuid.UUID) (*MaintainanceCache, error) {
-	cacheDir := filepath.Join(cacheManager.cacheDir, "maintainance", repositoryID.String())
+	cacheDir := filepath.Join(cacheManager.cacheDir, "maintenance", repositoryID.String())
 
 	db, err := leveldb.OpenFile(cacheDir, nil)
 	if err != nil {

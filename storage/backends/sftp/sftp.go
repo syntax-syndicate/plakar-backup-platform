@@ -85,7 +85,7 @@ func defaultSigners() ([]ssh.Signer, error) {
 		}
 		signer, err := ssh.ParsePrivateKey(data)
 		if err != nil {
-			continue // Skip unparseable keys.
+			continue // Skip unparsable keys.
 		}
 		signers = append(signers, signer)
 	}

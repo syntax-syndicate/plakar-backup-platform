@@ -390,7 +390,7 @@ func (snap *Snapshot) Lock() (chan bool, error) {
 				return nil, err
 			}
 
-			return nil, fmt.Errorf("Can't take repository lock, it's already locked by maintainance.")
+			return nil, fmt.Errorf("Can't take repository lock, it's already locked by maintenance.")
 		}
 	}
 

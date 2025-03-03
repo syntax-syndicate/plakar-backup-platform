@@ -15,7 +15,7 @@ PLAKAR-SYNC(1) - General Commands Manual
 
 The
 **plakar sync**
-command syncronize snapshots between two Plakar repositories.
+command synchronize snapshots between two Plakar repositories.
 If a specific snapshot ID is provided, only snapshots with matching
 IDs will be synchronized.
 
