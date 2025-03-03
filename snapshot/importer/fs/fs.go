@@ -18,10 +18,11 @@ package fs
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
+	"path"
 	"runtime"
 	"strings"
 
@@ -38,17 +39,14 @@ func init() {
 }
 
 func NewFSImporter(config map[string]string) (importer.Importer, error) {
-	var err error
-
 	location := config["location"]
 
 	if strings.HasPrefix(location, "fs://") {
-		location = location[4:]
+		location = location[5:]
 	}
 
-	location, err = filepath.Abs(location)
-	if err != nil {
-		return nil, err
+	if !path.IsAbs(location) {
+		return nil, fmt.Errorf("not an absolute path %s", location)
 	}
 
 	return &FSImporter{
