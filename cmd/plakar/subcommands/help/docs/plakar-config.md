@@ -2,7 +2,7 @@ PLAKAR-CONFIG(1) - General Commands Manual
 
 # NAME
 
-**plakar config** - Manages plakar configuration
+**plakar config** - Manage Plakar configuration
 
 # SYNOPSIS
 
@@ -94,10 +94,18 @@ The subcommands are as follows:
 
 # EXAMPLES
 
-Create a new repository configuration:
+Create a new repository configuration called
+"nas"
+that connects over SFTP:
 
 	$ plakar config repository create nas
 	$ plakar config repository set nas location sftp://mynas/var/plakar
+
+Perform a backup on the
+"nas"
+repository:
+
+	$ plakar at nas backup /var/www
 
 The set the
 "nas"

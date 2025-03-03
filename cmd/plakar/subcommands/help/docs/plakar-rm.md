@@ -2,7 +2,7 @@ PLAKAR-RM(1) - General Commands Manual
 
 # NAME
 
-**plakar rm** - Remove snapshots from the Plakar repository
+**plakar rm** - Remove snapshots from a Plakar repository
 
 # SYNOPSIS
 
@@ -121,4 +121,4 @@ The **plakar rm** utility exits&#160;0 on success, and&#160;&gt;0 if an error oc
 plakar(1),
 plakar-backup(1)
 
-Plakar - February 3, 2025
+Plakar - March 3, 2025
