@@ -88,7 +88,6 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 	if opt_excludes != "" {
 		fp, err := os.Open(opt_excludes)
 		if err != nil {
-			ctx.GetLogger().Error("%s", err)
 			return nil, err
 		}
 		defer fp.Close()
