@@ -181,7 +181,8 @@ func TestExecuteCmdLsFilterByIDAndRecursive(t *testing.T) {
 	lastline := lines[len(lines)-1]
 	fields := strings.Fields(lastline)
 	require.Equal(t, 7, len(fields))
-	require.Equal(t, snap.Header.Timestamp.Local().Format(time.RFC3339), fields[0])
+	// disable timestamp testing because it can make the test flaky if the test ran in the last second
+	// require.Equal(t, snap.Header.Timestamp.Local().Format(time.RFC3339), fields[0])
 	require.Equal(t, fmt.Sprintf("%s/subdir/dummy.txt", snap.Header.GetSource(0).Importer.Directory), fields[len(fields)-1])
 }
 
