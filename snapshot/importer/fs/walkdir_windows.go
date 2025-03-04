@@ -96,9 +96,7 @@ func walkDir_worker(jobs <-chan string, results chan<- *importer.ScanResult, wg 
 }
 
 func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results chan<- *importer.ScanResult) {
-	// Clean the directory and split the path into components
-	directory := filepath.Clean(rootDir)
-	atoms := strings.Split(directory, string(os.PathSeparator))
+	atoms := strings.Split(rootDir, string(os.PathSeparator))
 
 	jobs <- "/"
 	for i := 0; i < len(atoms)-1; i++ {
