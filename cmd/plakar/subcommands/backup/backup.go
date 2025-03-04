@@ -88,7 +88,7 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 	if opt_excludes != "" {
 		fp, err := os.Open(opt_excludes)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to open excludes file: %w", err)
 		}
 		defer fp.Close()
 
