@@ -98,8 +98,7 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 			line := scanner.Text()
 			_, err := glob.Compile(line)
 			if err != nil {
-				ctx.GetLogger().Error("%s", err)
-				return nil, err
+				return nil, fmt.Errorf("failed to compile exclude pattern: %s", line)
 			}
 			excludes = append(excludes, line)
 		}
