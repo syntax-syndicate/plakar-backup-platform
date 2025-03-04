@@ -208,17 +208,17 @@ func TestHttpBackend(t *testing.T) {
 		states:    []storedeData{},
 		packfiles: []storedeData{},
 	}
-	mux.Handle("GET /", api.APIView(handler.Configuration))
-	mux.Handle("POST /", api.APIView(handler.Close))
-	mux.Handle("PUT /", api.APIView(handler.PutState))
-	mux.Handle("GET /states", api.APIView(handler.GetStates))
-	mux.Handle("GET /state", api.APIView(handler.GetState))
-	mux.Handle("DELETE /state", api.APIView(handler.DeleteState))
-	mux.Handle("PUT /packfile", api.APIView(handler.PutPackfile))
-	mux.Handle("GET /packfiles", api.APIView(handler.GetPackfiles))
-	mux.Handle("GET /packfile/blob", api.APIView(handler.GetPackfileBlob))
-	mux.Handle("DELETE /packfile", api.APIView(handler.DeletePackfile))
-	mux.Handle("GET /packfile", api.APIView(handler.GetPackfile))
+	mux.Handle("GET /", api.JSONAPIView(handler.Configuration))
+	mux.Handle("POST /", api.JSONAPIView(handler.Close))
+	mux.Handle("PUT /", api.JSONAPIView(handler.PutState))
+	mux.Handle("GET /states", api.JSONAPIView(handler.GetStates))
+	mux.Handle("GET /state", api.JSONAPIView(handler.GetState))
+	mux.Handle("DELETE /state", api.JSONAPIView(handler.DeleteState))
+	mux.Handle("PUT /packfile", api.JSONAPIView(handler.PutPackfile))
+	mux.Handle("GET /packfiles", api.JSONAPIView(handler.GetPackfiles))
+	mux.Handle("GET /packfile/blob", api.JSONAPIView(handler.GetPackfileBlob))
+	mux.Handle("DELETE /packfile", api.JSONAPIView(handler.DeletePackfile))
+	mux.Handle("GET /packfile", api.JSONAPIView(handler.GetPackfile))
 
 	ts := httptest.NewServer(mux)
 	t.Cleanup(ts.Close)
