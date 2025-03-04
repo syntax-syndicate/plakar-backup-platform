@@ -66,13 +66,12 @@ func (repo *Repository) Path(args ...string) string {
 }
 
 func (repo *Repository) Create(config []byte) error {
-
-	dirfp, err := os.Open(repo.Location())
+	dirfp, err := os.Open(repo.Path())
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
 			return err
 		}
-		err = os.MkdirAll(repo.Location(), 0700)
+		err = os.MkdirAll(repo.Path(), 0700)
 		if err != nil {
 			return err
 		}
@@ -83,7 +82,7 @@ func (repo *Repository) Create(config []byte) error {
 			return err
 		}
 		if len(entries) > 0 {
-			return fmt.Errorf("directory %s is not empty", repo.Location())
+			return fmt.Errorf("directory %s is not empty", repo.Path())
 		}
 	}
 
