@@ -49,6 +49,8 @@ func NewFSImporter(config map[string]string) (importer.Importer, error) {
 		return nil, fmt.Errorf("not an absolute path %s", location)
 	}
 
+	location = path.Clean(location)
+
 	return &FSImporter{
 		rootDir: location,
 	}, nil
