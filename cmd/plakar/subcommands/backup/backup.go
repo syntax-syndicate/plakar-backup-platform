@@ -79,7 +79,9 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 	flags.Parse(args)
 
 	for _, item := range opt_exclude {
-		glob.MustCompile(item)
+		if _, err := glob.Compile(item); err != nil {
+			return nil, fmt.Errorf("failed to compile exclude pattern: %s", item)
+		}
 		excludes = append(excludes, item)
 	}
 
