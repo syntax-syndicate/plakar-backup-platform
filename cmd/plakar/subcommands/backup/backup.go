@@ -58,7 +58,7 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 	var opt_check bool
 	// var opt_stdio bool
 
-	excludes := []glob.Glob{}
+	excludes := []string{}
 
 	flags := flag.NewFlagSet("backup", flag.ExitOnError)
 	flags.Usage = func() {
@@ -79,7 +79,8 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 	flags.Parse(args)
 
 	for _, item := range opt_exclude {
-		excludes = append(excludes, glob.MustCompile(item))
+		glob.MustCompile(item)
+		excludes = append(excludes, item)
 	}
 
 	if opt_excludes != "" {
@@ -92,12 +93,13 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 
 		scanner := bufio.NewScanner(fp)
 		for scanner.Scan() {
-			pattern, err := glob.Compile(scanner.Text())
+			line := scanner.Text()
+			_, err := glob.Compile(line)
 			if err != nil {
 				ctx.GetLogger().Error("%s", err)
 				return nil, err
 			}
-			excludes = append(excludes, pattern)
+			excludes = append(excludes, line)
 		}
 		if err := scanner.Err(); err != nil {
 			ctx.GetLogger().Error("%s", err)
@@ -123,7 +125,7 @@ type Backup struct {
 
 	Concurrency uint64
 	Tags        string
-	Excludes    []glob.Glob
+	Excludes    []string
 	Silent      bool
 	Quiet       bool
 	Path        string
@@ -153,11 +155,20 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		tags = []string{cmd.Tags}
 	}
 
+	excludes := []glob.Glob{}
+	for _, item := range cmd.Excludes {
+		g, err := glob.Compile(item)
+		if err != nil {
+			return 1, fmt.Errorf("failed to compile exclude pattern: %s", item)
+		}
+		excludes = append(excludes, g)
+	}
+
 	opts := &snapshot.BackupOptions{
 		MaxConcurrency: cmd.Concurrency,
 		Name:           "default",
 		Tags:           tags,
-		Excludes:       cmd.Excludes,
+		Excludes:       excludes,
 	}
 
 	scanDir := ctx.CWD
