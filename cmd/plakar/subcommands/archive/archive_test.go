@@ -106,7 +106,7 @@ func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 
 	return snap
 }
-func TestExecuteCmdCheckDefault(t *testing.T) {
+func TestExecuteCmdArchiveDefault(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
