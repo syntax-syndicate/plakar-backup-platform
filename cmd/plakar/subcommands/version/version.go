@@ -22,11 +22,10 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
 	"golang.org/x/mod/semver"
 )
-
-const VERSION = "v1.0.0-beta.1"
 
 func init() {
 	subcommands.Register("version", parse_cmd_version)
@@ -47,9 +46,10 @@ type Version struct {
 }
 
 func (cmd *Version) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	if !semver.IsValid(VERSION) {
-		return 1, fmt.Errorf("invalid version string: %s", VERSION)
+	version := utils.GetVersion()
+	if !semver.IsValid(version) {
+		return 1, fmt.Errorf("invalid version string: %s", version)
 	}
-	fmt.Println(VERSION)
+	fmt.Println(version)
 	return 0, nil
 }
