@@ -783,7 +783,7 @@ func (r *Repository) GetLocks() ([]objects.MAC, error) {
 func (r *Repository) GetLock(lockID objects.MAC) (versioning.Version, io.Reader, error) {
 	t0 := time.Now()
 	defer func() {
-		r.Logger().Trace("repository", "GetLock(%s): %s", lockID, time.Since(t0))
+		r.Logger().Trace("repository", "GetLock(%x): %s", lockID, time.Since(t0))
 	}()
 
 	rd, err := r.store.GetLock(lockID)
@@ -806,7 +806,7 @@ func (r *Repository) GetLock(lockID objects.MAC) (versioning.Version, io.Reader,
 func (r *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
 	t0 := time.Now()
 	defer func() {
-		r.Logger().Trace("repository", "PutLock(%s, ...): %s", lockID, time.Since(t0))
+		r.Logger().Trace("repository", "PutLock(%x, ...): %s", lockID, time.Since(t0))
 	}()
 
 	rd, err := r.Encode(rd)
