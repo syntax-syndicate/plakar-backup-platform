@@ -224,7 +224,7 @@ func TestHttpBackend(t *testing.T) {
 	t.Cleanup(ts.Close)
 
 	// create a repository
-	repo, err := NewRepository(map[string]string{"location": ts.URL})
+	repo, err := NewStore(map[string]string{"location": ts.URL})
 	if err != nil {
 		t.Fatal("error creating repository", err)
 	}

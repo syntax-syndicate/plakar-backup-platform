@@ -32,7 +32,7 @@ import (
 	sqlite3 "modernc.org/sqlite/lib"
 )
 
-type Repository struct {
+type Store struct {
 	backend string
 
 	conn    *sql.DB
@@ -43,40 +43,40 @@ type Repository struct {
 }
 
 func init() {
-	storage.Register("database", NewRepository)
+	storage.Register("database", NewStore)
 }
 
-func NewRepository(storeConfig map[string]string) (storage.Store, error) {
-	return &Repository{
+func NewStore(storeConfig map[string]string) (storage.Store, error) {
+	return &Store{
 		location: storeConfig["location"],
 	}, nil
 }
 
-func (repo *Repository) Location() string {
-	return repo.location
+func (s *Store) Location() string {
+	return s.location
 }
 
-func (repo *Repository) connect(addr string) error {
+func (s *Store) connect(addr string) error {
 	var connectionString string
 	if strings.HasPrefix(addr, "sqlite://") {
-		repo.backend = "sqlite"
+		s.backend = "sqlite"
 		connectionString = addr[9:]
 	} else {
 		return fmt.Errorf("unsupported database backend: %s", addr)
 	}
 
-	conn, err := sql.Open(repo.backend, connectionString)
+	conn, err := sql.Open(s.backend, connectionString)
 	if err != nil {
 		return err
 	}
-	repo.conn = conn
+	s.conn = conn
 
-	if repo.backend == "sqlite" {
-		_, err = repo.conn.Exec("PRAGMA journal_mode=WAL;")
+	if s.backend == "sqlite" {
+		_, err = s.conn.Exec("PRAGMA journal_mode=WAL;")
 		if err != nil {
 			return nil
 		}
-		_, err = repo.conn.Exec("PRAGMA busy_timeout=2000;")
+		_, err = s.conn.Exec("PRAGMA busy_timeout=2000;")
 		if err != nil {
 			return nil
 		}
@@ -86,13 +86,13 @@ func (repo *Repository) connect(addr string) error {
 	return nil
 }
 
-func (repo *Repository) Create(config []byte) error {
-	err := repo.connect(repo.location)
+func (s *Store) Create(config []byte) error {
+	err := s.connect(s.location)
 	if err != nil {
 		return err
 	}
 
-	statement, err := repo.conn.Prepare(`CREATE TABLE IF NOT EXISTS configuration (
+	statement, err := s.conn.Prepare(`CREATE TABLE IF NOT EXISTS configuration (
 		value	BLOB
 	);`)
 	if err != nil {
@@ -101,7 +101,7 @@ func (repo *Repository) Create(config []byte) error {
 	defer statement.Close()
 	statement.Exec()
 
-	statement, err = repo.conn.Prepare(`CREATE TABLE IF NOT EXISTS states (
+	statement, err = s.conn.Prepare(`CREATE TABLE IF NOT EXISTS states (
 		mac	VARCHAR(64) NOT NULL PRIMARY KEY,
 		data		BLOB
 	);`)
@@ -111,7 +111,7 @@ func (repo *Repository) Create(config []byte) error {
 	defer statement.Close()
 	statement.Exec()
 
-	statement, err = repo.conn.Prepare(`CREATE TABLE IF NOT EXISTS packfiles (
+	statement, err = s.conn.Prepare(`CREATE TABLE IF NOT EXISTS packfiles (
 		mac	VARCHAR(64) NOT NULL PRIMARY KEY,
 		data		BLOB
 	);`)
@@ -121,7 +121,7 @@ func (repo *Repository) Create(config []byte) error {
 	defer statement.Close()
 	statement.Exec()
 
-	statement, err = repo.conn.Prepare(`CREATE TABLE IF NOT EXISTS locks (
+	statement, err = s.conn.Prepare(`CREATE TABLE IF NOT EXISTS locks (
 		mac	VARCHAR(64) NOT NULL PRIMARY KEY,
 		data		BLOB
 	);`)
@@ -131,7 +131,7 @@ func (repo *Repository) Create(config []byte) error {
 	defer statement.Close()
 	statement.Exec()
 
-	statement, err = repo.conn.Prepare(`INSERT INTO configuration(value) VALUES(?)`)
+	statement, err = s.conn.Prepare(`INSERT INTO configuration(value) VALUES(?)`)
 	if err != nil {
 		return err
 	}
@@ -145,28 +145,28 @@ func (repo *Repository) Create(config []byte) error {
 	return nil
 }
 
-func (repo *Repository) Open() ([]byte, error) {
-	err := repo.connect(repo.location)
+func (s *Store) Open() ([]byte, error) {
+	err := s.connect(s.location)
 	if err != nil {
 		return nil, err
 	}
 
 	var buffer []byte
 
-	err = repo.conn.QueryRow(`SELECT value FROM configuration`).Scan(&buffer)
+	err = s.conn.QueryRow(`SELECT value FROM configuration`).Scan(&buffer)
 	if err != nil {
 		return nil, err
 	}
 	return buffer, nil
 }
 
-func (repo *Repository) Close() error {
+func (s *Store) Close() error {
 	return nil
 }
 
 // states
-func (repo *Repository) GetStates() ([]objects.MAC, error) {
-	rows, err := repo.conn.Query("SELECT mac FROM states")
+func (s *Store) GetStates() ([]objects.MAC, error) {
+	rows, err := s.conn.Query("SELECT mac FROM states")
 	if err != nil {
 		return nil, err
 	}
@@ -186,21 +186,21 @@ func (repo *Repository) GetStates() ([]objects.MAC, error) {
 	return macs, nil
 }
 
-func (repo *Repository) PutState(mac objects.MAC, rd io.Reader) error {
+func (s *Store) PutState(mac objects.MAC, rd io.Reader) error {
 	data, err := io.ReadAll(rd)
 	if err != nil {
 		return err
 	}
 
-	statement, err := repo.conn.Prepare(`INSERT INTO states (mac, data) VALUES(?, ?)`)
+	statement, err := s.conn.Prepare(`INSERT INTO states (mac, data) VALUES(?, ?)`)
 	if err != nil {
 		return err
 	}
 	defer statement.Close()
 
-	repo.wrMutex.Lock()
+	s.wrMutex.Lock()
 	_, err = statement.Exec(mac[:], data)
-	repo.wrMutex.Unlock()
+	s.wrMutex.Unlock()
 	if err != nil {
 		var sqliteErr *sqlite.Error
 		if !errors.As(err, &sqliteErr) {
@@ -214,25 +214,25 @@ func (repo *Repository) PutState(mac objects.MAC, rd io.Reader) error {
 	return nil
 }
 
-func (repo *Repository) GetState(mac objects.MAC) (io.Reader, error) {
+func (s *Store) GetState(mac objects.MAC) (io.Reader, error) {
 	var data []byte
-	err := repo.conn.QueryRow(`SELECT data FROM states WHERE mac=?`, mac[:]).Scan(&data)
+	err := s.conn.QueryRow(`SELECT data FROM states WHERE mac=?`, mac[:]).Scan(&data)
 	if err != nil {
 		return nil, err
 	}
 	return bytes.NewBuffer(data), nil
 }
 
-func (repo *Repository) DeleteState(mac objects.MAC) error {
-	statement, err := repo.conn.Prepare(`DELETE FROM states WHERE mac=?`)
+func (s *Store) DeleteState(mac objects.MAC) error {
+	statement, err := s.conn.Prepare(`DELETE FROM states WHERE mac=?`)
 	if err != nil {
 		return err
 	}
 	defer statement.Close()
 
-	repo.wrMutex.Lock()
+	s.wrMutex.Lock()
 	_, err = statement.Exec(mac[:])
-	repo.wrMutex.Unlock()
+	s.wrMutex.Unlock()
 	if err != nil {
 		// if err is that it's already present, we should discard err and assume a concurrent write
 		return err
@@ -241,8 +241,8 @@ func (repo *Repository) DeleteState(mac objects.MAC) error {
 }
 
 // packfiles
-func (repo *Repository) GetPackfiles() ([]objects.MAC, error) {
-	rows, err := repo.conn.Query("SELECT mac FROM packfiles")
+func (s *Store) GetPackfiles() ([]objects.MAC, error) {
+	rows, err := s.conn.Query("SELECT mac FROM packfiles")
 	if err != nil {
 		return nil, err
 	}
@@ -262,21 +262,21 @@ func (repo *Repository) GetPackfiles() ([]objects.MAC, error) {
 	return macs, nil
 }
 
-func (repo *Repository) PutPackfile(mac objects.MAC, rd io.Reader) error {
+func (s *Store) PutPackfile(mac objects.MAC, rd io.Reader) error {
 	data, err := io.ReadAll(rd)
 	if err != nil {
 		return err
 	}
 
-	statement, err := repo.conn.Prepare(`INSERT INTO packfiles (mac, data) VALUES(?, ?)`)
+	statement, err := s.conn.Prepare(`INSERT INTO packfiles (mac, data) VALUES(?, ?)`)
 	if err != nil {
 		return err
 	}
 	defer statement.Close()
 
-	repo.wrMutex.Lock()
+	s.wrMutex.Lock()
 	_, err = statement.Exec(mac[:], data)
-	repo.wrMutex.Unlock()
+	s.wrMutex.Unlock()
 	if err != nil {
 		var sqliteErr *sqlite.Error
 		if !errors.As(err, &sqliteErr) {
@@ -290,18 +290,18 @@ func (repo *Repository) PutPackfile(mac objects.MAC, rd io.Reader) error {
 	return nil
 }
 
-func (repo *Repository) GetPackfile(mac objects.MAC) (io.Reader, error) {
+func (s *Store) GetPackfile(mac objects.MAC) (io.Reader, error) {
 	var data []byte
-	err := repo.conn.QueryRow(`SELECT data FROM packfiles WHERE mac=?`, mac[:]).Scan(&data)
+	err := s.conn.QueryRow(`SELECT data FROM packfiles WHERE mac=?`, mac[:]).Scan(&data)
 	if err != nil {
 		return nil, err
 	}
 	return bytes.NewReader(data), nil
 }
 
-func (repo *Repository) GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (io.Reader, error) {
+func (s *Store) GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (io.Reader, error) {
 	var data []byte
-	err := repo.conn.QueryRow(`SELECT substr(data, ?, ?) FROM packfiles WHERE mac=?`, offset+1, length, mac[:]).Scan(&data)
+	err := s.conn.QueryRow(`SELECT substr(data, ?, ?) FROM packfiles WHERE mac=?`, offset+1, length, mac[:]).Scan(&data)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			err = repository.ErrBlobNotFound
@@ -311,16 +311,16 @@ func (repo *Repository) GetPackfileBlob(mac objects.MAC, offset uint64, length u
 	return bytes.NewBuffer(data), nil
 }
 
-func (repo *Repository) DeletePackfile(mac objects.MAC) error {
-	statement, err := repo.conn.Prepare(`DELETE FROM packfiles WHERE mac=?`)
+func (s *Store) DeletePackfile(mac objects.MAC) error {
+	statement, err := s.conn.Prepare(`DELETE FROM packfiles WHERE mac=?`)
 	if err != nil {
 		return err
 	}
 	defer statement.Close()
 
-	repo.wrMutex.Lock()
+	s.wrMutex.Lock()
 	_, err = statement.Exec(mac[:])
-	repo.wrMutex.Unlock()
+	s.wrMutex.Unlock()
 	if err != nil {
 		// if err is that it's already present, we should discard err and assume a concurrent write
 		return err
@@ -328,8 +328,8 @@ func (repo *Repository) DeletePackfile(mac objects.MAC) error {
 	return nil
 }
 
-func (repo *Repository) GetLocks() ([]objects.MAC, error) {
-	rows, err := repo.conn.Query("SELECT mac FROM locks")
+func (s *Store) GetLocks() ([]objects.MAC, error) {
+	rows, err := s.conn.Query("SELECT mac FROM locks")
 	if err != nil {
 		return nil, err
 	}
@@ -358,21 +358,21 @@ func (repo *Repository) GetLocks() ([]objects.MAC, error) {
 	return ret, nil
 }
 
-func (repo *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
+func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) error {
 	data, err := io.ReadAll(rd)
 	if err != nil {
 		return err
 	}
 
-	statement, err := repo.conn.Prepare(`INSERT INTO locks (mac, data) VALUES(?, ?)`)
+	statement, err := s.conn.Prepare(`INSERT INTO locks (mac, data) VALUES(?, ?)`)
 	if err != nil {
 		return err
 	}
 	defer statement.Close()
 
-	repo.wrMutex.Lock()
+	s.wrMutex.Lock()
 	_, err = statement.Exec(hex.EncodeToString(lockID[:]), data)
-	repo.wrMutex.Unlock()
+	s.wrMutex.Unlock()
 	if err != nil {
 		var sqliteErr *sqlite.Error
 		if !errors.As(err, &sqliteErr) {
@@ -386,25 +386,25 @@ func (repo *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
 	return nil
 }
 
-func (repo *Repository) GetLock(lockID objects.MAC) (io.Reader, error) {
+func (s *Store) GetLock(lockID objects.MAC) (io.Reader, error) {
 	var data []byte
-	err := repo.conn.QueryRow(`SELECT data FROM locks WHERE mac=?`, hex.EncodeToString(lockID[:])).Scan(&data)
+	err := s.conn.QueryRow(`SELECT data FROM locks WHERE mac=?`, hex.EncodeToString(lockID[:])).Scan(&data)
 	if err != nil {
 		return nil, err
 	}
 	return bytes.NewBuffer(data), nil
 }
 
-func (repo *Repository) DeleteLock(lockID objects.MAC) error {
-	statement, err := repo.conn.Prepare(`DELETE FROM locks WHERE mac=?`)
+func (s *Store) DeleteLock(lockID objects.MAC) error {
+	statement, err := s.conn.Prepare(`DELETE FROM locks WHERE mac=?`)
 	if err != nil {
 		return err
 	}
 	defer statement.Close()
 
-	repo.wrMutex.Lock()
+	s.wrMutex.Lock()
 	_, err = statement.Exec(hex.EncodeToString(lockID[:]))
-	repo.wrMutex.Unlock()
+	s.wrMutex.Unlock()
 	if err != nil {
 		// if err is that it's already present, we should discard err and assume a concurrent write
 		return err

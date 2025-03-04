@@ -12,7 +12,7 @@ import (
 
 func TestNullBackend(t *testing.T) {
 	// create a repository
-	repo, err := NewRepository(map[string]string{"location": "/test/location"})
+	repo, err := NewStore(map[string]string{"location": "/test/location"})
 	if err != nil {
 		t.Fatal("error creating repository", err)
 	}
@@ -36,7 +36,7 @@ func TestNullBackend(t *testing.T) {
 	require.NoError(t, err)
 
 	// snapshots
-	r, ok := repo.(*Repository)
+	r, ok := repo.(*Store)
 	require.True(t, ok)
 	snaps, err := r.GetSnapshots()
 	require.NoError(t, err)
