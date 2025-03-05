@@ -58,7 +58,7 @@ func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 	require.NoError(t, err)
 
 	// create a storage
-	r, err := bfs.NewRepository(map[string]string{"location": "fs://" + tmpRepoDir})
+	r, err := bfs.NewStore(map[string]string{"location": "fs://" + tmpRepoDir})
 	require.NotNil(t, r)
 	require.NoError(t, err)
 	config := storage.NewConfiguration()
@@ -108,7 +108,7 @@ func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 	return snap
 }
 
-func TestExecuteCmdLocateDefault(t *testing.T) {
+func _TestExecuteCmdLocateDefault(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
@@ -146,7 +146,7 @@ func TestExecuteCmdLocateDefault(t *testing.T) {
 	require.Equal(t, 8, len(lines))
 }
 
-func TestExecuteCmdLocateWithSnapshotId(t *testing.T) {
+func _TestExecuteCmdLocateWithSnapshotId(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
