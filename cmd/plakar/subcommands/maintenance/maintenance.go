@@ -214,8 +214,8 @@ func (cmd *Maintenance) sweepPass(ctx *appcontext.AppContext, cache *caching.Mai
 	doDeletion := false
 
 	// First go over all the packfiles coloured by first pass.
-	packfileremoved := 0
 	blobRemoved := 0
+	toDelete := map[objects.MAC]struct{}{}
 	for packfileMAC, deletionTime := range cmd.repository.ListDeletedPackfiles() {
 		if deletionTime.After(cmd.cutoff) {
 			continue
@@ -238,12 +238,11 @@ func (cmd *Maintenance) sweepPass(ctx *appcontext.AppContext, cache *caching.Mai
 			cmd.repository.RemoveDeletedPackfile(packfileMAC)
 		}
 
-		packfileremoved++
+		toDelete[packfileMAC] = struct{}{}
 	}
 
 	// Second garbage collect dangling blobs in our state. This is the blobs we
 	// just orphaned plus potential orphan blobs from aborted backups etc.
-	toDelete := map[objects.MAC]struct{}{}
 	for blob, err := range cmd.repository.ListOrphanBlobs() {
 		if err != nil {
 			fmt.Fprintf(ctx.Stderr, "maintenance: Failed to fetch orphaned blob\n")
@@ -251,14 +250,13 @@ func (cmd *Maintenance) sweepPass(ctx *appcontext.AppContext, cache *caching.Mai
 		}
 
 		blobRemoved++
-		toDelete[blob.Location.Packfile] = struct{}{}
 		if err := cmd.repository.RemoveBlob(blob.Type, blob.Blob, blob.Location.Packfile); err != nil {
 			// No hurt in this failing, we just have cruft left around, but they are unreachable anyway.
 			fmt.Fprintf(ctx.Stderr, "maintenance: garbage orphaned blobs pass failed to remove blob %x, type %s\n", blob.Blob, blob.Type)
 		}
 	}
 
-	fmt.Fprintf(ctx.Stdout, "maintenance: %d blobs and %d packfiles were removed\n", blobRemoved, packfileremoved)
+	fmt.Fprintf(ctx.Stdout, "maintenance: %d blobs and %d packfiles were removed\n", blobRemoved, len(toDelete))
 	if err := cmd.repository.PutCurrentState(); err != nil {
 		return err
 	}
