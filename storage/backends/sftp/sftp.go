@@ -28,6 +28,7 @@ import (
 	"os"
 	"os/user"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/PlakarKorp/plakar/objects"
@@ -215,6 +216,11 @@ func (s *Store) Create(config []byte) error {
 		return err
 	}
 
+	err = client.Mkdir(s.Path("locks"))
+	if err != nil {
+		return err
+	}
+
 	return WriteToFileAtomic(client, s.Path("CONFIG"), bytes.NewReader(config))
 }
 
@@ -321,12 +327,11 @@ func (s *Store) GetLocks() (ret []objects.MAC, err error) {
 }
 
 func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) error {
-	return WriteToFileAtomicTempDir(s.client, s.Path("locks"), rd, s.Path(""))
+	return WriteToFileAtomicTempDir(s.client, filepath.Join(s.Path("locks"), hex.EncodeToString(lockID[:])), rd, s.Path(""))
 }
 
 func (s *Store) GetLock(lockID objects.MAC) (io.Reader, error) {
-	name := fmt.Sprintf("%064x", lockID)
-	fp, err := s.client.Open(s.Path(name))
+	fp, err := s.client.Open(filepath.Join(s.Path("locks"), hex.EncodeToString(lockID[:])))
 	if err != nil {
 		return nil, err
 	}
@@ -335,6 +340,5 @@ func (s *Store) GetLock(lockID objects.MAC) (io.Reader, error) {
 }
 
 func (s *Store) DeleteLock(lockID objects.MAC) error {
-	name := fmt.Sprintf("%064x", lockID)
-	return s.client.Remove(s.Path(name))
+	return s.client.Remove(filepath.Join(s.Path("locks"), hex.EncodeToString(lockID[:])))
 }
