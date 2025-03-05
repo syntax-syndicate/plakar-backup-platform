@@ -146,12 +146,16 @@ func repositoryImporterTypes(w http.ResponseWriter, r *http.Request) error {
 		return importerTypes[i] < importerTypes[j]
 	})
 
-	items := Items[string]{
+	type Entry struct {
+		Name string `json:"name"`
+	}
+
+	items := Items[Entry]{
 		Total: len(importerTypes),
-		Items: make([]string, len(importerTypes)),
+		Items: make([]Entry, len(importerTypes)),
 	}
 	for i, importerType := range importerTypes {
-		items.Items[i] = importerType
+		items.Items[i] = Entry{Name: importerType}
 	}
 
 	return json.NewEncoder(w).Encode(items)
