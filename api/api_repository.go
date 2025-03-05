@@ -28,6 +28,11 @@ func repositorySnapshots(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	importerType, _, err := QueryParamToString(r, "importer")
+	if err != nil {
+		return err
+	}
+
 	sortKeys, err := QueryParamToSortKeys(r, "sort", "Timestamp")
 	if err != nil {
 		return err
@@ -40,13 +45,22 @@ func repositorySnapshots(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	totalSnapshots := int(0)
 	headers := make([]header.Header, 0, len(snapshotIDs))
 	for _, snapshotID := range snapshotIDs {
 		snap, err := snapshot.Load(lrepository, snapshotID)
 		if err != nil {
 			return err
 		}
+
+		if importerType != "" && strings.ToLower(snap.Header.GetSource(0).Importer.Type) != strings.ToLower(importerType) {
+			snap.Close()
+			continue
+		}
+
 		headers = append(headers, *snap.Header)
+		totalSnapshots++
+		snap.Close()
 	}
 
 	if limit == 0 {
@@ -63,7 +77,7 @@ func repositorySnapshots(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	items := Items[header.Header]{
-		Total: len(snapshotIDs),
+		Total: totalSnapshots,
 		Items: make([]header.Header, len(headers)),
 	}
 	for i, header := range headers {
