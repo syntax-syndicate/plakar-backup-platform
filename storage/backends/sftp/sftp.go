@@ -39,7 +39,7 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
-type Repository struct {
+type Store struct {
 	location  string
 	packfiles Buckets
 	states    Buckets
@@ -47,7 +47,7 @@ type Repository struct {
 }
 
 func init() {
-	storage.Register("sftp", NewRepository)
+	storage.Register("sftp", NewStore)
 }
 
 func defaultSigners() ([]ssh.Signer, error) {
@@ -93,18 +93,18 @@ func defaultSigners() ([]ssh.Signer, error) {
 	return signers, nil
 }
 
-func NewRepository(storeConfig map[string]string) (storage.Store, error) {
-	return &Repository{
+func NewStore(storeConfig map[string]string) (storage.Store, error) {
+	return &Store{
 		location: storeConfig["location"],
 	}, nil
 }
 
-func (repo *Repository) Location() string {
-	return repo.location
+func (s *Store) Location() string {
+	return s.location
 }
 
-func (repo *Repository) Path(args ...string) string {
-	root := repo.Location()
+func (s *Store) Path(args ...string) string {
+	root := s.Location()
 	if strings.HasPrefix(root, "sftp://") {
 		root = root[7:]
 	}
@@ -180,52 +180,52 @@ func connect(location string) (*sftp.Client, error) {
 	return sftpClient, nil
 }
 
-func (repo *Repository) Create(config []byte) error {
-	client, err := connect(repo.location)
+func (s *Store) Create(config []byte) error {
+	client, err := connect(s.location)
 	if err != nil {
 		return err
 	}
-	repo.client = client
+	s.client = client
 
-	dirfp, err := client.ReadDir(repo.Path())
+	dirfp, err := client.ReadDir(s.Path())
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
 			return err
 		}
-		err = client.MkdirAll(repo.Path())
+		err = client.MkdirAll(s.Path())
 		if err != nil {
 			return err
 		}
-		err = client.Chmod(repo.Path(), 0700)
+		err = client.Chmod(s.Path(), 0700)
 		if err != nil {
 			return err
 		}
 	} else {
 		if len(dirfp) > 0 {
-			return fmt.Errorf("directory %s is not empty", repo.Location())
+			return fmt.Errorf("directory %s is not empty", s.Location())
 		}
 	}
-	repo.packfiles = NewBuckets(client, repo.Path("packfiles"))
-	if err := repo.packfiles.Create(); err != nil {
+	s.packfiles = NewBuckets(client, s.Path("packfiles"))
+	if err := s.packfiles.Create(); err != nil {
 		return err
 	}
 
-	repo.states = NewBuckets(client, repo.Path("states"))
-	if err := repo.states.Create(); err != nil {
+	s.states = NewBuckets(client, s.Path("states"))
+	if err := s.states.Create(); err != nil {
 		return err
 	}
 
-	return WriteToFileAtomic(client, repo.Path("CONFIG"), bytes.NewReader(config))
+	return WriteToFileAtomic(client, s.Path("CONFIG"), bytes.NewReader(config))
 }
 
-func (repo *Repository) Open() ([]byte, error) {
-	client, err := connect(repo.location)
+func (s *Store) Open() ([]byte, error) {
+	client, err := connect(s.location)
 	if err != nil {
 		return nil, err
 	}
-	repo.client = client
+	s.client = client
 
-	rd, err := client.Open(repo.Path("CONFIG"))
+	rd, err := client.Open(s.Path("CONFIG"))
 	if err != nil {
 		return nil, err
 	}
@@ -236,19 +236,19 @@ func (repo *Repository) Open() ([]byte, error) {
 		return nil, err
 	}
 
-	repo.packfiles = NewBuckets(client, repo.Path("packfiles"))
+	s.packfiles = NewBuckets(client, s.Path("packfiles"))
 
-	repo.states = NewBuckets(client, repo.Path("states"))
+	s.states = NewBuckets(client, s.Path("states"))
 
 	return data, nil
 }
 
-func (repo *Repository) GetPackfiles() ([]objects.MAC, error) {
-	return repo.packfiles.List()
+func (s *Store) GetPackfiles() ([]objects.MAC, error) {
+	return s.packfiles.List()
 }
 
-func (repo *Repository) GetPackfile(mac objects.MAC) (io.Reader, error) {
-	fp, err := repo.packfiles.Get(mac)
+func (s *Store) GetPackfile(mac objects.MAC) (io.Reader, error) {
+	fp, err := s.packfiles.Get(mac)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			err = repository.ErrPackfileNotFound
@@ -259,8 +259,8 @@ func (repo *Repository) GetPackfile(mac objects.MAC) (io.Reader, error) {
 	return fp, nil
 }
 
-func (repo *Repository) GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (io.Reader, error) {
-	res, err := repo.packfiles.GetBlob(mac, offset, length)
+func (s *Store) GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (io.Reader, error) {
+	res, err := s.packfiles.GetBlob(mac, offset, length)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			err = repository.ErrPackfileNotFound
@@ -270,38 +270,38 @@ func (repo *Repository) GetPackfileBlob(mac objects.MAC, offset uint64, length u
 	return res, nil
 }
 
-func (repo *Repository) DeletePackfile(mac objects.MAC) error {
-	return repo.packfiles.Remove(mac)
+func (s *Store) DeletePackfile(mac objects.MAC) error {
+	return s.packfiles.Remove(mac)
 }
 
-func (repo *Repository) PutPackfile(mac objects.MAC, rd io.Reader) error {
-	return repo.packfiles.Put(mac, rd)
+func (s *Store) PutPackfile(mac objects.MAC, rd io.Reader) error {
+	return s.packfiles.Put(mac, rd)
 }
 
-func (repo *Repository) Close() error {
+func (s *Store) Close() error {
 	return nil
 }
 
 /* Indexes */
-func (repo *Repository) GetStates() ([]objects.MAC, error) {
-	return repo.states.List()
+func (s *Store) GetStates() ([]objects.MAC, error) {
+	return s.states.List()
 }
 
-func (repo *Repository) PutState(mac objects.MAC, rd io.Reader) error {
-	return repo.states.Put(mac, rd)
+func (s *Store) PutState(mac objects.MAC, rd io.Reader) error {
+	return s.states.Put(mac, rd)
 }
 
-func (repo *Repository) GetState(mac objects.MAC) (io.Reader, error) {
-	return repo.states.Get(mac)
+func (s *Store) GetState(mac objects.MAC) (io.Reader, error) {
+	return s.states.Get(mac)
 }
 
-func (repo *Repository) DeleteState(mac objects.MAC) error {
-	return repo.states.Remove(mac)
+func (s *Store) DeleteState(mac objects.MAC) error {
+	return s.states.Remove(mac)
 }
 
 /* Locks */
-func (repo *Repository) GetLocks() (ret []objects.MAC, err error) {
-	entries, err := repo.client.ReadDir(repo.Path("locks"))
+func (s *Store) GetLocks() (ret []objects.MAC, err error) {
+	entries, err := s.client.ReadDir(s.Path("locks"))
 	if err != nil {
 		return
 	}
@@ -320,13 +320,13 @@ func (repo *Repository) GetLocks() (ret []objects.MAC, err error) {
 	return
 }
 
-func (repo *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
-	return WriteToFileAtomicTempDir(repo.client, repo.Path("locks"), rd, repo.Path(""))
+func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) error {
+	return WriteToFileAtomicTempDir(s.client, s.Path("locks"), rd, s.Path(""))
 }
 
-func (repo *Repository) GetLock(lockID objects.MAC) (io.Reader, error) {
+func (s *Store) GetLock(lockID objects.MAC) (io.Reader, error) {
 	name := fmt.Sprintf("%064x", lockID)
-	fp, err := repo.client.Open(repo.Path(name))
+	fp, err := s.client.Open(s.Path(name))
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +334,7 @@ func (repo *Repository) GetLock(lockID objects.MAC) (io.Reader, error) {
 	return ClosingReader(fp)
 }
 
-func (repo *Repository) DeleteLock(lockID objects.MAC) error {
+func (s *Store) DeleteLock(lockID objects.MAC) error {
 	name := fmt.Sprintf("%064x", lockID)
-	return repo.client.Remove(repo.Path(name))
+	return s.client.Remove(s.Path(name))
 }

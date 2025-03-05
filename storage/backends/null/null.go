@@ -24,107 +24,107 @@ import (
 	"github.com/PlakarKorp/plakar/storage"
 )
 
-type Repository struct {
+type Store struct {
 	config     []byte
 	Repository string
 	location   string
 }
 
 func init() {
-	storage.Register("null", NewRepository)
+	storage.Register("null", NewStore)
 }
 
-func NewRepository(storeConfig map[string]string) (storage.Store, error) {
-	return &Repository{
+func NewStore(storeConfig map[string]string) (storage.Store, error) {
+	return &Store{
 		location: storeConfig["location"],
 	}, nil
 }
 
-func (repo *Repository) Location() string {
-	return repo.location
+func (s *Store) Location() string {
+	return s.location
 }
 
-func (repository *Repository) Create(config []byte) error {
-	repository.config = config
+func (s *Store) Create(config []byte) error {
+	s.config = config
 	return nil
 }
 
-func (repository *Repository) Open() ([]byte, error) {
-	return repository.config, nil
+func (s *Store) Open() ([]byte, error) {
+	return s.config, nil
 }
 
-func (repository *Repository) Close() error {
+func (s *Store) Close() error {
 	return nil
 }
 
 // snapshots
-func (repository *Repository) GetSnapshots() ([]objects.MAC, error) {
+func (s *Store) GetSnapshots() ([]objects.MAC, error) {
 	return []objects.MAC{}, nil
 }
 
-func (repository *Repository) PutSnapshot(snapshotID objects.MAC, data []byte) error {
+func (s *Store) PutSnapshot(snapshotID objects.MAC, data []byte) error {
 	return nil
 }
 
-func (repository *Repository) GetSnapshot(snapshotID objects.MAC) ([]byte, error) {
+func (s *Store) GetSnapshot(snapshotID objects.MAC) ([]byte, error) {
 	return []byte{}, nil
 }
 
-func (repository *Repository) DeleteSnapshot(snapshotID objects.MAC) error {
+func (s *Store) DeleteSnapshot(snapshotID objects.MAC) error {
 	return nil
 }
 
 // states
-func (repository *Repository) GetStates() ([]objects.MAC, error) {
+func (s *Store) GetStates() ([]objects.MAC, error) {
 	return []objects.MAC{}, nil
 }
 
-func (repository *Repository) PutState(mac objects.MAC, rd io.Reader) error {
+func (s *Store) PutState(mac objects.MAC, rd io.Reader) error {
 	return nil
 }
 
-func (repository *Repository) GetState(mac objects.MAC) (io.Reader, error) {
+func (s *Store) GetState(mac objects.MAC) (io.Reader, error) {
 	return bytes.NewBuffer([]byte{}), nil
 }
 
-func (repository *Repository) DeleteState(mac objects.MAC) error {
+func (s *Store) DeleteState(mac objects.MAC) error {
 	return nil
 }
 
 // packfiles
-func (repository *Repository) GetPackfiles() ([]objects.MAC, error) {
+func (s *Store) GetPackfiles() ([]objects.MAC, error) {
 	return []objects.MAC{}, nil
 }
 
-func (repository *Repository) PutPackfile(mac objects.MAC, rd io.Reader) error {
+func (s *Store) PutPackfile(mac objects.MAC, rd io.Reader) error {
 	return nil
 }
 
-func (repository *Repository) GetPackfile(mac objects.MAC) (io.Reader, error) {
+func (s *Store) GetPackfile(mac objects.MAC) (io.Reader, error) {
 	return bytes.NewBuffer([]byte{}), nil
 }
 
-func (repository *Repository) GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (io.Reader, error) {
+func (s *Store) GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (io.Reader, error) {
 	return bytes.NewBuffer([]byte{}), nil
 }
 
-func (repository *Repository) DeletePackfile(mac objects.MAC) error {
+func (s *Store) DeletePackfile(mac objects.MAC) error {
 	return nil
 }
 
 /* Locks */
-func (repo *Repository) GetLocks() ([]objects.MAC, error) {
+func (s *Store) GetLocks() ([]objects.MAC, error) {
 	return []objects.MAC{}, nil
 }
 
-func (repo *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
+func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) error {
 	return nil
 }
 
-func (repo *Repository) GetLock(lockID objects.MAC) (io.Reader, error) {
+func (s *Store) GetLock(lockID objects.MAC) (io.Reader, error) {
 	return bytes.NewBuffer([]byte{}), nil
 }
 
-func (repo *Repository) DeleteLock(lockID objects.MAC) error {
+func (s *Store) DeleteLock(lockID objects.MAC) error {
 	return nil
 }

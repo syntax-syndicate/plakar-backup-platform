@@ -33,7 +33,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-type Repository struct {
+type Store struct {
 	location    string
 	Repository  string
 	minioClient *minio.Client
@@ -45,10 +45,10 @@ type Repository struct {
 }
 
 func init() {
-	storage.Register("s3", NewRepository)
+	storage.Register("s3", NewStore)
 }
 
-func NewRepository(storeConfig map[string]string) (storage.Store, error) {
+func NewStore(storeConfig map[string]string) (storage.Store, error) {
 	var accessKey string
 	if value, ok := storeConfig["access_key"]; !ok {
 		return nil, fmt.Errorf("missing access_key")
@@ -72,7 +72,7 @@ func NewRepository(storeConfig map[string]string) (storage.Store, error) {
 		useSsl = tmp
 	}
 
-	return &Repository{
+	return &Store{
 		location:        storeConfig["location"],
 		accessKey:       accessKey,
 		secretAccessKey: secretAccessKey,
@@ -80,51 +80,51 @@ func NewRepository(storeConfig map[string]string) (storage.Store, error) {
 	}, nil
 }
 
-func (repo *Repository) Location() string {
-	return repo.location
+func (s *Store) Location() string {
+	return s.location
 }
 
-func (repository *Repository) connect(location *url.URL) error {
+func (s *Store) connect(location *url.URL) error {
 	endpoint := location.Host
-	useSSL := repository.useSsl
+	useSSL := s.useSsl
 
 	// Initialize minio client object.
 	minioClient, err := minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(repository.accessKey, repository.secretAccessKey, ""),
+		Creds:  credentials.NewStaticV4(s.accessKey, s.secretAccessKey, ""),
 		Secure: useSSL,
 	})
 	if err != nil {
 		return err
 	}
 
-	repository.minioClient = minioClient
+	s.minioClient = minioClient
 	return nil
 }
 
-func (repository *Repository) Create(config []byte) error {
-	parsed, err := url.Parse(repository.location)
+func (s *Store) Create(config []byte) error {
+	parsed, err := url.Parse(s.location)
 	if err != nil {
 		return err
 	}
 
-	err = repository.connect(parsed)
+	err = s.connect(parsed)
 	if err != nil {
 		return err
 	}
-	repository.bucketName = parsed.RequestURI()[1:]
+	s.bucketName = parsed.RequestURI()[1:]
 
-	exists, err := repository.minioClient.BucketExists(context.Background(), repository.bucketName)
+	exists, err := s.minioClient.BucketExists(context.Background(), s.bucketName)
 	if err != nil {
 		return err
 	}
 	if !exists {
-		err = repository.minioClient.MakeBucket(context.Background(), repository.bucketName, minio.MakeBucketOptions{})
+		err = s.minioClient.MakeBucket(context.Background(), s.bucketName, minio.MakeBucketOptions{})
 		if err != nil {
 			return err
 		}
 	}
 
-	_, err = repository.minioClient.StatObject(context.Background(), repository.bucketName, "CONFIG", minio.StatObjectOptions{})
+	_, err = s.minioClient.StatObject(context.Background(), s.bucketName, "CONFIG", minio.StatObjectOptions{})
 	if err != nil {
 		if minio.ToErrorResponse(err).Code != "NoSuchKey" {
 			return err
@@ -133,7 +133,7 @@ func (repository *Repository) Create(config []byte) error {
 		return fmt.Errorf("bucket already initialized")
 	}
 
-	_, err = repository.minioClient.PutObject(context.Background(), repository.bucketName, "CONFIG", bytes.NewReader(config), int64(len(config)), minio.PutObjectOptions{})
+	_, err = s.minioClient.PutObject(context.Background(), s.bucketName, "CONFIG", bytes.NewReader(config), int64(len(config)), minio.PutObjectOptions{})
 	if err != nil {
 		return err
 	}
@@ -141,20 +141,20 @@ func (repository *Repository) Create(config []byte) error {
 	return nil
 }
 
-func (repository *Repository) Open() ([]byte, error) {
-	parsed, err := url.Parse(repository.location)
+func (s *Store) Open() ([]byte, error) {
+	parsed, err := url.Parse(s.location)
 	if err != nil {
 		return nil, err
 	}
 
-	err = repository.connect(parsed)
+	err = s.connect(parsed)
 	if err != nil {
 		return nil, err
 	}
 
-	repository.bucketName = parsed.RequestURI()[1:]
+	s.bucketName = parsed.RequestURI()[1:]
 
-	exists, err := repository.minioClient.BucketExists(context.Background(), repository.bucketName)
+	exists, err := s.minioClient.BucketExists(context.Background(), s.bucketName)
 	if err != nil {
 		return nil, fmt.Errorf("error checking if bucket exists: %w", err)
 	}
@@ -162,7 +162,7 @@ func (repository *Repository) Open() ([]byte, error) {
 		return nil, fmt.Errorf("bucket does not exist")
 	}
 
-	object, err := repository.minioClient.GetObject(context.Background(), repository.bucketName, "CONFIG", minio.GetObjectOptions{})
+	object, err := s.minioClient.GetObject(context.Background(), s.bucketName, "CONFIG", minio.GetObjectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("error getting object: %w", err)
 	}
@@ -183,14 +183,14 @@ func (repository *Repository) Open() ([]byte, error) {
 	return data, nil
 }
 
-func (repository *Repository) Close() error {
+func (s *Store) Close() error {
 	return nil
 }
 
 // states
-func (repository *Repository) GetStates() ([]objects.MAC, error) {
+func (s *Store) GetStates() ([]objects.MAC, error) {
 	ret := make([]objects.MAC, 0)
-	for object := range repository.minioClient.ListObjects(context.Background(), repository.bucketName, minio.ListObjectsOptions{
+	for object := range s.minioClient.ListObjects(context.Background(), s.bucketName, minio.ListObjectsOptions{
 		Prefix:    "states/",
 		Recursive: true,
 	}) {
@@ -210,16 +210,16 @@ func (repository *Repository) GetStates() ([]objects.MAC, error) {
 	return ret, nil
 }
 
-func (repository *Repository) PutState(mac objects.MAC, rd io.Reader) error {
-	_, err := repository.minioClient.PutObject(context.Background(), repository.bucketName, fmt.Sprintf("states/%02x/%016x", mac[0], mac), rd, -1, minio.PutObjectOptions{})
+func (s *Store) PutState(mac objects.MAC, rd io.Reader) error {
+	_, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("states/%02x/%016x", mac[0], mac), rd, -1, minio.PutObjectOptions{})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (repository *Repository) GetState(mac objects.MAC) (io.Reader, error) {
-	object, err := repository.minioClient.GetObject(context.Background(), repository.bucketName, fmt.Sprintf("states/%02x/%016x", mac[0], mac), minio.GetObjectOptions{})
+func (s *Store) GetState(mac objects.MAC) (io.Reader, error) {
+	object, err := s.minioClient.GetObject(context.Background(), s.bucketName, fmt.Sprintf("states/%02x/%016x", mac[0], mac), minio.GetObjectOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -227,8 +227,8 @@ func (repository *Repository) GetState(mac objects.MAC) (io.Reader, error) {
 	return object, nil
 }
 
-func (repository *Repository) DeleteState(mac objects.MAC) error {
-	err := repository.minioClient.RemoveObject(context.Background(), repository.bucketName, fmt.Sprintf("states/%02x/%016x", mac[0], mac), minio.RemoveObjectOptions{})
+func (s *Store) DeleteState(mac objects.MAC) error {
+	err := s.minioClient.RemoveObject(context.Background(), s.bucketName, fmt.Sprintf("states/%02x/%016x", mac[0], mac), minio.RemoveObjectOptions{})
 	if err != nil {
 		return err
 	}
@@ -236,9 +236,9 @@ func (repository *Repository) DeleteState(mac objects.MAC) error {
 }
 
 // packfiles
-func (repository *Repository) GetPackfiles() ([]objects.MAC, error) {
+func (s *Store) GetPackfiles() ([]objects.MAC, error) {
 	ret := make([]objects.MAC, 0)
-	for object := range repository.minioClient.ListObjects(context.Background(), repository.bucketName, minio.ListObjectsOptions{
+	for object := range s.minioClient.ListObjects(context.Background(), s.bucketName, minio.ListObjectsOptions{
 		Prefix:    "packfiles/",
 		Recursive: true,
 	}) {
@@ -258,25 +258,25 @@ func (repository *Repository) GetPackfiles() ([]objects.MAC, error) {
 	return ret, nil
 }
 
-func (repository *Repository) PutPackfile(mac objects.MAC, rd io.Reader) error {
-	_, err := repository.minioClient.PutObject(context.Background(), repository.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), rd, -1, minio.PutObjectOptions{})
+func (s *Store) PutPackfile(mac objects.MAC, rd io.Reader) error {
+	_, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), rd, -1, minio.PutObjectOptions{})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (repository *Repository) GetPackfile(mac objects.MAC) (io.Reader, error) {
-	object, err := repository.minioClient.GetObject(context.Background(), repository.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), minio.GetObjectOptions{})
+func (s *Store) GetPackfile(mac objects.MAC) (io.Reader, error) {
+	object, err := s.minioClient.GetObject(context.Background(), s.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), minio.GetObjectOptions{})
 	if err != nil {
 		return nil, err
 	}
 	return object, nil
 }
 
-func (repository *Repository) GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (io.Reader, error) {
+func (s *Store) GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (io.Reader, error) {
 	opts := minio.GetObjectOptions{}
-	object, err := repository.minioClient.GetObject(context.Background(), repository.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), opts)
+	object, err := s.minioClient.GetObject(context.Background(), s.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -291,17 +291,17 @@ func (repository *Repository) GetPackfileBlob(mac objects.MAC, offset uint64, le
 	return bytes.NewBuffer(buffer), nil
 }
 
-func (repository *Repository) DeletePackfile(mac objects.MAC) error {
-	err := repository.minioClient.RemoveObject(context.Background(), repository.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), minio.RemoveObjectOptions{})
+func (s *Store) DeletePackfile(mac objects.MAC) error {
+	err := s.minioClient.RemoveObject(context.Background(), s.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), minio.RemoveObjectOptions{})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (repository *Repository) GetLocks() ([]objects.MAC, error) {
+func (s *Store) GetLocks() ([]objects.MAC, error) {
 	ret := make([]objects.MAC, 0)
-	for object := range repository.minioClient.ListObjects(context.Background(), repository.bucketName, minio.ListObjectsOptions{
+	for object := range s.minioClient.ListObjects(context.Background(), s.bucketName, minio.ListObjectsOptions{
 		Prefix:    "locks/",
 		Recursive: true,
 	}) {
@@ -320,24 +320,24 @@ func (repository *Repository) GetLocks() ([]objects.MAC, error) {
 	return ret, nil
 }
 
-func (repository *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
-	_, err := repository.minioClient.PutObject(context.Background(), repository.bucketName, fmt.Sprintf("locks/%016x", lockID), rd, -1, minio.PutObjectOptions{})
+func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) error {
+	_, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("locks/%016x", lockID), rd, -1, minio.PutObjectOptions{})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (repository *Repository) GetLock(lockID objects.MAC) (io.Reader, error) {
-	object, err := repository.minioClient.GetObject(context.Background(), repository.bucketName, fmt.Sprintf("locks/%016x", lockID), minio.GetObjectOptions{})
+func (s *Store) GetLock(lockID objects.MAC) (io.Reader, error) {
+	object, err := s.minioClient.GetObject(context.Background(), s.bucketName, fmt.Sprintf("locks/%016x", lockID), minio.GetObjectOptions{})
 	if err != nil {
 		return nil, err
 	}
 	return object, nil
 }
 
-func (repository *Repository) DeleteLock(lockID objects.MAC) error {
-	err := repository.minioClient.RemoveObject(context.Background(), repository.bucketName, fmt.Sprintf("locks/%016x", lockID), minio.RemoveObjectOptions{})
+func (s *Store) DeleteLock(lockID objects.MAC) error {
+	err := s.minioClient.RemoveObject(context.Background(), s.bucketName, fmt.Sprintf("locks/%016x", lockID), minio.RemoveObjectOptions{})
 	if err != nil {
 		return err
 	}
