@@ -2,10 +2,10 @@ package snapshot
 
 import (
 	"bytes"
+	"golang.org/x/sync/errgroup"
 	"hash"
 	"io"
 	"runtime"
-	"sync"
 	"time"
 
 	"github.com/PlakarKorp/plakar/objects"
@@ -60,11 +60,10 @@ func (packer *Packer) Types() []resources.Type {
 }
 
 func packerJob(snap *Snapshot) {
-	wg := sync.WaitGroup{}
+	// XXX: This should really be a errgroup.WithContext so that we can cancel this.
+	eg := errgroup.Group{}
 	for i := 0; i < runtime.NumCPU(); i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		eg.Go(func() error {
 			var packer *Packer
 
 			for msg := range snap.packerChan {
@@ -82,7 +81,7 @@ func packerJob(snap *Snapshot) {
 				if packer.Size() > uint32(snap.repository.Configuration().Packfile.MaxSize) {
 					err := snap.PutPackfile(packer)
 					if err != nil {
-						panic(err)
+						return err
 					}
 					packer = nil
 				}
@@ -91,13 +90,18 @@ func packerJob(snap *Snapshot) {
 			if packer != nil {
 				err := snap.PutPackfile(packer)
 				if err != nil {
-					panic(err)
+					return err
 				}
 				packer = nil
 			}
-		}()
+
+			return nil
+		})
 	}
-	wg.Wait()
+
+	if err := eg.Wait(); err != nil {
+		snap.Logger().Error("Packing job ended with error %s\n", err)
+	}
 	snap.packerChanDone <- true
 	close(snap.packerChanDone)
 }

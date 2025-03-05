@@ -855,15 +855,15 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 
 	serializedData, err := packer.Packfile.SerializeData()
 	if err != nil {
-		panic("could not serialize pack file data" + err.Error())
+		return fmt.Errorf("could not serialize pack file data %s", err.Error())
 	}
 	serializedIndex, err := packer.Packfile.SerializeIndex()
 	if err != nil {
-		panic("could not serialize pack file index" + err.Error())
+		return fmt.Errorf("could not serialize pack file index %s", err.Error())
 	}
 	serializedFooter, err := packer.Packfile.SerializeFooter()
 	if err != nil {
-		panic("could not serialize pack file footer" + err.Error())
+		return fmt.Errorf("could not serialize pack file footer %s", err.Error())
 	}
 
 	encryptedIndex, err := repo.EncodeBuffer(serializedIndex)
@@ -889,7 +889,7 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 	repo.Logger().Trace("snapshot", "%x: PutPackfile(%x, ...)", snap.Header.GetIndexShortID(), mac)
 	err = snap.repository.PutPackfile(mac, bytes.NewBuffer(serializedPackfile))
 	if err != nil {
-		panic("could not write pack file")
+		return fmt.Errorf("Could not write pack file %s", err.Error())
 	}
 
 	for _, Type := range packer.Types() {
