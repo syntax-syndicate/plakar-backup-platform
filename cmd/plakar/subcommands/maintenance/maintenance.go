@@ -234,10 +234,10 @@ func (cmd *Maintenance) sweepPass(ctx *appcontext.AppContext, cache *caching.Mai
 		// that now effectively all of its blob are unreachable
 		if err := cmd.repository.RemovePackfile(packfileMAC); err != nil {
 			fmt.Fprintf(ctx.Stderr, "maintenance: Failed to remove packfile %s from state\n", packfileMAC)
-		} else {
-			cmd.repository.RemoveDeletedPackfile(packfileMAC)
+			continue
 		}
 
+		cmd.repository.RemoveDeletedPackfile(packfileMAC)
 		toDelete[packfileMAC] = struct{}{}
 	}
 
