@@ -5,6 +5,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sort"
+	"strings"
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot"
@@ -103,4 +105,40 @@ func repositoryState(w http.ResponseWriter, r *http.Request) error {
 		log.Println("write failed:", err)
 	}
 	return nil
+}
+
+func repositoryImporterTypes(w http.ResponseWriter, r *http.Request) error {
+	lrepository.RebuildState()
+
+	snapshotIDs, err := lrepository.GetSnapshots()
+	if err != nil {
+		return err
+	}
+
+	importerTypesMap := make(map[string]struct{})
+	for _, snapshotID := range snapshotIDs {
+		snap, err := snapshot.Load(lrepository, snapshotID)
+		if err != nil {
+			return err
+		}
+		importerTypesMap[strings.ToLower(snap.Header.GetSource(0).Importer.Type)] = struct{}{}
+	}
+
+	importerTypes := make([]string, 0, len(importerTypesMap))
+	for importerType := range importerTypesMap {
+		importerTypes = append(importerTypes, importerType)
+	}
+	sort.Slice(importerTypes, func(i, j int) bool {
+		return importerTypes[i] < importerTypes[j]
+	})
+
+	items := Items[string]{
+		Total: len(importerTypes),
+		Items: make([]string, len(importerTypes)),
+	}
+	for i, importerType := range importerTypes {
+		items.Items[i] = importerType
+	}
+
+	return json.NewEncoder(w).Encode(items)
 }
