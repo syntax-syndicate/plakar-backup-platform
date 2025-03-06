@@ -250,3 +250,54 @@ func TestExecuteCmdInfoSnapshot(t *testing.T) {
 	require.Contains(t, output, fmt.Sprintf("Directory: %s", snap.Header.GetSource(0).Importer.Directory))
 	require.Contains(t, output, fmt.Sprintf("SnapshotID: %s", hex.EncodeToString(indexId[:])))
 }
+
+func TestExecuteCmdInfoSnapshotPath(t *testing.T) {
+	bufOut := bytes.NewBuffer(nil)
+	bufErr := bytes.NewBuffer(nil)
+
+	snap := generateSnapshot(t, bufOut, bufErr)
+	defer snap.Close()
+
+	ctx := snap.AppContext()
+	ctx.MaxConcurrency = 1
+
+	repo := snap.Repository()
+	// override the homedir to avoid having test overwriting existing home configuration
+	ctx.HomeDir = repo.Location()
+	indexId := snap.Header.GetIndexID()
+	args := []string{fmt.Sprintf("%s:subdir/dummy.txt", hex.EncodeToString(indexId[:]))}
+
+	subcommand, err := parse_cmd_info(ctx, repo, args)
+	require.NoError(t, err)
+	require.NotNil(t, subcommand)
+
+	status, err := subcommand.Execute(ctx, repo)
+	require.NoError(t, err)
+	require.Equal(t, 0, status)
+
+	// output should look like this
+	// [FileEntry]
+	// Version: 65536
+	// ParentPath: /tmp/tmp_to_backup1755905950/subdir
+	// Name: dummy.txt
+	// Type: regular
+	// Size: 11 B (11 bytes)
+	// Permissions: -rw-r--r--
+	// ModTime: 2025-03-06 07:51:06.716971661 +0000 UTC
+	// DeviceID: 64768
+	// InodeID: 22314615
+	// UserID: 1000
+	// GroupID: 1000
+	// Username: sayoun
+	// Groupname: sayoun
+	// NumLinks: 1
+	// ExtendedAttributes: []
+	// FileAttributes: 0
+	// Classification:
+	// CustomMetadata: []
+	// Tags: []
+
+	output := bufOut.String()
+	require.Contains(t, output, "[FileEntry]")
+	require.Contains(t, output, "Name: dummy.txt")
+}
