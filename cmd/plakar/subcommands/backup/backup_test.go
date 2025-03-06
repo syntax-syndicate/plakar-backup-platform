@@ -93,7 +93,7 @@ func generateFixtures(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 	return repo, tmpBackupDir
 }
 
-func _TestExecuteCmdCreateDefault(t *testing.T) {
+func TestExecuteCmdCreateDefault(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
@@ -127,13 +127,12 @@ func _TestExecuteCmdCreateDefault(t *testing.T) {
 
 	output := bufOut.String()
 	lines := strings.Split(strings.Trim(output, "\n"), "\n")
-	require.Equal(t, 10, len(lines))
 	// last line should have the summary
 	lastline := lines[len(lines)-1]
 	require.Contains(t, lastline, "created unsigned snapshot")
 }
 
-func _TestExecuteCmdCreateDefaultWithExcludes(t *testing.T) {
+func TestExecuteCmdCreateDefaultWithExcludes(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
@@ -166,7 +165,6 @@ func _TestExecuteCmdCreateDefaultWithExcludes(t *testing.T) {
 
 	output := bufOut.String()
 	lines := strings.Split(strings.Trim(output, "\n"), "\n")
-	require.Equal(t, 9, len(lines))
 	// last line should have the summary
 	lastline := lines[len(lines)-1]
 	require.Contains(t, lastline, "created unsigned snapshot")

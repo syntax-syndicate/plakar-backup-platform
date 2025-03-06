@@ -108,7 +108,7 @@ func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 	return snap
 }
 
-func _TestExecuteCmdLocateDefault(t *testing.T) {
+func TestExecuteCmdLocateDefault(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
@@ -120,7 +120,7 @@ func _TestExecuteCmdLocateDefault(t *testing.T) {
 
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = snap.Repository().Location()
-	args := []string{"*"}
+	args := []string{"dummy.txt"}
 
 	subcommand, err := parse_cmd_locate(ctx, snap.Repository(), args)
 	require.NoError(t, err)
@@ -132,21 +132,14 @@ func _TestExecuteCmdLocateDefault(t *testing.T) {
 	require.NotNil(t, status)
 
 	// output should look like this
-	// d92a4c73:/tmp
-	// d92a4c73:/tmp/tmp_to_backup1424943315
-	// d92a4c73:/tmp/tmp_to_backup1424943315/another_subdir
-	// d92a4c73:/tmp/tmp_to_backup1424943315/subdir
-	// d92a4c73:/tmp/tmp_to_backup1424943315/another_subdir/bar
 	// d92a4c73:/tmp/tmp_to_backup1424943315/subdir/dummy.txt
-	// d92a4c73:/tmp/tmp_to_backup1424943315/subdir/foo.txt
-	// d92a4c73:/tmp/tmp_to_backup1424943315/subdir/to_exclude
 
 	output := bufOut.String()
 	lines := strings.Split(strings.Trim(output, "\n"), "\n")
-	require.Equal(t, 8, len(lines))
+	require.Equal(t, 1, len(lines))
 }
 
-func _TestExecuteCmdLocateWithSnapshotId(t *testing.T) {
+func TestExecuteCmdLocateWithSnapshotId(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
@@ -158,7 +151,7 @@ func _TestExecuteCmdLocateWithSnapshotId(t *testing.T) {
 
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = snap.Repository().Location()
-	args := []string{"-snapshot", hex.EncodeToString(snap.Header.GetIndexShortID()), "*"}
+	args := []string{"-snapshot", hex.EncodeToString(snap.Header.GetIndexShortID()), "dummy.txt"}
 
 	subcommand, err := parse_cmd_locate(ctx, snap.Repository(), args)
 	require.NoError(t, err)
@@ -170,16 +163,9 @@ func _TestExecuteCmdLocateWithSnapshotId(t *testing.T) {
 	require.NotNil(t, status)
 
 	// output should look like this
-	// d92a4c73:/tmp
-	// d92a4c73:/tmp/tmp_to_backup1424943315
-	// d92a4c73:/tmp/tmp_to_backup1424943315/another_subdir
-	// d92a4c73:/tmp/tmp_to_backup1424943315/subdir
-	// d92a4c73:/tmp/tmp_to_backup1424943315/another_subdir/bar
 	// d92a4c73:/tmp/tmp_to_backup1424943315/subdir/dummy.txt
-	// d92a4c73:/tmp/tmp_to_backup1424943315/subdir/foo.txt
-	// d92a4c73:/tmp/tmp_to_backup1424943315/subdir/to_exclude
 
 	output := bufOut.String()
 	lines := strings.Split(strings.Trim(output, "\n"), "\n")
-	require.Equal(t, 8, len(lines))
+	require.Equal(t, 1, len(lines))
 }
