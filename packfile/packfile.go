@@ -168,7 +168,7 @@ func NewFromBytes(hasher hash.Hash, version versioning.Version, serialized []byt
 		return nil, err
 	}
 	data := make([]byte, footer.IndexOffset)
-	if err := binary.Read(reader, binary.LittleEndian, &data); err != nil {
+	if err := binary.Read(reader, binary.LittleEndian, data); err != nil {
 		return nil, err
 	}
 
