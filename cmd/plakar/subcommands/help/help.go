@@ -93,5 +93,5 @@ func (cmd *Help) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	}
 	fmt.Print(string(out))
 
-	return 1, err
+	return 0, err
 }
