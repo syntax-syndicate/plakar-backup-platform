@@ -26,6 +26,11 @@ type Items[T any] struct {
 	Items []T `json:"items"`
 }
 
+type ItemsPage[T any] struct {
+	HasNext bool `json:"has_next"`
+	Items   []T  `json:"items"`
+}
+
 type ApiErrorRes struct {
 	Error *ApiError `json:"error"`
 }
@@ -135,6 +140,7 @@ func SetupRoutes(server *http.ServeMux, repo *repository.Repository, token strin
 
 	server.Handle("GET /api/snapshot/vfs/{snapshot_path...}", authToken(JSONAPIView(snapshotVFSBrowse)))
 	server.Handle("GET /api/snapshot/vfs/children/{snapshot_path...}", authToken(JSONAPIView(snapshotVFSChildren)))
+	server.Handle("GET /api/snapshot/vfs/search/{snapshot_path...}", authToken(JSONAPIView(snapshotVFSSearch)))
 	server.Handle("GET /api/snapshot/vfs/errors/{snapshot_path...}", authToken(JSONAPIView(snapshotVFSErrors)))
 
 	server.Handle("POST /api/snapshot/vfs/downloader/{snapshot_path...}", authToken(JSONAPIView(snapshotVFSDownloader)))
