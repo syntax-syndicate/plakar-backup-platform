@@ -38,6 +38,9 @@ func (cmd *DiagContentType) Execute(ctx *appcontext.AppContext, repo *repository
 	if err != nil {
 		return 1, err
 	}
+	if tree == nil {
+		return 1, fmt.Errorf("no content-type index available in the snapshot")
+	}
 
 	it, err := tree.ScanFrom(pathname)
 	if err != nil {
