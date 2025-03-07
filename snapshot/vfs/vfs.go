@@ -290,29 +290,25 @@ func (fsc *Filesystem) GetEntry(path string) (*Entry, error) {
 	return fsc.lookup(path)
 }
 
-func (fsc *Filesystem) Children(path string) (iter.Seq2[string, error], error) {
-	fp, err := fsc.Open(path)
+func (fsc *Filesystem) Children(path string) (iter.Seq2[*Entry, error], error) {
+	fp, err := fsc.GetEntry(path)
 	if err != nil {
 		return nil, err
 	}
-	defer fp.Close()
 
-	dir, ok := fp.(fs.ReadDirFile)
-	if !ok {
+	if !fp.IsDir() {
 		return nil, fs.ErrInvalid
 	}
 
-	return func(yield func(string, error) bool) {
-		for {
-			entries, err := dir.ReadDir(16)
-			if err != nil {
-				yield("", err)
+	return func(yield func(*Entry, error) bool) {
+		it, err := fp.Getdents(fsc)
+		if err != nil {
+			yield(nil, err)
+			return
+		}
+		for entry, err := range it {
+			if !yield(entry, err) {
 				return
-			}
-			for i := range entries {
-				if !yield(entries[i].Name(), nil) {
-					return
-				}
 			}
 		}
 	}, nil
