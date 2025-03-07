@@ -234,31 +234,42 @@ func (fsc *Filesystem) ReadDir(path string) (entries []fs.DirEntry, err error) {
 	return dir.ReadDir(-1)
 }
 
-func (fsc *Filesystem) Files() iter.Seq2[string, error] {
-	return func(yield func(string, error) bool) {
-		iter, err := fsc.tree.ScanAll()
+func (fsc *Filesystem) Files(prefix string) iter.Seq2[*Entry, error] {
+	prefix = path.Clean(prefix)
+	if !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
+
+	return func(yield func(*Entry, error) bool) {
+		iter, err := fsc.tree.ScanFrom(prefix)
 		if err != nil {
-			yield("", err)
+			yield(nil, err)
 			return
 		}
 
 		for iter.Next() {
 			path, csum := iter.Current()
+
+			// XXX: this could be done in a more efficient way by:
+			// 1. if prefix is "/" just do ScanAll
+			// 2. do a walkdir otherwise
+			if !strings.HasPrefix(path, prefix) {
+				continue
+			}
+
 			entry, err := fsc.ResolveEntry(csum)
 			if err != nil {
-				if !yield(path, err) {
+				if !yield(nil, err) {
 					return
 				}
 				continue
 			}
-			if entry.FileInfo.Lmode.IsRegular() {
-				if !yield(path, nil) {
-					return
-				}
+			if !yield(entry, nil) {
+				return
 			}
 		}
 		if err := iter.Err(); err != nil {
-			yield("", err)
+			yield(nil, err)
 			return
 		}
 	}

@@ -217,9 +217,12 @@ func TestFiles(t *testing.T) {
 	fs, err := snap.Filesystem()
 	require.NoError(t, err)
 
-	for files, err := range fs.Files() {
+	for entry, err := range fs.Files("/") {
 		require.NoError(t, err)
-		require.Contains(t, files, "dummy.txt")
+		if !entry.Type().IsRegular() {
+			continue
+		}
+		require.Contains(t, entry.Path(), "dummy.txt")
 	}
 }
 
