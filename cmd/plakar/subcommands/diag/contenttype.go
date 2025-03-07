@@ -5,11 +5,8 @@ import (
 	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/btree"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/resources"
 )
 
 type DiagContentType struct {
@@ -37,13 +34,7 @@ func (cmd *DiagContentType) Execute(ctx *appcontext.AppContext, repo *repository
 		pathname += "/"
 	}
 
-	rd, err := repo.GetBlob(resources.RT_BTREE_ROOT, snap.Header.GetSource(0).Indexes[0].Value)
-	if err != nil {
-		return 1, err
-	}
-
-	store := repository.NewRepositoryStore[string, objects.MAC](repo, resources.RT_BTREE_NODE)
-	tree, err := btree.Deserialize(rd, store, strings.Compare)
+	tree, err := snap.ContentTypeIdx()
 	if err != nil {
 		return 1, err
 	}
