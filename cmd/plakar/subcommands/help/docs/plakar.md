@@ -143,7 +143,7 @@ The following commands are available:
 
 **exec**
 
-> Execute a file froma a Plakar snapshot, documented in
+> Execute a file from a Plakar snapshot, documented in
 > plakar-exec(1).
 
 **help**
@@ -207,7 +207,7 @@ The following commands are available:
 
 # ENVIRONMENT
 
-EV PLAKAR\_PASSPHRASE
+`PLAKAR_PASSPHRASE`
 
 > Passphrase to unlock the repository, overrides the one from the configuration.
 > If set,
