@@ -22,9 +22,6 @@ type Manager struct {
 
 	maintenanceCache      map[uuid.UUID]*MaintenanceCache
 	maintenanceCacheMutex sync.Mutex
-
-	alertingCache      map[uuid.UUID]*AlertingCache
-	alertingCacheMutex sync.Mutex
 }
 
 func NewManager(cacheDir string) *Manager {
@@ -46,10 +43,6 @@ func (m *Manager) Close() error {
 	}
 
 	for _, cache := range m.vfsCache {
-		cache.Close()
-	}
-
-	for _, cache := range m.alertingCache {
 		cache.Close()
 	}
 
@@ -104,22 +97,6 @@ func (m *Manager) Maintenance(repositoryID uuid.UUID) (*MaintenanceCache, error)
 		return nil, err
 	} else {
 		m.maintenanceCache[repositoryID] = cache
-		return cache, nil
-	}
-}
-
-func (m *Manager) Alerting(repositoryID uuid.UUID) (*AlertingCache, error) {
-	m.alertingCacheMutex.Lock()
-	defer m.alertingCacheMutex.Unlock()
-
-	if cache, ok := m.alertingCache[repositoryID]; ok {
-		return cache, nil
-	}
-
-	if cache, err := newAlertingCache(m, repositoryID); err != nil {
-		return nil, err
-	} else {
-		m.alertingCache[repositoryID] = cache
 		return cache, nil
 	}
 }
