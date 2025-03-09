@@ -11,20 +11,19 @@ import (
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/resources"
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/util"
+	"github.com/cockroachdb/pebble"
 )
 
 type ScanCache struct {
 	snapshotID [32]byte
 	manager    *Manager
-	db         *leveldb.DB
+	db         *pebble.DB
 }
 
 func newScanCache(cacheManager *Manager, snapshotID [32]byte) (*ScanCache, error) {
 	cacheDir := filepath.Join(cacheManager.cacheDir, "scan", fmt.Sprintf("%x", snapshotID))
 
-	db, err := leveldb.OpenFile(cacheDir, nil)
+	db, err := pebble.Open(cacheDir, &pebble.Options{DisableWAL: true})
 	if err != nil {
 		return nil, err
 	}
@@ -42,22 +41,37 @@ func (c *ScanCache) Close() error {
 }
 
 func (c *ScanCache) put(prefix string, key string, data []byte) error {
-	return c.db.Put([]byte(fmt.Sprintf("%s:%s", prefix, key)), data, nil)
+	return c.db.Set([]byte(fmt.Sprintf("%s:%s", prefix, key)), data, &pebble.WriteOptions{Sync: false})
 }
 
 func (c *ScanCache) get(prefix, key string) ([]byte, error) {
-	data, err := c.db.Get([]byte(fmt.Sprintf("%s:%s", prefix, key)), nil)
+	data, del, err := c.db.Get([]byte(fmt.Sprintf("%s:%s", prefix, key)))
 	if err != nil {
-		if err == leveldb.ErrNotFound {
+		if err == pebble.ErrNotFound {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return data, nil
+
+	ret := make([]byte, len(data))
+	copy(ret, data)
+	del.Close()
+
+	return ret, nil
 }
 
 func (c *ScanCache) has(prefix, key string) (bool, error) {
-	return c.db.Has([]byte(fmt.Sprintf("%s:%s", prefix, key)), nil)
+	_, del, err := c.db.Get([]byte(fmt.Sprintf("%s:%s", prefix, key)))
+
+	if err != nil {
+		if err == pebble.ErrNotFound {
+			return false, nil
+		}
+		return false, err
+	}
+
+	del.Close()
+	return true, nil
 }
 
 func (c *ScanCache) delete(prefix, key string) error {
@@ -66,10 +80,28 @@ func (c *ScanCache) delete(prefix, key string) error {
 
 func (c *ScanCache) getObjects(keyPrefix string) iter.Seq2[objects.MAC, []byte] {
 	return func(yield func(objects.MAC, []byte) bool) {
-		iter := c.db.NewIterator(nil, nil)
-		defer iter.Release()
+		keyUpperBound := func(b []byte) []byte {
+			end := make([]byte, len(b))
+			copy(end, b)
+			for i := len(end) - 1; i >= 0; i-- {
+				end[i] = end[i] + 1
+				if end[i] != 0 {
+					return end[:i+1]
+				}
+			}
+			return nil // no upper-bound
+		}
 
-		for iter.Seek([]byte(keyPrefix)); iter.Valid(); iter.Next() {
+		prefixIterOptions := func(prefix []byte) *pebble.IterOptions {
+			return &pebble.IterOptions{
+				LowerBound: prefix,
+				UpperBound: keyUpperBound(prefix),
+			}
+		}
+		iter, _ := c.db.NewIter(prefixIterOptions([]byte(keyPrefix)))
+		defer iter.Close()
+
+		for iter.First(); iter.Valid(); iter.Next() {
 			if !strings.HasPrefix(string(iter.Key()), keyPrefix) {
 				break
 			}
@@ -163,11 +195,29 @@ func (c *ScanCache) PutDelta(blobType resources.Type, blobCsum, packfile objects
 
 func (c *ScanCache) GetDeltasByType(blobType resources.Type) iter.Seq2[objects.MAC, []byte] {
 	return func(yield func(objects.MAC, []byte) bool) {
-		iter := c.db.NewIterator(nil, nil)
-		defer iter.Release()
-
 		keyPrefix := fmt.Sprintf("__delta__:%d:", blobType)
-		for iter.Seek([]byte(keyPrefix)); iter.Valid(); iter.Next() {
+		keyUpperBound := func(b []byte) []byte {
+			end := make([]byte, len(b))
+			copy(end, b)
+			for i := len(end) - 1; i >= 0; i-- {
+				end[i] = end[i] + 1
+				if end[i] != 0 {
+					return end[:i+1]
+				}
+			}
+			return nil // no upper-bound
+		}
+
+		prefixIterOptions := func(prefix []byte) *pebble.IterOptions {
+			return &pebble.IterOptions{
+				LowerBound: prefix,
+				UpperBound: keyUpperBound(prefix),
+			}
+		}
+		iter, _ := c.db.NewIter(prefixIterOptions([]byte(keyPrefix)))
+		defer iter.Close()
+
+		for iter.First(); iter.Valid(); iter.Next() {
 			if !strings.HasPrefix(string(iter.Key()), keyPrefix) {
 				break
 			}
@@ -239,12 +289,14 @@ func (c *ScanCache) GetConfiguration(key string) ([]byte, error) {
 
 func (c *ScanCache) GetConfigurations() iter.Seq[[]byte] {
 	return func(yield func([]byte) bool) {
-		iter := c.db.NewIterator(nil, nil)
-		defer iter.Release()
+		keyPrefix := "__configuration__"
+		iter, _ := c.db.NewIter(&pebble.IterOptions{
+			LowerBound: []byte(keyPrefix + ":"),
+			UpperBound: []byte(keyPrefix + ";"),
+		})
+		defer iter.Close()
 
-		keyPrefix := "__configuration__:"
-
-		for iter.Seek([]byte(keyPrefix)); iter.Valid(); iter.Next() {
+		for iter.First(); iter.Valid(); iter.Next() {
 			if !strings.HasPrefix(string(iter.Key()), keyPrefix) {
 				break
 			}
@@ -261,8 +313,26 @@ func (c *ScanCache) EnumerateKeysWithPrefix(prefix string, reverse bool) iter.Se
 
 	return func(yield func(string, []byte) bool) {
 		// Use LevelDB's iterator
-		iter := c.db.NewIterator(util.BytesPrefix([]byte(prefix)), nil)
-		defer iter.Release()
+		keyUpperBound := func(b []byte) []byte {
+			end := make([]byte, len(b))
+			copy(end, b)
+			for i := len(end) - 1; i >= 0; i-- {
+				end[i] = end[i] + 1
+				if end[i] != 0 {
+					return end[:i+1]
+				}
+			}
+			return nil // no upper-bound
+		}
+
+		prefixIterOptions := func(prefix []byte) *pebble.IterOptions {
+			return &pebble.IterOptions{
+				LowerBound: prefix,
+				UpperBound: keyUpperBound(prefix),
+			}
+		}
+		iter, _ := c.db.NewIter(prefixIterOptions([]byte(prefix)))
+		defer iter.Close()
 
 		if reverse {
 			iter.Last()

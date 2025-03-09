@@ -399,33 +399,36 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 			var cachedFileEntryMAC objects.MAC
 
 			// Check if the file entry and underlying objects are already in the cache
-			if data, err := vfsCache.GetFilename(record.Pathname); err != nil {
+			if dataEntry, err := vfsCache.GetFilename(record.Pathname); err != nil {
 				snap.Logger().Warn("VFS CACHE: Error getting filename: %v", err)
-			} else if data != nil {
-				cachedFileEntry, err = vfs.EntryFromBytes(data)
+			} else if dataEntry != nil {
+				cachedFileEntry, err = vfs.EntryFromBytes(dataEntry.Buf)
 				if err != nil {
-					snap.Logger().Warn("VFS CACHE: Error unmarshaling filename: %v", err)
+					snap.Logger().Warn("VFS CACHE: Error unmarshaling filename: %v %d", err, len(dataEntry.Buf))
 				} else {
-					cachedFileEntryMAC = snap.repository.ComputeMAC(data)
+					cachedFileEntryMAC = snap.repository.ComputeMAC(dataEntry.Buf)
 					if cachedFileEntry.Stat().Equal(&record.FileInfo) {
 						fileEntry = cachedFileEntry
 						if fileEntry.FileInfo.Mode().IsRegular() {
-							data, err := vfsCache.GetObject(cachedFileEntry.Object)
+							bufObject, err := vfsCache.GetObject(cachedFileEntry.Object)
 							if err != nil {
 								snap.Logger().Warn("VFS CACHE: Error getting object: %v", err)
-							} else if data != nil {
-								cachedObject, err := objects.NewObjectFromBytes(data)
+							} else if bufObject != nil {
+								objectMAC = snap.Repository().ComputeMAC(bufObject.Buf)
+								cachedObject, err := objects.NewObjectFromBytes(bufObject.Buf)
 								if err != nil {
 									snap.Logger().Warn("VFS CACHE: Error unmarshaling object: %v", err)
 								} else {
 									object = cachedObject
-									objectMAC = snap.Repository().ComputeMAC(data)
-									objectSerialized = data
+									objectMAC = snap.Repository().ComputeMAC(bufObject.Buf)
+									objectSerialized = bufObject.Buf
 								}
+								bufObject.Closer.Close()
 							}
 						}
 					}
 				}
+				dataEntry.Closer.Close()
 			}
 
 			if object != nil {
@@ -610,7 +613,8 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				continue
 			}
 
-			fileSummary, err := vfs.FileSummaryFromBytes(data)
+			fileSummary, err := vfs.FileSummaryFromBytes(data.Buf)
+			data.Closer.Close()
 			if err != nil {
 				continue
 			}
