@@ -2,20 +2,26 @@ package caching
 
 import (
 	"fmt"
+	"io"
 	"path/filepath"
 
-	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/cockroachdb/pebble"
 )
 
 type _VFSCache struct {
 	manager *Manager
-	db      *leveldb.DB
+	db      *pebble.DB
+}
+
+type ResourceCloser struct {
+	Buf    []byte
+	Closer io.Closer
 }
 
 func newVFSCache(cacheManager *Manager, scheme string, origin string) (*_VFSCache, error) {
 	cacheDir := filepath.Join(cacheManager.cacheDir, "vfs", scheme, origin)
 
-	db, err := leveldb.OpenFile(cacheDir, nil)
+	db, err := pebble.Open(cacheDir, &pebble.Options{DisableWAL: true})
 	if err != nil {
 		return nil, err
 	}
@@ -31,25 +37,26 @@ func (c *_VFSCache) Close() error {
 }
 
 func (c *_VFSCache) put(prefix string, pathname string, data []byte) error {
-	return c.db.Put([]byte(fmt.Sprintf("%s:%s", prefix, pathname)), data, nil)
+	return c.db.Set([]byte(fmt.Sprintf("%s:%s", prefix, pathname)), data, &pebble.WriteOptions{Sync: false})
 }
 
-func (c *_VFSCache) get(prefix, pathname string) ([]byte, error) {
-	data, err := c.db.Get([]byte(fmt.Sprintf("%s:%s", prefix, pathname)), nil)
+func (c *_VFSCache) get(prefix, pathname string) (*ResourceCloser, error) {
+	data, del, err := c.db.Get([]byte(fmt.Sprintf("%s:%s", prefix, pathname)))
 	if err != nil {
-		if err == leveldb.ErrNotFound {
+		if err == pebble.ErrNotFound {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return data, nil
+
+	return &ResourceCloser{Buf: data, Closer: del}, nil
 }
 
 func (c *_VFSCache) PutDirectory(pathname string, data []byte) error {
 	return c.put("__directory__", pathname, data)
 }
 
-func (c *_VFSCache) GetDirectory(pathname string) ([]byte, error) {
+func (c *_VFSCache) GetDirectory(pathname string) (*ResourceCloser, error) {
 	return c.get("__directory__", pathname)
 }
 
@@ -57,7 +64,7 @@ func (c *_VFSCache) PutFilename(pathname string, data []byte) error {
 	return c.put("__filename__", pathname, data)
 }
 
-func (c *_VFSCache) GetFilename(pathname string) ([]byte, error) {
+func (c *_VFSCache) GetFilename(pathname string) (*ResourceCloser, error) {
 	return c.get("__filename__", pathname)
 }
 
@@ -65,7 +72,7 @@ func (c *_VFSCache) PutFileSummary(pathname string, data []byte) error {
 	return c.put("__file_summary__", pathname, data)
 }
 
-func (c *_VFSCache) GetFileSummary(pathname string) ([]byte, error) {
+func (c *_VFSCache) GetFileSummary(pathname string) (*ResourceCloser, error) {
 	return c.get("__file_summary__", pathname)
 }
 
@@ -73,6 +80,6 @@ func (c *_VFSCache) PutObject(mac [32]byte, data []byte) error {
 	return c.put("__object__", fmt.Sprintf("%x", mac), data)
 }
 
-func (c *_VFSCache) GetObject(mac [32]byte) ([]byte, error) {
+func (c *_VFSCache) GetObject(mac [32]byte) (*ResourceCloser, error) {
 	return c.get("__object__", fmt.Sprintf("%x", mac))
 }

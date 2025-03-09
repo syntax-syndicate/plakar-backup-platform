@@ -252,7 +252,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		Prefix: "__error__",
 		Cache:  snap.scanCache,
 	}
-	backupCtx.erridx, err = btree.New(&errstore, strings.Compare, 50)
+	backupCtx.erridx, err = btree.New(&errstore, strings.Compare, 10)
 	if err != nil {
 		return err
 	}
@@ -261,7 +261,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		Prefix: "__xattr__",
 		Cache:  snap.scanCache,
 	}
-	backupCtx.xattridx, err = btree.New(&xattrstore, vfs.PathCmp, 50)
+	backupCtx.xattridx, err = btree.New(&xattrstore, vfs.PathCmp, 10)
 	if err != nil {
 		return err
 	}
@@ -270,7 +270,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		Prefix: "__contenttype__",
 		Cache:  snap.scanCache,
 	}
-	ctidx, err := btree.New(&ctstore, strings.Compare, 50)
+	ctidx, err := btree.New(&ctstore, strings.Compare, 10)
 	if err != nil {
 		return err
 	}
@@ -312,23 +312,24 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 			var cachedFileEntryMAC objects.MAC
 
 			// Check if the file entry and underlying objects are already in the cache
-			if data, err := vfsCache.GetFilename(record.Pathname); err != nil {
+			if dataEntry, err := vfsCache.GetFilename(record.Pathname); err != nil {
 				snap.Logger().Warn("VFS CACHE: Error getting filename: %v", err)
-			} else if data != nil {
-				cachedFileEntry, err = vfs.EntryFromBytes(data)
+			} else if dataEntry != nil {
+				cachedFileEntry, err = vfs.EntryFromBytes(dataEntry.Buf)
 				if err != nil {
-					snap.Logger().Warn("VFS CACHE: Error unmarshaling filename: %v", err)
+					snap.Logger().Warn("VFS CACHE: Error unmarshaling filename: %v %d", err, len(dataEntry.Buf))
 				} else {
-					cachedFileEntryMAC = snap.repository.ComputeMAC(data)
+					cachedFileEntryMAC = snap.repository.ComputeMAC(dataEntry.Buf)
 					if cachedFileEntry.Stat().Equal(&record.FileInfo) {
 						fileEntry = cachedFileEntry
 						if fileEntry.FileInfo.Mode().IsRegular() {
-							data, err := vfsCache.GetObject(cachedFileEntry.Object)
+							bufObject, err := vfsCache.GetObject(cachedFileEntry.Object)
 							if err != nil {
 								snap.Logger().Warn("VFS CACHE: Error getting object: %v", err)
-							} else if data != nil {
-								objectMAC = snap.Repository().ComputeMAC(data)
-								cachedObject, err := objects.NewObjectFromBytes(data)
+							} else if bufObject != nil {
+								objectMAC = snap.Repository().ComputeMAC(bufObject.Buf)
+								cachedObject, err := objects.NewObjectFromBytes(bufObject.Buf)
+								bufObject.Closer.Close()
 								if err != nil {
 									snap.Logger().Warn("VFS CACHE: Error unmarshaling object: %v", err)
 								} else {
@@ -338,6 +339,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 						}
 					}
 				}
+				dataEntry.Closer.Close()
 			}
 
 			// Chunkify the file if it is a regular file and we don't have a cached object
@@ -491,7 +493,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		Prefix: "__path__",
 		Cache:  snap.scanCache,
 	}
-	fileidx, err := btree.New(&filestore, vfs.PathCmp, 50)
+	fileidx, err := btree.New(&filestore, vfs.PathCmp, 10)
 	if err != nil {
 		return err
 	}
@@ -539,7 +541,8 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				continue
 			}
 
-			fileSummary, err := vfs.FileSummaryFromBytes(data)
+			fileSummary, err := vfs.FileSummaryFromBytes(data.Buf)
+			data.Closer.Close()
 			if err != nil {
 				continue
 			}
