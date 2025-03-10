@@ -234,18 +234,6 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		snap.Header.Name = options.Name
 	}
 
-	/*
-		if !strings.Contains(scanDir, "://") {
-			scanDir, err = filepath.Abs(scanDir)
-			if err != nil {
-				snap.Logger().Warn("%s", err)
-				return err
-			}
-		} else {
-			scanDir = imp.Root()
-		}
-	*/
-
 	snap.Header.GetSource(0).Importer.Directory = imp.Root()
 
 	maxConcurrency := options.MaxConcurrency
@@ -672,35 +660,6 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		},
 	}
 
-	/*
-		for _, key := range snap.Metadata.ListKeys() {
-			objectType := strings.Split(key, ";")[0]
-			objectKind := strings.Split(key, "/")[0]
-			if objectType == "" {
-				objectType = "unknown"
-				objectKind = "unknown"
-			}
-			if _, exists := snap.Header.FileKind[objectKind]; !exists {
-				snap.Header.FileKind[objectKind] = 0
-			}
-			snap.Header.FileKind[objectKind] += uint64(len(snap.Metadata.ListValues(key)))
-
-			if _, exists := snap.Header.FileType[objectType]; !exists {
-				snap.Header.FileType[objectType] = 0
-			}
-			snap.Header.FileType[objectType] += uint64(len(snap.Metadata.ListValues(key)))
-		}
-
-		for key, value := range snap.Header.FileType {
-			snap.Header.FilePercentType[key] = math.Round((float64(value)/float64(snap.Header.FilesCount)*100)*100) / 100
-		}
-		for key, value := range snap.Header.FileKind {
-			snap.Header.FilePercentKind[key] = math.Round((float64(value)/float64(snap.Header.FilesCount)*100)*100) / 100
-		}
-		for key, value := range snap.Header.FileExtension {
-			snap.Header.FilePercentExtension[key] = math.Round((float64(value)/float64(snap.Header.FilesCount)*100)*100) / 100
-		}
-	*/
 	return snap.Commit()
 }
 
