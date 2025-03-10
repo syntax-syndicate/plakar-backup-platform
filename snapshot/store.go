@@ -44,18 +44,13 @@ func (s *SnapshotStore[K, V]) Put(node *btree.Node[K, objects.MAC, V]) (objects.
 		return objects.MAC{}, err
 	}
 
-	sum := s.snap.repository.ComputeMAC(bytes)
-	if !s.snap.BlobExists(s.blobtype, sum) {
-		if err = s.snap.PutBlob(s.blobtype, sum, bytes); err != nil {
-			return objects.MAC{}, err
-		}
-	}
-	return sum, nil
+	mac := s.snap.repository.ComputeMAC(bytes)
+	return mac, s.snap.PutBlobIfNotExists(s.blobtype, mac, bytes)
 }
 
 // persistIndex saves a btree[K, P, V] index to the snapshot.  The
 // pointer type P is converted to a MAC.
-func persistIndex[K, P, VA, VB any](snap *Snapshot, tree *btree.BTree[K, P, VA], rootres, noderes resources.Type, conv func(VA) (VB, error)) (csum objects.MAC, err error) {
+func persistIndex[K, P, VA, VB any](snap *Snapshot, tree *btree.BTree[K, P, VA], rootres, noderes resources.Type, conv func(VA) (VB, error)) (mac objects.MAC, err error) {
 	root, err := btree.Persist(tree, &SnapshotStore[K, VB]{
 		readonly: false,
 		blobtype: noderes,
@@ -73,9 +68,6 @@ func persistIndex[K, P, VA, VB any](snap *Snapshot, tree *btree.BTree[K, P, VA],
 		return
 	}
 
-	csum = snap.repository.ComputeMAC(bytes)
-	if !snap.BlobExists(rootres, csum) {
-		err = snap.PutBlob(rootres, csum, bytes)
-	}
-	return
+	mac = snap.repository.ComputeMAC(bytes)
+	return mac, snap.PutBlobIfNotExists(rootres, mac, bytes)
 }
