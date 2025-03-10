@@ -498,7 +498,8 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		return err
 	}
 
-	var rootSummary *vfs.Summary
+	var rootSummary vfs.Summary
+	rootSet := false
 
 	diriter := backupCtx.scanCache.EnumerateKeysWithPrefix("__directory__:", true)
 	for dirPath, bytes := range diriter {
@@ -614,10 +615,11 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 
 		snap.Event(events.DirectoryOKEvent(snap.Header.Identifier, dirPath))
 		if dirPath == "/" {
-			if rootSummary != nil {
+			if rootSet {
 				panic("double /!")
 			}
-			rootSummary = dirEntry.Summary
+			rootSummary = *dirEntry.Summary
+			rootSet = true
 		}
 
 		serialized, err := dirEntry.ToBytes()
@@ -663,7 +665,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		Errors: errcsum,
 	}
 	snap.Header.Duration = time.Since(beginTime)
-	snap.Header.GetSource(0).Summary = *rootSummary
+	snap.Header.GetSource(0).Summary = rootSummary
 	snap.Header.GetSource(0).Indexes = []header.Index{
 		{
 			Name:  "content-type",

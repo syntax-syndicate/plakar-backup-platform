@@ -2,20 +2,25 @@ package caching
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
-	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/linxGnu/grocksdb"
 )
 
 type _VFSCache struct {
 	manager *Manager
-	db      *leveldb.DB
+	db      *grocksdb.DB
 }
 
 func newVFSCache(cacheManager *Manager, scheme string, origin string) (*_VFSCache, error) {
 	cacheDir := filepath.Join(cacheManager.cacheDir, "vfs", scheme, origin)
 
-	db, err := leveldb.OpenFile(cacheDir, nil)
+	err := os.MkdirAll(cacheDir, os.ModePerm)
+
+	opts := grocksdb.NewDefaultOptions()
+	opts.SetCreateIfMissing(true)
+	db, err := grocksdb.OpenDb(opts, cacheDir)
 	if err != nil {
 		return nil, err
 	}
@@ -26,22 +31,20 @@ func newVFSCache(cacheManager *Manager, scheme string, origin string) (*_VFSCach
 	}, nil
 }
 
-func (c *_VFSCache) Close() error {
-	return c.db.Close()
+func (c *_VFSCache) Close() {
+	c.db.Close()
 }
 
 func (c *_VFSCache) put(prefix string, pathname string, data []byte) error {
-	return c.db.Put([]byte(fmt.Sprintf("%s:%s", prefix, pathname)), data, nil)
+	return c.db.Put(grocksdb.NewDefaultWriteOptions(), []byte(fmt.Sprintf("%s:%s", prefix, pathname)), data)
 }
 
 func (c *_VFSCache) get(prefix, pathname string) ([]byte, error) {
-	data, err := c.db.Get([]byte(fmt.Sprintf("%s:%s", prefix, pathname)), nil)
+	data, err := c.db.GetBytes(grocksdb.NewDefaultReadOptions(), []byte(fmt.Sprintf("%s:%s", prefix, pathname)))
 	if err != nil {
-		if err == leveldb.ErrNotFound {
-			return nil, nil
-		}
 		return nil, err
 	}
+
 	return data, nil
 }
 

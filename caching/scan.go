@@ -11,20 +11,35 @@ import (
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/resources"
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/util"
+	"github.com/linxGnu/grocksdb"
 )
 
 type ScanCache struct {
 	snapshotID [32]byte
 	manager    *Manager
-	db         *leveldb.DB
+	db         *grocksdb.DB
+}
+
+func makeKeyUpperBound(b []byte) []byte {
+	end := make([]byte, len(b))
+	copy(end, b)
+	for i := len(end) - 1; i >= 0; i-- {
+		end[i] = end[i] + 1
+		if end[i] != 0 {
+			return end[:i+1]
+		}
+	}
+	return nil // no upper-bound
 }
 
 func newScanCache(cacheManager *Manager, snapshotID [32]byte) (*ScanCache, error) {
 	cacheDir := filepath.Join(cacheManager.cacheDir, "scan", fmt.Sprintf("%x", snapshotID))
 
-	db, err := leveldb.OpenFile(cacheDir, nil)
+	err := os.MkdirAll(cacheDir, os.ModePerm)
+
+	opts := grocksdb.NewDefaultOptions()
+	opts.SetCreateIfMissing(true)
+	db, err := grocksdb.OpenDb(opts, cacheDir)
 	if err != nil {
 		return nil, err
 	}
@@ -42,47 +57,51 @@ func (c *ScanCache) Close() error {
 }
 
 func (c *ScanCache) put(prefix string, key string, data []byte) error {
-	return c.db.Put([]byte(fmt.Sprintf("%s:%s", prefix, key)), data, nil)
+	return c.db.Put(grocksdb.NewDefaultWriteOptions(), []byte(fmt.Sprintf("%s:%s", prefix, key)), data)
 }
 
 func (c *ScanCache) get(prefix, key string) ([]byte, error) {
-	data, err := c.db.Get([]byte(fmt.Sprintf("%s:%s", prefix, key)), nil)
+	data, err := c.db.GetBytes(grocksdb.NewDefaultReadOptions(), []byte(fmt.Sprintf("%s:%s", prefix, key)))
 	if err != nil {
-		if err == leveldb.ErrNotFound {
-			return nil, nil
-		}
 		return nil, err
 	}
 	return data, nil
 }
 
 func (c *ScanCache) has(prefix, key string) (bool, error) {
-	return c.db.Has([]byte(fmt.Sprintf("%s:%s", prefix, key)), nil)
+	data, err := c.db.Get(grocksdb.NewDefaultReadOptions(), []byte(fmt.Sprintf("%s:%s", prefix, key)))
+	defer data.Free()
+	if err != nil {
+		return false, err
+	}
+
+	return data.Exists(), nil
 }
 
 func (c *ScanCache) delete(prefix, key string) error {
-	return c.db.Delete([]byte(fmt.Sprintf("%s:%s", prefix, key)), nil)
+	return c.db.Delete(grocksdb.NewDefaultWriteOptions(), []byte(fmt.Sprintf("%s:%s", prefix, key)))
 }
 
 func (c *ScanCache) getObjects(keyPrefix string) iter.Seq2[objects.MAC, []byte] {
 	return func(yield func(objects.MAC, []byte) bool) {
-		iter := c.db.NewIterator(nil, nil)
-		defer iter.Release()
+		opts := grocksdb.NewDefaultReadOptions()
+		opts.SetIterateUpperBound(makeKeyUpperBound([]byte(keyPrefix)))
+		iter := c.db.NewIterator(opts)
+		defer iter.Close()
 
 		for iter.Seek([]byte(keyPrefix)); iter.Valid(); iter.Next() {
-			if !strings.HasPrefix(string(iter.Key()), keyPrefix) {
-				break
-			}
-
 			/* Extract the csum part of the key, this avoids decoding the full
 			 * entry later on if that's the only thing we need */
-			key := iter.Key()
+			key := iter.Key().Data()
 			hex_csum := string(key[bytes.LastIndexByte(key, byte(':'))+1:])
 			csum, _ := hex.DecodeString(hex_csum)
 
-			if !yield(objects.MAC(csum), iter.Value()) {
+			if !yield(objects.MAC(csum), iter.Value().Data()) {
 				return
 			}
+
+			iter.Key().Free()
+			iter.Value().Free()
 		}
 	}
 }
@@ -163,24 +182,24 @@ func (c *ScanCache) PutDelta(blobType resources.Type, blobCsum, packfile objects
 
 func (c *ScanCache) GetDeltasByType(blobType resources.Type) iter.Seq2[objects.MAC, []byte] {
 	return func(yield func(objects.MAC, []byte) bool) {
-		iter := c.db.NewIterator(nil, nil)
-		defer iter.Release()
-
 		keyPrefix := fmt.Sprintf("__delta__:%d", blobType)
-		for iter.Seek([]byte(keyPrefix)); iter.Valid(); iter.Next() {
-			if !strings.HasPrefix(string(iter.Key()), keyPrefix) {
-				break
-			}
+		opts := grocksdb.NewDefaultReadOptions()
+		opts.SetIterateUpperBound(makeKeyUpperBound([]byte(keyPrefix)))
+		iter := c.db.NewIterator(opts)
+		defer iter.Close()
 
+		for iter.Seek([]byte(keyPrefix)); iter.Valid(); iter.Next() {
 			/* Extract the csum part of the key, this avoids decoding the full
 			 * entry later on if that's the only thing we need */
-			key := iter.Key()
+			key := iter.Key().Data()
 			hex_csum := string(key[bytes.LastIndexByte(key, byte(':'))+1:])
 			csum, _ := hex.DecodeString(hex_csum)
 
-			if !yield(objects.MAC(csum), iter.Value()) {
+			if !yield(objects.MAC(csum), iter.Value().Data()) {
 				return
 			}
+			iter.Key().Free()
+			iter.Value().Free()
 		}
 	}
 }
@@ -239,19 +258,18 @@ func (c *ScanCache) GetConfiguration(key string) ([]byte, error) {
 
 func (c *ScanCache) GetConfigurations() iter.Seq[[]byte] {
 	return func(yield func([]byte) bool) {
-		iter := c.db.NewIterator(nil, nil)
-		defer iter.Release()
-
 		keyPrefix := "__configuration__:"
+		opts := grocksdb.NewDefaultReadOptions()
+		opts.SetIterateUpperBound(makeKeyUpperBound([]byte(keyPrefix)))
+		iter := c.db.NewIterator(opts)
+		defer iter.Close()
 
 		for iter.Seek([]byte(keyPrefix)); iter.Valid(); iter.Next() {
-			if !strings.HasPrefix(string(iter.Key()), keyPrefix) {
-				break
-			}
-
-			if !yield(iter.Value()) {
+			if !yield(iter.Value().Data()) {
 				return
 			}
+			iter.Key().Free()
+			iter.Value().Free()
 		}
 	}
 }
@@ -261,17 +279,26 @@ func (c *ScanCache) EnumerateKeysWithPrefix(prefix string, reverse bool) iter.Se
 
 	return func(yield func(string, []byte) bool) {
 		// Use LevelDB's iterator
-		iter := c.db.NewIterator(util.BytesPrefix([]byte(prefix)), nil)
-		defer iter.Release()
+		keyPrefix := prefix
+		opts := grocksdb.NewDefaultReadOptions()
 
 		if reverse {
-			iter.Last()
+			opts.SetIterateLowerBound([]byte(keyPrefix))
 		} else {
-			iter.First()
+			opts.SetIterateUpperBound(makeKeyUpperBound([]byte(keyPrefix)))
+		}
+
+		iter := c.db.NewIterator(opts)
+		defer iter.Close()
+
+		if reverse {
+			iter.SeekForPrev(makeKeyUpperBound([]byte(keyPrefix)))
+		} else {
+			iter.Seek([]byte(keyPrefix))
 		}
 
 		for iter.Valid() {
-			key := iter.Key()
+			key := iter.Key().Data()
 
 			// Check if the key starts with the given prefix
 			if !strings.HasPrefix(string(key), prefix) {
@@ -283,9 +310,12 @@ func (c *ScanCache) EnumerateKeysWithPrefix(prefix string, reverse bool) iter.Se
 				continue
 			}
 
-			if !yield(string(key)[l:], iter.Value()) {
+			if !yield(string(key)[l:], iter.Value().Data()) {
 				return
 			}
+
+			iter.Key().Free()
+			iter.Value().Free()
 
 			if reverse {
 				iter.Prev()
