@@ -383,10 +383,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				return
 			}
 
-			var fileEntryMAC objects.MAC
-			if fileEntry != nil && snap.BlobExists(resources.RT_VFS_ENTRY, cachedFileEntryMAC) {
-				fileEntryMAC = cachedFileEntryMAC
-			} else {
+			if fileEntry == nil || !snap.BlobExists(resources.RT_VFS_ENTRY, cachedFileEntryMAC) {
 				fileEntry = vfs.NewEntry(path.Dir(record.Pathname), record)
 				if object != nil {
 					fileEntry.Object = objectMAC
@@ -403,7 +400,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 					return
 				}
 
-				fileEntryMAC = snap.repository.ComputeMAC(serialized)
+				fileEntryMAC := snap.repository.ComputeMAC(serialized)
 				err = snap.PutBlob(resources.RT_VFS_ENTRY, fileEntryMAC, serialized)
 				if err != nil {
 					backupCtx.recordError(record.Pathname, err)
