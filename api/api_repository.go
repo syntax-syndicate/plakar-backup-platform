@@ -160,3 +160,104 @@ func repositoryImporterTypes(w http.ResponseWriter, r *http.Request) error {
 
 	return json.NewEncoder(w).Encode(items)
 }
+
+func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
+	offset, _, err := QueryParamToUint32(r, "offset")
+	if err != nil {
+		return err
+	}
+	limit, _, err := QueryParamToUint32(r, "limit")
+	if err != nil {
+		return err
+	}
+
+	importerType, _, err := QueryParamToString(r, "importerType")
+	if err != nil {
+		return err
+	}
+
+	importerOrigin, _, err := QueryParamToString(r, "importerOrigin")
+	if err != nil {
+		return err
+	}
+
+	resource, _, err := QueryParamToString(r, "resource")
+	if err != nil {
+		return err
+	}
+
+	sortKeys, err := QueryParamToSortKeys(r, "sort", "Timestamp")
+	if err != nil {
+		return err
+	}
+
+	lrepository.RebuildState()
+
+	snapshotIDs, err := lrepository.GetSnapshots()
+	if err != nil {
+		return err
+	}
+
+	totalSnapshots := int(0)
+	headers := make([]header.Header, 0, len(snapshotIDs))
+	for _, snapshotID := range snapshotIDs {
+		snap, err := snapshot.Load(lrepository, snapshotID)
+		if err != nil {
+			return err
+		}
+
+		if importerType != "" && strings.ToLower(snap.Header.GetSource(0).Importer.Type) != strings.ToLower(importerType) {
+			snap.Close()
+			continue
+		}
+
+		if importerOrigin != "" && strings.ToLower(snap.Header.GetSource(0).Importer.Origin) != strings.ToLower(importerOrigin) {
+			snap.Close()
+			continue
+		}
+
+		if !strings.HasPrefix(resource, snap.Header.GetSource(0).Importer.Directory+"/") {
+			snap.Close()
+			continue
+		}
+
+		pvfs, err := snap.Filesystem()
+		if err != nil {
+			snap.Close()
+			continue
+		}
+
+		_, err = pvfs.GetEntry(resource)
+		if err != nil {
+			snap.Close()
+			continue
+		}
+
+		headers = append(headers, *snap.Header)
+		totalSnapshots++
+		snap.Close()
+	}
+
+	if limit == 0 {
+		limit = uint32(len(headers))
+	}
+
+	header.SortHeaders(headers, sortKeys)
+	if offset > uint32(len(headers)) {
+		headers = []header.Header{}
+	} else if offset+limit > uint32(len(headers)) {
+		headers = headers[offset:]
+	} else {
+		headers = headers[offset : offset+limit]
+	}
+
+	items := Items[header.Header]{
+		Total: totalSnapshots,
+		Items: make([]header.Header, len(headers)),
+	}
+	for i, header := range headers {
+		items.Items[i] = header
+	}
+
+	return json.NewEncoder(w).Encode(items)
+}
