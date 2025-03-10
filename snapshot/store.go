@@ -71,3 +71,11 @@ func persistIndex[K, P, VA, VB any](snap *Snapshot, tree *btree.BTree[K, P, VA],
 	mac = snap.repository.ComputeMAC(bytes)
 	return mac, snap.PutBlobIfNotExists(rootres, mac, bytes)
 }
+
+func persistMACIndex[K, P any](snap *Snapshot, tree *btree.BTree[K, P, []byte], rootres, noderes, entryres resources.Type) (objects.MAC, error) {
+	return persistIndex(snap, tree, rootres, noderes,
+		func(data []byte) (objects.MAC, error) {
+			mac := snap.repository.ComputeMAC(data)
+			return mac, snap.PutBlobIfNotExists(entryres, mac, data)
+		})
+}
