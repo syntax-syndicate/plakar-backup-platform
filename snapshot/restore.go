@@ -25,10 +25,8 @@ type restoreContext struct {
 
 func snapshotRestorePath(snap *Snapshot, exp exporter.Exporter, target string, opts *RestoreOptions, restoreContext *restoreContext, wg *sync.WaitGroup) func(entrypath string, e *vfs.Entry, err error) error {
 	return func(entrypath string, e *vfs.Entry, err error) error {
-		restoreContext.maxConcurrency <- true
 		wg.Add(1)
 		go func(entrypath string, e *vfs.Entry, err error) {
-			defer func() { <-restoreContext.maxConcurrency }()
 			defer wg.Done()
 			if err != nil {
 				snap.Event(events.PathErrorEvent(snap.Header.Identifier, entrypath, err.Error()))
