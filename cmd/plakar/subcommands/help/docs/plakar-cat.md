@@ -9,14 +9,14 @@ PLAKAR-CAT(1) - General Commands Manual
 **plakar cat**
 \[**-no-decompress**]
 \[**-highlight**]
-*snapshotID*:*filepath&nbsp;...*
+*snapshotID*:*path&nbsp;...*
 
 # DESCRIPTION
 
 The
 **plakar cat**
 command outputs the contents of
-*filepath*
+*path*
 within Plakar snapshots to the
 standard output.
 It can decompress compressed files and optionally apply syntax

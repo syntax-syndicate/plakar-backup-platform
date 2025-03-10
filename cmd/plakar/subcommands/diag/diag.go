@@ -43,6 +43,7 @@ func parse_cmd_diag(ctx *appcontext.AppContext, repo *repository.Repository, arg
 		fmt.Fprintf(flags.Output(), "       %s snapshot SNAPSHOT\n", flags.Name())
 		fmt.Fprintf(flags.Output(), "       %s errors SNAPSHOT\n", flags.Name())
 		fmt.Fprintf(flags.Output(), "       %s state [STATE]...\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s search snapshot[:path] mime\n", flags.Name())
 		fmt.Fprintf(flags.Output(), "       %s packfile [PACKFILE]...\n", flags.Name())
 		fmt.Fprintf(flags.Output(), "       %s object [OBJECT]\n", flags.Name())
 		fmt.Fprintf(flags.Output(), "       %s vfs SNAPSHOT[:PATH]\n", flags.Name())
@@ -122,6 +123,23 @@ func parse_cmd_diag(ctx *appcontext.AppContext, repo *repository.Repository, arg
 			RepositoryLocation: repo.Location(),
 			RepositorySecret:   ctx.GetSecret(),
 		}, nil
+	case "search":
+		var path, mime string
+		switch flags.NArg() {
+		case 2:
+			path = flag.Arg(2)
+		case 3:
+			path, mime = flag.Arg(2), flag.Arg(3)
+		default:
+			return nil, fmt.Errorf("usage: %s search snapshot[:path] mime",
+				flags.Name())
+		}
+		return &DiagSearch{
+			RepositoryLocation: repo.Location(),
+			RepositorySecret:   ctx.GetSecret(),
+			SnapshotPath:       path,
+			Mime:               mime,
+		}, nil
 	}
-	return nil, fmt.Errorf("Invalid parameter. usage: diag [contenttype|snapshot|object|state|packfile|vfs|xattr|errors]")
+	return nil, fmt.Errorf("Invalid parameter. usage: diag [contenttype|snapshot|object|state|packfile|vfs|xattr|errors|search]")
 }

@@ -8,20 +8,21 @@ PLAKAR-DIGEST(1) - General Commands Manual
 
 **plakar digest**
 \[**-hashing**&nbsp;*algorithm*]
-*snapshotID*:*filepath*&nbsp;\[...]
+*snapshotID*\[:*path*]
+\[...]
 
 # DESCRIPTION
 
 The
 **plakar digest**
 command computes and displays digests for specified
-*filepath*
+*path*
 in a the given
 *snapshotID*.
 Multiple
 *snapshotID*
 and
-*filepath*
+*path*
 may be given.
 By default, the command computes the digest by reading the file
 contents.
