@@ -541,7 +541,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		}
 
 		subDirIter := backupCtx.scanCache.EnumerateKeysWithPrefix("__directory__:"+prefix, false)
-		for relpath, _ := range subDirIter {
+		for relpath := range subDirIter {
 			if relpath == "" || strings.Contains(relpath, "/") {
 				continue
 			}
@@ -569,7 +569,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 			if !strings.HasPrefix(path, prefix) {
 				break
 			}
-			if strings.Index(path[len(prefix):], "/") != -1 {
+			if strings.Contains(path[len(prefix):], "/") {
 				break
 			}
 			dirEntry.Summary.Below.Errors++
@@ -836,7 +836,7 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 	repo.Logger().Trace("snapshot", "%x: PutPackfile(%x, ...)", snap.Header.GetIndexShortID(), mac)
 	err = snap.repository.PutPackfile(mac, bytes.NewBuffer(serializedPackfile))
 	if err != nil {
-		return fmt.Errorf("Could not write pack file %s", err.Error())
+		return fmt.Errorf("could not write pack file %s", err.Error())
 	}
 
 	for _, Type := range packer.Types() {
