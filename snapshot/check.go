@@ -16,10 +16,8 @@ type CheckOptions struct {
 
 func snapshotCheckPath(snap *Snapshot, opts *CheckOptions, concurrency chan bool, wg *sync.WaitGroup) func(entrypath string, e *vfs.Entry, err error) error {
 	return func(entrypath string, e *vfs.Entry, err error) error {
-		concurrency <- true
 		wg.Add(1)
 		go func(entrypath string, e *vfs.Entry, err error) {
-			defer func() { <-concurrency }()
 			defer wg.Done()
 
 			if err != nil {
