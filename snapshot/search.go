@@ -155,6 +155,10 @@ func (snap *Snapshot) Search(opts *SearchOpts) (iter.Seq2[*vfs.Entry, error], er
 
 			// eventually other filters on entry, e.g. size or pattern
 
+			if opts.Recursive && entry.IsDir() {
+				continue
+			}
+
 			if n++; opts.Offset != 0 && n <= opts.Offset {
 				continue
 			}
