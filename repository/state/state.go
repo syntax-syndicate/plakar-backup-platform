@@ -71,7 +71,7 @@ type DeltaEntry struct {
 	Flags    uint32
 }
 
-const DeltaEntrySerializedSize = 1 + 4 + 32 + LocationSerializedSize + 4
+const DeltaEntrySerializedSize = 4 + 4 + 32 + LocationSerializedSize + 4
 
 type DeletedEntry struct {
 	Type resources.Type
@@ -79,7 +79,7 @@ type DeletedEntry struct {
 	When time.Time
 }
 
-const DeletedEntrySerializedSize = 1 + 32 + 8
+const DeletedEntrySerializedSize = 4 + 32 + 8
 
 type PackfileEntry struct {
 	Packfile  objects.MAC

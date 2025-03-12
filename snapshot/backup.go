@@ -887,6 +887,9 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 		for blobMAC := range packer.Blobs[Type] {
 			for idx, blob := range packer.Packfile.Index {
 				if blob.MAC == blobMAC && blob.Type == Type {
+					if blob.Type == resources.RT_CONFIG {
+						panic("FOOO")
+					}
 					delta := state.DeltaEntry{
 						Type:    blob.Type,
 						Version: packer.Packfile.Index[idx].Version,
@@ -937,6 +940,10 @@ func (snap *Snapshot) Commit() error {
 
 	close(snap.packerChan)
 	<-snap.packerChanDone
+
+	for mac := range snap.deltaState.ListObjectsOfType(resources.RT_CONFIG) {
+		fmt.Fprintf(snap.AppContext().Stderr, "######################### %x\n", mac.Blob)
+	}
 
 	stateDelta := snap.buildSerializedDeltaState()
 	err = repo.PutState(snap.Header.Identifier, stateDelta)
