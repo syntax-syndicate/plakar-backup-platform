@@ -146,7 +146,7 @@ func (c *_RepositoryCache) GetDeltasByType(blobType resources.Type) iter.Seq2[ob
 		iter := c.db.NewIterator(nil, nil)
 		defer iter.Release()
 
-		keyPrefix := fmt.Sprintf("__delta__:%d", blobType)
+		keyPrefix := fmt.Sprintf("__delta__:%d:", blobType)
 		for iter.Seek([]byte(keyPrefix)); iter.Valid(); iter.Next() {
 			if !strings.HasPrefix(string(iter.Key()), keyPrefix) {
 				break
@@ -186,7 +186,7 @@ func (c *_RepositoryCache) GetDeleteds() iter.Seq2[objects.MAC, []byte] {
 }
 
 func (c *_RepositoryCache) GetDeletedsByType(blobType resources.Type) iter.Seq2[objects.MAC, []byte] {
-	return c.getObjects(fmt.Sprintf("__deleted__:%d", blobType))
+	return c.getObjects(fmt.Sprintf("__deleted__:%d:", blobType))
 }
 
 func (c *_RepositoryCache) DelDeleted(blobType resources.Type, blobCsum objects.MAC) error {
