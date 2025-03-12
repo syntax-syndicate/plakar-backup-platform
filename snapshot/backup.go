@@ -572,6 +572,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				continue
 			}
 			dirEntry.Summary.Directory.Children++
+			dirEntry.Summary.Directory.Directories++
 			dirEntry.Summary.UpdateBelow(childSummary)
 		}
 
