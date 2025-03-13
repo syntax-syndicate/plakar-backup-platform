@@ -216,7 +216,11 @@ func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 			continue
 		}
 
-		if !strings.HasPrefix(resource, snap.Header.GetSource(0).Importer.Directory+"/") {
+		path := snap.Header.GetSource(0).Importer.Directory
+		if path != "/" {
+			path = path + "/"
+		}
+		if !strings.HasPrefix(resource, path) {
 			snap.Close()
 			continue
 		}
