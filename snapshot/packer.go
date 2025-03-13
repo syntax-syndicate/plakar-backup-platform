@@ -63,9 +63,6 @@ func (mgr *PackerManager) Run() {
 		workerGroup.Go(func() error {
 			var packer *Packer
 
-			ticker := time.NewTicker(2 * time.Second)
-			defer ticker.Stop()
-
 			for {
 				select {
 				case <-workerCtx.Done():
@@ -98,12 +95,6 @@ func (mgr *PackerManager) Run() {
 					}
 
 					if packer.Size() > uint32(mgr.snapshot.repository.Configuration().Packfile.MaxSize) {
-						packerResultChan <- packer
-						packer = nil
-					}
-				case <-ticker.C:
-					// Periodic flush to avoid holding onto small amounts of data too long.
-					if packer != nil && packer.Size() >= uint32(mgr.snapshot.Repository().Configuration().Packfile.MinSize) {
 						packerResultChan <- packer
 						packer = nil
 					}
