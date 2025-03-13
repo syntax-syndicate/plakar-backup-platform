@@ -891,9 +891,7 @@ func (snap *Snapshot) Commit() error {
 	if err := snap.PutBlob(resources.RT_SNAPSHOT, snap.Header.Identifier, serializedHdr); err != nil {
 		return err
 	}
-
-	close(snap.packerChan)
-	<-snap.packerChanDone
+	snap.packerManager.Wait()
 
 	stateDelta := snap.buildSerializedDeltaState()
 	err = repo.PutState(snap.Header.Identifier, stateDelta)
