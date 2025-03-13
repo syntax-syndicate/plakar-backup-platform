@@ -234,18 +234,6 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		snap.Header.Name = options.Name
 	}
 
-	/*
-		if !strings.Contains(scanDir, "://") {
-			scanDir, err = filepath.Abs(scanDir)
-			if err != nil {
-				snap.Logger().Warn("%s", err)
-				return err
-			}
-		} else {
-			scanDir = imp.Root()
-		}
-	*/
-
 	snap.Header.GetSource(0).Importer.Directory = imp.Root()
 
 	maxConcurrency := options.MaxConcurrency
@@ -395,10 +383,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				return
 			}
 
-			var fileEntryMAC objects.MAC
-			if fileEntry != nil && snap.BlobExists(resources.RT_VFS_ENTRY, cachedFileEntryMAC) {
-				fileEntryMAC = cachedFileEntryMAC
-			} else {
+			if fileEntry == nil || !snap.BlobExists(resources.RT_VFS_ENTRY, cachedFileEntryMAC) {
 				fileEntry = vfs.NewEntry(path.Dir(record.Pathname), record)
 				if object != nil {
 					fileEntry.Object = objectMAC
@@ -415,7 +400,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 					return
 				}
 
-				fileEntryMAC = snap.repository.ComputeMAC(serialized)
+				fileEntryMAC := snap.repository.ComputeMAC(serialized)
 				err = snap.PutBlob(resources.RT_VFS_ENTRY, fileEntryMAC, serialized)
 				if err != nil {
 					backupCtx.recordError(record.Pathname, err)
@@ -556,7 +541,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		}
 
 		subDirIter := backupCtx.scanCache.EnumerateKeysWithPrefix("__directory__:"+prefix, false)
-		for relpath, _ := range subDirIter {
+		for relpath := range subDirIter {
 			if relpath == "" || strings.Contains(relpath, "/") {
 				continue
 			}
@@ -572,6 +557,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				continue
 			}
 			dirEntry.Summary.Directory.Children++
+			dirEntry.Summary.Directory.Directories++
 			dirEntry.Summary.UpdateBelow(childSummary)
 		}
 
@@ -584,7 +570,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 			if !strings.HasPrefix(path, prefix) {
 				break
 			}
-			if strings.Index(path[len(prefix):], "/") != -1 {
+			if strings.Contains(path[len(prefix):], "/") {
 				break
 			}
 			dirEntry.Summary.Below.Errors++
@@ -672,35 +658,6 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		},
 	}
 
-	/*
-		for _, key := range snap.Metadata.ListKeys() {
-			objectType := strings.Split(key, ";")[0]
-			objectKind := strings.Split(key, "/")[0]
-			if objectType == "" {
-				objectType = "unknown"
-				objectKind = "unknown"
-			}
-			if _, exists := snap.Header.FileKind[objectKind]; !exists {
-				snap.Header.FileKind[objectKind] = 0
-			}
-			snap.Header.FileKind[objectKind] += uint64(len(snap.Metadata.ListValues(key)))
-
-			if _, exists := snap.Header.FileType[objectType]; !exists {
-				snap.Header.FileType[objectType] = 0
-			}
-			snap.Header.FileType[objectType] += uint64(len(snap.Metadata.ListValues(key)))
-		}
-
-		for key, value := range snap.Header.FileType {
-			snap.Header.FilePercentType[key] = math.Round((float64(value)/float64(snap.Header.FilesCount)*100)*100) / 100
-		}
-		for key, value := range snap.Header.FileKind {
-			snap.Header.FilePercentKind[key] = math.Round((float64(value)/float64(snap.Header.FilesCount)*100)*100) / 100
-		}
-		for key, value := range snap.Header.FileExtension {
-			snap.Header.FilePercentExtension[key] = math.Round((float64(value)/float64(snap.Header.FilesCount)*100)*100) / 100
-		}
-	*/
 	return snap.Commit()
 }
 
@@ -880,7 +837,7 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 	repo.Logger().Trace("snapshot", "%x: PutPackfile(%x, ...)", snap.Header.GetIndexShortID(), mac)
 	err = snap.repository.PutPackfile(mac, bytes.NewBuffer(serializedPackfile))
 	if err != nil {
-		return fmt.Errorf("Could not write pack file %s", err.Error())
+		return fmt.Errorf("could not write pack file %s", err.Error())
 	}
 
 	for _, Type := range packer.Types() {
