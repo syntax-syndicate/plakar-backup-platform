@@ -611,6 +611,11 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 			return err
 		}
 
+		mac := snap.repository.ComputeMAC(serialized)
+		if err := snap.PutBlobIfNotExists(resources.RT_VFS_ENTRY, mac, serialized); err != nil {
+			return err
+		}
+
 		if err := fileidx.Insert(dirPath, serialized); err != nil && err != btree.ErrExists {
 			return err
 		}
@@ -620,8 +625,10 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		}
 	}
 
-	rootcsum, err := persistMACIndex(snap, fileidx, resources.RT_VFS_BTREE,
-		resources.RT_VFS_NODE, resources.RT_VFS_ENTRY)
+	rootcsum, err := persistIndex(snap, fileidx, resources.RT_VFS_BTREE,
+		resources.RT_VFS_NODE, func(data []byte) (objects.MAC, error) {
+			return snap.repository.ComputeMAC(data), nil
+		})
 	if err != nil {
 		return err
 	}
