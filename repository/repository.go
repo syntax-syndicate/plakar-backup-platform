@@ -762,6 +762,7 @@ func (r *Repository) PutCurrentState() error {
 
 	newSerial := uuid.New()
 	r.state.Metadata.Serial = newSerial
+	r.state.Metadata.Timestamp = time.Now()
 	id := r.ComputeMAC(newSerial[:])
 
 	return r.PutState(id, pr)

@@ -23,104 +23,95 @@ type restoreContext struct {
 	maxConcurrency chan bool
 }
 
-func snapshotRestorePath(snap *Snapshot, fsc *vfs.Filesystem, exp exporter.Exporter, target string, base string, pathname string, opts *RestoreOptions, restoreContext *restoreContext, wg *sync.WaitGroup) error {
-	snap.Event(events.PathEvent(snap.Header.Identifier, pathname))
-	entry, err := fsc.GetEntry(pathname)
-	if err != nil {
-		snap.Event(events.DirectoryMissingEvent(snap.Header.Identifier, pathname))
-		return err
-	}
-
-	dest := path.Join(target, strings.TrimPrefix(pathname, opts.Strip))
-	if entry.IsDir() {
-		snap.Event(events.DirectoryEvent(snap.Header.Identifier, pathname))
-
-		if pathname != "/" {
-			if err := exp.CreateDirectory(dest); err != nil {
-				snap.Event(events.DirectoryErrorEvent(snap.Header.Identifier, pathname, err.Error()))
-				return err
-			}
-		}
-		complete := true
-
-		subwg := sync.WaitGroup{}
-
-		iter, err := entry.Getdents(fsc)
+func snapshotRestorePath(snap *Snapshot, exp exporter.Exporter, target string, opts *RestoreOptions, restoreContext *restoreContext, wg *sync.WaitGroup) func(entrypath string, e *vfs.Entry, err error) error {
+	return func(entrypath string, e *vfs.Entry, err error) error {
 		if err != nil {
+			snap.Event(events.PathErrorEvent(snap.Header.Identifier, entrypath, err.Error()))
 			return err
 		}
 
-		for child := range iter {
-			err = snapshotRestorePath(snap, fsc, exp, target, base, path.Join(pathname, child.Stat().Name()), opts, restoreContext, &subwg)
-			if err != nil {
-				complete = false
-			}
-		}
-		subwg.Wait()
+		snap.Event(events.PathEvent(snap.Header.Identifier, entrypath))
 
-		if !complete {
-			snap.Event(events.DirectoryCorruptedEvent(snap.Header.Identifier, pathname))
-			return err
-		} else {
-			if pathname != "/" {
-				if err := exp.SetPermissions(dest, entry.Stat()); err != nil {
-					snap.Event(events.DirectoryErrorEvent(snap.Header.Identifier, pathname, err.Error()))
+		// Determine destination path by stripping the prefix.
+		dest := path.Join(target, strings.TrimPrefix(entrypath, opts.Strip))
+
+		// Directory processing.
+		if e.IsDir() {
+			snap.Event(events.DirectoryEvent(snap.Header.Identifier, entrypath))
+			// Create directory if not root.
+			if entrypath != "/" {
+				if err := exp.CreateDirectory(dest); err != nil {
+					snap.Event(events.DirectoryErrorEvent(snap.Header.Identifier, entrypath, err.Error()))
 					return err
 				}
 			}
-			snap.Event(events.DirectoryOKEvent(snap.Header.Identifier, pathname))
+
+			// WalkDir handles recursion so we don’t need to iterate children manually.
+			if entrypath != "/" {
+				if err := exp.SetPermissions(dest, e.Stat()); err != nil {
+					snap.Event(events.DirectoryErrorEvent(snap.Header.Identifier, entrypath, err.Error()))
+					return err
+				}
+			}
+			snap.Event(events.DirectoryOKEvent(snap.Header.Identifier, entrypath))
 			return nil
 		}
-	}
 
-	if !entry.Stat().Mode().IsRegular() {
-		return fmt.Errorf("unexpected vfs entry type")
-	}
+		// For non-directory entries, only process regular files.
+		if !e.Stat().Mode().IsRegular() {
+			snap.Event(events.FileErrorEvent(snap.Header.Identifier, entrypath, "unexpected vfs entry type"))
+			return nil
+		}
 
-	snap.Event(events.FileEvent(snap.Header.Identifier, pathname))
+		snap.Event(events.FileEvent(snap.Header.Identifier, entrypath))
+		restoreContext.maxConcurrency <- true
+		wg.Add(1)
+		go func(e *vfs.Entry, entrypath string) {
+			defer wg.Done()
+			defer func() { <-restoreContext.maxConcurrency }()
 
-	restoreContext.maxConcurrency <- true
-	wg.Add(1)
-	go func(entry *vfs.Entry) {
-		defer wg.Done()
-		defer func() { <-restoreContext.maxConcurrency }()
-
-		if entry.Stat().Nlink() > 1 {
-			key := fmt.Sprintf("%d:%d", entry.Stat().Dev(), entry.Stat().Ino())
-			restoreContext.hardlinksMutex.Lock()
-			v, ok := restoreContext.hardlinks[key]
-			restoreContext.hardlinksMutex.Unlock()
-			if ok {
-				os.Link(v, dest)
-				return
-			} else {
+			// Handle hard links.
+			if e.Stat().Nlink() > 1 {
+				key := fmt.Sprintf("%d:%d", e.Stat().Dev(), e.Stat().Ino())
 				restoreContext.hardlinksMutex.Lock()
-				restoreContext.hardlinks[key] = dest
+				v, ok := restoreContext.hardlinks[key]
 				restoreContext.hardlinksMutex.Unlock()
+				if ok {
+					// Create a new link and return.
+					if err := os.Link(v, dest); err != nil {
+						snap.Event(events.FileErrorEvent(snap.Header.Identifier, entrypath, err.Error()))
+					}
+					return
+				} else {
+					restoreContext.hardlinksMutex.Lock()
+					restoreContext.hardlinks[key] = dest
+					restoreContext.hardlinksMutex.Unlock()
+				}
 			}
-		}
 
-		rd, err := snap.NewReader(pathname)
-		if err != nil {
-			snap.Event(events.FileErrorEvent(snap.Header.Identifier, pathname, err.Error()))
-			return
-		}
-		defer rd.Close()
+			rd, err := snap.NewReader(entrypath)
+			if err != nil {
+				snap.Event(events.FileErrorEvent(snap.Header.Identifier, entrypath, err.Error()))
+				return
+			}
+			defer rd.Close()
 
-		if err := exp.CreateDirectory(path.Dir(dest)); err != nil {
-			snap.Event(events.FileErrorEvent(snap.Header.Identifier, pathname, err.Error()))
-		}
+			// Ensure the parent directory exists.
+			if err := exp.CreateDirectory(path.Dir(dest)); err != nil {
+				snap.Event(events.FileErrorEvent(snap.Header.Identifier, entrypath, err.Error()))
+			}
 
-		if err := exp.StoreFile(dest, rd); err != nil {
-			snap.Event(events.FileErrorEvent(snap.Header.Identifier, pathname, err.Error()))
-		} else if err := exp.SetPermissions(dest, entry.Stat()); err != nil {
-			snap.Event(events.FileErrorEvent(snap.Header.Identifier, pathname, err.Error()))
-		} else {
-			snap.Event(events.FileOKEvent(snap.Header.Identifier, pathname, entry.Size()))
-		}
-
-	}(entry)
-	return nil
+			// Restore the file content.
+			if err := exp.StoreFile(dest, rd); err != nil {
+				snap.Event(events.FileErrorEvent(snap.Header.Identifier, entrypath, err.Error()))
+			} else if err := exp.SetPermissions(dest, e.Stat()); err != nil {
+				snap.Event(events.FileErrorEvent(snap.Header.Identifier, entrypath, err.Error()))
+			} else {
+				snap.Event(events.FileOKEvent(snap.Header.Identifier, entrypath, e.Size()))
+			}
+		}(e, entrypath)
+		return nil
+	}
 }
 
 func (snap *Snapshot) Restore(exp exporter.Exporter, base string, pathname string, opts *RestoreOptions) error {
@@ -152,5 +143,5 @@ func (snap *Snapshot) Restore(exp exporter.Exporter, base string, pathname strin
 	wg := sync.WaitGroup{}
 	defer wg.Wait()
 
-	return snapshotRestorePath(snap, fs, exp, base, pathname, pathname, opts, restoreContext, &wg)
+	return fs.WalkDir(pathname, snapshotRestorePath(snap, exp, base, opts, restoreContext, &wg))
 }

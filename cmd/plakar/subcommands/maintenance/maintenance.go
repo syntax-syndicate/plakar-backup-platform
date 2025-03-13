@@ -198,13 +198,16 @@ func (cmd *Maintenance) colourPass(ctx *appcontext.AppContext, cache *caching.Ma
 
 	fmt.Fprintf(ctx.Stdout, "maintenance: Coloured %d packfiles (%d orphaned) for deletion\n", coloredPackfiles, orphanedPackfiles)
 
-	buf := &bytes.Buffer{}
-	if err := deltaState.SerializeToStream(buf); err != nil {
-		return err
-	}
+	if coloredPackfiles > 0 {
+		buf := &bytes.Buffer{}
 
-	if err := cmd.repository.PutState(cmd.maintenanceID, buf); err != nil {
-		return err
+		if err := deltaState.SerializeToStream(buf); err != nil {
+			return err
+		}
+
+		if err := cmd.repository.PutState(cmd.maintenanceID, buf); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -257,8 +260,11 @@ func (cmd *Maintenance) sweepPass(ctx *appcontext.AppContext, cache *caching.Mai
 	}
 
 	fmt.Fprintf(ctx.Stdout, "maintenance: %d blobs and %d packfiles were removed\n", blobRemoved, len(toDelete))
-	if err := cmd.repository.PutCurrentState(); err != nil {
-		return err
+
+	if len(toDelete) > 0 {
+		if err := cmd.repository.PutCurrentState(); err != nil {
+			return err
+		}
 	}
 
 	if doDeletion {
