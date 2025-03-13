@@ -66,7 +66,7 @@ func isEntryBelow(parent, entry string) bool {
 	if !strings.HasPrefix(entry, parent) {
 		return false
 	}
-	if strings.Index(entry[len(parent):], "/") != -1 {
+	if strings.Contains(entry[len(parent):], "/") {
 		return false
 	}
 	return true
