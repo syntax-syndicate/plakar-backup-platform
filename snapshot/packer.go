@@ -20,15 +20,19 @@ import (
 
 type PackerManager struct {
 	snapshot       *Snapshot
-	inflightMACs   sync.Map
+	inflightMACs   map[resources.Type]*sync.Map
 	packerChan     chan interface{}
 	packerChanDone chan struct{}
 }
 
 func NewPackerManager(snapshot *Snapshot) *PackerManager {
+	inflightsMACs := make(map[resources.Type]*sync.Map)
+	for _, Type := range resources.Types() {
+		inflightsMACs[Type] = &sync.Map{}
+	}
 	return &PackerManager{
 		snapshot:       snapshot,
-		inflightMACs:   sync.Map{},
+		inflightMACs:   inflightsMACs,
 		packerChan:     make(chan interface{}, runtime.NumCPU()*2+1),
 		packerChanDone: make(chan struct{}),
 	}
@@ -52,7 +56,7 @@ func (mgr *PackerManager) Run() {
 			}
 
 			for _, record := range packer.Packfile.Index {
-				mgr.inflightMACs.Delete(record.MAC)
+				mgr.inflightMACs[record.Type].Delete(record.MAC)
 			}
 		}
 		return nil
@@ -80,7 +84,8 @@ func (mgr *PackerManager) Run() {
 						return fmt.Errorf("unexpected message type")
 					}
 
-					if _, exists := mgr.inflightMACs.Load(pm.MAC); exists {
+					if _, exists := mgr.inflightMACs[pm.Type].Load(pm.MAC); exists {
+						// tell prom exporter that we collided a blob
 						continue
 					}
 
@@ -88,7 +93,7 @@ func (mgr *PackerManager) Run() {
 						packer = NewPacker(mgr.snapshot.Repository().GetMACHasher())
 					}
 
-					mgr.inflightMACs.Store(pm.MAC, struct{}{})
+					mgr.inflightMACs[pm.Type].Store(pm.MAC, struct{}{})
 
 					if !packer.AddBlobIfNotExists(pm.Type, pm.Version, pm.MAC, pm.Data, pm.Flags) {
 						continue
@@ -177,7 +182,7 @@ func (packer *Packer) Types() []resources.Type {
 func (snap *Snapshot) PutBlob(Type resources.Type, mac [32]byte, data []byte) error {
 	snap.Logger().Trace("snapshot", "%x: PutBlob(%s, %064x) len=%d", snap.Header.GetIndexShortID(), Type, mac, len(data))
 
-	if _, exists := snap.packerManager.inflightMACs.Load(mac); exists {
+	if _, exists := snap.packerManager.inflightMACs[Type].Load(mac); exists {
 		return nil
 	}
 
@@ -230,7 +235,7 @@ func (snap *Snapshot) BlobExists(Type resources.Type, mac [32]byte) bool {
 
 	// XXX: Same here, remove this workaround when state API changes.
 	if snap.deltaState != nil {
-		if _, exists := snap.packerManager.inflightMACs.Load(mac); exists {
+		if _, exists := snap.packerManager.inflightMACs[Type].Load(mac); exists {
 			return true
 		}
 		return snap.deltaState.BlobExists(Type, mac) || snap.repository.BlobExists(Type, mac)
