@@ -38,14 +38,11 @@ func (mgr *PackerManager) Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Channel for workers to send complete packers for flushing.
 	packerResultChan := make(chan *Packer, runtime.NumCPU())
 
-	// Flusher goroutine: reads completed packers and writes them out.
 	flusherGroup, _ := errgroup.WithContext(ctx)
 	flusherGroup.Go(func() error {
 		for packer := range packerResultChan {
-			// Skip nil or empty packers.
 			if packer == nil || packer.Size() == 0 {
 				continue
 			}
@@ -61,7 +58,6 @@ func (mgr *PackerManager) Run() {
 		return nil
 	})
 
-	// Worker group: process messages concurrently.
 	workerGroup, workerCtx := errgroup.WithContext(ctx)
 	for i := 0; i < runtime.NumCPU(); i++ {
 		workerGroup.Go(func() error {
@@ -76,7 +72,6 @@ func (mgr *PackerManager) Run() {
 					return workerCtx.Err()
 				case msg, ok := <-mgr.packerChan:
 					if !ok {
-						// Channel closed: flush any remaining packer.
 						if packer != nil && packer.Size() > 0 {
 							packerResultChan <- packer
 						}
@@ -88,35 +83,27 @@ func (mgr *PackerManager) Run() {
 						return fmt.Errorf("unexpected message type")
 					}
 
-					// Check if this MAC is already in an unflushed packer.
 					if _, exists := mgr.inflightMACs.Load(pm.MAC); exists {
 						continue
 					}
 
-					// Lazily initialize the packer and its local MAC tracking.
 					if packer == nil {
 						packer = NewPacker(mgr.snapshot.Repository().GetMACHasher())
 					}
 
-					// Mark this MAC as seen.
 					mgr.inflightMACs.Store(pm.MAC, struct{}{})
 
-					// Try adding the blob.
 					if !packer.AddBlobIfNotExists(pm.Type, pm.Version, pm.MAC, pm.Data, pm.Flags) {
-						// If not added (i.e. already exists in this packer), remove from global tracker.
-						mgr.inflightMACs.Delete(pm.MAC)
 						continue
 					}
 
-					// Flush if the packer's size exceeds the maximum allowed.
 					if packer.Size() > uint32(mgr.snapshot.repository.Configuration().Packfile.MaxSize) {
 						packerResultChan <- packer
 						packer = nil
 					}
 				case <-ticker.C:
 					// Periodic flush to avoid holding onto small amounts of data too long.
-					const minSizeThreshold = 1024 // adjust as needed
-					if packer != nil && packer.Size() >= minSizeThreshold {
+					if packer != nil && packer.Size() >= uint32(mgr.snapshot.Repository().Configuration().Packfile.MinSize) {
 						packerResultChan <- packer
 						packer = nil
 					}
