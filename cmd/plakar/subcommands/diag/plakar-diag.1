@@ -6,7 +6,7 @@
 .Nd Display detailed information about Plakar internal structures
 .Sh SYNOPSIS
 .Nm
-.Op Cm errors | locks | object | packfile | snapshot | state | vfs
+.Op Cm contenttype | errors | locks | object | packfile | snapshot | state | vfs | xattr
 .Sh DESCRIPTION
 The
 .Nm
@@ -16,6 +16,7 @@ Without any arguments, display information about the repository.
 .Pp
 The sub-commands are as follows:
 .Bl -tag -width Ds
+.It Cm contenttype Ar snapshotID : Ns Ar path
 .It Cm errors Ar snapshotID
 Display the list of errors in the given snapshot.
 .It Cm locks
@@ -35,6 +36,7 @@ List or describe the states in the repository.
 Show filesystem (VFS) details for a specific path within a snapshot,
 listing directory or file attributes, including permissions,
 ownership, and custom metadata.
+.It Cm xattr Ar snapshotID : Ns Ar path
 .El
 .Sh EXAMPLES
 Show repository information:

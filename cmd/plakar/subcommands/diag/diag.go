@@ -47,6 +47,9 @@ func parse_cmd_diag(ctx *appcontext.AppContext, repo *repository.Repository, arg
 		fmt.Fprintf(flags.Output(), "       %s packfile [PACKFILE]...\n", flags.Name())
 		fmt.Fprintf(flags.Output(), "       %s object [OBJECT]\n", flags.Name())
 		fmt.Fprintf(flags.Output(), "       %s vfs SNAPSHOT[:PATH]\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s xattr SNAPSHOT[:PATH]\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s contenttype SNAPSHOT[:PATH]\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s locks\n", flags.Name())
 	}
 	flags.Parse(args)
 
