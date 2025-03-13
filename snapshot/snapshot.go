@@ -41,8 +41,7 @@ type Snapshot struct {
 
 	Header *header.Header
 
-	packerChan     chan interface{}
-	packerChanDone chan bool
+	packerManager *PackerManager
 }
 
 func New(repo *repository.Repository) (*Snapshot, error) {
@@ -66,11 +65,8 @@ func New(repo *repository.Repository) (*Snapshot, error) {
 		scanCache:  scanCache,
 
 		Header: header.NewHeader("default", identifier),
-
-		packerChan:     make(chan interface{}, runtime.NumCPU()*2+1),
-		packerChanDone: make(chan bool),
 	}
-
+	snap.packerManager = NewPackerManager(snap)
 	snap.deltaState = repo.NewStateDelta(scanCache)
 
 	if snap.AppContext().Identity != uuid.Nil {
@@ -89,7 +85,7 @@ func New(repo *repository.Repository) (*Snapshot, error) {
 	snap.Header.SetContext("MaxProcs", fmt.Sprintf("%d", runtime.GOMAXPROCS(0)))
 	snap.Header.SetContext("Client", snap.AppContext().Client)
 
-	go packerJob(snap)
+	go snap.packerManager.Run()
 
 	repo.Logger().Trace("snapshot", "%x: New()", snap.Header.GetIndexShortID())
 	return snap, nil
@@ -122,9 +118,8 @@ func Clone(repo *repository.Repository, Identifier objects.MAC) (*Snapshot, erro
 	}
 
 	snap.Header.Identifier = repo.ComputeMAC(uuidBytes[:])
-	snap.packerChan = make(chan interface{}, runtime.NumCPU()*2+1)
-	snap.packerChanDone = make(chan bool)
-	go packerJob(snap)
+	snap.packerManager = NewPackerManager(snap)
+	go snap.packerManager.Run()
 
 	repo.Logger().Trace("snapshot", "%x: Clone(): %s", snap.Header.Identifier, snap.Header.GetIndexShortID())
 	return snap, nil
