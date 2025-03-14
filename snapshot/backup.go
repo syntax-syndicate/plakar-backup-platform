@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"mime"
 	"path"
@@ -614,8 +613,8 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		}
 	}
 
-	hits, miss, cachesize := fileidx.Stats()
-	log.Printf("before persist: fileidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
+	// hits, miss, cachesize := fileidx.Stats()
+	// log.Printf("before persist: fileidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
 
 	rootcsum, err := persistIndex(snap, fileidx, resources.RT_VFS_BTREE,
 		resources.RT_VFS_NODE, func(data []byte) (objects.MAC, error) {
@@ -625,8 +624,8 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		return err
 	}
 
-	hits, miss, cachesize = fileidx.Stats()
-	log.Printf("after persist: fileidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
+	// hits, miss, cachesize = fileidx.Stats()
+	// log.Printf("after persist: fileidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
 
 	xattrcsum, err := persistMACIndex(snap, backupCtx.xattridx,
 		resources.RT_XATTR_BTREE, resources.RT_XATTR_NODE, resources.RT_XATTR_ENTRY)
@@ -634,8 +633,8 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		return err
 	}
 
-	hits, miss, cachesize = ctidx.Stats()
-	log.Printf("before persist: ctidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
+	// hits, miss, cachesize = ctidx.Stats()
+	// log.Printf("before persist: ctidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
 
 	ctmac, err := persistIndex(snap, ctidx, resources.RT_BTREE_ROOT, resources.RT_BTREE_NODE, func(mac objects.MAC) (objects.MAC, error) {
 		return mac, nil
@@ -644,8 +643,8 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		return err
 	}
 
-	hits, miss, cachesize = ctidx.Stats()
-	log.Printf("after persist: ctidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
+	// hits, miss, cachesize = ctidx.Stats()
+	// log.Printf("after persist: ctidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
 
 	if backupCtx.aborted.Load() {
 		return backupCtx.abortedReason
