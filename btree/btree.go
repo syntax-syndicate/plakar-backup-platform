@@ -58,6 +58,7 @@ type BTree[K any, P comparable, V any] struct {
 	Count   int
 	Root    P
 	store   Storer[K, P, V]
+	cache   *cache[K, P, V]
 	compare func(K, K) int
 	rwlock  sync.RWMutex
 }
@@ -76,6 +77,7 @@ func New[K any, P comparable, V any](store Storer[K, P, V], compare func(K, K) i
 		Order:   order,
 		Root:    ptr,
 		store:   store,
+		cache:   cachefor(store, order),
 		compare: compare,
 	}, nil
 }
@@ -89,6 +91,7 @@ func FromStorage[K any, P comparable, V any](root P, store Storer[K, P, V], comp
 		Order:   order,
 		Root:    root,
 		store:   store,
+		cache:   cachefor(store, order),
 		compare: compare,
 	}
 }
@@ -99,6 +102,10 @@ func Deserialize[K any, P comparable, V any](rd io.Reader, store Storer[K, P, V]
 		return nil, err
 	}
 	return FromStorage(root.Root, store, compare, root.Order), nil
+}
+
+func (b *BTree[K, P, V]) Close() error {
+	return b.cache.flushall()
 }
 
 func newNodeFrom[K any, P comparable, V any](keys []K, pointers []P, values []V) *Node[K, P, V] {
@@ -123,7 +130,7 @@ func (b *BTree[K, P, V]) findleaf(key K) (node *Node[K, P, V], path []P, err err
 
 	for {
 		path = append(path, ptr)
-		node, err = b.store.Get(ptr)
+		node, err = b.cache.Get(ptr)
 		if err != nil {
 			return
 		}
@@ -218,7 +225,7 @@ func (b *BTree[K, P, V]) insert(key K, val V, overwrite bool) error {
 	if found {
 		if overwrite {
 			node.Values[idx] = val
-			return b.store.Update(ptr, node)
+			return b.cache.Update(ptr, node)
 		}
 		return ErrExists
 	}
@@ -227,17 +234,17 @@ func (b *BTree[K, P, V]) insert(key K, val V, overwrite bool) error {
 
 	node.insertAt(idx, key, val)
 	if len(node.Keys) < b.Order {
-		return b.store.Update(ptr, node)
+		return b.cache.Update(ptr, node)
 	}
 
 	new := node.split()
 	new.Next = node.Next
-	newptr, err := b.store.Put(new)
+	newptr, err := b.cache.Put(new)
 	if err != nil {
 		return err
 	}
 	node.Next = &newptr
-	if err := b.store.Update(ptr, node); err != nil {
+	if err := b.cache.Update(ptr, node); err != nil {
 		return err
 	}
 
@@ -261,7 +268,7 @@ func (b *BTree[K, P, V]) Update(key K, val V) error {
 
 func (b *BTree[K, P, V]) insertUpwards(key K, ptr P, path []P) error {
 	for i := len(path) - 1; i >= 0; i-- {
-		node, err := b.store.Get(path[i])
+		node, err := b.cache.Get(path[i])
 		if err != nil {
 			return err
 		}
@@ -273,17 +280,17 @@ func (b *BTree[K, P, V]) insertUpwards(key K, ptr P, path []P) error {
 
 		node.insertInternal(idx, key, ptr)
 		if len(node.Keys) < b.Order {
-			return b.store.Update(path[i], node)
+			return b.cache.Update(path[i], node)
 		}
 
 		new := node.split()
 		key = new.Keys[0]
 		new.Keys = new.Keys[1:]
-		ptr, err = b.store.Put(new)
+		ptr, err = b.cache.Put(new)
 		if err != nil {
 			return err
 		}
-		if err := b.store.Update(path[i], node); err != nil {
+		if err := b.cache.Update(path[i], node); err != nil {
 			return err
 		}
 	}
@@ -294,7 +301,7 @@ func (b *BTree[K, P, V]) insertUpwards(key K, ptr P, path []P) error {
 		Keys:     []K{key},
 		Pointers: []P{b.Root, ptr},
 	}
-	rootptr, err := b.store.Put(newroot)
+	rootptr, err := b.cache.Put(newroot)
 	if err != nil {
 		return err
 	}
