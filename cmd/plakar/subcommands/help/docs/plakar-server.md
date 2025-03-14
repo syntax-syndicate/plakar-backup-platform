@@ -26,7 +26,7 @@ The options are as follows:
 > By default, delete operations are disabled to prevent accidental data
 > loss.
 
-listen *address*
+**-listen** *address*
 
 > The hostname and port where to listen to, separated by a colon.
 > The hostname is optional.
