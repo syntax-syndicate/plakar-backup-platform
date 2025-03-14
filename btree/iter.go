@@ -2,7 +2,7 @@ package btree
 
 import "github.com/PlakarKorp/plakar/iterator"
 
-type forwardIter[K, P any, V any] struct {
+type forwardIter[K any, P comparable, V any] struct {
 	b       *BTree[K, P, V]
 	ptr     P
 	current *Node[K, P, V]
@@ -120,7 +120,7 @@ type step[K, P, V any] struct {
 	idx int
 }
 
-type backwardIter[K, P, V any] struct {
+type backwardIter[K any, P comparable, V any] struct {
 	b     *BTree[K, P, V]
 	cur   *Node[K, P, V]
 	steps []step[K, P, V]
@@ -208,7 +208,7 @@ func (b *BTree[K, P, V]) ScanAllReverse() (iterator.Iterator[K, V], error) {
 	return bit, nil
 }
 
-type dfsIter[K, P, V any] struct {
+type dfsIter[K any, P comparable, V any] struct {
 	b       *BTree[K, P, V]
 	stack   []step[K, P, V]
 	ptr     P

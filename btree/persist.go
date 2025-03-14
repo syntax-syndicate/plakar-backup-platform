@@ -1,6 +1,6 @@
 package btree
 
-func persist[K, PA, PB, VA, VB any](b *BTree[K, PA, VA], store Storer[K, PB, VB], conv func(VA) (VB, error), node *Node[K, PA, VA], lastptr **PB) (PB, error) {
+func persist[K any, PA, PB comparable, VA, VB any](b *BTree[K, PA, VA], store Storer[K, PB, VB], conv func(VA) (VB, error), node *Node[K, PA, VA], lastptr **PB) (PB, error) {
 	var ptrs []PB
 	var zero PB
 	var vals []VB
@@ -52,7 +52,7 @@ func persist[K, PA, PB, VA, VB any](b *BTree[K, PA, VA], store Storer[K, PB, VB]
 // design Persist inserts the nodes in post-order from the right-most
 // leaf, in a way that's suitable for a content-addressed store, and
 // never updates existing nodes nor retrieves inserted ones.
-func Persist[K, PA, PB, VA, VB any](b *BTree[K, PA, VA], store Storer[K, PB, VB], conv func(VA) (VB, error)) (ptr PB, err error) {
+func Persist[K any, PA, PB comparable, VA, VB any](b *BTree[K, PA, VA], store Storer[K, PB, VB], conv func(VA) (VB, error)) (ptr PB, err error) {
 	root, err := b.store.Get(b.Root)
 	if err != nil {
 		return

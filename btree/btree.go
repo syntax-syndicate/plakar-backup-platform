@@ -23,7 +23,7 @@ func init() {
 	versioning.Register(resources.RT_BTREE_NODE, versioning.FromString(NODE_VERSION))
 }
 
-type Storer[K any, P any, V any] interface {
+type Storer[K any, P comparable, V any] interface {
 	// Get returns the node pointed by P.  The pointer is one
 	// previously returned by the Put method.
 	Get(P) (*Node[K, P, V], error)
@@ -33,7 +33,7 @@ type Storer[K any, P any, V any] interface {
 	Put(*Node[K, P, V]) (P, error)
 }
 
-type Node[K any, P any, V any] struct {
+type Node[K any, P comparable, V any] struct {
 	Version versioning.Version `msgpack:"version"`
 
 	// An intermediate node has only Keys and Pointers, while
@@ -52,7 +52,7 @@ type Node[K any, P any, V any] struct {
 // BTree implements a B+tree.  K is the type for the key, V for the
 // value stored, and P is a pointer type: it could be a disk sector,
 // a MAC in a packfile, or a key in a leveldb cache.  or more.
-type BTree[K any, P any, V any] struct {
+type BTree[K any, P comparable, V any] struct {
 	Version versioning.Version
 	Order   int
 	Count   int
@@ -63,7 +63,7 @@ type BTree[K any, P any, V any] struct {
 }
 
 // New returns a new, empty tree.
-func New[K any, P any, V any](store Storer[K, P, V], compare func(K, K) int, order int) (*BTree[K, P, V], error) {
+func New[K any, P comparable, V any](store Storer[K, P, V], compare func(K, K) int, order int) (*BTree[K, P, V], error) {
 	root := Node[K, P, V]{
 		Version: versioning.FromString(NODE_VERSION),
 	}
@@ -83,7 +83,7 @@ func New[K any, P any, V any](store Storer[K, P, V], compare func(K, K) int, ord
 // FromStorage returns a btree from the given storage.  The root must
 // exist, eventually empty, i.e. it should be a tree previously
 // created via New().
-func FromStorage[K any, P any, V any](root P, store Storer[K, P, V], compare func(K, K) int, order int) *BTree[K, P, V] {
+func FromStorage[K any, P comparable, V any](root P, store Storer[K, P, V], compare func(K, K) int, order int) *BTree[K, P, V] {
 	return &BTree[K, P, V]{
 		Version: versioning.FromString(BTREE_VERSION),
 		Order:   order,
@@ -93,7 +93,7 @@ func FromStorage[K any, P any, V any](root P, store Storer[K, P, V], compare fun
 	}
 }
 
-func Deserialize[K, P, V any](rd io.Reader, store Storer[K, P, V], compare func(K, K) int) (*BTree[K, P, V], error) {
+func Deserialize[K any, P comparable, V any](rd io.Reader, store Storer[K, P, V], compare func(K, K) int) (*BTree[K, P, V], error) {
 	var root BTree[K, P, V]
 	if err := msgpack.NewDecoder(rd).Decode(&root); err != nil {
 		return nil, err
@@ -101,7 +101,7 @@ func Deserialize[K, P, V any](rd io.Reader, store Storer[K, P, V], compare func(
 	return FromStorage(root.Root, store, compare, root.Order), nil
 }
 
-func newNodeFrom[K, P, V any](keys []K, pointers []P, values []V) *Node[K, P, V] {
+func newNodeFrom[K any, P comparable, V any](keys []K, pointers []P, values []V) *Node[K, P, V] {
 	node := &Node[K, P, V]{
 		Version:  versioning.FromString(NODE_VERSION),
 		Keys:     make([]K, len(keys)),
