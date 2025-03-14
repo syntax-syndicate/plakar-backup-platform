@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"slices"
+	"sync"
 
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/versioning"
@@ -58,6 +59,7 @@ type BTree[K any, P any, V any] struct {
 	Root    P
 	store   Storer[K, P, V]
 	compare func(K, K) int
+	rwlock  sync.RWMutex
 }
 
 // New returns a new, empty tree.
@@ -143,6 +145,9 @@ func (b *BTree[K, P, V]) findleaf(key K) (node *Node[K, P, V], path []P, err err
 }
 
 func (b *BTree[K, P, V]) Find(key K) (val V, found bool, err error) {
+	b.rwlock.RLock()
+	defer b.rwlock.RUnlock()
+
 	leaf, _, err := b.findleaf(key)
 	if err != nil {
 		return
@@ -241,10 +246,16 @@ func (b *BTree[K, P, V]) insert(key K, val V, overwrite bool) error {
 }
 
 func (b *BTree[K, P, V]) Insert(key K, val V) error {
+	b.rwlock.Lock()
+	defer b.rwlock.Unlock()
+
 	return b.insert(key, val, false)
 }
 
 func (b *BTree[K, P, V]) Update(key K, val V) error {
+	b.rwlock.Lock()
+	defer b.rwlock.Unlock()
+
 	return b.insert(key, val, true)
 }
 

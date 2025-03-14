@@ -36,10 +36,7 @@ type BackupContext struct {
 	scanCache      *caching.ScanCache
 
 	erridx   *btree.BTree[string, int, []byte]
-	muerridx sync.Mutex
-
-	xattridx   *btree.BTree[string, int, []byte]
-	muxattridx sync.Mutex
+	xattridx *btree.BTree[string, int, []byte]
 }
 
 type BackupOptions struct {
@@ -70,10 +67,7 @@ func (bc *BackupContext) recordError(path string, err error) error {
 		return err
 	}
 
-	bc.muerridx.Lock()
-	e = bc.erridx.Insert(path, serialized)
-	bc.muerridx.Unlock()
-	return e
+	return bc.erridx.Insert(path, serialized)
 }
 
 func (bc *BackupContext) recordXattr(record *importer.ScanRecord, objectMAC objects.MAC, size int64) error {
@@ -83,10 +77,7 @@ func (bc *BackupContext) recordXattr(record *importer.ScanRecord, objectMAC obje
 		return err
 	}
 
-	bc.muxattridx.Lock()
-	err = bc.xattridx.Insert(xattr.ToPath(), serialized)
-	bc.muxattridx.Unlock()
-	return err
+	return bc.xattridx.Insert(xattr.ToPath(), serialized)
 }
 
 func (snapshot *Snapshot) skipExcludedPathname(options *BackupOptions, record *importer.ScanResult) bool {
@@ -273,7 +264,6 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 	if err != nil {
 		return err
 	}
-	var muctidx sync.Mutex
 
 	/* backup starts now */
 	beginTime := time.Now()
@@ -449,9 +439,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 					backupCtx.recordError(record.Pathname, err)
 					return
 				}
-				muctidx.Lock()
 				err = ctidx.Insert(k, snap.repository.ComputeMAC(bytes))
-				muctidx.Unlock()
 				if err != nil {
 					backupCtx.recordError(record.Pathname, err)
 					return
