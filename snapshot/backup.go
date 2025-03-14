@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"mime"
 	"path"
@@ -613,6 +614,9 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		}
 	}
 
+	hits, miss, cachesize := fileidx.Stats()
+	log.Printf("before persist: fileidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
+
 	rootcsum, err := persistIndex(snap, fileidx, resources.RT_VFS_BTREE,
 		resources.RT_VFS_NODE, func(data []byte) (objects.MAC, error) {
 			return snap.repository.ComputeMAC(data), nil
@@ -620,6 +624,9 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 	if err != nil {
 		return err
 	}
+
+	hits, miss, cachesize = fileidx.Stats()
+	log.Printf("after persist: fileidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
 
 	xattrcsum, err := persistMACIndex(snap, backupCtx.xattridx,
 		resources.RT_XATTR_BTREE, resources.RT_XATTR_NODE, resources.RT_XATTR_ENTRY)

@@ -305,3 +305,7 @@ func (b *BTree[K, P, V]) insertUpwards(key K, ptr P, path []P) error {
 	b.Root = rootptr
 	return nil
 }
+
+func (b *BTree[K, P, V]) Stats() (hits, miss, size int) {
+	return b.cache.hits, b.cache.miss, b.cache.size
+}

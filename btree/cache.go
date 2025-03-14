@@ -17,10 +17,13 @@ type cache[K any, P comparable, V any] struct {
 	items  map[P]*item[K, P, V]
 	head   *lru[P]
 	tail   *lru[P]
+
+	hits int
+	miss int
 }
 
 func cachefor[K any, P comparable, V any](store Storer[K, P, V], order int) *cache[K, P, V] {
-	target := order * 2
+	target := order
 	return &cache[K, P, V]{
 		target: target,
 		store:  store,
@@ -60,8 +63,11 @@ func (c *cache[K, P, V]) flush(ptr P) error {
 
 func (c *cache[K, P, V]) Get(ptr P) (*Node[K, P, V], error) {
 	if item, ok := c.items[ptr]; ok {
+		c.hits++
 		return item.node, nil
 	}
+
+	c.miss++
 
 	node, err := c.store.Get(ptr)
 	if err != nil {
