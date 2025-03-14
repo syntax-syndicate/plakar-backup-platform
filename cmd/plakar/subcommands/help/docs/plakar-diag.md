@@ -7,7 +7,7 @@ PLAKAR-DIAG(1) - General Commands Manual
 # SYNOPSIS
 
 **plakar diag**
-\[**errors**&nbsp;|&nbsp;**locks**&nbsp;|&nbsp;**object**&nbsp;|&nbsp;**packfile**&nbsp;|&nbsp;**snapshot**&nbsp;|&nbsp;**state**&nbsp;|&nbsp;**vfs**]
+\[**contenttype**&nbsp;|&nbsp;**errors**&nbsp;|&nbsp;**locks**&nbsp;|&nbsp;**object**&nbsp;|&nbsp;**packfile**&nbsp;|&nbsp;**snapshot**&nbsp;|&nbsp;**state**&nbsp;|&nbsp;**vfs**&nbsp;|&nbsp;**xattr**]
 
 # DESCRIPTION
 
@@ -18,6 +18,8 @@ The type of information displayed depends on the specified argument.
 Without any arguments, display information about the repository.
 
 The sub-commands are as follows:
+
+**contenttype** *snapshotID*:*path*
 
 **errors** *snapshotID*
 
@@ -51,6 +53,8 @@ The sub-commands are as follows:
 > Show filesystem (VFS) details for a specific path within a snapshot,
 > listing directory or file attributes, including permissions,
 > ownership, and custom metadata.
+
+**xattr** *snapshotID*:*path*
 
 # EXAMPLES
 
