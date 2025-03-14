@@ -306,6 +306,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 			var fileEntry *vfs.Entry
 			var object *objects.Object
 			var objectMAC objects.MAC
+			var objectSerialized []byte
 
 			var cachedFileEntry *vfs.Entry
 			var cachedFileEntryMAC objects.MAC
@@ -326,16 +327,25 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 							if err != nil {
 								snap.Logger().Warn("VFS CACHE: Error getting object: %v", err)
 							} else if data != nil {
-								objectMAC = snap.Repository().ComputeMAC(data)
 								cachedObject, err := objects.NewObjectFromBytes(data)
 								if err != nil {
 									snap.Logger().Warn("VFS CACHE: Error unmarshaling object: %v", err)
 								} else {
 									object = cachedObject
+									objectMAC = snap.Repository().ComputeMAC(data)
+									objectSerialized = data
 								}
 							}
 						}
 					}
+				}
+			}
+
+			if object != nil {
+				err = snap.PutBlobIfNotExists(resources.RT_OBJECT, objectMAC, objectSerialized)
+				if err != nil {
+					backupCtx.recordError(record.Pathname, err)
+					return
 				}
 			}
 
@@ -347,29 +357,18 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
-
-					serializedObject, err := object.Serialize()
+					objectSerialized, err = object.Serialize()
 					if err != nil {
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
-					objectMAC = snap.repository.ComputeMAC(serializedObject)
-					if err := vfsCache.PutObject(objectMAC, serializedObject); err != nil {
+					objectMAC = snap.repository.ComputeMAC(objectSerialized)
+					if err := vfsCache.PutObject(objectMAC, objectSerialized); err != nil {
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
-				}
-			}
 
-			if object != nil {
-				if !snap.BlobExists(resources.RT_OBJECT, objectMAC) {
-					data, err := object.Serialize()
-					if err != nil {
-						backupCtx.recordError(record.Pathname, err)
-						return
-					}
-					objectMAC = snap.repository.ComputeMAC(data)
-					err = snap.PutBlob(resources.RT_OBJECT, objectMAC, data)
+					err := snap.PutBlob(resources.RT_OBJECT, objectMAC, objectSerialized)
 					if err != nil {
 						backupCtx.recordError(record.Pathname, err)
 						return

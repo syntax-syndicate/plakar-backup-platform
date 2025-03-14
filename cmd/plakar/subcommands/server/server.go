@@ -42,7 +42,7 @@ func parse_cmd_server(ctx *appcontext.AppContext, repo *repository.Repository, a
 	}
 
 	flags.StringVar(&opt_listen, "listen", "127.0.0.1:9876", "address to listen on")
-	flags.BoolVar(&opt_allowdelete, "allow-delete", false, "disable delete operations")
+	flags.BoolVar(&opt_allowdelete, "allow-delete", false, "enable delete operations")
 	flags.Parse(args)
 
 	noDelete := true
