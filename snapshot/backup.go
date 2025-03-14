@@ -634,12 +634,18 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		return err
 	}
 
+	hits, miss, cachesize = ctidx.Stats()
+	log.Printf("before persist: ctidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
+
 	ctmac, err := persistIndex(snap, ctidx, resources.RT_BTREE_ROOT, resources.RT_BTREE_NODE, func(mac objects.MAC) (objects.MAC, error) {
 		return mac, nil
 	})
 	if err != nil {
 		return err
 	}
+
+	hits, miss, cachesize = ctidx.Stats()
+	log.Printf("after persist: ctidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
 
 	if backupCtx.aborted.Load() {
 		return backupCtx.abortedReason
