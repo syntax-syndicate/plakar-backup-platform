@@ -43,9 +43,6 @@ func (c *cache[K, P, V]) cache(ptr P, node *Node[K, P, V]) {
 		c.tail.next = lru
 		c.tail = lru
 	}
-
-	c.tail.next = lru
-	c.tail = lru
 }
 
 func (c *cache[K, P, V]) flush(ptr P) error {
