@@ -342,6 +342,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 			}
 
 			// Chunkify the file if it is a regular file and we don't have a cached object
+			skipPut := false
 			if record.FileInfo.Mode().IsRegular() {
 				if object == nil || !snap.BlobExists(resources.RT_OBJECT, objectMAC) {
 					object, err = snap.chunkify(imp, cf, record)
@@ -359,16 +360,21 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
-				}
-			}
 
-			if object != nil {
-				if !snap.BlobExists(resources.RT_OBJECT, objectMAC) {
-					err = snap.PutBlob(resources.RT_OBJECT, objectMAC, objectSerialized)
+					err := snap.PutBlob(resources.RT_OBJECT, objectMAC, objectSerialized)
 					if err != nil {
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
+					skipPut = true
+				}
+			}
+
+			if object != nil && !skipPut {
+				err = snap.PutBlobIfNotExists(resources.RT_OBJECT, objectMAC, objectSerialized)
+				if err != nil {
+					backupCtx.recordError(record.Pathname, err)
+					return
 				}
 			}
 
