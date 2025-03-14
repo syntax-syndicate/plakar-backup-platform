@@ -138,11 +138,9 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 				continue
 			}
 
-			backupCtx.maxConcurrency <- true
 			wg.Add(1)
 			go func(record *importer.ScanResult) {
 				defer func() {
-					<-backupCtx.maxConcurrency
 					wg.Done()
 				}()
 
