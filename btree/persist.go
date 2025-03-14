@@ -6,7 +6,7 @@ func persist[K any, PA, PB comparable, VA, VB any](b *BTree[K, PA, VA], store St
 	var vals []VB
 
 	for i := len(node.Pointers) - 1; i >= 0; i-- {
-		child, err := b.store.Get(node.Pointers[i])
+		child, err := b.cache.Get(node.Pointers[i])
 		if err != nil {
 			return zero, err
 		}
@@ -53,7 +53,7 @@ func persist[K any, PA, PB comparable, VA, VB any](b *BTree[K, PA, VA], store St
 // leaf, in a way that's suitable for a content-addressed store, and
 // never updates existing nodes nor retrieves inserted ones.
 func Persist[K any, PA, PB comparable, VA, VB any](b *BTree[K, PA, VA], store Storer[K, PB, VB], conv func(VA) (VB, error)) (ptr PB, err error) {
-	root, err := b.store.Get(b.Root)
+	root, err := b.cache.Get(b.Root)
 	if err != nil {
 		return
 	}

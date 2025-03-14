@@ -57,7 +57,6 @@ type BTree[K any, P comparable, V any] struct {
 	Order   int
 	Count   int
 	Root    P
-	store   Storer[K, P, V]
 	cache   *cache[K, P, V]
 	compare func(K, K) int
 	rwlock  sync.RWMutex
@@ -76,7 +75,6 @@ func New[K any, P comparable, V any](store Storer[K, P, V], compare func(K, K) i
 	return &BTree[K, P, V]{
 		Order:   order,
 		Root:    ptr,
-		store:   store,
 		cache:   cachefor(store, order),
 		compare: compare,
 	}, nil
@@ -90,7 +88,6 @@ func FromStorage[K any, P comparable, V any](root P, store Storer[K, P, V], comp
 		Version: versioning.FromString(BTREE_VERSION),
 		Order:   order,
 		Root:    root,
-		store:   store,
 		cache:   cachefor(store, order),
 		compare: compare,
 	}
