@@ -40,6 +40,9 @@ type BackupContext struct {
 
 	xattridx   *btree.BTree[string, int, []byte]
 	muxattridx sync.Mutex
+
+	ctidx   *btree.BTree[string, int, objects.MAC]
+	muctidx sync.Mutex
 }
 
 type BackupOptions struct {
@@ -113,6 +116,106 @@ func (snapshot *Snapshot) skipExcludedPathname(options *BackupOptions, record *i
 }
 
 func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptions) (chan *importer.ScanRecord, error) {
+	scanner, err := backupCtx.imp.Scan()
+	if err != nil {
+		return nil, err
+	}
+
+	workerCount := cap(backupCtx.maxConcurrency)
+
+	filesChannel := make(chan *importer.ScanRecord, 1000)
+	scannedResults := make(chan *importer.ScanResult, 1000)
+
+	repoLocation := snap.repository.Location()
+	var wg sync.WaitGroup
+
+	// Worker pool to process scan results
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for record := range scannedResults {
+				if backupCtx.aborted.Load() {
+					continue
+				}
+				if snap.skipExcludedPathname(options, record) {
+					continue
+				}
+
+				switch {
+				case record.Error != nil:
+					errRecord := record.Error
+					if errRecord.Pathname == backupCtx.imp.Root() || len(errRecord.Pathname) < len(backupCtx.imp.Root()) {
+						backupCtx.aborted.Store(true)
+						backupCtx.abortedReason = errRecord.Err
+						return
+					}
+					backupCtx.recordError(errRecord.Pathname, errRecord.Err)
+					snap.Event(events.PathErrorEvent(snap.Header.Identifier, errRecord.Pathname, errRecord.Err.Error()))
+
+				case record.Record != nil:
+					fileRecord := record.Record
+					snap.Event(events.PathEvent(snap.Header.Identifier, fileRecord.Pathname))
+
+					if strings.HasPrefix(fileRecord.Pathname, repoLocation+"/") {
+						snap.Logger().Warn("skipping entry from repository: %s", fileRecord.Pathname)
+						continue
+					}
+
+					if !fileRecord.FileInfo.Mode().IsDir() {
+						filesChannel <- fileRecord
+					} else {
+						entry := vfs.NewEntry(path.Dir(fileRecord.Pathname), fileRecord)
+						if err := backupCtx.recordEntry(entry); err != nil {
+							backupCtx.recordError(fileRecord.Pathname, err)
+							return
+						}
+					}
+				}
+			}
+		}()
+	}
+
+	// Scanner producer goroutine
+	go func() {
+		startEvent := events.StartImporterEvent()
+		startEvent.SnapshotID = snap.Header.Identifier
+		snap.Event(startEvent)
+
+		var nFiles, nDirectories, size uint64
+		for scanResult := range scanner {
+			if backupCtx.aborted.Load() {
+				break
+			}
+			scannedResults <- scanResult
+
+			// Updating stats
+			if scanResult.Record != nil {
+				if scanResult.Record.FileInfo.Mode().IsRegular() {
+					atomic.AddUint64(&nFiles, 1)
+					atomic.AddUint64(&size, uint64(scanResult.Record.FileInfo.Size()))
+				} else if scanResult.Record.FileInfo.IsDir() {
+					atomic.AddUint64(&nDirectories, 1)
+				}
+			}
+		}
+		close(scannedResults)
+
+		wg.Wait()           // Wait until workers have processed everything
+		close(filesChannel) // Signal no more files will be sent
+
+		doneEvent := events.DoneImporterEvent()
+		doneEvent.SnapshotID = snap.Header.Identifier
+		doneEvent.NumFiles = nFiles
+		doneEvent.NumDirectories = nDirectories
+		doneEvent.Size = size
+		snap.Event(doneEvent)
+	}()
+
+	return filesChannel, nil
+}
+
+func (snap *Snapshot) importerJob2(backupCtx *BackupContext, options *BackupOptions) (chan *importer.ScanRecord, error) {
 	scanner, err := backupCtx.imp.Scan()
 	if err != nil {
 		return nil, err
@@ -267,14 +370,45 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		Prefix: "__contenttype__",
 		Cache:  snap.scanCache,
 	}
-	ctidx, err := btree.New(&ctstore, strings.Compare, 50)
+	backupCtx.ctidx, err = btree.New(&ctstore, strings.Compare, 50)
 	if err != nil {
 		return err
 	}
-	var muctidx sync.Mutex
 
 	/* backup starts now */
 	beginTime := time.Now()
+
+	readJobs := make(chan ReadJob, 1000)
+	processJobs := make(chan ProcessJob, 1000)
+	uploadJobs := make(chan UploadJob, 2000)
+	var readerWg, processorWg, uploaderWg sync.WaitGroup
+
+	// Start readers
+	for range maxConcurrency {
+		readerWg.Add(1)
+		go func() {
+			defer readerWg.Done()
+			snap.readerWorker(imp, readJobs, processJobs, backupCtx)
+		}()
+	}
+
+	// Start processors
+	for range maxConcurrency * 2 {
+		processorWg.Add(1)
+		go func() {
+			defer processorWg.Done()
+			snap.processWorker(processJobs, uploadJobs, backupCtx, cf, vfsCache)
+		}()
+	}
+
+	// Start uploaders
+	for range maxConcurrency * 4 {
+		uploaderWg.Add(1)
+		go func() {
+			defer uploaderWg.Done()
+			snap.uploaderWorker(uploadJobs)
+		}()
+	}
 
 	/* importer */
 	filesChannel, err := snap.importerJob(backupCtx, options)
@@ -282,188 +416,26 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		return err
 	}
 
-	/* scanner */
-	scannerWg := sync.WaitGroup{}
-	for _record := range filesChannel {
-		select {
-		case <-snap.AppContext().GetContext().Done():
-			return snap.AppContext().GetContext().Err()
-		default:
-		}
-
-		backupCtx.maxConcurrency <- true
-		scannerWg.Add(1)
-		go func(record *importer.ScanRecord) {
-			defer func() {
-				<-backupCtx.maxConcurrency
-				scannerWg.Done()
-			}()
-
-			snap.Event(events.FileEvent(snap.Header.Identifier, record.Pathname))
-
-			var fileEntry *vfs.Entry
-			var object *objects.Object
-			var objectMAC objects.MAC
-			var objectSerialized []byte
-
-			var cachedFileEntry *vfs.Entry
-			var cachedFileEntryMAC objects.MAC
-
-			// Check if the file entry and underlying objects are already in the cache
-			if data, err := vfsCache.GetFilename(record.Pathname); err != nil {
-				snap.Logger().Warn("VFS CACHE: Error getting filename: %v", err)
-			} else if data != nil {
-				cachedFileEntry, err = vfs.EntryFromBytes(data)
-				if err != nil {
-					snap.Logger().Warn("VFS CACHE: Error unmarshaling filename: %v", err)
-				} else {
-					cachedFileEntryMAC = snap.repository.ComputeMAC(data)
-					if cachedFileEntry.Stat().Equal(&record.FileInfo) {
-						fileEntry = cachedFileEntry
-						if fileEntry.FileInfo.Mode().IsRegular() {
-							data, err := vfsCache.GetObject(cachedFileEntry.Object)
-							if err != nil {
-								snap.Logger().Warn("VFS CACHE: Error getting object: %v", err)
-							} else if data != nil {
-								cachedObject, err := objects.NewObjectFromBytes(data)
-								if err != nil {
-									snap.Logger().Warn("VFS CACHE: Error unmarshaling object: %v", err)
-								} else {
-									object = cachedObject
-									objectMAC = snap.Repository().ComputeMAC(data)
-									objectSerialized = data
-								}
-							}
-						}
-					}
-				}
-			}
-
-			if object != nil {
-				err = snap.PutBlobIfNotExists(resources.RT_OBJECT, objectMAC, objectSerialized)
-				if err != nil {
-					backupCtx.recordError(record.Pathname, err)
-					return
-				}
-			}
-
-			// Chunkify the file if it is a regular file and we don't have a cached object
-			if record.FileInfo.Mode().IsRegular() {
-				if object == nil || !snap.BlobExists(resources.RT_OBJECT, objectMAC) {
-					object, err = snap.chunkify(imp, cf, record)
-					if err != nil {
-						backupCtx.recordError(record.Pathname, err)
-						return
-					}
-					objectSerialized, err = object.Serialize()
-					if err != nil {
-						backupCtx.recordError(record.Pathname, err)
-						return
-					}
-					objectMAC = snap.repository.ComputeMAC(objectSerialized)
-					if err := vfsCache.PutObject(objectMAC, objectSerialized); err != nil {
-						backupCtx.recordError(record.Pathname, err)
-						return
-					}
-
-					err := snap.PutBlob(resources.RT_OBJECT, objectMAC, objectSerialized)
-					if err != nil {
-						backupCtx.recordError(record.Pathname, err)
-						return
-					}
-				}
-			}
-
-			// xattrs are a special case
-			if record.IsXattr {
-				backupCtx.recordXattr(record, objectMAC, object.Size())
-				return
-			}
-
-			if fileEntry == nil || !snap.BlobExists(resources.RT_VFS_ENTRY, cachedFileEntryMAC) {
-				fileEntry = vfs.NewEntry(path.Dir(record.Pathname), record)
-				if object != nil {
-					fileEntry.Object = objectMAC
-				}
-
-				classifications := cf.Processor(record.Pathname).File(fileEntry)
-				for _, result := range classifications {
-					fileEntry.AddClassification(result.Analyzer, result.Classes)
-				}
-
-				serialized, err := fileEntry.ToBytes()
-				if err != nil {
-					backupCtx.recordError(record.Pathname, err)
-					return
-				}
-
-				fileEntryMAC := snap.repository.ComputeMAC(serialized)
-				err = snap.PutBlob(resources.RT_VFS_ENTRY, fileEntryMAC, serialized)
-				if err != nil {
-					backupCtx.recordError(record.Pathname, err)
-					return
-				}
-
-				// Store the newly generated FileEntry in the cache for future runs
-				err = vfsCache.PutFilename(record.Pathname, serialized)
-				if err != nil {
-					backupCtx.recordError(record.Pathname, err)
-					return
-				}
-
-				fileSummary := &vfs.FileSummary{
-					Size:    uint64(record.FileInfo.Size()),
-					Mode:    record.FileInfo.Mode(),
-					ModTime: record.FileInfo.ModTime().Unix(),
-				}
-				if object != nil {
-					fileSummary.Objects++
-					fileSummary.Chunks += uint64(len(object.Chunks))
-					fileSummary.ContentType = object.ContentType
-					fileSummary.Entropy = object.Entropy
-				}
-
-				seralizedFileSummary, err := fileSummary.Serialize()
-				if err != nil {
-					backupCtx.recordError(record.Pathname, err)
-					return
-				}
-
-				err = vfsCache.PutFileSummary(record.Pathname, seralizedFileSummary)
-				if err != nil {
-					backupCtx.recordError(record.Pathname, err)
-					return
-				}
-			}
-
-			if object != nil {
-				parts := strings.SplitN(object.ContentType, ";", 2)
-				mime := parts[0]
-
-				k := fmt.Sprintf("/%s%s", mime, fileEntry.Path())
-				bytes, err := fileEntry.ToBytes()
-				if err != nil {
-					backupCtx.recordError(record.Pathname, err)
-					return
-				}
-				muctidx.Lock()
-				err = ctidx.Insert(k, snap.repository.ComputeMAC(bytes))
-				muctidx.Unlock()
-				if err != nil {
-					backupCtx.recordError(record.Pathname, err)
-					return
-				}
-			}
-
-			if err := backupCtx.recordEntry(fileEntry); err != nil {
-				backupCtx.recordError(record.Pathname, err)
-				return
-			}
-
-			snap.Event(events.FileOKEvent(snap.Header.Identifier, record.Pathname, record.FileInfo.Size()))
-		}(_record)
+	// Feed readJobs
+	for record := range filesChannel {
+		readJobs <- ReadJob{record}
 	}
-	scannerWg.Wait()
+	close(readJobs)
+
+	// Close processJobs after readers
+	go func() {
+		readerWg.Wait()
+		close(processJobs)
+	}()
+
+	// Close uploadJobs after processors
+	go func() {
+		processorWg.Wait()
+		close(uploadJobs)
+	}()
+
+	// Wait for all pipeline stages to finish
+	uploaderWg.Wait()
 
 	errcsum, err := persistMACIndex(snap, backupCtx.erridx,
 		resources.RT_ERROR_BTREE, resources.RT_ERROR_NODE, resources.RT_ERROR_ENTRY)
@@ -636,7 +608,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		return err
 	}
 
-	ctmac, err := persistIndex(snap, ctidx, resources.RT_BTREE_ROOT, resources.RT_BTREE_NODE, func(mac objects.MAC) (objects.MAC, error) {
+	ctmac, err := persistIndex(snap, backupCtx.ctidx, resources.RT_BTREE_ROOT, resources.RT_BTREE_NODE, func(mac objects.MAC) (objects.MAC, error) {
 		return mac, nil
 	})
 	if err != nil {
@@ -688,19 +660,7 @@ func entropy(data []byte) (float64, [256]float64) {
 	return entropy, freq
 }
 
-func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier, record *importer.ScanRecord) (*objects.Object, error) {
-	var rd io.ReadCloser
-	var err error
-
-	if record.IsXattr {
-		rd, err = imp.NewExtendedAttributeReader(record.Pathname, record.XattrName)
-	} else {
-		rd, err = imp.NewReader(record.Pathname)
-	}
-
-	if err != nil {
-		return nil, err
-	}
+func (snap *Snapshot) chunkify(rd io.ReadCloser, record *importer.ScanRecord, uploadJobs chan<- UploadJob) (*objects.Object, []byte, objects.MAC, error) {
 	defer rd.Close()
 
 	object := objects.NewObject()
@@ -709,17 +669,11 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 	objectHasher := snap.repository.GetMACHasher()
 
 	var firstChunk = true
-	var cdcOffset uint64
-	var object_t32 objects.MAC
-
 	var totalEntropy float64
-	var totalFreq [256]float64
 	var totalDataSize uint64
 
-	// Helper function to process a chunk
 	processChunk := func(data []byte) error {
-		var chunk_t32 objects.MAC
-		chunkHasher := snap.repository.GetMACHasher()
+		chunkMAC := snap.repository.ComputeMAC(data)
 
 		if firstChunk {
 			if object.ContentType == "" {
@@ -727,65 +681,57 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 			}
 			firstChunk = false
 		}
+
 		objectHasher.Write(data)
 
-		chunkHasher.Reset()
-		chunkHasher.Write(data)
-		copy(chunk_t32[:], chunkHasher.Sum(nil))
-
-		entropyScore, freq := entropy(data)
-		if len(data) > 0 {
-			for i := 0; i < 256; i++ {
-				totalFreq[i] += freq[i]
-			}
-		}
-		chunk := objects.NewChunk()
-		chunk.ContentMAC = chunk_t32
-		chunk.Length = uint32(len(data))
-		chunk.Entropy = entropyScore
-
-		object.Chunks = append(object.Chunks, *chunk)
-		cdcOffset += uint64(len(data))
-
-		totalEntropy += chunk.Entropy * float64(len(data))
+		entropyScore, _ := entropy(data)
+		totalEntropy += entropyScore * float64(len(data))
 		totalDataSize += uint64(len(data))
 
-		return snap.PutBlobIfNotExists(resources.RT_CHUNK, chunk.ContentMAC, data)
+		chunk := objects.NewChunk()
+		chunk.ContentMAC = chunkMAC
+		chunk.Length = uint32(len(data))
+		chunk.Entropy = entropyScore
+		object.Chunks = append(object.Chunks, *chunk)
+
+		// Immediately enqueue chunk for upload
+		uploadJobs <- UploadJob{
+			resourceType: resources.RT_CHUNK,
+			mac:          chunkMAC,
+			data:         data,
+		}
+
+		return nil
 	}
 
 	if record.FileInfo.Size() == 0 {
-		// Produce an empty chunk for empty file
 		if err := processChunk([]byte{}); err != nil {
-			return nil, err
+			return nil, nil, objects.MAC{}, err
 		}
 	} else if record.FileInfo.Size() < int64(snap.repository.Configuration().Chunking.MinSize) {
-		// Small file case: read entire file into memory
 		buf, err := io.ReadAll(rd)
 		if err != nil {
-			return nil, err
+			return nil, nil, objects.MAC{}, err
 		}
 		if err := processChunk(buf); err != nil {
-			return nil, err
+			return nil, nil, objects.MAC{}, err
 		}
 	} else {
-		// Large file case: chunk file with chunker
 		chk, err := snap.repository.Chunker(rd)
 		if err != nil {
-			return nil, err
+			return nil, nil, objects.MAC{}, err
 		}
+
 		for {
-			cdcChunk, err := chk.Next()
-			if err != nil && err != io.EOF {
-				return nil, err
-			}
-			if cdcChunk == nil {
-				break
-			}
-			if err := processChunk(cdcChunk); err != nil {
-				return nil, err
-			}
+			chunkData, err := chk.Next()
 			if err == io.EOF {
 				break
+			}
+			if err != nil {
+				return nil, nil, objects.MAC{}, err
+			}
+			if err := processChunk(chunkData); err != nil {
+				return nil, nil, objects.MAC{}, err
 			}
 		}
 	}
@@ -796,9 +742,24 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 		object.Entropy = 0.0
 	}
 
-	copy(object_t32[:], objectHasher.Sum(nil))
-	object.ContentMAC = object_t32
-	return object, nil
+	objectMAC := snap.repository.ComputeMAC(objectHasher.Sum(nil))
+	object.ContentMAC = objectMAC
+
+	serializedObject, err := object.Serialize()
+	if err != nil {
+		return nil, nil, objects.MAC{}, err
+	}
+
+	objectSerializedMAC := snap.repository.ComputeMAC(serializedObject)
+
+	// Upload serialized object metadata immediately
+	uploadJobs <- UploadJob{
+		resourceType: resources.RT_OBJECT,
+		mac:          objectSerializedMAC,
+		data:         serializedObject,
+	}
+
+	return object, serializedObject, objectSerializedMAC, nil
 }
 
 func (snap *Snapshot) PutPackfile(packer *Packer) error {
@@ -920,4 +881,204 @@ func (snap *Snapshot) buildSerializedDeltaState() io.Reader {
 	}()
 
 	return pr
+}
+
+type ReadJob struct {
+	record *importer.ScanRecord
+}
+
+type ProcessJob struct {
+	record *importer.ScanRecord
+	data   io.ReadCloser
+}
+
+type UploadJob struct {
+	resourceType resources.Type
+	mac          objects.MAC
+	data         []byte
+}
+
+func (snap *Snapshot) readerWorker(imp importer.Importer, readJobs <-chan ReadJob, processJobs chan<- ProcessJob, backupCtx *BackupContext) {
+	for job := range readJobs {
+		select {
+		case <-snap.AppContext().GetContext().Done():
+			return
+		default:
+		}
+
+		reader, err := imp.NewReader(job.record.Pathname)
+		if err != nil {
+			backupCtx.recordError(job.record.Pathname, err)
+			continue
+		}
+		processJobs <- ProcessJob{record: job.record, data: reader}
+	}
+}
+
+func (snap *Snapshot) processWorker(processJobs <-chan ProcessJob, uploadJobs chan<- UploadJob, backupCtx *BackupContext, cf *classifier.Classifier, vfsCache *caching.VFSCache) {
+	for job := range processJobs {
+		func() {
+			defer job.data.Close()
+			record := job.record
+			pathname := record.Pathname
+
+			snap.Event(events.FileEvent(snap.Header.Identifier, pathname))
+
+			var err error
+			var fileEntry *vfs.Entry
+			var object *objects.Object
+			var objectMAC objects.MAC
+			var objectSerialized []byte
+
+			var cachedFileEntry *vfs.Entry
+			var cachedFileEntryMAC objects.MAC
+
+			// Check if the file entry and underlying objects are already in the cache
+			if data, err := vfsCache.GetFilename(record.Pathname); err != nil {
+				snap.Logger().Warn("VFS CACHE: Error getting filename: %v", err)
+			} else if data != nil {
+				cachedFileEntry, err = vfs.EntryFromBytes(data)
+				if err != nil {
+					snap.Logger().Warn("VFS CACHE: Error unmarshaling filename: %v", err)
+				} else {
+					cachedFileEntryMAC = snap.repository.ComputeMAC(data)
+					if cachedFileEntry.Stat().Equal(&record.FileInfo) {
+						fileEntry = cachedFileEntry
+						if fileEntry.FileInfo.Mode().IsRegular() {
+							data, err := vfsCache.GetObject(cachedFileEntry.Object)
+							if err != nil {
+								snap.Logger().Warn("VFS CACHE: Error getting object: %v", err)
+							} else if data != nil {
+								cachedObject, err := objects.NewObjectFromBytes(data)
+								if err != nil {
+									snap.Logger().Warn("VFS CACHE: Error unmarshaling object: %v", err)
+								} else {
+									object = cachedObject
+									objectMAC = snap.Repository().ComputeMAC(data)
+									objectSerialized = data
+								}
+							}
+						}
+					}
+				}
+			}
+
+			if object != nil {
+				err := snap.PutBlobIfNotExists(resources.RT_OBJECT, objectMAC, objectSerialized)
+				if err != nil {
+					backupCtx.recordError(record.Pathname, err)
+					return
+				}
+			}
+
+			if record.FileInfo.Mode().IsRegular() {
+				if object == nil || !snap.BlobExists(resources.RT_OBJECT, objectMAC) {
+					object, objectSerialized, objectMAC, err = snap.chunkify(job.data, job.record, uploadJobs)
+					if err != nil {
+						backupCtx.recordError(record.Pathname, err)
+						return
+					}
+					if err := vfsCache.PutObject(objectMAC, objectSerialized); err != nil {
+						backupCtx.recordError(record.Pathname, err)
+						return
+					}
+
+					uploadJobs <- UploadJob{resources.RT_OBJECT, objectMAC, objectSerialized}
+				}
+			}
+
+			// Handle special cases (xattrs)
+			if record.IsXattr {
+				backupCtx.recordXattr(record, objectMAC, object.Size())
+				return
+			}
+
+			// VFS entry handling
+			if fileEntry == nil || !snap.BlobExists(resources.RT_VFS_ENTRY, cachedFileEntryMAC) {
+				fileEntry = vfs.NewEntry(path.Dir(pathname), record)
+				if object != nil {
+					fileEntry.Object = objectMAC
+				}
+
+				classifications := cf.Processor(pathname).File(fileEntry)
+				for _, result := range classifications {
+					fileEntry.AddClassification(result.Analyzer, result.Classes)
+				}
+
+				serialized, err := fileEntry.ToBytes()
+				if err != nil {
+					backupCtx.recordError(pathname, err)
+					return
+				}
+
+				fileEntryMAC := snap.repository.ComputeMAC(serialized)
+
+				uploadJobs <- UploadJob{resources.RT_VFS_ENTRY, fileEntryMAC, serialized}
+
+				err = vfsCache.PutFilename(record.Pathname, serialized)
+				if err != nil {
+					backupCtx.recordError(record.Pathname, err)
+					return
+				}
+
+				fileSummary := &vfs.FileSummary{
+					Size:    uint64(record.FileInfo.Size()),
+					Mode:    record.FileInfo.Mode(),
+					ModTime: record.FileInfo.ModTime().Unix(),
+				}
+				if object != nil {
+					fileSummary.Objects++
+					fileSummary.Chunks += uint64(len(object.Chunks))
+					fileSummary.ContentType = object.ContentType
+					fileSummary.Entropy = object.Entropy
+				}
+
+				seralizedFileSummary, err := fileSummary.Serialize()
+				if err != nil {
+					backupCtx.recordError(record.Pathname, err)
+					return
+				}
+
+				err = vfsCache.PutFileSummary(record.Pathname, seralizedFileSummary)
+				if err != nil {
+					backupCtx.recordError(record.Pathname, err)
+					return
+				}
+			}
+
+			if object != nil {
+				parts := strings.SplitN(object.ContentType, ";", 2)
+				mime := parts[0]
+
+				k := fmt.Sprintf("/%s%s", mime, fileEntry.Path())
+				bytes, err := fileEntry.ToBytes()
+				if err != nil {
+					backupCtx.recordError(record.Pathname, err)
+					return
+				}
+				backupCtx.muctidx.Lock()
+				err = backupCtx.ctidx.Insert(k, snap.repository.ComputeMAC(bytes))
+				backupCtx.muctidx.Unlock()
+				if err != nil {
+					backupCtx.recordError(record.Pathname, err)
+					return
+				}
+			}
+
+			if err := backupCtx.recordEntry(fileEntry); err != nil {
+				backupCtx.recordError(record.Pathname, err)
+				return
+			}
+
+			snap.Event(events.FileOKEvent(snap.Header.Identifier, record.Pathname, record.FileInfo.Size()))
+		}()
+	}
+}
+
+func (snap *Snapshot) uploaderWorker(uploadJobs <-chan UploadJob) {
+	for job := range uploadJobs {
+		if err := snap.PutBlobIfNotExists(job.resourceType, job.mac, job.data); err != nil {
+			snap.Logger().Warn("Upload failed (%x): %v", job.mac, err)
+		}
+	}
 }
