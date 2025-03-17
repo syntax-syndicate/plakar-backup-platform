@@ -495,9 +495,14 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				continue
 			}
 
+			// bytes is a slice that will be reused in the next iteration,
+			// swapping below our feet, so make a copy out of it
+			dupBytes := make([]byte, len(bytes))
+			copy(dupBytes, bytes)
+
 			childPath := prefix + relpath
 
-			if err := fileidx.Insert(childPath, bytes); err != nil && err != btree.ErrExists {
+			if err := fileidx.Insert(childPath, dupBytes); err != nil && err != btree.ErrExists {
 				return err
 			}
 
