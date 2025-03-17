@@ -32,14 +32,11 @@ type BackupContext struct {
 	aborted        atomic.Bool
 	abortedReason  error
 	imp            importer.Importer
-	maxConcurrency chan bool
+	maxConcurrency uint64
 	scanCache      *caching.ScanCache
 
 	erridx   *btree.BTree[string, int, []byte]
-	muerridx sync.Mutex
-
-	xattridx   *btree.BTree[string, int, []byte]
-	muxattridx sync.Mutex
+	xattridx *btree.BTree[string, int, []byte]
 }
 
 type BackupOptions struct {
@@ -70,10 +67,7 @@ func (bc *BackupContext) recordError(path string, err error) error {
 		return err
 	}
 
-	bc.muerridx.Lock()
-	e = bc.erridx.Insert(path, serialized)
-	bc.muerridx.Unlock()
-	return e
+	return bc.erridx.Insert(path, serialized)
 }
 
 func (bc *BackupContext) recordXattr(record *importer.ScanRecord, objectMAC objects.MAC, size int64) error {
@@ -83,10 +77,7 @@ func (bc *BackupContext) recordXattr(record *importer.ScanRecord, objectMAC obje
 		return err
 	}
 
-	bc.muxattridx.Lock()
-	err = bc.xattridx.Insert(xattr.ToPath(), serialized)
-	bc.muxattridx.Unlock()
-	return err
+	return bc.xattridx.Insert(xattr.ToPath(), serialized)
 }
 
 func (snapshot *Snapshot) skipExcludedPathname(options *BackupOptions, record *importer.ScanResult) bool {
@@ -130,6 +121,9 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 		nFiles := uint64(0)
 		nDirectories := uint64(0)
 		size := uint64(0)
+
+		concurrencyChan := make(chan struct{}, backupCtx.maxConcurrency)
+
 		for _record := range scanner {
 			if backupCtx.aborted.Load() {
 				break
@@ -138,9 +132,11 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 				continue
 			}
 
+			concurrencyChan <- struct{}{}
 			wg.Add(1)
 			go func(record *importer.ScanResult) {
 				defer func() {
+					<-concurrencyChan
 					wg.Done()
 				}()
 
@@ -241,7 +237,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 
 	backupCtx := &BackupContext{
 		imp:            imp,
-		maxConcurrency: make(chan bool, maxConcurrency),
+		maxConcurrency: maxConcurrency,
 		scanCache:      snap.scanCache,
 	}
 
@@ -271,7 +267,6 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 	if err != nil {
 		return err
 	}
-	var muctidx sync.Mutex
 
 	/* backup starts now */
 	beginTime := time.Now()
@@ -282,6 +277,8 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		return err
 	}
 
+	concurrencyChan := make(chan struct{}, maxConcurrency)
+
 	/* scanner */
 	scannerWg := sync.WaitGroup{}
 	for _record := range filesChannel {
@@ -291,11 +288,11 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		default:
 		}
 
-		backupCtx.maxConcurrency <- true
+		concurrencyChan <- struct{}{}
 		scannerWg.Add(1)
 		go func(record *importer.ScanRecord) {
 			defer func() {
-				<-backupCtx.maxConcurrency
+				<-concurrencyChan
 				scannerWg.Done()
 			}()
 
@@ -446,9 +443,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 					backupCtx.recordError(record.Pathname, err)
 					return
 				}
-				muctidx.Lock()
 				err = ctidx.Insert(k, snap.repository.ComputeMAC(bytes))
-				muctidx.Unlock()
 				if err != nil {
 					backupCtx.recordError(record.Pathname, err)
 					return
@@ -507,9 +502,14 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				continue
 			}
 
+			// bytes is a slice that will be reused in the next iteration,
+			// swapping below our feet, so make a copy out of it
+			dupBytes := make([]byte, len(bytes))
+			copy(dupBytes, bytes)
+
 			childPath := prefix + relpath
 
-			if err := fileidx.Insert(childPath, bytes); err != nil && err != btree.ErrExists {
+			if err := fileidx.Insert(childPath, dupBytes); err != nil && err != btree.ErrExists {
 				return err
 			}
 
@@ -612,6 +612,9 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		}
 	}
 
+	// hits, miss, cachesize := fileidx.Stats()
+	// log.Printf("before persist: fileidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
+
 	rootcsum, err := persistIndex(snap, fileidx, resources.RT_VFS_BTREE,
 		resources.RT_VFS_NODE, func(data []byte) (objects.MAC, error) {
 			return snap.repository.ComputeMAC(data), nil
@@ -620,11 +623,17 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		return err
 	}
 
+	// hits, miss, cachesize = fileidx.Stats()
+	// log.Printf("after persist: fileidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
+
 	xattrcsum, err := persistMACIndex(snap, backupCtx.xattridx,
 		resources.RT_XATTR_BTREE, resources.RT_XATTR_NODE, resources.RT_XATTR_ENTRY)
 	if err != nil {
 		return err
 	}
+
+	// hits, miss, cachesize = ctidx.Stats()
+	// log.Printf("before persist: ctidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
 
 	ctmac, err := persistIndex(snap, ctidx, resources.RT_BTREE_ROOT, resources.RT_BTREE_NODE, func(mac objects.MAC) (objects.MAC, error) {
 		return mac, nil
@@ -632,6 +641,9 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 	if err != nil {
 		return err
 	}
+
+	// hits, miss, cachesize = ctidx.Stats()
+	// log.Printf("after persist: ctidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
 
 	if backupCtx.aborted.Load() {
 		return backupCtx.abortedReason
