@@ -13,13 +13,13 @@ plakar is:
 - **searchable**: browse your snapshots from plakar UI, sort, search and compare data
 - **fast**: backup, check, sync and restore are fast (beta is optimized for large data sets, optimization for small one are in progress)
 - **efficient**: more restore points, less storage space, with unmatched deduplication and compression rates
-- **Open Source and well maintained**: launched in 2021, open source forever and now maintained by Plakar Korp
+- **Open Source and well maintained**: open source forever and now maintained by Plakar Korp
 
 plakar is providing useful features:
 - **instant recovery**: mount instantly large backup on any devices
 - **distributed backup**: synchronize your backup repository to implement simple (3,2,1 rule) or complex (push, pull, sync) strategies
-- **granular restore**: restore a complete snapshot or only one file
-- **cross-storage restore**: back up from S3 to restore on a file system
+- **granular restore**: restore a complete snapshot or only a set of files
+- **cross-storage restore**: for example back up from S3 to restore on a file system
 - **production safe-guarding**: automatically increase or decrease backup speed to protect your production workloads (very limited on beta)
 - **lock free maintenance**: garbage collect without production interruptions (under testing, beta has a security lock)
 - **connectors**: back up any source (file systems, object stores, SaaS applications...) with granular restore (limited in beta)
@@ -60,7 +60,7 @@ you can read the documentation available at https://docs.plakar.io
 
 ## Community
 
-You can join our [Discord](https://discord.gg/uuegtnF2Q5) to discuss the project !
+You can join our very active [Discord](https://discord.gg/uuegtnF2Q5) to discuss the project !
 
 ## Warning
 
