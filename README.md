@@ -1,4 +1,4 @@
-# plakar - Effortless Backup
+# plakar - Effortless backup
 
 ## Introduction
 
@@ -20,11 +20,9 @@ plakar is providing useful features:
 - **distributed backup**: synchronize your backup repository to implement simple (3,2,1 rule) or complex (push, pull, sync) strategies
 - **granular restore**: restore a complete snapshot or only one file
 - **cross-storage restore**: back up from S3 to restore on a file system
-- **production safe-guarding**: automatically increase or decrease backup speed to protect your production workloads 
+- **production safe-guarding**: automatically increase or decrease backup speed to protect your production workloads (very limited on beta)
 - **lock free maintenance**: garbage collect without production interruptions (under testing, beta has a security lock)
 - **connectors**: back up any source (file systems, object stores, SaaS applications...) with granular restore (limited in beta)
-- **threat detection**: detect suspicious activity based on data entropy
-
 
 Simplicity and efficiency are plakar's main priorities.
 
@@ -69,5 +67,3 @@ You can join our [Discord](https://discord.gg/uuegtnF2Q5) to discuss the project
 plakar is currently in beta and **NOT** production ready yet but it is most definitely stable enough to be tested by others.
 
 Feel free to give it a try, give feedback on what you like/dislike and report bugs.
-
-Be aware that at this point you may still face some bugs and you may need to rebuild your backups from scratch every now and then as we bring improvements to the storage format.
