@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"syscall"
 
@@ -52,6 +53,7 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/server"
 	cmd_sync "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ui"
+	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
@@ -278,6 +280,21 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			// Create a context tied to the connection
 			cancelCtx, cancel := context.WithCancel(context.Background())
 			defer cancel()
+
+			// handshake
+			var (
+				clientvers []byte
+				ourvers    = []byte(utils.GetVersion())
+			)
+			if err := decoder.Decode(&clientvers); err != nil {
+				return
+			}
+			if err := encoder.Encode(ourvers); err != nil {
+				return
+			}
+			if !slices.Equal(clientvers, ourvers) {
+				return
+			}
 
 			clientContext := appcontext.NewAppContextFrom(ctx)
 			clientContext.SetContext(cancelCtx)
