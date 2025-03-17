@@ -182,8 +182,10 @@ func (packer *Packer) Types() []resources.Type {
 func (snap *Snapshot) PutBlob(Type resources.Type, mac [32]byte, data []byte) error {
 	snap.Logger().Trace("snapshot", "%x: PutBlob(%s, %064x) len=%d", snap.Header.GetIndexShortID(), Type, mac, len(data))
 
-	if _, exists := snap.packerManager.inflightMACs[Type].Load(mac); exists {
-		return nil
+	if snap.deltaState != nil {
+		if _, exists := snap.packerManager.inflightMACs[Type].Load(mac); exists {
+			return nil
+		}
 	}
 
 	encodedReader, err := snap.repository.Encode(bytes.NewReader(data))
@@ -212,8 +214,11 @@ func (snap *Snapshot) GetBlob(Type resources.Type, mac [32]byte) ([]byte, error)
 
 func (snap *Snapshot) BlobExists(Type resources.Type, mac [32]byte) bool {
 	snap.Logger().Trace("snapshot", "%x: CheckBlob(%s, %064x)", snap.Header.GetIndexShortID(), Type, mac)
-	if _, exists := snap.packerManager.inflightMACs[Type].Load(mac); exists {
-		return true
+
+	if snap.deltaState != nil {
+		if _, exists := snap.packerManager.inflightMACs[Type].Load(mac); exists {
+			return true
+		}
 	}
 
 	return snap.repository.BlobExists(Type, mac)
