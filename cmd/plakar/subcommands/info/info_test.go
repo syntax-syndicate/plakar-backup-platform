@@ -245,7 +245,6 @@ func _TestExecuteCmdInfoSnapshot(t *testing.T) {
 	// - Errors: 0
 
 	output := bufOut.String()
-	fmt.Println(output)
 	require.Contains(t, output, "Name: test_backup")
 	require.Contains(t, output, "Files: 4")
 	require.Contains(t, output, fmt.Sprintf("Directory: %s", snap.Header.GetSource(0).Importer.Directory))
