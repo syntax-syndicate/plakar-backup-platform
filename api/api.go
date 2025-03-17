@@ -106,7 +106,7 @@ func TokenAuthMiddleware(token string) func(http.Handler) http.Handler {
 	}
 }
 
-func apiVersion(w http.ResponseWriter, r *http.Request) error {
+func apiInfo(w http.ResponseWriter, r *http.Request) error {
 	res := &struct {
 		Version string `json:"version"`
 	}{
@@ -132,7 +132,7 @@ func SetupRoutes(server *http.ServeMux, repo *repository.Repository, token strin
 		}
 	}))
 
-	server.Handle("GET /api/version", authToken(JSONAPIView(apiVersion)))
+	server.Handle("GET /api/info", authToken(JSONAPIView(apiInfo)))
 	server.Handle("GET /api/storage/configuration", authToken(JSONAPIView(storageConfiguration)))
 	server.Handle("GET /api/storage/states", authToken(JSONAPIView(storageStates)))
 	server.Handle("GET /api/storage/state/{state}", authToken(JSONAPIView(storageState)))
