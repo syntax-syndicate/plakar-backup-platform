@@ -32,7 +32,7 @@ type BackupContext struct {
 	aborted        atomic.Bool
 	abortedReason  error
 	imp            importer.Importer
-	maxConcurrency chan bool
+	maxConcurrency uint64
 	scanCache      *caching.ScanCache
 
 	erridx   *btree.BTree[string, int, []byte]
@@ -121,6 +121,9 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 		nFiles := uint64(0)
 		nDirectories := uint64(0)
 		size := uint64(0)
+
+		concurrencyChan := make(chan struct{}, backupCtx.maxConcurrency)
+
 		for _record := range scanner {
 			if backupCtx.aborted.Load() {
 				break
@@ -129,9 +132,11 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 				continue
 			}
 
+			concurrencyChan <- struct{}{}
 			wg.Add(1)
 			go func(record *importer.ScanResult) {
 				defer func() {
+					<-concurrencyChan
 					wg.Done()
 				}()
 
@@ -232,7 +237,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 
 	backupCtx := &BackupContext{
 		imp:            imp,
-		maxConcurrency: make(chan bool, maxConcurrency),
+		maxConcurrency: maxConcurrency,
 		scanCache:      snap.scanCache,
 	}
 
@@ -272,6 +277,8 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		return err
 	}
 
+	concurrencyChan := make(chan struct{}, maxConcurrency)
+
 	/* scanner */
 	scannerWg := sync.WaitGroup{}
 	for _record := range filesChannel {
@@ -281,11 +288,11 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		default:
 		}
 
-		backupCtx.maxConcurrency <- true
+		concurrencyChan <- struct{}{}
 		scannerWg.Add(1)
 		go func(record *importer.ScanRecord) {
 			defer func() {
-				<-backupCtx.maxConcurrency
+				<-concurrencyChan
 				scannerWg.Done()
 			}()
 
