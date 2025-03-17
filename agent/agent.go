@@ -1,14 +1,17 @@
 package agent
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/vmihailenco/msgpack/v5"
@@ -23,9 +26,14 @@ type Packet struct {
 
 type Client struct {
 	conn net.Conn
+	enc  *msgpack.Encoder
+	dec  *msgpack.Decoder
 }
 
-var ErrRetryAgentless = fmt.Errorf("Failed to connect to agent, retry agentless")
+var (
+	ErrRetryAgentless = errors.New("Failed to connect to agent, retry agentless")
+	ErrWrongVersion   = errors.New("agent has a different version")
+)
 
 func ExecuteRPC(ctx *appcontext.AppContext, repo *repository.Repository, cmd subcommands.Subcommand) (int, error) {
 	rpcCmd, ok := cmd.(subcommands.RPC)
@@ -35,6 +43,9 @@ func ExecuteRPC(ctx *appcontext.AppContext, repo *repository.Repository, cmd sub
 
 	client, err := NewClient(filepath.Join(ctx.CacheDir, "agent.sock"))
 	if err != nil {
+		if errors.Is(err, ErrWrongVersion) {
+			ctx.GetLogger().Warn("%v", err)
+		}
 		ctx.GetLogger().Warn("failed to connect to agent, falling back to -no-agent")
 		return 1, ErrRetryAgentless
 	}
@@ -51,20 +62,49 @@ func NewClient(socketPath string) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to daemon: %w", err)
 	}
-	return &Client{conn: conn}, nil
+	encoder := msgpack.NewEncoder(conn)
+	decoder := msgpack.NewDecoder(conn)
+
+	c := &Client{
+		conn: conn,
+		enc:  encoder,
+		dec:  decoder,
+	}
+
+	if err := c.handshake(); err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+func (c *Client) handshake() error {
+	ourvers := []byte(utils.GetVersion())
+
+	if err := c.enc.Encode(ourvers); err != nil {
+		return err
+	}
+
+	var agentvers []byte
+	if err := c.dec.Decode(&agentvers); err != nil {
+		return err
+	}
+
+	if !slices.Equal(ourvers, agentvers) {
+		return fmt.Errorf("%w (%v)", ErrWrongVersion, string(agentvers))
+	}
+
+	return nil
 }
 
 func (c *Client) SendCommand(ctx *appcontext.AppContext, cmd subcommands.RPC, repo *repository.Repository) (int, error) {
-	encoder := msgpack.NewEncoder(c.conn)
-	decoder := msgpack.NewDecoder(c.conn)
-
-	if err := subcommands.EncodeRPC(encoder, cmd); err != nil {
+	if err := subcommands.EncodeRPC(c.enc, cmd); err != nil {
 		return 1, err
 	}
 
 	var response Packet
 	for {
-		if err := decoder.Decode(&response); err != nil {
+		if err := c.dec.Decode(&response); err != nil {
 			if err == io.EOF {
 				break
 			}
