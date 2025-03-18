@@ -642,13 +642,10 @@ func (ls *LocalState) BlobExists(Type resources.Type, blobMAC objects.MAC) bool 
 			continue
 		}
 
-		// XXX: This is the proper check when we re-enable concurrent backups with maintenance.
-		/*
-			deleted, _ := ls.HasDeletedResource(resources.RT_PACKFILE, de.Location.Packfile)
-			if ok && !deleted {
-				return true
-			}
-		*/
+		deleted, _ := ls.HasDeletedResource(resources.RT_PACKFILE, de.Location.Packfile)
+		if ok && !deleted {
+			return true
+		}
 
 		if ok {
 			return true
