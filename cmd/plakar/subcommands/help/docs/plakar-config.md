@@ -105,7 +105,7 @@ Perform a backup on the
 "nas"
 repository:
 
-	$ plakar at nas backup /var/www
+	$ plakar at @nas backup /var/www
 
 The set the
 "nas"
