@@ -960,7 +960,12 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 func (snap *Snapshot) Commit(bc *BackupContext) error {
 	// First thing is to stop the ticker, as we don't want any concurrent flushes to run.
 	// Maybe this could be stopped earlier.
-	bc.flushTick.Stop()
+
+	// If we end up in here without a BackupContext we come from Sync and we
+	// can't rely on the flusher
+	if bc != nil {
+		bc.flushTick.Stop()
+	}
 
 	serializedHdr, err := snap.Header.Serialize()
 	if err != nil {
@@ -980,9 +985,19 @@ func (snap *Snapshot) Commit(bc *BackupContext) error {
 	}
 	snap.packerManager.Wait()
 
-	// We are done with packfiles we can flush the last state
-	bc.flushEnd <- true
-	close(bc.flushEnd)
+	// We are done with packfiles we can flush the last state, either through
+	// the flusher, or manually here.
+	if bc != nil {
+		bc.flushEnd <- true
+		close(bc.flushEnd)
+	} else {
+		stateDelta := buildSerializedDeltaState(snap.deltaState)
+		err = snap.repository.PutState(snap.Header.Identifier, stateDelta)
+		if err != nil {
+			snap.Logger().Warn("Failed to push the state to the repository %s", err)
+			return err
+		}
+	}
 
 	snap.Logger().Trace("snapshot", "%x: Commit()", snap.Header.GetIndexShortID())
 	return nil
