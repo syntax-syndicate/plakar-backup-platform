@@ -309,7 +309,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		imp:            imp,
 		maxConcurrency: maxConcurrency,
 		scanCache:      snap.scanCache,
-		flushTick:      time.NewTicker(10 * time.Minute),
+		flushTick:      time.NewTicker(1 * time.Hour),
 		flushEnd:       make(chan bool),
 		stateId:        snap.Header.Identifier,
 	}
