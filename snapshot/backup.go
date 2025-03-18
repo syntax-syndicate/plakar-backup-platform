@@ -203,63 +203,67 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 }
 
 func (snap *Snapshot) flushDeltaState(bc *BackupContext) {
-	select {
-	case <-bc.flushEnd:
-		// End of backup we push the last and final State. No need to take any locks at this point.
-		stateDeltaStream := buildSerializedDeltaState(snap.deltaState)
-		err := snap.repository.PutState(bc.stateId, stateDeltaStream)
-		if err != nil {
-			// XXX: ERROR HANDLING
-			snap.Logger().Warn("Failed to push the final state to the repository %s", err)
-		}
+	for {
+		select {
+		case <-bc.flushEnd:
+			// End of backup we push the last and final State. No need to take any locks at this point.
+			stateDeltaStream := buildSerializedDeltaState(snap.deltaState)
+			err := snap.repository.PutState(bc.stateId, stateDeltaStream)
+			if err != nil {
+				// XXX: ERROR HANDLING
+				snap.Logger().Warn("Failed to push the final state to the repository %s", err)
+			}
 
-		// See below
-		if snap.deltaCache != snap.scanCache {
-			snap.deltaCache.Close()
-		}
-	case <-bc.flushTick.C:
-		// Take the write lock to be able to swap the pointers
-		snap.deltaMtx.Lock()
-		oldState := snap.deltaState
-		oldCache := snap.deltaCache
-		oldStateId := bc.stateId
+			// See below
+			if snap.deltaCache != snap.scanCache {
+				snap.deltaCache.Close()
+			}
 
-		// Now make a new state backed by a new cache.
-		identifier, err := MakeSnapIdentifier()
-		if err != nil {
+			return
+		case <-bc.flushTick.C:
+			// Take the write lock to be able to swap the pointers
+			snap.deltaMtx.Lock()
+			oldState := snap.deltaState
+			oldCache := snap.deltaCache
+			oldStateId := bc.stateId
+
+			// Now make a new state backed by a new cache.
+			identifier, err := MakeSnapIdentifier()
+			if err != nil {
+				snap.deltaMtx.Unlock()
+				snap.Logger().Warn("Failed to generate delta identifier %s\n", err)
+				break
+			}
+
+			deltaCache, err := snap.repository.AppContext().GetCache().Scan(identifier)
+			if err != nil {
+				// XXX: ERROR HANDLING
+				snap.deltaMtx.Unlock()
+				snap.Logger().Warn("Failed to open deltaCache %s\n", err)
+				break
+			}
+
+			bc.stateId = identifier
+			snap.deltaCache = deltaCache
+			snap.deltaState = snap.repository.NewStateDelta(deltaCache)
 			snap.deltaMtx.Unlock()
-			snap.Logger().Warn("Failed to generate delta identifier %s\n", err)
-			break
-		}
 
-		deltaCache, err := snap.repository.AppContext().GetCache().Scan(identifier)
-		if err != nil {
-			// XXX: ERROR HANDLING
-			snap.deltaMtx.Unlock()
-			snap.Logger().Warn("Failed to open deltaCache %s\n", err)
-			break
-		}
+			// Now that the backup is free to progress we can serialize and push
+			// the resulting statefile to the repo.
+			stateDeltaStream := buildSerializedDeltaState(oldState)
+			err = snap.repository.PutState(oldStateId, stateDeltaStream)
+			if err != nil {
+				// XXX: ERROR HANDLING
+				snap.Logger().Warn("Failed to push the state to the repository %s", err)
+			}
 
-		bc.stateId = identifier
-		snap.deltaCache = deltaCache
-		snap.deltaState = snap.repository.NewStateDelta(deltaCache)
-		snap.deltaMtx.Unlock()
-
-		// Now that the backup is free to progress we can serialize and push
-		// the resulting statefile to the repo.
-		stateDeltaStream := buildSerializedDeltaState(oldState)
-		err = snap.repository.PutState(oldStateId, stateDeltaStream)
-		if err != nil {
-			// XXX: ERROR HANDLING
-			snap.Logger().Warn("Failed to push the state to the repository %s", err)
-		}
-
-		// The first cache is always the scanCache, only in this function we
-		// allocate a new and different one, so when we first hit this function
-		// do not close the deltaCache, as it'll be closed at the end of the
-		// backup because it's used by other parts of the code.
-		if oldCache != snap.scanCache {
-			oldCache.Close()
+			// The first cache is always the scanCache, only in this function we
+			// allocate a new and different one, so when we first hit this function
+			// do not close the deltaCache, as it'll be closed at the end of the
+			// backup because it's used by other parts of the code.
+			if oldCache != snap.scanCache {
+				oldCache.Close()
+			}
 		}
 	}
 }
@@ -305,7 +309,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		imp:            imp,
 		maxConcurrency: maxConcurrency,
 		scanCache:      snap.scanCache,
-		flushTick:      time.NewTicker(10 * time.Minute),
+		flushTick:      time.NewTicker(1 * time.Hour),
 		flushEnd:       make(chan bool),
 		stateId:        snap.Header.Identifier,
 	}
@@ -960,7 +964,12 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 func (snap *Snapshot) Commit(bc *BackupContext) error {
 	// First thing is to stop the ticker, as we don't want any concurrent flushes to run.
 	// Maybe this could be stopped earlier.
-	bc.flushTick.Stop()
+
+	// If we end up in here without a BackupContext we come from Sync and we
+	// can't rely on the flusher
+	if bc != nil {
+		bc.flushTick.Stop()
+	}
 
 	serializedHdr, err := snap.Header.Serialize()
 	if err != nil {
@@ -980,9 +989,19 @@ func (snap *Snapshot) Commit(bc *BackupContext) error {
 	}
 	snap.packerManager.Wait()
 
-	// We are done with packfiles we can flush the last state
-	bc.flushEnd <- true
-	close(bc.flushEnd)
+	// We are done with packfiles we can flush the last state, either through
+	// the flusher, or manually here.
+	if bc != nil {
+		bc.flushEnd <- true
+		close(bc.flushEnd)
+	} else {
+		stateDelta := buildSerializedDeltaState(snap.deltaState)
+		err = snap.repository.PutState(snap.Header.Identifier, stateDelta)
+		if err != nil {
+			snap.Logger().Warn("Failed to push the state to the repository %s", err)
+			return err
+		}
+	}
 
 	snap.Logger().Trace("snapshot", "%x: Commit()", snap.Header.GetIndexShortID())
 	return nil
