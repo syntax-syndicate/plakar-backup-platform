@@ -203,63 +203,67 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 }
 
 func (snap *Snapshot) flushDeltaState(bc *BackupContext) {
-	select {
-	case <-bc.flushEnd:
-		// End of backup we push the last and final State. No need to take any locks at this point.
-		stateDeltaStream := buildSerializedDeltaState(snap.deltaState)
-		err := snap.repository.PutState(bc.stateId, stateDeltaStream)
-		if err != nil {
-			// XXX: ERROR HANDLING
-			snap.Logger().Warn("Failed to push the final state to the repository %s", err)
-		}
+	for {
+		select {
+		case <-bc.flushEnd:
+			// End of backup we push the last and final State. No need to take any locks at this point.
+			stateDeltaStream := buildSerializedDeltaState(snap.deltaState)
+			err := snap.repository.PutState(bc.stateId, stateDeltaStream)
+			if err != nil {
+				// XXX: ERROR HANDLING
+				snap.Logger().Warn("Failed to push the final state to the repository %s", err)
+			}
 
-		// See below
-		if snap.deltaCache != snap.scanCache {
-			snap.deltaCache.Close()
-		}
-	case <-bc.flushTick.C:
-		// Take the write lock to be able to swap the pointers
-		snap.deltaMtx.Lock()
-		oldState := snap.deltaState
-		oldCache := snap.deltaCache
-		oldStateId := bc.stateId
+			// See below
+			if snap.deltaCache != snap.scanCache {
+				snap.deltaCache.Close()
+			}
 
-		// Now make a new state backed by a new cache.
-		identifier, err := MakeSnapIdentifier()
-		if err != nil {
+			return
+		case <-bc.flushTick.C:
+			// Take the write lock to be able to swap the pointers
+			snap.deltaMtx.Lock()
+			oldState := snap.deltaState
+			oldCache := snap.deltaCache
+			oldStateId := bc.stateId
+
+			// Now make a new state backed by a new cache.
+			identifier, err := MakeSnapIdentifier()
+			if err != nil {
+				snap.deltaMtx.Unlock()
+				snap.Logger().Warn("Failed to generate delta identifier %s\n", err)
+				break
+			}
+
+			deltaCache, err := snap.repository.AppContext().GetCache().Scan(identifier)
+			if err != nil {
+				// XXX: ERROR HANDLING
+				snap.deltaMtx.Unlock()
+				snap.Logger().Warn("Failed to open deltaCache %s\n", err)
+				break
+			}
+
+			bc.stateId = identifier
+			snap.deltaCache = deltaCache
+			snap.deltaState = snap.repository.NewStateDelta(deltaCache)
 			snap.deltaMtx.Unlock()
-			snap.Logger().Warn("Failed to generate delta identifier %s\n", err)
-			break
-		}
 
-		deltaCache, err := snap.repository.AppContext().GetCache().Scan(identifier)
-		if err != nil {
-			// XXX: ERROR HANDLING
-			snap.deltaMtx.Unlock()
-			snap.Logger().Warn("Failed to open deltaCache %s\n", err)
-			break
-		}
+			// Now that the backup is free to progress we can serialize and push
+			// the resulting statefile to the repo.
+			stateDeltaStream := buildSerializedDeltaState(oldState)
+			err = snap.repository.PutState(oldStateId, stateDeltaStream)
+			if err != nil {
+				// XXX: ERROR HANDLING
+				snap.Logger().Warn("Failed to push the state to the repository %s", err)
+			}
 
-		bc.stateId = identifier
-		snap.deltaCache = deltaCache
-		snap.deltaState = snap.repository.NewStateDelta(deltaCache)
-		snap.deltaMtx.Unlock()
-
-		// Now that the backup is free to progress we can serialize and push
-		// the resulting statefile to the repo.
-		stateDeltaStream := buildSerializedDeltaState(oldState)
-		err = snap.repository.PutState(oldStateId, stateDeltaStream)
-		if err != nil {
-			// XXX: ERROR HANDLING
-			snap.Logger().Warn("Failed to push the state to the repository %s", err)
-		}
-
-		// The first cache is always the scanCache, only in this function we
-		// allocate a new and different one, so when we first hit this function
-		// do not close the deltaCache, as it'll be closed at the end of the
-		// backup because it's used by other parts of the code.
-		if oldCache != snap.scanCache {
-			oldCache.Close()
+			// The first cache is always the scanCache, only in this function we
+			// allocate a new and different one, so when we first hit this function
+			// do not close the deltaCache, as it'll be closed at the end of the
+			// backup because it's used by other parts of the code.
+			if oldCache != snap.scanCache {
+				oldCache.Close()
+			}
 		}
 	}
 }
