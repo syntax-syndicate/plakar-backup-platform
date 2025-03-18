@@ -26,6 +26,14 @@ plakar is providing useful features:
 
 Simplicity and efficiency are plakar's main priorities.
 
+
+## Current version
+
+The current version is v1.0.0-beta.5
+
+It is our fifth beta version with a stable storage format.
+
+
 ## Requirement
 
 `plakar` requires Go 1.23.3 or higher,
