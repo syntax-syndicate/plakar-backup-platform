@@ -37,8 +37,9 @@ type BackupContext struct {
 
 	stateId objects.MAC
 
-	flushTick *time.Ticker
-	flushEnd  chan bool
+	flushTick  *time.Ticker
+	flushEnd   chan bool
+	flushEnded chan bool
 
 	erridx   *btree.BTree[string, int, []byte]
 	xattridx *btree.BTree[string, int, []byte]
@@ -219,6 +220,8 @@ func (snap *Snapshot) flushDeltaState(bc *BackupContext) {
 				snap.deltaCache.Close()
 			}
 
+			bc.flushEnded <- true
+			close(bc.flushEnded)
 			return
 		case <-bc.flushTick.C:
 			// Take the write lock to be able to swap the pointers
@@ -311,6 +314,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		scanCache:      snap.scanCache,
 		flushTick:      time.NewTicker(1 * time.Hour),
 		flushEnd:       make(chan bool),
+		flushEnded:     make(chan bool),
 		stateId:        snap.Header.Identifier,
 	}
 
@@ -994,6 +998,7 @@ func (snap *Snapshot) Commit(bc *BackupContext) error {
 	if bc != nil {
 		bc.flushEnd <- true
 		close(bc.flushEnd)
+		<-bc.flushEnded
 	} else {
 		stateDelta := buildSerializedDeltaState(snap.deltaState)
 		err = snap.repository.PutState(snap.Header.Identifier, stateDelta)
