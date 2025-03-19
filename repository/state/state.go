@@ -646,11 +646,6 @@ func (ls *LocalState) BlobExists(Type resources.Type, blobMAC objects.MAC) bool 
 		if ok && !deleted {
 			return true
 		}
-
-		if ok {
-			return true
-		}
-
 	}
 
 	return false
@@ -670,7 +665,8 @@ func (ls *LocalState) GetSubpartForBlob(Type resources.Type, blobMAC objects.MAC
 			return Location{}, false, err
 		}
 
-		if ok {
+		deleted, _ := ls.HasDeletedResource(resources.RT_PACKFILE, de.Location.Packfile)
+		if ok && !deleted {
 			delta = &de
 			break
 		}
