@@ -29,7 +29,7 @@ Simplicity and efficiency are plakar's main priorities.
 
 ## Current version
 
-The current version is v1.0.0-beta.5
+The current version is v1.0.0-beta.7
 
 It is our fifth beta version with a stable storage format.
 

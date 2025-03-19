@@ -95,6 +95,18 @@ func New(ctx *appcontext.AppContext, store storage.Store, config []byte) (*Repos
 		return nil, err
 	}
 
+	cacheInstance, err := r.AppContext().GetCache().Repository(r.Configuration().RepositoryID)
+	if err != nil {
+		return nil, err
+	}
+
+	clientVersion := r.appContext.Client
+	if !cacheInstance.HasCookie(clientVersion) {
+		if err := cacheInstance.PutCookie(clientVersion); err != nil {
+			return nil, err
+		}
+	}
+
 	return r, nil
 }
 
@@ -130,6 +142,18 @@ func NewNoRebuild(ctx *appcontext.AppContext, store storage.Store, config []byte
 		store:         store,
 		configuration: *configInstance,
 		appContext:    ctx,
+	}
+
+	cacheInstance, err := r.AppContext().GetCache().Repository(r.Configuration().RepositoryID)
+	if err != nil {
+		return nil, err
+	}
+
+	clientVersion := r.appContext.Client
+	if !cacheInstance.HasCookie(clientVersion) {
+		if err := cacheInstance.PutCookie(clientVersion); err != nil {
+			return nil, err
+		}
 	}
 
 	return r, nil
@@ -686,18 +710,6 @@ func (r *Repository) GetBlob(Type resources.Type, mac objects.MAC) (io.ReadSeeke
 		return nil, ErrPackfileNotFound
 	}
 
-	// XXX: Temporary sanity check for beta.
-	has, err := r.HasDeletedPackfile(loc.Packfile)
-	if err != nil {
-		return nil, err
-	}
-
-	if has {
-		error := fmt.Errorf("Cleanup was too eager, we have a referenced blob (%x) in a deleted packfile (%x)\n", mac, loc.Packfile)
-		r.Logger().Error("GetBlob(%s, %x): %s", Type, mac, error)
-	}
-	// END
-
 	rd, err := r.GetPackfileBlob(loc)
 	if err != nil {
 		return nil, err
@@ -721,6 +733,22 @@ func (r *Repository) RemoveBlob(Type resources.Type, mac, packfileMAC objects.MA
 		r.Logger().Trace("repository", "DeleteBlob(%s, %x, %x): %s", Type, mac, packfileMAC, time.Since(t0))
 	}()
 	return r.state.DelDelta(Type, mac, packfileMAC)
+}
+
+func (r *Repository) PutStateDelta(de *state.DeltaEntry) error {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "PutStateDelta(%x): %s", de.Blob, time.Since(t0))
+	}()
+	return r.state.PutDelta(de)
+}
+
+func (r *Repository) PutStatePackfile(stateId, packfile objects.MAC) error {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "PutStatePackfile(%x, %x): %s", stateId, packfile, time.Since(t0))
+	}()
+	return r.state.PutPackfile(stateId, packfile)
 }
 
 func (r *Repository) ListOrphanBlobs() iter.Seq2[state.DeltaEntry, error] {
