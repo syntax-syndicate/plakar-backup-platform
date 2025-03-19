@@ -94,11 +94,23 @@ func (cmd *DiagState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 					}
 				}
 			}
+			printDeleted := func(name string, Type resources.Type) {
+				for deletedEntry, err := range st.ListDeletedResources(Type) {
+					if err != nil {
+						fmt.Fprintf(ctx.Stdout, "Could not fetch deleted blob entry for %s\n", name)
+					} else {
+						fmt.Fprintf(ctx.Stdout, "deleted %s: %x, when=%s\n",
+							name,
+							deletedEntry.Blob,
+							deletedEntry.When)
+					}
+				}
+			}
 
-			printBlobs("snapshot", resources.RT_SNAPSHOT)
-			printBlobs("chunk", resources.RT_CHUNK)
-			printBlobs("object", resources.RT_OBJECT)
-			printBlobs("file", resources.RT_VFS_BTREE)
+			for _, Type := range resources.Types() {
+				printDeleted(Type.String(), Type)
+				printBlobs(Type.String(), Type)
+			}
 		}
 	}
 	return 0, nil
