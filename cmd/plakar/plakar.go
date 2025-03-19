@@ -410,7 +410,6 @@ func entryPoint() int {
 	}
 
 	var repo *repository.Repository
-	fmt.Println("Opening repository...", opt_agentless)
 	if opt_agentless && command != "server" {
 		repo, err = repository.New(ctx, store, serializedConfig)
 		if err != nil {
