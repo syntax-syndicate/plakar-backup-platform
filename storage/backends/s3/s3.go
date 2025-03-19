@@ -42,6 +42,8 @@ type Store struct {
 	useSsl          bool
 	accessKey       string
 	secretAccessKey string
+
+	putObjectOptions minio.PutObjectOptions
 }
 
 func init() {
@@ -77,6 +79,12 @@ func NewStore(storeConfig map[string]string) (storage.Store, error) {
 		accessKey:       accessKey,
 		secretAccessKey: secretAccessKey,
 		useSsl:          useSsl,
+		putObjectOptions: minio.PutObjectOptions{
+			// Some providers (eg. BlackBlaze) return the error
+			// "Unsupported header 'x-amz-checksum-algorithm'" if SendContentMd5
+			// is not set.
+			SendContentMd5: true,
+		},
 	}, nil
 }
 
@@ -133,7 +141,7 @@ func (s *Store) Create(config []byte) error {
 		return fmt.Errorf("bucket already initialized")
 	}
 
-	_, err = s.minioClient.PutObject(context.Background(), s.bucketName, "CONFIG", bytes.NewReader(config), int64(len(config)), minio.PutObjectOptions{})
+	_, err = s.minioClient.PutObject(context.Background(), s.bucketName, "CONFIG", bytes.NewReader(config), int64(len(config)), s.putObjectOptions)
 	if err != nil {
 		return err
 	}
@@ -211,7 +219,7 @@ func (s *Store) GetStates() ([]objects.MAC, error) {
 }
 
 func (s *Store) PutState(mac objects.MAC, rd io.Reader) error {
-	_, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("states/%02x/%016x", mac[0], mac), rd, -1, minio.PutObjectOptions{})
+	_, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("states/%02x/%016x", mac[0], mac), rd, -1, s.putObjectOptions)
 	if err != nil {
 		return err
 	}
@@ -259,7 +267,7 @@ func (s *Store) GetPackfiles() ([]objects.MAC, error) {
 }
 
 func (s *Store) PutPackfile(mac objects.MAC, rd io.Reader) error {
-	_, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), rd, -1, minio.PutObjectOptions{})
+	_, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), rd, -1, s.putObjectOptions)
 	if err != nil {
 		return err
 	}
@@ -321,7 +329,7 @@ func (s *Store) GetLocks() ([]objects.MAC, error) {
 }
 
 func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) error {
-	_, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("locks/%016x", lockID), rd, -1, minio.PutObjectOptions{})
+	_, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("locks/%016x", lockID), rd, -1, s.putObjectOptions)
 	if err != nil {
 		return err
 	}
