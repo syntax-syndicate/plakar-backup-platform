@@ -348,13 +348,21 @@ func TestExecuteCmdDiagPackfile(t *testing.T) {
 	require.Contains(t, output, fmt.Sprintf("snapshot %s", fmt.Sprintf("%s", hex.EncodeToString(indexId[:]))))
 	require.Contains(t, output, "chunk ")
 	require.Contains(t, output, "object ")
-	require.Contains(t, output, "file ")
+	require.Contains(t, output, "vfs btree ")
 
 	lines = strings.Split(strings.Trim(output, "\n"), "\n")
-	lastline := lines[len(lines)-1]
+	var fileline string
+	for _, line := range lines {
+		if strings.HasPrefix(line, "vfs btree ") {
+			fileline = line
+			break
+		}
+	}
+
 	var partFile, partPackfile []byte
 	var partOffset, partLength int
-	fmt.Sscanf(lastline, "file %x : packfile %x, offset %d, length %d", &partFile, &partPackfile, &partOffset, &partLength)
+	fmt.Println(fileline)
+	fmt.Sscanf(fileline, "vfs btree %x : packfile %x, offset %d, length %d", &partFile, &partPackfile, &partOffset, &partLength)
 
 	bufOut.Reset()
 	args = []string{"packfile", hex.EncodeToString(partPackfile)}
