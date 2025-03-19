@@ -410,6 +410,7 @@ func entryPoint() int {
 	}
 
 	var repo *repository.Repository
+	fmt.Println("Opening repository...", opt_agentless)
 	if opt_agentless && command != "server" {
 		repo, err = repository.New(ctx, store, serializedConfig)
 		if err != nil {
@@ -452,11 +453,12 @@ func entryPoint() int {
 			ctx.SetCache(caching.NewManager(cacheDir))
 			defer ctx.GetCache().Close()
 
-			if err := repo.RebuildState(); err != nil {
+			repo, err = repository.New(ctx, store, serializedConfig)
+			if err != nil {
 				if errors.Is(err, caching.ErrInUse) {
 					fmt.Fprintf(os.Stderr, "%s: the agentless cache is locked by another process. To run multiple processes concurrently, start `plakar agent` and run your command again.\n", flag.CommandLine.Name())
 				} else {
-					fmt.Fprintf(os.Stderr, "%s: failed to rebuild state: %s\n", flag.CommandLine.Name(), err)
+					fmt.Fprintf(os.Stderr, "%s: failed to open repository: %s\n", flag.CommandLine.Name(), err)
 				}
 				return 1
 			}
