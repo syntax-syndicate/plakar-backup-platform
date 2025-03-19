@@ -95,6 +95,18 @@ func New(ctx *appcontext.AppContext, store storage.Store, config []byte) (*Repos
 		return nil, err
 	}
 
+	cacheInstance, err := r.AppContext().GetCache().Repository(r.Configuration().RepositoryID)
+	if err != nil {
+		return nil, err
+	}
+
+	clientVersion := r.appContext.Client
+	if !cacheInstance.HasCookie(clientVersion) {
+		if err := cacheInstance.PutCookie(clientVersion); err != nil {
+			return nil, err
+		}
+	}
+
 	return r, nil
 }
 
@@ -130,6 +142,18 @@ func NewNoRebuild(ctx *appcontext.AppContext, store storage.Store, config []byte
 		store:         store,
 		configuration: *configInstance,
 		appContext:    ctx,
+	}
+
+	cacheInstance, err := r.AppContext().GetCache().Repository(r.Configuration().RepositoryID)
+	if err != nil {
+		return nil, err
+	}
+
+	clientVersion := r.appContext.Client
+	if !cacheInstance.HasCookie(clientVersion) {
+		if err := cacheInstance.PutCookie(clientVersion); err != nil {
+			return nil, err
+		}
 	}
 
 	return r, nil
