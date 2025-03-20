@@ -34,7 +34,7 @@ var (
 	ErrWrongVersion   = errors.New("agent has a different version")
 )
 
-func ExecuteRPC(ctx *appcontext.AppContext, cmd subcommands.Subcommand) (int, error) {
+func ExecuteRPC(ctx *appcontext.AppContext, cmd subcommands.Subcommand, storeConfig map[string]string) (int, error) {
 	rpcCmd, ok := cmd.(subcommands.RPC)
 	if !ok {
 		return 1, fmt.Errorf("subcommand is not an RPC")
@@ -50,7 +50,7 @@ func ExecuteRPC(ctx *appcontext.AppContext, cmd subcommands.Subcommand) (int, er
 	}
 	defer client.Close()
 
-	if status, err := client.SendCommand(ctx, rpcCmd); err != nil {
+	if status, err := client.SendCommand(ctx, rpcCmd, storeConfig); err != nil {
 		return status, err
 	}
 	return 0, nil
@@ -96,8 +96,8 @@ func (c *Client) handshake() error {
 	return nil
 }
 
-func (c *Client) SendCommand(ctx *appcontext.AppContext, cmd subcommands.RPC) (int, error) {
-	if err := subcommands.EncodeRPC(c.enc, cmd); err != nil {
+func (c *Client) SendCommand(ctx *appcontext.AppContext, cmd subcommands.RPC, storeConfig map[string]string) (int, error) {
+	if err := subcommands.EncodeRPC(c.enc, cmd, storeConfig); err != nil {
 		return 1, err
 	}
 

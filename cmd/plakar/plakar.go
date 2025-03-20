@@ -436,7 +436,7 @@ func entryPoint() int {
 	if opt_agentless {
 		status, err = cmd.Execute(ctx, repo)
 	} else {
-		status, err = agent.ExecuteRPC(ctx, cmd)
+		status, err = agent.ExecuteRPC(ctx, cmd, storeConfig)
 		if err == agent.ErrRetryAgentless {
 			err = nil
 			// Reopen using the agentless cache, and rebuild a repository

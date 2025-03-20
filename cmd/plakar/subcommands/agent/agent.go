@@ -120,7 +120,7 @@ func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, ar
 		}
 		defer client.Close()
 
-		retval, err := client.SendCommand(ctx, &AgentStop{})
+		retval, err := client.SendCommand(ctx, &AgentStop{}, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -347,7 +347,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			logger.EnableInfo()
 			clientContext.SetLogger(logger)
 
-			name, request, err := subcommands.DecodeRPC(decoder)
+			name, storeConfig, request, err := subcommands.DecodeRPC(decoder)
 			if err != nil {
 				if isDisconnectError(err) {
 					fmt.Fprintf(os.Stderr, "Client disconnected during initial request\n")
@@ -759,7 +759,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					clientContext.SetSecret(repositorySecret)
 				}
 
-				store, serializedConfig, err := storage.Open(map[string]string{"location": repositoryLocation})
+				store, serializedConfig, err := storage.Open(storeConfig)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to open storage: %s\n", err)
 					return
