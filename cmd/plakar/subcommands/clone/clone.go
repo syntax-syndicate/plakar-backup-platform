@@ -53,15 +53,13 @@ func parse_cmd_clone(ctx *appcontext.AppContext, repo *repository.Repository, ar
 	}
 
 	return &Clone{
-		RepositoryLocation: repo.Location(),
-		RepositorySecret:   ctx.GetSecret(),
-		Dest:               flags.Arg(1),
+		RepositorySecret: ctx.GetSecret(),
+		Dest:             flags.Arg(1),
 	}, nil
 }
 
 type Clone struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	Dest string
 }

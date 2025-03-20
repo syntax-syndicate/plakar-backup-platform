@@ -14,8 +14,7 @@ import (
 )
 
 type DiagState struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	Args []string
 }

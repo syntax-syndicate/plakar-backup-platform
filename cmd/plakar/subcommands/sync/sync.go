@@ -121,18 +121,16 @@ func parse_cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, arg
 	}
 
 	return &Sync{
-		SourceRepositoryLocation: repo.Location(),
-		SourceRepositorySecret:   ctx.GetSecret(),
-		PeerRepositoryLocation:   peerRepositoryPath,
-		PeerRepositorySecret:     peerSecret,
-		Direction:                direction,
-		SnapshotPrefix:           syncSnapshotID,
+		SourceRepositorySecret: ctx.GetSecret(),
+		PeerRepositoryLocation: peerRepositoryPath,
+		PeerRepositorySecret:   peerSecret,
+		Direction:              direction,
+		SnapshotPrefix:         syncSnapshotID,
 	}, nil
 }
 
 type Sync struct {
-	SourceRepositoryLocation string
-	SourceRepositorySecret   []byte
+	SourceRepositorySecret []byte
 
 	PeerRepositoryLocation string
 	PeerRepositorySecret   []byte
