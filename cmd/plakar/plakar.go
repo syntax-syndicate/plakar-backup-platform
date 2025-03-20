@@ -274,19 +274,10 @@ func entryPoint() int {
 		}
 	}
 
-	storeConfig := map[string]string{"location": repositoryPath}
-	if strings.HasPrefix(repositoryPath, "@") {
-		remote, ok := ctx.Config.GetRepository(repositoryPath[1:])
-		if !ok {
-			fmt.Fprintf(os.Stderr, "%s: could not resolve repository: %s\n", flag.CommandLine.Name(), repositoryPath)
-			return 1
-		}
-		if _, ok := remote["location"]; !ok {
-			fmt.Fprintf(os.Stderr, "%s: could not resolve repository location: %s\n", flag.CommandLine.Name(), repositoryPath)
-			return 1
-		} else {
-			storeConfig = remote
-		}
+	storeConfig, err := ctx.Config.GetRepository(repositoryPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+		return 1
 	}
 
 	// create is a special case, it operates without a repository...

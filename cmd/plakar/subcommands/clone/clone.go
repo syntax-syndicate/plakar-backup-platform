@@ -23,7 +23,6 @@ import (
 	"hash"
 	"io"
 	"os"
-	"strings"
 	"sync"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -99,17 +98,9 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 		return 1, err
 	}
 
-	storeConfig := map[string]string{"location": cmd.Dest}
-	if strings.HasPrefix(cmd.Dest, "@") {
-		remote, ok := ctx.Config.GetRepository(cmd.Dest[1:])
-		if !ok {
-			return 1, fmt.Errorf("could not resolve repository: %s", cmd.Dest)
-		}
-		if _, ok := remote["location"]; !ok {
-			return 1, fmt.Errorf("could not resolve repository location: %s", cmd.Dest)
-		} else {
-			storeConfig = remote
-		}
+	storeConfig, err := ctx.Config.GetRepository(cmd.Dest)
+	if err != nil {
+		return 1, err
 	}
 
 	cloneStore, err := storage.Create(storeConfig, wrappedSerializedConfig)
