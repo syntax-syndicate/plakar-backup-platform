@@ -26,6 +26,7 @@ import (
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/gobwas/glob"
+	"golang.org/x/sync/errgroup"
 )
 
 type BackupContext struct {
@@ -886,17 +887,39 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 
 	repo := snap.repository
 
-	serializedData, err := packer.Packfile.SerializeData()
-	if err != nil {
-		return fmt.Errorf("could not serialize pack file data %s", err.Error())
-	}
-	serializedIndex, err := packer.Packfile.SerializeIndex()
-	if err != nil {
-		return fmt.Errorf("could not serialize pack file index %s", err.Error())
-	}
-	serializedFooter, err := packer.Packfile.SerializeFooter()
-	if err != nil {
-		return fmt.Errorf("could not serialize pack file footer %s", err.Error())
+	var eg errgroup.Group
+
+	var serializedData, serializedIndex, serializedFooter []byte
+
+	eg.Go(func() error {
+		var err error
+		serializedData, err = packer.Packfile.SerializeData()
+		if err != nil {
+			return fmt.Errorf("could not serialize pack file data %s", err.Error())
+		}
+		return nil
+	})
+
+	eg.Go(func() error {
+		var err error
+		serializedIndex, err = packer.Packfile.SerializeIndex()
+		if err != nil {
+			return fmt.Errorf("could not serialize pack file index %s", err.Error())
+		}
+		return nil
+	})
+
+	eg.Go(func() error {
+		var err error
+		serializedFooter, err = packer.Packfile.SerializeFooter()
+		if err != nil {
+			return fmt.Errorf("could not serialize pack file footer %s", err.Error())
+		}
+		return nil
+	})
+
+	if err := eg.Wait(); err != nil {
+		return err
 	}
 
 	encryptedIndex, err := repo.EncodeBuffer(serializedIndex)
