@@ -84,16 +84,9 @@ func (mgr *PackerManager) Run() {
 						return fmt.Errorf("unexpected message type")
 					}
 
-					if _, exists := mgr.inflightMACs[pm.Type].Load(pm.MAC); exists {
-						// tell prom exporter that we collided a blob
-						continue
-					}
-
 					if packer == nil {
 						packer = NewPacker(mgr.snapshot.Repository().GetMACHasher())
 					}
-
-					mgr.inflightMACs[pm.Type].Store(pm.MAC, struct{}{})
 
 					if !packer.AddBlobIfNotExists(pm.Type, pm.Version, pm.MAC, pm.Data, pm.Flags) {
 						continue
@@ -183,7 +176,8 @@ func (snap *Snapshot) PutBlob(Type resources.Type, mac [32]byte, data []byte) er
 	snap.Logger().Trace("snapshot", "%x: PutBlob(%s, %064x) len=%d", snap.Header.GetIndexShortID(), Type, mac, len(data))
 
 	if snap.deltaState != nil {
-		if _, exists := snap.packerManager.inflightMACs[Type].Load(mac); exists {
+		if _, exists := snap.packerManager.inflightMACs[Type].LoadOrStore(mac, struct{}{}); exists {
+			// tell prom exporter that we collided a blob
 			return nil
 		}
 	}
