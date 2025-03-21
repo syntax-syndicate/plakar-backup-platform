@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/google/uuid"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -12,8 +13,8 @@ type _VFSCache struct {
 	db      *leveldb.DB
 }
 
-func newVFSCache(cacheManager *Manager, scheme string, origin string) (*_VFSCache, error) {
-	cacheDir := filepath.Join(cacheManager.cacheDir, "vfs", scheme, origin)
+func newVFSCache(cacheManager *Manager, repositoryID uuid.UUID, scheme string, origin string) (*_VFSCache, error) {
+	cacheDir := filepath.Join(cacheManager.cacheDir, "vfs", repositoryID.String(), scheme, origin)
 
 	db, err := leveldb.OpenFile(cacheDir, nil)
 	if err != nil {
