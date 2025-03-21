@@ -56,17 +56,15 @@ func parse_cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args
 	}
 
 	return &Cat{
-		RepositoryLocation: repo.Location(),
-		RepositorySecret:   ctx.GetSecret(),
-		NoDecompress:       opt_nodecompress,
-		Highlight:          opt_highlight,
-		Paths:              flags.Args(),
+		RepositorySecret: ctx.GetSecret(),
+		NoDecompress:     opt_nodecompress,
+		Highlight:        opt_highlight,
+		Paths:            flags.Args(),
 	}, nil
 }
 
 type Cat struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	NoDecompress bool
 	Highlight    bool

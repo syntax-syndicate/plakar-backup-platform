@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -72,9 +73,19 @@ func (c *Config) HasRepository(name string) bool {
 	return ok
 }
 
-func (c *Config) GetRepository(name string) (map[string]string, bool) {
-	kv, ok := c.Repositories[name]
-	return kv, ok
+func (c *Config) GetRepository(name string) (map[string]string, error) {
+	if !strings.HasPrefix(name, "@") {
+		return map[string]string{"location": name}, nil
+	}
+
+	kv, ok := c.Repositories[name[1:]]
+	if !ok {
+		return nil, fmt.Errorf("could not resolve repository: %s", name)
+	}
+	if _, ok := kv["location"]; !ok {
+		return nil, fmt.Errorf("repository %s has no location", name)
+	}
+	return kv, nil
 }
 
 func (c *Config) HasRemote(name string) bool {

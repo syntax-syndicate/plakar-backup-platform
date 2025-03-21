@@ -45,14 +45,12 @@ func parse_cmd_maintenance(ctx *appcontext.AppContext, repo *repository.Reposito
 	flags.Parse(args)
 
 	return &Maintenance{
-		RepositoryLocation: repo.Location(),
-		RepositorySecret:   ctx.GetSecret(),
+		RepositorySecret: ctx.GetSecret(),
 	}, nil
 }
 
 type Maintenance struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	repository    *repository.Repository
 	maintenanceID objects.MAC

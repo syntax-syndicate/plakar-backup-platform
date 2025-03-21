@@ -68,18 +68,16 @@ func parse_cmd_archive(ctx *appcontext.AppContext, repo *repository.Repository, 
 	}
 
 	return &Archive{
-		RepositoryLocation: repo.Location(),
-		RepositorySecret:   ctx.GetSecret(),
-		Rebase:             opt_rebase,
-		Output:             opt_output,
-		Format:             opt_format,
-		SnapshotPrefix:     flags.Arg(0),
+		RepositorySecret: ctx.GetSecret(),
+		Rebase:           opt_rebase,
+		Output:           opt_output,
+		Format:           opt_format,
+		SnapshotPrefix:   flags.Arg(0),
 	}, nil
 }
 
 type Archive struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	Rebase         bool
 	Output         string
