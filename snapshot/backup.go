@@ -281,7 +281,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 	}
 	defer snap.Unlock(done)
 
-	vfsCache, err := snap.AppContext().GetCache().VFS(imp.Type(), imp.Origin())
+	vfsCache, err := snap.AppContext().GetCache().VFS(snap.repository.Configuration().RepositoryID, imp.Type(), imp.Origin())
 	if err != nil {
 		return err
 	}
