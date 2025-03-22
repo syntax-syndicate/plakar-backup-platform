@@ -588,7 +588,7 @@ func (r *Repository) GetPackfileBlob(loc state.Location) (io.ReadSeeker, error) 
 
 	var offsetDelta uint64
 	if offset > 0 {
-		max := big.NewInt(16*1024 - 1)
+		max := big.NewInt(1024 - 1)
 		n, err := rand.Int(rand.Reader, max)
 		if err != nil {
 			panic(err)
@@ -598,15 +598,20 @@ func (r *Repository) GetPackfileBlob(loc state.Location) (io.ReadSeeker, error) 
 		offsetDelta = 0
 	}
 
-	//fmt.Fprintf(r.AppContext().Stderr, "server off=%d-len=%d, real off=%d-len=%d (discarded: %d)\n", offset+offsetDelta, length+uint32(offsetDelta), offset, length, offsetDelta)
+	max := big.NewInt(1024 - 1)
+	n, err := rand.Int(rand.Reader, max)
+	if err != nil {
+		panic(err)
+	}
+	lengthDelta := uint32(n.Uint64()) + 1
 
-	rd, err := r.store.GetPackfileBlob(loc.Packfile, offset+uint64(storage.STORAGE_HEADER_SIZE)-offsetDelta, length+uint32(offsetDelta))
+	rd, err := r.store.GetPackfileBlob(loc.Packfile, offset+uint64(storage.STORAGE_HEADER_SIZE)-offsetDelta, length+uint32(offsetDelta)+lengthDelta)
 	if err != nil {
 		return nil, err
 	}
 
-	discard := make([]byte, offsetDelta)
-	_, err = io.ReadFull(rd, discard)
+	// discard the first offsetDelta bytes
+	_, err = io.ReadFull(rd, make([]byte, offsetDelta))
 	if err != nil {
 		return nil, err
 	}
@@ -615,6 +620,9 @@ func (r *Repository) GetPackfileBlob(loc state.Location) (io.ReadSeeker, error) 
 	if err != nil {
 		return nil, err
 	}
+
+	// discard the last lengthDelta bytes
+	data = data[:length]
 
 	decoded, err := r.DecodeBuffer(data)
 	if err != nil {
