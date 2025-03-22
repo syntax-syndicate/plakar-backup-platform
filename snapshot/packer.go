@@ -3,9 +3,11 @@ package snapshot
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"fmt"
 	"hash"
 	"io"
+	mrand "math/rand"
 	"runtime"
 	"sync"
 	"time"
@@ -17,6 +19,14 @@ import (
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/versioning"
 )
+
+func init() {
+	// used for paddinng random bytes
+	versioning.Register(resources.RT_RANDOM, versioning.FromString("1.0.0"))
+}
+
+const minPaddingSize = 32 * 1024
+const maxPaddingSize = 64 * 1024
 
 type PackerManager struct {
 	snapshot       *Snapshot
@@ -86,6 +96,7 @@ func (mgr *PackerManager) Run() {
 
 					if packer == nil {
 						packer = NewPacker(mgr.snapshot.Repository().GetMACHasher())
+						packer.AddPadding(minPaddingSize, maxPaddingSize)
 					}
 
 					if !packer.AddBlobIfNotExists(pm.Type, pm.Version, pm.MAC, pm.Data, pm.Flags) {
@@ -146,6 +157,33 @@ func NewPacker(hasher hash.Hash) *Packer {
 		Packfile: packfile.New(hasher),
 		Blobs:    blobs,
 	}
+}
+
+func (packer *Packer) AddPadding(minSize int, maxSize int) error {
+	if minSize <= 0 {
+		return fmt.Errorf("invalid padding size")
+	}
+	if maxSize < minSize {
+		return fmt.Errorf("invalid padding size")
+	}
+
+	size := mrand.Intn(maxSize-minSize) + minSize
+
+	buffer := make([]byte, size)
+	_, err := rand.Read(buffer)
+	if err != nil {
+		return fmt.Errorf("failed to generate random padding: %w", err)
+	}
+
+	mac := objects.MAC{}
+	_, err = rand.Read(mac[:])
+	if err != nil {
+		return fmt.Errorf("failed to generate random padding MAC: %w", err)
+	}
+
+	packer.AddBlobIfNotExists(resources.RT_RANDOM, versioning.GetCurrentVersion(resources.RT_RANDOM), mac, buffer, 0)
+
+	return nil
 }
 
 func (packer *Packer) AddBlobIfNotExists(Type resources.Type, version versioning.Version, mac [32]byte, data []byte, flags uint32) bool {
