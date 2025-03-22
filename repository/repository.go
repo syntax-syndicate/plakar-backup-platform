@@ -9,6 +9,7 @@ import (
 	"hash"
 	"io"
 	"iter"
+	"math/big"
 	"strings"
 	"time"
 
@@ -582,7 +583,30 @@ func (r *Repository) GetPackfileBlob(loc state.Location) (io.ReadSeeker, error) 
 		r.Logger().Trace("repository", "GetPackfileBlob(%x, %d, %d): %s", loc.Packfile, loc.Offset, loc.Length, time.Since(t0))
 	}()
 
-	rd, err := r.store.GetPackfileBlob(loc.Packfile, loc.Offset+uint64(storage.STORAGE_HEADER_SIZE), loc.Length)
+	offset := loc.Offset
+	length := loc.Length
+
+	var offsetDelta uint64
+	if offset > 0 {
+		max := big.NewInt(16*1024 - 1)
+		n, err := rand.Int(rand.Reader, max)
+		if err != nil {
+			panic(err)
+		}
+		offsetDelta = n.Uint64() + 1
+	} else {
+		offsetDelta = 0
+	}
+
+	//fmt.Fprintf(r.AppContext().Stderr, "server off=%d-len=%d, real off=%d-len=%d (discarded: %d)\n", offset+offsetDelta, length+uint32(offsetDelta), offset, length, offsetDelta)
+
+	rd, err := r.store.GetPackfileBlob(loc.Packfile, offset+uint64(storage.STORAGE_HEADER_SIZE)-offsetDelta, length+uint32(offsetDelta))
+	if err != nil {
+		return nil, err
+	}
+
+	discard := make([]byte, offsetDelta)
+	_, err = io.ReadFull(rd, discard)
 	if err != nil {
 		return nil, err
 	}
