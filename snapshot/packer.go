@@ -25,8 +25,8 @@ func init() {
 	versioning.Register(resources.RT_RANDOM, versioning.FromString("1.0.0"))
 }
 
-const minPaddingSize = 32 * 1024
-const maxPaddingSize = 64 * 1024
+const minPaddingSize = 4 * 1024
+const maxPaddingSize = 16 * 1024
 
 type PackerManager struct {
 	snapshot       *Snapshot
@@ -60,6 +60,8 @@ func (mgr *PackerManager) Run() {
 			if packer == nil || packer.Size() == 0 {
 				continue
 			}
+
+			packer.AddPadding(minPaddingSize, maxPaddingSize)
 
 			if err := mgr.snapshot.PutPackfile(packer); err != nil {
 				return fmt.Errorf("failed to flush packer: %w", err)
