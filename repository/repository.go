@@ -10,6 +10,7 @@ import (
 	"io"
 	"iter"
 	"math/big"
+	"math/bits"
 	"strings"
 	"time"
 
@@ -577,6 +578,37 @@ func (r *Repository) GetPackfile(mac objects.MAC) (*packfile.PackFile, error) {
 	return p, nil
 }
 
+func padmeLength(L uint32) (uint32, error) {
+	// Determine the bit-length of L.
+	bitLen := 32 - bits.LeadingZeros32(L)
+
+	// Compute overhead as 2^(floor(bitLen/2)).
+	overhead := uint32(1 << (bitLen / 2))
+
+	// Generate a random number r in [0, overhead)
+	rBig, err := rand.Int(rand.Reader, big.NewInt(int64(overhead)))
+	if err != nil {
+		return 0, err
+	}
+	r := uint32(rBig.Int64())
+
+	return r, nil
+}
+
+func randomShift(n uint32) (uint64, error) {
+	if n == 0 {
+		return 0, nil
+	}
+
+	max := big.NewInt(int64(n) + 1)
+	r, err := rand.Int(rand.Reader, max)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint64(r.Int64()), nil
+}
+
 func (r *Repository) GetPackfileBlob(loc state.Location) (io.ReadSeeker, error) {
 	t0 := time.Now()
 	defer func() {
@@ -586,24 +618,19 @@ func (r *Repository) GetPackfileBlob(loc state.Location) (io.ReadSeeker, error) 
 	offset := loc.Offset
 	length := loc.Length
 
-	var offsetDelta uint64
-	if offset > 0 {
-		max := big.NewInt(1024 - 1)
-		n, err := rand.Int(rand.Reader, max)
-		if err != nil {
-			panic(err)
-		}
-		offsetDelta = n.Uint64() + 1
-	} else {
-		offsetDelta = 0
+	overhead, err := padmeLength(length)
+	if err != nil {
+		return nil, err
 	}
 
-	max := big.NewInt(1024 - 1)
-	n, err := rand.Int(rand.Reader, max)
+	offsetDelta, err := randomShift(overhead)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	lengthDelta := uint32(n.Uint64()) + 1
+	if offsetDelta > offset {
+		offsetDelta = offset
+	}
+	lengthDelta := uint32(uint64(overhead) - offsetDelta)
 
 	rd, err := r.store.GetPackfileBlob(loc.Packfile, offset+uint64(storage.STORAGE_HEADER_SIZE)-offsetDelta, length+uint32(offsetDelta)+lengthDelta)
 	if err != nil {

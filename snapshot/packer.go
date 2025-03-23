@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	mrand "math/rand"
+	"math/big"
 	"runtime"
 	"sync"
 	"time"
@@ -24,9 +24,6 @@ func init() {
 	// used for paddinng random bytes
 	versioning.Register(resources.RT_RANDOM, versioning.FromString("1.0.0"))
 }
-
-const minPaddingSize = 4 * 1024
-const maxPaddingSize = 16 * 1024
 
 type PackerManager struct {
 	snapshot       *Snapshot
@@ -61,7 +58,7 @@ func (mgr *PackerManager) Run() {
 				continue
 			}
 
-			packer.AddPadding(minPaddingSize, maxPaddingSize)
+			packer.AddPadding(int(mgr.snapshot.repository.Configuration().Chunking.MinSize))
 
 			if err := mgr.snapshot.PutPackfile(packer); err != nil {
 				return fmt.Errorf("failed to flush packer: %w", err)
@@ -98,7 +95,7 @@ func (mgr *PackerManager) Run() {
 
 					if packer == nil {
 						packer = NewPacker(mgr.snapshot.Repository().GetMACHasher())
-						packer.AddPadding(minPaddingSize, maxPaddingSize)
+						packer.AddPadding(int(mgr.snapshot.repository.Configuration().Chunking.MinSize))
 					}
 
 					if !packer.AddBlobIfNotExists(pm.Type, pm.Version, pm.MAC, pm.Data, pm.Flags) {
@@ -161,18 +158,19 @@ func NewPacker(hasher hash.Hash) *Packer {
 	}
 }
 
-func (packer *Packer) AddPadding(minSize int, maxSize int) error {
-	if minSize <= 0 {
-		return fmt.Errorf("invalid padding size")
-	}
-	if maxSize < minSize {
+func (packer *Packer) AddPadding(maxSize int) error {
+	if maxSize <= 0 {
 		return fmt.Errorf("invalid padding size")
 	}
 
-	size := mrand.Intn(maxSize-minSize) + minSize
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(maxSize)-1))
+	if err != nil {
+		return err
+	}
+	paddingSize := uint32(n.Uint64()) + 1
 
-	buffer := make([]byte, size)
-	_, err := rand.Read(buffer)
+	buffer := make([]byte, paddingSize)
+	_, err = rand.Read(buffer)
 	if err != nil {
 		return fmt.Errorf("failed to generate random padding: %w", err)
 	}
