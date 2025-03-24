@@ -9,8 +9,7 @@ import (
 )
 
 type DiagLocks struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 }
 
 func (cmd *DiagLocks) Name() string {

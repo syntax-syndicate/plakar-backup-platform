@@ -33,8 +33,7 @@ func init() {
 func parse_cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	if len(args) == 0 {
 		return &InfoRepository{
-			RepositoryLocation: repo.Location(),
-			RepositorySecret:   ctx.GetSecret(),
+			RepositorySecret: ctx.GetSecret(),
 		}, nil
 	}
 
@@ -54,15 +53,13 @@ func parse_cmd_info(ctx *appcontext.AppContext, repo *repository.Repository, arg
 	}
 	if path != "" {
 		return &InfoVFS{
-			RepositoryLocation: repo.Location(),
-			RepositorySecret:   ctx.GetSecret(),
-			SnapshotPath:       flags.Arg(0),
+			RepositorySecret: ctx.GetSecret(),
+			SnapshotPath:     flags.Arg(0),
 		}, nil
 	}
 
 	return &InfoSnapshot{
-		RepositoryLocation: repo.Location(),
-		RepositorySecret:   ctx.GetSecret(),
-		SnapshotID:         flags.Args()[0],
+		RepositorySecret: ctx.GetSecret(),
+		SnapshotID:       flags.Args()[0],
 	}, nil
 }

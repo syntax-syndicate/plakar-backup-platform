@@ -98,8 +98,7 @@ func parse_cmd_check(ctx *appcontext.AppContext, repo *repository.Repository, ar
 	}
 
 	return &Check{
-		RepositoryLocation: repo.Location(),
-		RepositorySecret:   ctx.GetSecret(),
+		RepositorySecret: ctx.GetSecret(),
 
 		OptBefore: beforeDate,
 		OptSince:  sinceDate,
@@ -122,8 +121,7 @@ func parse_cmd_check(ctx *appcontext.AppContext, repo *repository.Repository, ar
 }
 
 type Check struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	OptBefore time.Time
 	OptSince  time.Time

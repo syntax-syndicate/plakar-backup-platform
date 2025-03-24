@@ -143,6 +143,9 @@ func cmd_repository(ctx *appcontext.AppContext, args []string) error {
 		if !ctx.Config.HasRepository(name) {
 			return fmt.Errorf("repository %q doesn't exist", name)
 		}
+		if _, ok := ctx.Config.Repositories[name]["location"]; !ok {
+			return fmt.Errorf("repository %q doesn't have a location set", name)
+		}
 		ctx.Config.DefaultRepository = name
 		return ctx.Config.Save()
 

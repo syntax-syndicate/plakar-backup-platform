@@ -51,7 +51,7 @@ func (m *Manager) Close() error {
 	return nil
 }
 
-func (m *Manager) VFS(scheme string, origin string) (*_VFSCache, error) {
+func (m *Manager) VFS(repositoryID uuid.UUID, scheme string, origin string) (*_VFSCache, error) {
 	m.vfsCacheMutex.Lock()
 	defer m.vfsCacheMutex.Unlock()
 
@@ -61,7 +61,7 @@ func (m *Manager) VFS(scheme string, origin string) (*_VFSCache, error) {
 		return cache, nil
 	}
 
-	if cache, err := newVFSCache(m, scheme, origin); err != nil {
+	if cache, err := newVFSCache(m, repositoryID, scheme, origin); err != nil {
 		return nil, err
 	} else {
 		m.vfsCache[key] = cache

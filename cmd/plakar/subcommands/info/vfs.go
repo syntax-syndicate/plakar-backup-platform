@@ -12,8 +12,7 @@ import (
 )
 
 type InfoVFS struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	SnapshotPath string
 }
