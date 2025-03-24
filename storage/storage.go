@@ -25,7 +25,6 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/PlakarKorp/plakar/chunking"
@@ -132,13 +131,9 @@ type backend struct {
 	fn   func(map[string]string) (Store, error)
 }
 
-var muBackends sync.Mutex
 var backends = make(map[string]func(map[string]string) (Store, error))
 
 func NewStore(name string, storeConfig map[string]string) (Store, error) {
-	muBackends.Lock()
-	defer muBackends.Unlock()
-
 	if backend, exists := backends[name]; !exists {
 		return nil, fmt.Errorf("backend '%s' does not exist", name)
 	} else {
@@ -147,9 +142,6 @@ func NewStore(name string, storeConfig map[string]string) (Store, error) {
 }
 
 func Register(backend func(map[string]string) (Store, error), names ...string) {
-	muBackends.Lock()
-	defer muBackends.Unlock()
-
 	for _, name := range names {
 		if _, ok := backends[name]; ok {
 			log.Fatalf("backend '%s' registered twice", name)
@@ -159,9 +151,6 @@ func Register(backend func(map[string]string) (Store, error), names ...string) {
 }
 
 func Backends() []string {
-	muBackends.Lock()
-	defer muBackends.Unlock()
-
 	ret := make([]string, 0)
 	for backendName := range backends {
 		ret = append(ret, backendName)
