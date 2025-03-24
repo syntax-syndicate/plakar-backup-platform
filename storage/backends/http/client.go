@@ -89,10 +89,6 @@ func (s *Store) Close() error {
 	return nil
 }
 
-func (s *Store) Configuration() storage.Configuration {
-	return s.config
-}
-
 // states
 func (s *Store) GetStates() ([]objects.MAC, error) {
 	r, err := s.sendRequest("GET", "/states", network.ReqGetStates{})

@@ -15,8 +15,7 @@ import (
 )
 
 type DiagSnapshot struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	SnapshotID string
 }

@@ -45,36 +45,53 @@ type RPC interface {
 }
 
 type encodedRPC struct {
-	Name       string
-	Subcommand RPC
+	Name        string
+	Subcommand  RPC
+	StoreConfig map[string]string
 }
 
 // Encode marshals the RPC into the msgpack encoder. It prefixes the RPC with
 // the Name() of the RPC. This is used to identify the RPC on decoding.
-func EncodeRPC(encoder *msgpack.Encoder, cmd RPC) error {
+func EncodeRPC(encoder *msgpack.Encoder, cmd RPC, storeConfig map[string]string) error {
 	return encoder.Encode(encodedRPC{
-		Name:       cmd.Name(),
-		Subcommand: cmd,
+		Name:        cmd.Name(),
+		Subcommand:  cmd,
+		StoreConfig: storeConfig,
 	})
 }
 
 // Decode extracts the request encoded by Encode(). It returns the name of the
 // RPC and the raw bytes of the request. The raw bytes can be used by the caller
 // to unmarshal the bytes with the correct struct.
-func DecodeRPC(decoder *msgpack.Decoder) (string, []byte, error) {
+func DecodeRPC(decoder *msgpack.Decoder) (string, map[string]string, []byte, error) {
 	var request map[string]interface{}
 	if err := decoder.Decode(&request); err != nil {
-		return "", nil, fmt.Errorf("failed to decode client request: %w", err)
+		return "", nil, nil, fmt.Errorf("failed to decode client request: %w", err)
 	}
 
 	rawRequest, err := msgpack.Marshal(request)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to marshal client request: %s", err)
+		return "", nil, nil, fmt.Errorf("failed to marshal client request: %s", err)
 	}
 
 	name, ok := request["Name"].(string)
 	if !ok {
-		return "", nil, fmt.Errorf("request does not contain a Name string field")
+		return "", nil, nil, fmt.Errorf("request does not contain a Name string field")
 	}
-	return name, rawRequest, nil
+
+	storeConfig, ok := request["StoreConfig"].(map[string]interface{})
+	if !ok {
+		return "", nil, nil, fmt.Errorf("request does not contain a StoreConfig field")
+	}
+
+	okStoreConfig := make(map[string]string)
+	for k, v := range storeConfig {
+		if str, ok := v.(string); ok {
+			okStoreConfig[k] = str
+		} else {
+			return "", nil, nil, fmt.Errorf("StoreConfig field %s is not a string", k)
+		}
+	}
+
+	return name, okStoreConfig, rawRequest, nil
 }

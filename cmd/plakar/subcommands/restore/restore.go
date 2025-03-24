@@ -80,8 +80,7 @@ func parse_cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, 
 	}
 
 	return &Restore{
-		RepositoryLocation: repo.Location(),
-		RepositorySecret:   ctx.GetSecret(),
+		RepositorySecret: ctx.GetSecret(),
 
 		OptName:        opt_name,
 		OptCategory:    opt_category,
@@ -99,8 +98,7 @@ func parse_cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, 
 }
 
 type Restore struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	OptName        string
 	OptCategory    string

@@ -14,8 +14,7 @@ import (
 )
 
 type DiagState struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	Args []string
 }
@@ -76,7 +75,7 @@ func (cmd *DiagState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 				return 1, err
 			}
 
-			fmt.Fprintf(ctx.Stdout, "Version: %d.%d.%d\n", st.Metadata.Version/100, (st.Metadata.Version/10)%10, st.Metadata.Version%10)
+			fmt.Fprintf(ctx.Stdout, "Version: %s\n", st.Metadata.Version)
 			fmt.Fprintf(ctx.Stdout, "Creation: %s\n", st.Metadata.Timestamp)
 			fmt.Fprintf(ctx.Stdout, "State serial: %s\n", st.Metadata.Serial)
 
@@ -94,11 +93,23 @@ func (cmd *DiagState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 					}
 				}
 			}
+			printDeleted := func(name string, Type resources.Type) {
+				for deletedEntry, err := range st.ListDeletedResources(Type) {
+					if err != nil {
+						fmt.Fprintf(ctx.Stdout, "Could not fetch deleted blob entry for %s\n", name)
+					} else {
+						fmt.Fprintf(ctx.Stdout, "deleted %s: %x, when=%s\n",
+							name,
+							deletedEntry.Blob,
+							deletedEntry.When)
+					}
+				}
+			}
 
-			printBlobs("snapshot", resources.RT_SNAPSHOT)
-			printBlobs("chunk", resources.RT_CHUNK)
-			printBlobs("object", resources.RT_OBJECT)
-			printBlobs("file", resources.RT_VFS_BTREE)
+			for _, Type := range resources.Types() {
+				printDeleted(Type.String(), Type)
+				printBlobs(Type.String(), Type)
+			}
 		}
 	}
 	return 0, nil

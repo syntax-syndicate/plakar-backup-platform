@@ -53,17 +53,15 @@ func parse_cmd_diff(ctx *appcontext.AppContext, repo *repository.Repository, arg
 	}
 
 	return &Diff{
-		RepositoryLocation: repo.Location(),
-		RepositorySecret:   ctx.GetSecret(),
-		Highlight:          opt_highlight,
-		SnapshotPath1:      flags.Arg(0),
-		SnapshotPath2:      flags.Arg(1),
+		RepositorySecret: ctx.GetSecret(),
+		Highlight:        opt_highlight,
+		SnapshotPath1:    flags.Arg(0),
+		SnapshotPath2:    flags.Arg(1),
 	}, nil
 }
 
 type Diff struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	Highlight     bool
 	SnapshotPath1 string

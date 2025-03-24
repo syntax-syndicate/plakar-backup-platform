@@ -60,16 +60,14 @@ func parse_cmd_digest(ctx *appcontext.AppContext, repo *repository.Repository, a
 	}
 
 	return &Digest{
-		RepositoryLocation: repo.Location(),
-		RepositorySecret:   ctx.GetSecret(),
-		HashingFunction:    hashingFunction,
-		Targets:            flags.Args(),
+		RepositorySecret: ctx.GetSecret(),
+		HashingFunction:  hashingFunction,
+		Targets:          flags.Args(),
 	}, nil
 }
 
 type Digest struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	HashingFunction string
 	Targets         []string

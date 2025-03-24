@@ -10,11 +10,10 @@ import (
 )
 
 type DiagSearch struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	SnapshotPath string
-	Mime string
+	Mime         string
 }
 
 func (cmd *DiagSearch) Name() string {
@@ -30,8 +29,8 @@ func (cmd *DiagSearch) Execute(ctx *appcontext.AppContext, repo *repository.Repo
 
 	opts := snapshot.SearchOpts{
 		Recursive: true,
-		Prefix: pathname,
-		Mime: cmd.Mime,
+		Prefix:    pathname,
+		Mime:      cmd.Mime,
 	}
 	it, err := snap.Search(&opts)
 	if err != nil {
