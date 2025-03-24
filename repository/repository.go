@@ -104,13 +104,6 @@ func New(ctx *appcontext.AppContext, store storage.Store, config []byte) (*Repos
 
 	clientVersion := r.appContext.Client
 	if !cacheInstance.HasCookie(clientVersion) {
-
-		// XXX - this is until beta.6 is no longer in the wild
-		err = r.PutCurrentState()
-		if err != nil {
-			return nil, err
-		}
-
 		if err := cacheInstance.PutCookie(clientVersion); err != nil {
 			return nil, err
 		}
@@ -151,18 +144,6 @@ func NewNoRebuild(ctx *appcontext.AppContext, store storage.Store, config []byte
 		store:         store,
 		configuration: *configInstance,
 		appContext:    ctx,
-	}
-
-	cacheInstance, err := r.AppContext().GetCache().Repository(r.Configuration().RepositoryID)
-	if err != nil {
-		return nil, err
-	}
-
-	clientVersion := r.appContext.Client
-	if !cacheInstance.HasCookie(clientVersion) {
-		if err := cacheInstance.PutCookie(clientVersion); err != nil {
-			return nil, err
-		}
 	}
 
 	return r, nil
