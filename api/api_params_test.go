@@ -138,7 +138,7 @@ func TestQueryParamToUint32(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			got, err := QueryParamToUint32(req, "param", 0)
+			got, err := QueryParamToUint32(req, "param", 0, 0)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("QueryParamToUint32() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -201,7 +201,7 @@ func TestQueryParamToInt64(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			got, err := QueryParamToInt64(req, "param", 0)
+			got, err := QueryParamToInt64(req, "param", 0, 0)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("QueryParamToInt64() error = %v, wantErr %v", err, tt.wantErr)
 				return
