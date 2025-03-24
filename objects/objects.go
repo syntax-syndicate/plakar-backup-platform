@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/versioning"
@@ -45,17 +44,14 @@ func (m *MAC) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func RandomMAC() (MAC, error) {
+func RandomMAC() (MAC) {
 	var r MAC
 
-	n, err := rand.Read(r[:])
-	if err != nil {
-		return MAC{}, err
-	}
-	if n != len(r) {
-		return MAC{}, io.ErrShortWrite
-	}
-	return r, nil
+	// According to the documentation, this call never fails and
+	// always return a complete read.
+	rand.Read(r[:])
+
+	return r
 }
 
 type Object struct {

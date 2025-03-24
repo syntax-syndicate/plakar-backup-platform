@@ -48,11 +48,7 @@ type Snapshot struct {
 }
 
 func New(repo *repository.Repository) (*Snapshot, error) {
-	identifier, err := objects.RandomMAC()
-	if err != nil {
-		return nil, err
-	}
-
+	identifier := objects.RandomMAC()
 	scanCache, err := repo.AppContext().GetCache().Scan(identifier)
 	if err != nil {
 		return nil, err
@@ -125,11 +121,7 @@ func Clone(repo *repository.Repository, Identifier objects.MAC) (*Snapshot, erro
 }
 
 func Fork(repo *repository.Repository, Identifier objects.MAC) (*Snapshot, error) {
-	identifier, err := objects.RandomMAC()
-	if err != nil {
-		return nil, err
-	}
-
+	identifier := objects.RandomMAC()
 	snap, err := Clone(repo, Identifier)
 	if err != nil {
 		return nil, err

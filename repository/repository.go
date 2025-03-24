@@ -406,11 +406,7 @@ func (r *Repository) DeleteSnapshot(snapshotID objects.MAC) error {
 		r.Logger().Trace("repository", "DeleteSnapshot(%x): %s", snapshotID, time.Since(t0))
 	}()
 
-	identifier, err := objects.RandomMAC()
-	if err != nil {
-		return err
-	}
-
+	identifier := objects.RandomMAC()
 	sc, err := r.AppContext().GetCache().Scan(identifier)
 	if err != nil {
 		return err

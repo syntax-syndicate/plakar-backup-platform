@@ -53,11 +53,7 @@ func (cmd *DiagState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 			}
 
 			// Temporary scan cache to reconstruct that state.
-			identifier, err := objects.RandomMAC()
-			if err != nil {
-				return 1, err
-			}
-
+			identifier := objects.RandomMAC()
 			scanCache, err := repo.AppContext().GetCache().Scan(identifier)
 			if err != nil {
 				return 1, err
