@@ -175,6 +175,14 @@ func TestCmdRepository(t *testing.T) {
 
 	args = []string{"default", "my-repo"}
 	err = cmd_repository(ctx, args)
+	require.EqualError(t, err, "repository \"my-repo\" doesn't have a location set")
+
+	args = []string{"set", "my-repo", "location", "invalid://place"}
+	err = cmd_repository(ctx, args)
+	require.NoError(t, err)
+
+	args = []string{"default", "my-repo"}
+	err = cmd_repository(ctx, args)
 	require.NoError(t, err)
 
 	args = []string{"create", "my-repo2"}
@@ -203,6 +211,7 @@ func TestCmdRepository(t *testing.T) {
 	expectedOutput := `default-repo: my-repo
 repositories:
     my-repo:
+        location: invalid://place
         option: value
     my-repo2: {}
 remotes: {}
