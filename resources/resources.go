@@ -24,6 +24,8 @@ const (
 	RT_BTREE_ROOT  Type = 19
 	RT_BTREE_NODE  Type = 20
 
+	// Type is a uint32 but we can't set it a value > 255 as state v1
+	// assume it's a uint8
 	RT_RANDOM Type = 255
 )
 
