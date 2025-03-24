@@ -94,8 +94,7 @@ func parse_cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args 
 	}
 
 	return &Ls{
-		RepositoryLocation: repo.Location(),
-		RepositorySecret:   ctx.GetSecret(),
+		RepositorySecret: ctx.GetSecret(),
 
 		OptBefore: beforeDate,
 		OptSince:  sinceDate,
@@ -115,8 +114,7 @@ func parse_cmd_ls(ctx *appcontext.AppContext, repo *repository.Repository, args 
 }
 
 type Ls struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	OptBefore time.Time
 	OptSince  time.Time

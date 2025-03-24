@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -19,13 +20,18 @@ import (
 var ErrInUse = fmt.Errorf("cache in use")
 
 type _RepositoryCache struct {
-	manager *Manager
-	db      *leveldb.DB
+	manager    *Manager
+	cookiesDir string
+	db         *leveldb.DB
 }
 
 func newRepositoryCache(cacheManager *Manager, repositoryID uuid.UUID) (*_RepositoryCache, error) {
-	cacheDir := filepath.Join(cacheManager.cacheDir, "repository", repositoryID.String())
+	cookiesDir := filepath.Join(cacheManager.cacheDir, "cookies", repositoryID.String())
+	if err := os.MkdirAll(cookiesDir, 0700); err != nil {
+		return nil, err
+	}
 
+	cacheDir := filepath.Join(cacheManager.cacheDir, "repository", repositoryID.String())
 	db, err := leveldb.OpenFile(cacheDir, nil)
 	if err != nil {
 		if errors.Is(err, syscall.EAGAIN) {
@@ -35,13 +41,26 @@ func newRepositoryCache(cacheManager *Manager, repositoryID uuid.UUID) (*_Reposi
 	}
 
 	return &_RepositoryCache{
-		manager: cacheManager,
-		db:      db,
+		manager:    cacheManager,
+		cookiesDir: cookiesDir,
+		db:         db,
 	}, nil
 }
 
 func (c *_RepositoryCache) Close() error {
 	return c.db.Close()
+}
+
+func (c *_RepositoryCache) HasCookie(name string) bool {
+	name = strings.ReplaceAll(name, "/", "_")
+	_, err := os.Stat(filepath.Join(c.cookiesDir, name))
+	return err == nil
+}
+
+func (c *_RepositoryCache) PutCookie(name string) error {
+	name = strings.ReplaceAll(name, "/", "_")
+	_, err := os.Create(filepath.Join(c.cookiesDir, name))
+	return err
 }
 
 func (c *_RepositoryCache) put(prefix string, key string, data []byte) error {

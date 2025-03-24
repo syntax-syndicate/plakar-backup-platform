@@ -1,5 +1,7 @@
 package btree
 
+import "sync"
+
 type item[K any, P comparable, V any] struct {
 	dirty bool
 	node  *Node[K, P, V]
@@ -11,6 +13,8 @@ type lru[P comparable] struct {
 }
 
 type cache[K any, P comparable, V any] struct {
+	mtx sync.RWMutex
+
 	size   int
 	target int
 	store  Storer[K, P, V]
@@ -59,7 +63,10 @@ func (c *cache[K, P, V]) flush(ptr P) error {
 }
 
 func (c *cache[K, P, V]) Get(ptr P) (*Node[K, P, V], error) {
-	if item, ok := c.items[ptr]; ok {
+	c.mtx.RLock()
+	item, ok := c.items[ptr]
+	c.mtx.RUnlock()
+	if ok {
 		c.hits++
 		return item.node, nil
 	}
@@ -69,6 +76,12 @@ func (c *cache[K, P, V]) Get(ptr P) (*Node[K, P, V], error) {
 	node, err := c.store.Get(ptr)
 	if err != nil {
 		return nil, err
+	}
+
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	if item, ok := c.items[ptr]; ok {
+		return item.node, nil
 	}
 
 	if c.size == c.target {
@@ -83,11 +96,14 @@ func (c *cache[K, P, V]) Get(ptr P) (*Node[K, P, V], error) {
 }
 
 func (c *cache[K, P, V]) Update(ptr P, node *Node[K, P, V]) error {
+	c.mtx.Lock()
 	if item, ok := c.items[ptr]; ok {
 		item.node = node
 		item.dirty = true
+		c.mtx.Unlock()
 		return nil
 	}
+	c.mtx.Unlock()
 
 	return c.store.Update(ptr, node)
 }
@@ -97,6 +113,8 @@ func (c *cache[K, P, V]) Put(node *Node[K, P, V]) (P, error) {
 }
 
 func (c *cache[K, P, V]) flushall() error {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
 	for el := c.head; el != nil; el = el.next {
 		if err := c.flush(el.ptr); err != nil {
 			return err

@@ -74,7 +74,7 @@ func walkDir_worker(jobs <-chan string, results chan<- *importer.ScanResult, wg 
 			fileinfo.Lusername = uname
 		}
 
-		if gname, ok := namecache.gidToName[fileinfo.Uid()]; !ok {
+		if gname, ok := namecache.gidToName[fileinfo.Gid()]; !ok {
 			if g, err := user.LookupGroupId(fmt.Sprintf("%d", fileinfo.Gid())); err == nil {
 				fileinfo.Lgroupname = g.Name
 

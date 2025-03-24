@@ -20,7 +20,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
@@ -67,17 +66,9 @@ func parse_cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, arg
 		return nil, fmt.Errorf("invalid direction, must be to, from or with")
 	}
 
-	storeConfig := map[string]string{"location": peerRepositoryPath}
-	if strings.HasPrefix(peerRepositoryPath, "@") {
-		remote, ok := ctx.Config.GetRepository(peerRepositoryPath[1:])
-		if !ok {
-			return nil, fmt.Errorf("could not resolve peer repository: %s", peerRepositoryPath)
-		}
-		if _, ok := remote["location"]; !ok {
-			return nil, fmt.Errorf("could not resolve peer repository location: %s", peerRepositoryPath)
-		} else {
-			storeConfig = remote
-		}
+	storeConfig, err := ctx.Config.GetRepository(peerRepositoryPath)
+	if err != nil {
+		return nil, fmt.Errorf("peer repository: %w", err)
 	}
 
 	peerStore, peerStoreSerializedConfig, err := storage.Open(storeConfig)
@@ -130,18 +121,16 @@ func parse_cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, arg
 	}
 
 	return &Sync{
-		SourceRepositoryLocation: repo.Location(),
-		SourceRepositorySecret:   ctx.GetSecret(),
-		PeerRepositoryLocation:   peerRepositoryPath,
-		PeerRepositorySecret:     peerSecret,
-		Direction:                direction,
-		SnapshotPrefix:           syncSnapshotID,
+		SourceRepositorySecret: ctx.GetSecret(),
+		PeerRepositoryLocation: peerRepositoryPath,
+		PeerRepositorySecret:   peerSecret,
+		Direction:              direction,
+		SnapshotPrefix:         syncSnapshotID,
 	}, nil
 }
 
 type Sync struct {
-	SourceRepositoryLocation string
-	SourceRepositorySecret   []byte
+	SourceRepositorySecret []byte
 
 	PeerRepositoryLocation string
 	PeerRepositorySecret   []byte
@@ -156,18 +145,9 @@ func (cmd *Sync) Name() string {
 }
 
 func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-
-	storeConfig := map[string]string{"location": cmd.PeerRepositoryLocation}
-	if strings.HasPrefix(cmd.PeerRepositoryLocation, "@") {
-		remote, ok := ctx.Config.GetRepository(cmd.PeerRepositoryLocation[1:])
-		if !ok {
-			return 1, fmt.Errorf("could not resolve repository: %s", cmd.PeerRepositoryLocation)
-		}
-		if _, ok := remote["location"]; !ok {
-			return 1, fmt.Errorf("could not resolve repository location: %s", cmd.PeerRepositoryLocation)
-		} else {
-			storeConfig = remote
-		}
+	storeConfig, err := ctx.Config.GetRepository(cmd.PeerRepositoryLocation)
+	if err != nil {
+		return 1, fmt.Errorf("peer repository: %w", err)
 	}
 
 	peerStore, peerStoreSerializedConfig, err := storage.Open(storeConfig)
@@ -304,5 +284,5 @@ func synchronize(srcRepository, dstRepository *repository.Repository, snapshotID
 		return err
 	}
 
-	return dstSnapshot.Commit()
+	return dstSnapshot.Commit(nil)
 }

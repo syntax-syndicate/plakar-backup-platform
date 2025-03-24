@@ -621,7 +621,7 @@ func (ls *LocalState) DelState(stateID objects.MAC) error {
 	return ls.cache.DelState(stateID)
 }
 
-func (ls *LocalState) PutDelta(de DeltaEntry) error {
+func (ls *LocalState) PutDelta(de *DeltaEntry) error {
 	return ls.cache.PutDelta(de.Type, de.Blob, de.Location.Packfile, de.ToBytes())
 }
 
@@ -642,18 +642,10 @@ func (ls *LocalState) BlobExists(Type resources.Type, blobMAC objects.MAC) bool 
 			continue
 		}
 
-		// XXX: This is the proper check when we re-enable concurrent backups with maintenance.
-		/*
-			deleted, _ := ls.HasDeletedResource(resources.RT_PACKFILE, de.Location.Packfile)
-			if ok && !deleted {
-				return true
-			}
-		*/
-
-		if ok {
+		deleted, _ := ls.HasDeletedResource(resources.RT_PACKFILE, de.Location.Packfile)
+		if ok && !deleted {
 			return true
 		}
-
 	}
 
 	return false
@@ -673,7 +665,8 @@ func (ls *LocalState) GetSubpartForBlob(Type resources.Type, blobMAC objects.MAC
 			return Location{}, false, err
 		}
 
-		if ok {
+		deleted, _ := ls.HasDeletedResource(resources.RT_PACKFILE, de.Location.Packfile)
+		if ok && !deleted {
 			delta = &de
 			break
 		}

@@ -41,15 +41,13 @@ func parse_cmd_mount(ctx *appcontext.AppContext, repo *repository.Repository, ar
 		return nil, fmt.Errorf("need mountpoint")
 	}
 	return &Mount{
-		RepositoryLocation: repo.Location(),
-		RepositorySecret:   ctx.GetSecret(),
-		Mountpoint:         flags.Arg(0),
+		RepositorySecret: ctx.GetSecret(),
+		Mountpoint:       flags.Arg(0),
 	}, nil
 }
 
 type Mount struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	Mountpoint string
 }

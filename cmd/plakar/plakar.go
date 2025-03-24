@@ -274,19 +274,10 @@ func entryPoint() int {
 		}
 	}
 
-	storeConfig := map[string]string{"location": repositoryPath}
-	if strings.HasPrefix(repositoryPath, "@") {
-		remote, ok := ctx.Config.GetRepository(repositoryPath[1:])
-		if !ok {
-			fmt.Fprintf(os.Stderr, "%s: could not resolve repository: %s\n", flag.CommandLine.Name(), repositoryPath)
-			return 1
-		}
-		if _, ok := remote["location"]; !ok {
-			fmt.Fprintf(os.Stderr, "%s: could not resolve repository location: %s\n", flag.CommandLine.Name(), repositoryPath)
-			return 1
-		} else {
-			storeConfig = remote
-		}
+	storeConfig, err := ctx.Config.GetRepository(repositoryPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+		return 1
 	}
 
 	// create is a special case, it operates without a repository...
@@ -436,7 +427,7 @@ func entryPoint() int {
 	if opt_agentless {
 		status, err = cmd.Execute(ctx, repo)
 	} else {
-		status, err = agent.ExecuteRPC(ctx, repo, cmd)
+		status, err = agent.ExecuteRPC(ctx, cmd, storeConfig)
 		if err == agent.ErrRetryAgentless {
 			err = nil
 			// Reopen using the agentless cache, and rebuild a repository
@@ -452,11 +443,12 @@ func entryPoint() int {
 			ctx.SetCache(caching.NewManager(cacheDir))
 			defer ctx.GetCache().Close()
 
-			if err := repo.RebuildState(); err != nil {
+			repo, err = repository.New(ctx, store, serializedConfig)
+			if err != nil {
 				if errors.Is(err, caching.ErrInUse) {
 					fmt.Fprintf(os.Stderr, "%s: the agentless cache is locked by another process. To run multiple processes concurrently, start `plakar agent` and run your command again.\n", flag.CommandLine.Name())
 				} else {
-					fmt.Fprintf(os.Stderr, "%s: failed to rebuild state: %s\n", flag.CommandLine.Name(), err)
+					fmt.Fprintf(os.Stderr, "%s: failed to open repository: %s\n", flag.CommandLine.Name(), err)
 				}
 				return 1
 			}

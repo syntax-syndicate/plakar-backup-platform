@@ -91,8 +91,7 @@ func parse_cmd_rm(ctx *appcontext.AppContext, repo *repository.Repository, args 
 	}
 
 	return &Rm{
-		RepositoryLocation: repo.Location(),
-		RepositorySecret:   ctx.GetSecret(),
+		RepositorySecret: ctx.GetSecret(),
 
 		OptBefore: beforeDate,
 		OptSince:  sinceDate,
@@ -110,8 +109,7 @@ func parse_cmd_rm(ctx *appcontext.AppContext, repo *repository.Repository, args 
 }
 
 type Rm struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	OptBefore time.Time
 	OptSince  time.Time
