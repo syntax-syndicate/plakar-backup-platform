@@ -159,8 +159,11 @@ func NewPacker(hasher hash.Hash) *Packer {
 }
 
 func (packer *Packer) AddPadding(maxSize int) error {
-	if maxSize <= 0 {
+	if maxSize < 0 {
 		return fmt.Errorf("invalid padding size")
+	}
+	if maxSize == 0 {
+		return nil
 	}
 
 	n, err := rand.Int(rand.Reader, big.NewInt(int64(maxSize)-1))
