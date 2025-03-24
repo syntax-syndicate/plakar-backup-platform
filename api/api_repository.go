@@ -19,11 +19,11 @@ func repositoryConfiguration(w http.ResponseWriter, r *http.Request) error {
 }
 
 func repositorySnapshots(w http.ResponseWriter, r *http.Request) error {
-	offset, err := QueryParamToUint32(r, "offset", 0)
+	offset, err := QueryParamToUint32(r, "offset", 0, 0)
 	if err != nil {
 		return err
 	}
-	limit, err := QueryParamToUint32(r, "limit", 50)
+	limit, err := QueryParamToUint32(r, "limit", 1, 50)
 	if err != nil {
 		return err
 	}
@@ -162,11 +162,11 @@ func repositoryImporterTypes(w http.ResponseWriter, r *http.Request) error {
 }
 
 func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
-	offset, err := QueryParamToUint32(r, "offset", 0)
+	offset, err := QueryParamToUint32(r, "offset", 0, 0)
 	if err != nil {
 		return err
 	}
-	limit, err := QueryParamToUint32(r, "limit", 50)
+	limit, err := QueryParamToUint32(r, "limit", 1, 50)
 	if err != nil {
 		return err
 	}
