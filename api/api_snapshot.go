@@ -277,12 +277,12 @@ func snapshotVFSChildren(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	offset, err := QueryParamToInt64(r, "offset", 0)
+	offset, err := QueryParamToInt64(r, "offset", 0, 0)
 	if err != nil {
 		return err
 	}
 
-	limit, err := QueryParamToInt64(r, "limit", 50)
+	limit, err := QueryParamToInt64(r, "limit", 1, 50)
 	if err != nil {
 		return err
 	}
@@ -389,6 +389,9 @@ func snapshotVFSSearch(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 		limit = int(o)
+		if limit <= 0 {
+			limit = 50
+		}
 	}
 
 	snap, err := snapshot.Load(lrepository, snapshotID32)
@@ -399,11 +402,11 @@ func snapshotVFSSearch(w http.ResponseWriter, r *http.Request) error {
 	if path == "" {
 		path = "/"
 	}
-	if limit != 0 {
-		// for pagination: fetch one more item so we know
-		// whether there's a next page of results.
-		limit++
-	}
+
+	// for pagination: fetch one more item so we know
+	// whether there's a next page of results.
+	limit++
+
 	searchOpts := snapshot.SearchOpts{
 		Recursive: r.URL.Query().Get("recursive") == "true",
 		Mime:      r.URL.Query().Get("mime"),
@@ -430,7 +433,7 @@ func snapshotVFSSearch(w http.ResponseWriter, r *http.Request) error {
 		items.Items = append(items.Items, entry)
 	}
 
-	if limit != 0 && limit == len(items.Items) {
+	if limit == len(items.Items) {
 		items.HasNext = true
 		items.Items = items.Items[:len(items.Items)-1]
 	}
@@ -452,12 +455,12 @@ func snapshotVFSErrors(w http.ResponseWriter, r *http.Request) error {
 		return parameterError("sort", InvalidArgument, ErrInvalidSortKey)
 	}
 
-	offset, err := QueryParamToInt64(r, "offset", 0)
+	offset, err := QueryParamToInt64(r, "offset", 0, 0)
 	if err != nil {
 		return err
 	}
 
-	limit, err := QueryParamToInt64(r, "limit", 50)
+	limit, err := QueryParamToInt64(r, "limit", 1, 50)
 	if err != nil {
 		return err
 	}

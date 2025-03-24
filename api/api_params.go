@@ -46,7 +46,7 @@ func PathParamToID(r *http.Request, param string) (id [32]byte, err error) {
 	return id, nil
 }
 
-func QueryParamToUint32(r *http.Request, param string, def uint32) (uint32, error) {
+func QueryParamToUint32(r *http.Request, param string, min, def uint32) (uint32, error) {
 	str := r.URL.Query().Get(param)
 	if str == "" {
 		return def, nil
@@ -57,14 +57,14 @@ func QueryParamToUint32(r *http.Request, param string, def uint32) (uint32, erro
 		return 0, err
 	}
 
-	if n < 0 {
-		return 0, parameterError(param, BadNumber, ErrNegativeNumber)
+	if n < 0 || uint32(n) < min {
+		return 0, parameterError(param, BadNumber, ErrNumberOutOfRange)
 	}
 
 	return uint32(n), nil
 }
 
-func QueryParamToInt64(r *http.Request, param string, def int64) (int64, error) {
+func QueryParamToInt64(r *http.Request, param string, min, def int64) (int64, error) {
 	str := r.URL.Query().Get(param)
 	if str == "" {
 		return def, nil
@@ -73,6 +73,10 @@ func QueryParamToInt64(r *http.Request, param string, def int64) (int64, error) 
 	n, err := strconv.ParseInt(str, 10, 64)
 	if err != nil {
 		return 0, err
+	}
+
+	if n < min {
+		return 0, parameterError(param, BadNumber, ErrNumberOutOfRange)
 	}
 
 	return n, nil
