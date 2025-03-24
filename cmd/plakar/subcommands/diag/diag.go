@@ -32,8 +32,7 @@ func init() {
 func parse_cmd_diag(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
 	if len(args) == 0 {
 		return &DiagRepository{
-			RepositoryLocation: repo.Location(),
-			RepositorySecret:   ctx.GetSecret(),
+			RepositorySecret: ctx.GetSecret(),
 		}, nil
 	}
 
@@ -60,71 +59,62 @@ func parse_cmd_diag(ctx *appcontext.AppContext, repo *repository.Repository, arg
 			return nil, fmt.Errorf("usage: %s snapshot SNAPSHOT", flags.Name())
 		}
 		return &DiagSnapshot{
-			RepositoryLocation: repo.Location(),
-			RepositorySecret:   ctx.GetSecret(),
-			SnapshotID:         flags.Args()[1],
+			RepositorySecret: ctx.GetSecret(),
+			SnapshotID:       flags.Args()[1],
 		}, nil
 	case "errors":
 		if len(flags.Args()) < 2 {
 			return nil, fmt.Errorf("usage: %s errors SNAPSHOT", flags.Name())
 		}
 		return &DiagErrors{
-			RepositoryLocation: repo.Location(),
-			RepositorySecret:   ctx.GetSecret(),
-			SnapshotID:         flags.Args()[1],
+			RepositorySecret: ctx.GetSecret(),
+			SnapshotID:       flags.Args()[1],
 		}, nil
 	case "state":
 		return &DiagState{
-			RepositoryLocation: repo.Location(),
-			RepositorySecret:   ctx.GetSecret(),
-			Args:               flags.Args()[1:],
+			RepositorySecret: ctx.GetSecret(),
+			Args:             flags.Args()[1:],
 		}, nil
 	case "packfile":
 		return &DiagPackfile{
-			RepositoryLocation: repo.Location(),
-			RepositorySecret:   ctx.GetSecret(),
-			Args:               flags.Args()[1:],
+			RepositorySecret: ctx.GetSecret(),
+			Args:             flags.Args()[1:],
 		}, nil
 	case "object":
 		if len(flags.Args()) < 2 {
 			return nil, fmt.Errorf("usage: %s object OBJECT", flags.Name())
 		}
 		return &DiagObject{
-			RepositoryLocation: repo.Location(),
-			RepositorySecret:   ctx.GetSecret(),
-			ObjectID:           flags.Args()[1],
+			RepositorySecret: ctx.GetSecret(),
+			ObjectID:         flags.Args()[1],
 		}, nil
 	case "vfs":
 		if len(flags.Args()) < 2 {
 			return nil, fmt.Errorf("usage: %s vfs SNAPSHOT[:PATH]", flags.Name())
 		}
 		return &DiagVFS{
-			RepositoryLocation: repo.Location(),
-			RepositorySecret:   ctx.GetSecret(),
-			SnapshotPath:       flags.Args()[1],
+			RepositorySecret: ctx.GetSecret(),
+			SnapshotPath:     flags.Args()[1],
 		}, nil
 	case "xattr":
 		if len(flags.Args()) < 2 {
 			return nil, fmt.Errorf("usage: %s xattr SNAPSHOT[:PATH]", flags.Name())
 		}
 		return &DiagXattr{
-			RepositoryLocation: repo.Location(),
-			RepositorySecret:   ctx.GetSecret(),
-			SnapshotPath:       flags.Args()[1],
+			RepositorySecret: ctx.GetSecret(),
+			SnapshotPath:     flags.Args()[1],
 		}, nil
 	case "contenttype":
 		if len(flags.Args()) < 2 {
 			return nil, fmt.Errorf("usage: %s contenttype SNAPSHOT[:PATH]", flags.Name())
 		}
 		return &DiagContentType{
-			RepositoryLocation: repo.Location(),
-			RepositorySecret:   ctx.GetSecret(),
-			SnapshotPath:       flags.Args()[1],
+			RepositorySecret: ctx.GetSecret(),
+			SnapshotPath:     flags.Args()[1],
 		}, nil
 	case "locks":
 		return &DiagLocks{
-			RepositoryLocation: repo.Location(),
-			RepositorySecret:   ctx.GetSecret(),
+			RepositorySecret: ctx.GetSecret(),
 		}, nil
 	case "search":
 		var path, mime string
@@ -138,10 +128,9 @@ func parse_cmd_diag(ctx *appcontext.AppContext, repo *repository.Repository, arg
 				flags.Name())
 		}
 		return &DiagSearch{
-			RepositoryLocation: repo.Location(),
-			RepositorySecret:   ctx.GetSecret(),
-			SnapshotPath:       path,
-			Mime:               mime,
+			RepositorySecret: ctx.GetSecret(),
+			SnapshotPath:     path,
+			Mime:             mime,
 		}, nil
 	}
 	return nil, fmt.Errorf("Invalid parameter. usage: diag [contenttype|snapshot|object|state|packfile|vfs|xattr|errors|search]")

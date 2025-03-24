@@ -55,18 +55,16 @@ func parse_cmd_ui(ctx *appcontext.AppContext, repo *repository.Repository, args 
 	flags.Parse(args)
 
 	return &Ui{
-		RepositoryLocation: repo.Location(),
-		RepositorySecret:   ctx.GetSecret(),
-		Addr:               opt_addr,
-		Cors:               opt_cors,
-		NoAuth:             opt_noauth,
-		NoSpawn:            opt_nospawn,
+		RepositorySecret: ctx.GetSecret(),
+		Addr:             opt_addr,
+		Cors:             opt_cors,
+		NoAuth:           opt_noauth,
+		NoSpawn:          opt_nospawn,
 	}, nil
 }
 
 type Ui struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	Addr    string
 	Cors    bool

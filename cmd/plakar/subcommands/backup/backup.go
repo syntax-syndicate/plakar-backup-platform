@@ -107,21 +107,19 @@ func parse_cmd_backup(ctx *appcontext.AppContext, repo *repository.Repository, a
 		}
 	}
 	return &Backup{
-		RepositoryLocation: repo.Location(),
-		RepositorySecret:   ctx.GetSecret(),
-		Concurrency:        opt_concurrency,
-		Tags:               opt_tags,
-		Excludes:           excludes,
-		Quiet:              opt_quiet,
-		Path:               flags.Arg(0),
-		OptCheck:           opt_check,
+		RepositorySecret: ctx.GetSecret(),
+		Concurrency:      opt_concurrency,
+		Tags:             opt_tags,
+		Excludes:         excludes,
+		Quiet:            opt_quiet,
+		Path:             flags.Arg(0),
+		OptCheck:         opt_check,
 	}, nil
 }
 
 type Backup struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
-	Job                string
+	RepositorySecret []byte
+	Job              string
 
 	Concurrency uint64
 	Tags        string

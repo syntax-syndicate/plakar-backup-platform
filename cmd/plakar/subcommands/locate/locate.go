@@ -90,8 +90,7 @@ func parse_cmd_locate(ctx *appcontext.AppContext, repo *repository.Repository, a
 	}
 
 	return &Locate{
-		RepositoryLocation: repo.Location(),
-		RepositorySecret:   ctx.GetSecret(),
+		RepositorySecret: ctx.GetSecret(),
 
 		OptBefore: beforeDate,
 		OptSince:  sinceDate,
@@ -110,8 +109,7 @@ func parse_cmd_locate(ctx *appcontext.AppContext, repo *repository.Repository, a
 }
 
 type Locate struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	OptBefore time.Time
 	OptSince  time.Time

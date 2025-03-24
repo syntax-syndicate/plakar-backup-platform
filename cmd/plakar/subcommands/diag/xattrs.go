@@ -14,8 +14,7 @@ import (
 )
 
 type DiagXattr struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	SnapshotPath string
 }

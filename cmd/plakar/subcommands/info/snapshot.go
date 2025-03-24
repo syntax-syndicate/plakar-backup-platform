@@ -15,8 +15,7 @@ import (
 )
 
 type InfoSnapshot struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	SnapshotID string
 }
