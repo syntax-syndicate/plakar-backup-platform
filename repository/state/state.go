@@ -182,8 +182,9 @@ func (ls *LocalState) UpdateSerialOr(serial uuid.UUID) error {
 	return nil
 }
 
-/* Insert the state denotated by stateID and its associated delta entries read from rd */
-func (ls *LocalState) InsertState(version versioning.Version, stateID objects.MAC, rd io.Reader) error {
+/* Insert the state denotated by stateID and its associated delta entries read
+ * from rd into the local aggregated version of the state. */
+func (ls *LocalState) MergeState(version versioning.Version, stateID objects.MAC, rd io.Reader) error {
 	has, err := ls.HasState(stateID)
 	if err != nil {
 		return err
@@ -199,6 +200,11 @@ func (ls *LocalState) InsertState(version versioning.Version, stateID objects.MA
 	}
 
 	/* We merged the state deltas, we can now publish it */
+	return ls.PutState(stateID)
+}
+
+/* Publishes the current state, by saving the stateID with the current Metadata. */
+func (ls *LocalState) PutState(stateID objects.MAC) error {
 	mt, err := ls.Metadata.ToBytes()
 	if err != nil {
 		return err
