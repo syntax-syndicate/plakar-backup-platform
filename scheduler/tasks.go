@@ -30,20 +30,24 @@ func loadRepository(newCtx *appcontext.AppContext, name string) (*repository.Rep
 
 	repoConfig, err := storage.NewConfigurationFromWrappedBytes(config)
 	if err != nil {
-		return nil, store, fmt.Errorf("unable to read repository configuration: %w", err)
+		store.Close()
+		return nil, nil, fmt.Errorf("unable to read repository configuration: %w", err)
 	}
 
 	if repoConfig.Version != versioning.FromString(storage.VERSION) {
-		return nil, store, fmt.Errorf("incompatible repository version: %s != %s", repoConfig.Version, storage.VERSION)
+		store.Close()
+		return nil, nil, fmt.Errorf("incompatible repository version: %s != %s", repoConfig.Version, storage.VERSION)
 	}
 
 	if passphrase, ok := storeConfig["passphrase"]; ok {
 		key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, []byte(passphrase))
 		if err != nil {
-			return nil, store, fmt.Errorf("error deriving key: %w", err)
+			store.Close()
+			return nil, nil, fmt.Errorf("error deriving key: %w", err)
 		}
 		if !encryption.VerifyCanary(repoConfig.Encryption, key) {
-			return nil, store, fmt.Errorf("invalid passphrase")
+			store.Close()
+			return nil, nil, fmt.Errorf("invalid passphrase")
 		}
 		newCtx.SetSecret(key)
 	}
