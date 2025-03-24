@@ -9,6 +9,8 @@ import (
 	"hash"
 	"io"
 	"iter"
+	"math/big"
+	"math/bits"
 	"strings"
 	"time"
 
@@ -576,13 +578,67 @@ func (r *Repository) GetPackfile(mac objects.MAC) (*packfile.PackFile, error) {
 	return p, nil
 }
 
+func padmeLength(L uint32) (uint32, error) {
+	// Determine the bit-length of L.
+	bitLen := 32 - bits.LeadingZeros32(L)
+
+	// Compute overhead as 2^(floor(bitLen/2)).
+	overhead := uint32(1 << (bitLen / 2))
+
+	// Generate a random number r in [0, overhead)
+	rBig, err := rand.Int(rand.Reader, big.NewInt(int64(overhead)))
+	if err != nil {
+		return 0, err
+	}
+	r := uint32(rBig.Int64())
+
+	return r, nil
+}
+
+func randomShift(n uint32) (uint64, error) {
+	if n == 0 {
+		return 0, nil
+	}
+
+	max := big.NewInt(int64(n) + 1)
+	r, err := rand.Int(rand.Reader, max)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint64(r.Int64()), nil
+}
+
 func (r *Repository) GetPackfileBlob(loc state.Location) (io.ReadSeeker, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "GetPackfileBlob(%x, %d, %d): %s", loc.Packfile, loc.Offset, loc.Length, time.Since(t0))
 	}()
 
-	rd, err := r.store.GetPackfileBlob(loc.Packfile, loc.Offset+uint64(storage.STORAGE_HEADER_SIZE), loc.Length)
+	offset := loc.Offset
+	length := loc.Length
+
+	overhead, err := padmeLength(length)
+	if err != nil {
+		return nil, err
+	}
+
+	offsetDelta, err := randomShift(overhead)
+	if err != nil {
+		return nil, err
+	}
+	if offsetDelta > offset {
+		offsetDelta = offset
+	}
+	lengthDelta := uint32(uint64(overhead) - offsetDelta)
+
+	rd, err := r.store.GetPackfileBlob(loc.Packfile, offset+uint64(storage.STORAGE_HEADER_SIZE)-offsetDelta, length+uint32(offsetDelta)+lengthDelta)
+	if err != nil {
+		return nil, err
+	}
+
+	// discard the first offsetDelta bytes
+	_, err = io.ReadFull(rd, make([]byte, offsetDelta))
 	if err != nil {
 		return nil, err
 	}
@@ -591,6 +647,9 @@ func (r *Repository) GetPackfileBlob(loc state.Location) (io.ReadSeeker, error) 
 	if err != nil {
 		return nil, err
 	}
+
+	// discard the last lengthDelta bytes
+	data = data[:length]
 
 	decoded, err := r.DecodeBuffer(data)
 	if err != nil {
