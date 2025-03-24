@@ -120,7 +120,7 @@ func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, ar
 		}
 		defer client.Close()
 
-		retval, err := client.SendCommand(ctx, &AgentStop{}, nil)
+		retval, err := client.SendCommand(ctx, &AgentStop{}, map[string]string{})
 		if err != nil {
 			return nil, err
 		}
