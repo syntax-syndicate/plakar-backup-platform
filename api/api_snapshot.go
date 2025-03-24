@@ -389,6 +389,9 @@ func snapshotVFSSearch(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 		limit = int(o)
+		if limit <= 0 {
+			limit = 50
+		}
 	}
 
 	snap, err := snapshot.Load(lrepository, snapshotID32)
@@ -399,11 +402,11 @@ func snapshotVFSSearch(w http.ResponseWriter, r *http.Request) error {
 	if path == "" {
 		path = "/"
 	}
-	if limit != 0 {
-		// for pagination: fetch one more item so we know
-		// whether there's a next page of results.
-		limit++
-	}
+
+	// for pagination: fetch one more item so we know
+	// whether there's a next page of results.
+	limit++
+
 	searchOpts := snapshot.SearchOpts{
 		Recursive: r.URL.Query().Get("recursive") == "true",
 		Mime:      r.URL.Query().Get("mime"),
@@ -430,7 +433,7 @@ func snapshotVFSSearch(w http.ResponseWriter, r *http.Request) error {
 		items.Items = append(items.Items, entry)
 	}
 
-	if limit != 0 && limit == len(items.Items) {
+	if limit == len(items.Items) {
 		items.HasNext = true
 		items.Items = items.Items[:len(items.Items)-1]
 	}
