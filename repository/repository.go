@@ -2,7 +2,6 @@ package repository
 
 import (
 	"bytes"
-	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -407,13 +406,9 @@ func (r *Repository) DeleteSnapshot(snapshotID objects.MAC) error {
 		r.Logger().Trace("repository", "DeleteSnapshot(%x): %s", snapshotID, time.Since(t0))
 	}()
 
-	var identifier objects.MAC
-	n, err := rand.Read(identifier[:])
+	identifier, err := objects.RandomMAC()
 	if err != nil {
 		return err
-	}
-	if n != len(identifier) {
-		return io.ErrShortWrite
 	}
 
 	sc, err := r.AppContext().GetCache().Scan(identifier)

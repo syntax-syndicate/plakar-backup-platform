@@ -1,9 +1,11 @@
 package objects
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/versioning"
@@ -41,6 +43,19 @@ func (m *MAC) UnmarshalJSON(data []byte) error {
 
 	copy(m[:], decoded)
 	return nil
+}
+
+func RandomMAC() (MAC, error) {
+	var r MAC
+
+	n, err := rand.Read(r[:])
+	if err != nil {
+		return MAC{}, err
+	}
+	if n != len(r) {
+		return MAC{}, io.ErrShortWrite
+	}
+	return r, nil
 }
 
 type Object struct {

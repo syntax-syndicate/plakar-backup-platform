@@ -2,7 +2,6 @@ package snapshot
 
 import (
 	"bytes"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -49,9 +48,7 @@ type Snapshot struct {
 }
 
 func New(repo *repository.Repository) (*Snapshot, error) {
-	var identifier objects.MAC
-
-	identifier, err := MakeSnapIdentifier()
+	identifier, err := objects.RandomMAC()
 	if err != nil {
 		return nil, err
 	}
@@ -128,14 +125,9 @@ func Clone(repo *repository.Repository, Identifier objects.MAC) (*Snapshot, erro
 }
 
 func Fork(repo *repository.Repository, Identifier objects.MAC) (*Snapshot, error) {
-	var identifier objects.MAC
-
-	n, err := rand.Read(identifier[:])
+	identifier, err := objects.RandomMAC()
 	if err != nil {
 		return nil, err
-	}
-	if n != len(identifier) {
-		return nil, io.ErrShortWrite
 	}
 
 	snap, err := Clone(repo, Identifier)
@@ -147,19 +139,6 @@ func Fork(repo *repository.Repository, Identifier objects.MAC) (*Snapshot, error
 
 	snap.Logger().Trace("snapshot", "%x: Fork(): %x", snap.Header.Identifier, snap.Header.GetIndexShortID())
 	return snap, nil
-}
-
-func MakeSnapIdentifier() (objects.MAC, error) {
-	var identifier objects.MAC
-	n, err := rand.Read(identifier[:])
-	if err != nil {
-		return objects.MAC{}, err
-	}
-	if n != len(identifier) {
-		return objects.MAC{}, io.ErrShortWrite
-	}
-
-	return identifier, nil
 }
 
 func (snap *Snapshot) Close() error {
