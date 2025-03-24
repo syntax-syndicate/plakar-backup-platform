@@ -35,7 +35,7 @@ type Store struct {
 }
 
 func init() {
-	storage.Register("http", NewStore)
+	storage.Register(NewStore, "http", "https")
 }
 
 func NewStore(storeConfig map[string]string) (storage.Store, error) {

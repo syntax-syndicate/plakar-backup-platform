@@ -56,8 +56,8 @@ func TestCreateStore(t *testing.T) {
 
 	// should return an error as the backend does not exist
 	_, err = storage.Create(map[string]string{"location": "unknown://dummy"}, serializedConfig)
-	if err.Error() != "unsupported plakar protocol" {
-		t.Fatalf("Expected %s but got %v", "unsupported plakar protocol", err)
+	if err.Error() != "backend 'unknown' does not exist" {
+		t.Fatalf("Expected %s but got %v", "backend 'unknown' does not exist", err)
 	}
 }
 
@@ -83,8 +83,8 @@ func TestOpenStore(t *testing.T) {
 
 	// should return an error as the backend does not exist
 	_, _, err = storage.Open(map[string]string{"location": "unknown://dummy"})
-	if err.Error() != "unsupported plakar protocol" {
-		t.Fatalf("Expected %s but got %v", "unsupported plakar protocol", err)
+	if err.Error() != "backend 'unknown' does not exist" {
+		t.Fatalf("Expected %s but got %v", "backend 'unknown' does not exist", err)
 	}
 }
 
@@ -93,7 +93,8 @@ func TestBackends(t *testing.T) {
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
 	ctx.MaxConcurrency = runtime.NumCPU()*8 + 1
 
-	storage.Register("test", func(storeConfig map[string]string) (storage.Store, error) { return &ptesting.MockBackend{}, nil })
+	storage.Register(func(storeConfig map[string]string) (storage.Store, error) { return &ptesting.MockBackend{}, nil },
+		"test")
 
 	expected := []string{"fs", "test"}
 	actual := storage.Backends()
@@ -109,7 +110,7 @@ func TestNew(t *testing.T) {
 	}{
 		{"fs2", "fs://test/location"},
 		{"http", "http://test/location"},
-		{"database", "sqlite:///test/location"},
+		{"sqlite", "sqlite:///test/location"},
 		{"s3", "s3://test/location"},
 		{"null", "null://test/location"},
 		{"sftp", "sftp://test/location"},
@@ -121,9 +122,9 @@ func TestNew(t *testing.T) {
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
 			ctx.MaxConcurrency = runtime.NumCPU()*8 + 1
 
-			storage.Register(l.name, func(storeConfig map[string]string) (storage.Store, error) {
+			storage.Register(func(storeConfig map[string]string) (storage.Store, error) {
 				return ptesting.NewMockBackend(storeConfig), nil
-			})
+			}, l.name)
 
 			store, err := storage.New(map[string]string{"location": l.location})
 			if err != nil {
@@ -143,8 +144,8 @@ func TestNew(t *testing.T) {
 
 		// storage.Register("unknown", func(location string) storage.Store { return ptesting.NewMockBackend(location) })
 		_, err := storage.New(map[string]string{"location": "unknown://dummy"})
-		if err.Error() != "unsupported plakar protocol" {
-			t.Fatalf("Expected %s but got %v", "unsupported plakar protocol", err)
+		if err.Error() != "backend 'unknown' does not exist" {
+			t.Fatalf("Expected %s but got %v", "backend 'unknown' does not exist", err)
 		}
 	})
 

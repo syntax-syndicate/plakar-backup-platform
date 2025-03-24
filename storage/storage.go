@@ -23,7 +23,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -128,6 +127,11 @@ type Store interface {
 	Close() error
 }
 
+type backend struct {
+	name string
+	fn   func(map[string]string) (Store, error)
+}
+
 var muBackends sync.Mutex
 var backends = make(map[string]func(map[string]string) (Store, error))
 
@@ -142,14 +146,16 @@ func NewStore(name string, storeConfig map[string]string) (Store, error) {
 	}
 }
 
-func Register(name string, backend func(map[string]string) (Store, error)) {
+func Register(backend func(map[string]string) (Store, error), names ...string) {
 	muBackends.Lock()
 	defer muBackends.Unlock()
 
-	if _, ok := backends[name]; ok {
-		log.Fatalf("backend '%s' registered twice", name)
+	for _, name := range names {
+		if _, ok := backends[name]; ok {
+			log.Fatalf("backend '%s' registered twice", name)
+		}
+		backends[name] = backend
 	}
-	backends[name] = backend
 }
 
 func Backends() []string {
@@ -166,41 +172,29 @@ func Backends() []string {
 	return ret
 }
 
+func allowedInUri(c rune) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+		c == '+' || c == '-' || c == '.'
+}
+
 func New(storeConfig map[string]string) (Store, error) {
 	location, ok := storeConfig["location"]
 	if !ok {
 		return nil, fmt.Errorf("missing location")
 	}
 
-	backendName := "fs"
-	if !strings.HasPrefix(location, "/") {
-		if strings.HasPrefix(location, "http://") || strings.HasPrefix(location, "https://") {
-			backendName = "http"
-		} else if strings.HasPrefix(location, "sqlite://") {
-			backendName = "database"
-		} else if strings.HasPrefix(location, "s3://") {
-			backendName = "s3"
-		} else if strings.HasPrefix(location, "null://") {
-			backendName = "null"
-		} else if strings.HasPrefix(location, "fs://") {
-			backendName = "fs"
-		} else if strings.HasPrefix(location, "sftp://") {
-			backendName = "sftp"
-		} else if strings.Contains(location, "://") {
-			return nil, fmt.Errorf("unsupported plakar protocol")
+	// extract the protocol
+	proto := "fs"
+	for i, c := range location {
+		if !allowedInUri(c) {
+			if i != 0 && strings.HasPrefix(location[i:], "://") {
+				proto = location[:i]
+			}
+			break
 		}
 	}
 
-	if backendName == "fs" && !strings.HasPrefix(location, "/") {
-		if !strings.HasPrefix(location, "fs://") {
-			tmp, err := filepath.Abs(location)
-			if err != nil {
-				return nil, err
-			}
-			location = tmp
-		}
-	}
-	return NewStore(backendName, storeConfig)
+	return NewStore(proto, storeConfig)
 }
 
 func Open(storeConfig map[string]string) (Store, []byte, error) {

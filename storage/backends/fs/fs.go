@@ -39,7 +39,7 @@ type Store struct {
 }
 
 func init() {
-	storage.Register("fs", NewStore)
+	storage.Register(NewStore, "fs")
 }
 
 func NewStore(storeConfig map[string]string) (storage.Store, error) {

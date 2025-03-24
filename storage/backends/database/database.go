@@ -43,7 +43,7 @@ type Store struct {
 }
 
 func init() {
-	storage.Register("database", NewStore)
+	storage.Register(NewStore, "sqlite")
 }
 
 func NewStore(storeConfig map[string]string) (storage.Store, error) {
