@@ -2,6 +2,8 @@ package mount
 
 import (
 	"bytes"
+	"context"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -131,34 +133,44 @@ func TestExecuteCmdMountDefault(t *testing.T) {
 	require.NotNil(t, subcommand)
 	require.Equal(t, "mount", subcommand.(*Mount).Name())
 
+	subCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ctx.SetContext(subCtx)
+
 	go func() {
 		status, err := subcommand.Execute(ctx, repo)
 		require.NoError(t, err)
 		require.Equal(t, 0, status)
 	}()
 
-	// wait for the goroutine to be executed
-	time.Sleep(1 * time.Second)
+	time.Sleep(300 * time.Millisecond)
+
+	file, err := os.Stat(tmpMountPoint)
+	require.NoError(t, err)
+	require.NotNil(t, file)
+	require.Equal(t, "drwx------", file.Mode().String())
 
 	// output should look like this
 	// 2025-03-19T23:04:15Z info: mounted repository /tmp/tmp_repo2787767309/repo at /tmp/tmp_mount_point2239236580
 	output := bufOut.String()
 	require.Contains(t, output, fmt.Sprintf("mounted repository %s at %s", repo.Location(), tmpMountPoint))
 
-	file, err := os.Stat(tmpMountPoint)
+	indexId := snap.Header.GetIndexID()
+	snapshotPath := fmt.Sprintf("%s", hex.EncodeToString(indexId[:]))
+	backupDir := snap.Header.GetSource(0).Importer.Directory
+
+	dummyMountedPath := fmt.Sprintf("%s/%s/%s/subdir/dummy.txt", tmpMountPoint, snapshotPath, backupDir)
+	file, err = os.Stat(dummyMountedPath)
 	require.NoError(t, err)
-	require.Equal(t, "drwx------", file.Mode().String())
+	require.NotNil(t, file)
 
-	// this does not work in tests
-	// it returns this error: stat /tmp/tmp_mount_point1556264890/subdir/dummy.txt: input/output error
+	dummyFile, err := os.Open(dummyMountedPath)
+	require.NoError(t, err)
+	defer dummyFile.Close()
+	content, err := io.ReadAll(dummyFile)
+	require.NoError(t, err)
+	require.Equal(t, "hello dummy", string(content))
 
-	// _, err = os.Stat(tmpMountPoint + "/subdir/dummy.txt")
-	// require.NoError(t, err)
-
-	// file, err := os.Open(tmpMountPoint + "/subdir/dummy.txt")
-	// require.NoError(t, err)
-	// defer file.Close()
-	// content, err := io.ReadAll(file)
-	// require.NoError(t, err)
-	// require.Equal(t, "hello dummy", string(content))
+	// Close the goroutine by canceling the context
+	cancel()
 }
