@@ -50,8 +50,7 @@ func parse_cmd_server(ctx *appcontext.AppContext, repo *repository.Repository, a
 		noDelete = false
 	}
 	return &Server{
-		RepositoryLocation: repo.Location(),
-		RepositorySecret:   ctx.GetSecret(),
+		RepositorySecret: ctx.GetSecret(),
 
 		ListenAddr: opt_listen,
 		NoDelete:   noDelete,
@@ -59,8 +58,7 @@ func parse_cmd_server(ctx *appcontext.AppContext, repo *repository.Repository, a
 }
 
 type Server struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	ListenAddr string
 	NoDelete   bool

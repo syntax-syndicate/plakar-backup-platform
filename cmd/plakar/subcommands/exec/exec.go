@@ -48,16 +48,14 @@ func parse_cmd_exec(ctx *appcontext.AppContext, repo *repository.Repository, arg
 		return nil, fmt.Errorf("at least one parameters is required")
 	}
 	return &Exec{
-		RepositoryLocation: repo.Location(),
-		RepositorySecret:   ctx.GetSecret(),
-		SnapshotPrefix:     flags.Arg(0),
-		Args:               flags.Args()[1:],
+		RepositorySecret: ctx.GetSecret(),
+		SnapshotPrefix:   flags.Arg(0),
+		Args:             flags.Args()[1:],
 	}, nil
 }
 
 type Exec struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	SnapshotPrefix string
 	Args           []string

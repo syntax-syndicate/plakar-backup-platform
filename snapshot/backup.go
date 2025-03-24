@@ -167,25 +167,27 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 						return
 					}
 
-					if !record.FileInfo.Mode().IsDir() {
-						filesChannel <- record
-						if !record.IsXattr {
-							atomic.AddUint64(&nFiles, +1)
-							if record.FileInfo.Mode().IsRegular() {
-								atomic.AddUint64(&size, uint64(record.FileInfo.Size()))
-							}
-							// if snapshot root is a file, then reset to the parent directory
-							if snap.Header.GetSource(0).Importer.Directory == record.Pathname {
-								snap.Header.GetSource(0).Importer.Directory = filepath.Dir(record.Pathname)
-							}
-						}
-					} else {
+					if record.FileInfo.Mode().IsDir() {
 						atomic.AddUint64(&nDirectories, +1)
 						entry := vfs.NewEntry(path.Dir(record.Pathname), record)
 						if err := backupCtx.recordEntry(entry); err != nil {
 							backupCtx.recordError(record.Pathname, err)
-							return
 						}
+						return
+					}
+
+					filesChannel <- record
+					if record.IsXattr {
+						return
+					}
+
+					atomic.AddUint64(&nFiles, +1)
+					if record.FileInfo.Mode().IsRegular() {
+						atomic.AddUint64(&size, uint64(record.FileInfo.Size()))
+					}
+					// if snapshot root is a file, then reset to the parent directory
+					if snap.Header.GetSource(0).Importer.Directory == record.Pathname {
+						snap.Header.GetSource(0).Importer.Directory = filepath.Dir(record.Pathname)
 					}
 				}
 			}(_record)
@@ -281,7 +283,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 	}
 	defer snap.Unlock(done)
 
-	vfsCache, err := snap.AppContext().GetCache().VFS(imp.Type(), imp.Origin())
+	vfsCache, err := snap.AppContext().GetCache().VFS(snap.repository.Configuration().RepositoryID, imp.Type(), imp.Origin())
 	if err != nil {
 		return err
 	}

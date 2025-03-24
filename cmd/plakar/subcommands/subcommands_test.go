@@ -100,13 +100,15 @@ func TestEncodeDecodeRPC(t *testing.T) {
 
 	bufIn := bytes.NewBuffer(nil)
 	encoder := msgpack.NewEncoder(bufIn)
-	err := EncodeRPC(encoder, rpc)
+	err := EncodeRPC(encoder, rpc, map[string]string{"location": "s3://bucket", "access_key": "deadbeef"})
 	require.NoError(t, err)
 
 	decoder := msgpack.NewDecoder(bufIn)
-	name, rawRequest, err := DecodeRPC(decoder)
+	name, storeConfig, rawRequest, err := DecodeRPC(decoder)
 	require.NoError(t, err)
 	require.Equal(t, "test", name)
+	require.Equal(t, storeConfig["location"], "s3://bucket")
+	require.Equal(t, storeConfig["access_key"], "deadbeef")
 	require.NotEmpty(t, rawRequest)
 
 	var subcmdOut MockedSubcommand

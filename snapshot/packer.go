@@ -3,9 +3,11 @@ package snapshot
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"fmt"
 	"hash"
 	"io"
+	"math/big"
 	"runtime"
 	"sync"
 	"time"
@@ -17,6 +19,11 @@ import (
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/versioning"
 )
+
+func init() {
+	// used for paddinng random bytes
+	versioning.Register(resources.RT_RANDOM, versioning.FromString("1.0.0"))
+}
 
 type PackerManager struct {
 	snapshot       *Snapshot
@@ -51,6 +58,8 @@ func (mgr *PackerManager) Run() {
 				continue
 			}
 
+			packer.AddPadding(int(mgr.snapshot.repository.Configuration().Chunking.MinSize))
+
 			if err := mgr.snapshot.PutPackfile(packer); err != nil {
 				return fmt.Errorf("failed to flush packer: %w", err)
 			}
@@ -84,16 +93,10 @@ func (mgr *PackerManager) Run() {
 						return fmt.Errorf("unexpected message type")
 					}
 
-					if _, exists := mgr.inflightMACs[pm.Type].Load(pm.MAC); exists {
-						// tell prom exporter that we collided a blob
-						continue
-					}
-
 					if packer == nil {
 						packer = NewPacker(mgr.snapshot.Repository().GetMACHasher())
+						packer.AddPadding(int(mgr.snapshot.repository.Configuration().Chunking.MinSize))
 					}
-
-					mgr.inflightMACs[pm.Type].Store(pm.MAC, struct{}{})
 
 					if !packer.AddBlobIfNotExists(pm.Type, pm.Version, pm.MAC, pm.Data, pm.Flags) {
 						continue
@@ -155,6 +158,37 @@ func NewPacker(hasher hash.Hash) *Packer {
 	}
 }
 
+func (packer *Packer) AddPadding(maxSize int) error {
+	if maxSize < 0 {
+		return fmt.Errorf("invalid padding size")
+	}
+	if maxSize == 0 {
+		return nil
+	}
+
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(maxSize)-1))
+	if err != nil {
+		return err
+	}
+	paddingSize := uint32(n.Uint64()) + 1
+
+	buffer := make([]byte, paddingSize)
+	_, err = rand.Read(buffer)
+	if err != nil {
+		return fmt.Errorf("failed to generate random padding: %w", err)
+	}
+
+	mac := objects.MAC{}
+	_, err = rand.Read(mac[:])
+	if err != nil {
+		return fmt.Errorf("failed to generate random padding MAC: %w", err)
+	}
+
+	packer.AddBlobIfNotExists(resources.RT_RANDOM, versioning.GetCurrentVersion(resources.RT_RANDOM), mac, buffer, 0)
+
+	return nil
+}
+
 func (packer *Packer) AddBlobIfNotExists(Type resources.Type, version versioning.Version, mac [32]byte, data []byte, flags uint32) bool {
 	if _, ok := packer.Blobs[Type]; !ok {
 		packer.Blobs[Type] = make(map[[32]byte][]byte)
@@ -183,7 +217,8 @@ func (snap *Snapshot) PutBlob(Type resources.Type, mac [32]byte, data []byte) er
 	snap.Logger().Trace("snapshot", "%x: PutBlob(%s, %064x) len=%d", snap.Header.GetIndexShortID(), Type, mac, len(data))
 
 	if snap.deltaState != nil {
-		if _, exists := snap.packerManager.inflightMACs[Type].Load(mac); exists {
+		if _, exists := snap.packerManager.inflightMACs[Type].LoadOrStore(mac, struct{}{}); exists {
+			// tell prom exporter that we collided a blob
 			return nil
 		}
 	}
