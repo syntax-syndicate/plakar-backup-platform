@@ -287,21 +287,21 @@ func _TestSnapshotPathParam(t *testing.T) {
 		{
 			name:     "empty id",
 			id:       "",
-			location: "/test/location",
+			location: "mock:///test/location",
 			config:   ptesting.NewConfiguration(),
 			err:      "invalid_params: Invalid parameter",
 		},
 		{
 			name:     "empty id",
 			id:       "12345:/dummy",
-			location: "/test/location?behavior=oneState",
+			location: "mock:///test/location?behavior=oneState",
 			config:   ptesting.NewConfiguration(),
 			err:      "invalid_params: Invalid parameter",
 		},
 		{
 			name:     "working",
 			id:       "1000000000000000000000000000000000000000000000000000000000000000:/dummy",
-			location: "/test/location?behavior=oneState",
+			location: "mock:///test/location?behavior=oneState",
 			config:   ptesting.NewConfiguration(),
 		},
 	}
@@ -323,7 +323,7 @@ func _TestSnapshotPathParam(t *testing.T) {
 			require.NoError(t, err, "creating storage")
 
 			ctx := appcontext.NewAppContext()
-			cache := caching.NewManager("/tmp/test_plakar")
+			cache := caching.NewManager("mock:///tmp/test_plakar")
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))

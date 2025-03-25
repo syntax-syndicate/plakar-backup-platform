@@ -35,6 +35,7 @@ import (
 var (
 	ErrPackfileNotFound = errors.New("packfile not found")
 	ErrBlobNotFound     = errors.New("blob not found")
+	ErrNotReadable      = errors.New("repository is not readable")
 )
 
 type Repository struct {
@@ -204,7 +205,7 @@ func (r *Repository) RebuildState() error {
 			return err
 		}
 
-		if err := aggregatedState.InsertState(version, stateID, remoteStateRd); err != nil {
+		if err := aggregatedState.MergeState(version, stateID, remoteStateRd); err != nil {
 			return err
 		}
 	}
@@ -390,15 +391,7 @@ func (r *Repository) DeleteSnapshot(snapshotID objects.MAC) error {
 		r.Logger().Trace("repository", "DeleteSnapshot(%x): %s", snapshotID, time.Since(t0))
 	}()
 
-	var identifier objects.MAC
-	n, err := rand.Read(identifier[:])
-	if err != nil {
-		return err
-	}
-	if n != len(identifier) {
-		return io.ErrShortWrite
-	}
-
+	identifier := objects.RandomMAC()
 	sc, err := r.AppContext().GetCache().Scan(identifier)
 	if err != nil {
 		return err
@@ -796,6 +789,15 @@ func (r *Repository) PutStatePackfile(stateId, packfile objects.MAC) error {
 		r.Logger().Trace("repository", "PutStatePackfile(%x, %x): %s", stateId, packfile, time.Since(t0))
 	}()
 	return r.state.PutPackfile(stateId, packfile)
+}
+
+/* Publishes the current state to our local aggregated state */
+func (r *Repository) PutStateState(stateId objects.MAC) error {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "PutStateState(%x): %s", stateId, time.Since(t0))
+	}()
+	return r.state.PutState(stateId)
 }
 
 func (r *Repository) ListOrphanBlobs() iter.Seq2[state.DeltaEntry, error] {

@@ -48,7 +48,7 @@ type Store struct {
 }
 
 func init() {
-	storage.Register("sftp", NewStore)
+	storage.Register(NewStore, "sftp")
 }
 
 func defaultSigners() ([]ssh.Signer, error) {
@@ -274,6 +274,10 @@ func (s *Store) GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (
 		return nil, err
 	}
 	return res, nil
+}
+
+func (s *Store) Mode() storage.Mode {
+	return storage.ModeRead | storage.ModeWrite
 }
 
 func (s *Store) DeletePackfile(mac objects.MAC) error {

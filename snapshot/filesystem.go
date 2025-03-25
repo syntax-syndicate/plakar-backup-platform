@@ -1,10 +1,16 @@
 package snapshot
 
 import (
+	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
+	"github.com/PlakarKorp/plakar/storage"
 )
 
 func (s *Snapshot) Filesystem() (*vfs.Filesystem, error) {
+	if s.repository.Store().Mode()&storage.ModeRead == 0 {
+		return nil, repository.ErrNotReadable
+	}
+
 	v := s.Header.GetSource(0).VFS
 
 	if s.filesystem != nil {

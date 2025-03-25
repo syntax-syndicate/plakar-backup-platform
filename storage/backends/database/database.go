@@ -43,7 +43,7 @@ type Store struct {
 }
 
 func init() {
-	storage.Register("database", NewStore)
+	storage.Register(NewStore, "sqlite")
 }
 
 func NewStore(storeConfig map[string]string) (storage.Store, error) {
@@ -162,6 +162,10 @@ func (s *Store) Open() ([]byte, error) {
 
 func (s *Store) Close() error {
 	return nil
+}
+
+func (s *Store) Mode() storage.Mode {
+	return storage.ModeRead | storage.ModeWrite
 }
 
 // states

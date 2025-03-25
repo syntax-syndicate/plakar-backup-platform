@@ -1,9 +1,10 @@
-package snapshot
+package snapshot_test
 
 import (
 	"strings"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/snapshot"
 	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
 	"github.com/stretchr/testify/require"
 )
@@ -12,7 +13,7 @@ func TestCheck(t *testing.T) {
 	snap := generateSnapshot(t, nil)
 	defer snap.Close()
 
-	err := snap.repository.RebuildState()
+	err := snap.Repository().RebuildState()
 	require.NoError(t, err)
 
 	// search for the correct filepath as the path was mkdir temp we cannot hardcode it
@@ -27,7 +28,7 @@ func TestCheck(t *testing.T) {
 	}
 	require.NotEmpty(t, filepath)
 
-	checked, err := snap.Check(filepath, &CheckOptions{
+	checked, err := snap.Check(filepath, &snapshot.CheckOptions{
 		MaxConcurrency: 1,
 	})
 	require.NoError(t, err)

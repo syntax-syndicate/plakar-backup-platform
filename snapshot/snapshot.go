@@ -2,7 +2,6 @@ package snapshot
 
 import (
 	"bytes"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -49,13 +48,7 @@ type Snapshot struct {
 }
 
 func New(repo *repository.Repository) (*Snapshot, error) {
-	var identifier objects.MAC
-
-	identifier, err := MakeSnapIdentifier()
-	if err != nil {
-		return nil, err
-	}
-
+	identifier := objects.RandomMAC()
 	scanCache, err := repo.AppContext().GetCache().Scan(identifier)
 	if err != nil {
 		return nil, err
@@ -128,16 +121,7 @@ func Clone(repo *repository.Repository, Identifier objects.MAC) (*Snapshot, erro
 }
 
 func Fork(repo *repository.Repository, Identifier objects.MAC) (*Snapshot, error) {
-	var identifier objects.MAC
-
-	n, err := rand.Read(identifier[:])
-	if err != nil {
-		return nil, err
-	}
-	if n != len(identifier) {
-		return nil, io.ErrShortWrite
-	}
-
+	identifier := objects.RandomMAC()
 	snap, err := Clone(repo, Identifier)
 	if err != nil {
 		return nil, err
@@ -147,19 +131,6 @@ func Fork(repo *repository.Repository, Identifier objects.MAC) (*Snapshot, error
 
 	snap.Logger().Trace("snapshot", "%x: Fork(): %x", snap.Header.Identifier, snap.Header.GetIndexShortID())
 	return snap, nil
-}
-
-func MakeSnapIdentifier() (objects.MAC, error) {
-	var identifier objects.MAC
-	n, err := rand.Read(identifier[:])
-	if err != nil {
-		return objects.MAC{}, err
-	}
-	if n != len(identifier) {
-		return objects.MAC{}, io.ErrShortWrite
-	}
-
-	return identifier, nil
 }
 
 func (snap *Snapshot) Close() error {
@@ -183,6 +154,19 @@ func (snap *Snapshot) Event(evt events.Event) {
 func GetSnapshot(repo *repository.Repository, Identifier objects.MAC) (*header.Header, bool, error) {
 	repo.Logger().Trace("snapshot", "repository.GetSnapshot(%x)", Identifier)
 
+	// Try to get snapshot from cache first
+	cache, err := repo.AppContext().GetCache().Repository(repo.Configuration().RepositoryID)
+	if err == nil {
+		if snapshotBytes, err := cache.GetSnapshot(Identifier); err == nil {
+			if snapshotBytes != nil {
+				hdr, err := header.NewFromBytes(snapshotBytes)
+				if err == nil {
+					return hdr, true, nil
+				}
+			}
+		}
+	}
+
 	rd, err := repo.GetBlob(resources.RT_SNAPSHOT, Identifier)
 	if err != nil {
 		if errors.Is(err, repository.ErrBlobNotFound) {
@@ -199,6 +183,10 @@ func GetSnapshot(repo *repository.Repository, Identifier objects.MAC) (*header.H
 	hdr, err := header.NewFromBytes(buffer)
 	if err != nil {
 		return nil, false, err
+	}
+
+	if cache != nil {
+		_ = cache.PutSnapshot(Identifier, buffer) // optionally handle/log error
 	}
 
 	return hdr, false, nil

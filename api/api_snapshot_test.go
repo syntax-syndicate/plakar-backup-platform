@@ -34,7 +34,7 @@ func _TestSnapshotHeader(t *testing.T) {
 	}{
 		{
 			name:       "snapshot id valid",
-			location:   "/test/location?behavior=oneState",
+			location:   "mock:///test/location?behavior=oneState",
 			snapshotId: "0100000000000000000000000000000000000000000000000000000000000000",
 			status:     http.StatusOK,
 			expected: `{
@@ -191,13 +191,13 @@ func TestSnapshotHeaderErrors(t *testing.T) {
 	}{
 		{
 			name:       "wrong snapshot id format",
-			location:   "/test/location",
+			location:   "mock:///test/location",
 			snapshotId: "abc",
 			status:     http.StatusBadRequest,
 		},
 		{
 			name:       "snapshot id valid but not found",
-			location:   "/test/location",
+			location:   "mock:///test/location",
 			snapshotId: "7e0e6e24a6e29faf11d022dca77826fe8b8a000aff5ea27e16650d03acefc93c",
 			status:     http.StatusNotFound,
 		},
@@ -254,7 +254,7 @@ func _TestSnapshotSign(t *testing.T) {
 	}{
 		{
 			name:         "working",
-			location:     "/test/location?behavior=oneState",
+			location:     "mock:///test/location?behavior=oneState",
 			snapshotPath: "0100000000000000000000000000000000000000000000000000000000000000:/dummy",
 			status:       http.StatusOK,
 			expected:     `{}`,
