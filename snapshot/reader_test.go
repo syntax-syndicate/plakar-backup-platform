@@ -1,4 +1,4 @@
-package snapshot
+package snapshot_test
 
 import (
 	"io"
@@ -13,7 +13,7 @@ func TestNewReader(t *testing.T) {
 	snap := generateSnapshot(t, nil)
 	defer snap.Close()
 
-	err := snap.repository.RebuildState()
+	err := snap.Repository().RebuildState()
 	require.NoError(t, err)
 
 	// search for the correct filepath as the path was mkdir temp we cannot hardcode it

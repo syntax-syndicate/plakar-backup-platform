@@ -138,16 +138,13 @@ func TestQueryParamToUint32(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			got, gotExists, err := QueryParamToUint32(req, "param")
+			got, err := QueryParamToUint32(req, "param", 0, 0)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("QueryParamToUint32() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
 				t.Errorf("QueryParamToUint32() got = %v, want %v", got, tt.want)
-			}
-			if gotExists != tt.wantExists {
-				t.Errorf("QueryParamToUint32() gotExists = %v, want %v", gotExists, tt.wantExists)
 			}
 		})
 	}
@@ -204,16 +201,13 @@ func TestQueryParamToInt64(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			got, gotExists, err := QueryParamToInt64(req, "param")
+			got, err := QueryParamToInt64(req, "param", 0, 0)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("QueryParamToInt64() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
 				t.Errorf("QueryParamToInt64() got = %v, want %v", got, tt.want)
-			}
-			if gotExists != tt.wantExists {
-				t.Errorf("QueryParamToInt64() gotExists = %v, want %v", gotExists, tt.wantExists)
 			}
 		})
 	}
@@ -293,21 +287,21 @@ func _TestSnapshotPathParam(t *testing.T) {
 		{
 			name:     "empty id",
 			id:       "",
-			location: "/test/location",
+			location: "mock:///test/location",
 			config:   ptesting.NewConfiguration(),
 			err:      "invalid_params: Invalid parameter",
 		},
 		{
 			name:     "empty id",
 			id:       "12345:/dummy",
-			location: "/test/location?behavior=oneState",
+			location: "mock:///test/location?behavior=oneState",
 			config:   ptesting.NewConfiguration(),
 			err:      "invalid_params: Invalid parameter",
 		},
 		{
 			name:     "working",
 			id:       "1000000000000000000000000000000000000000000000000000000000000000:/dummy",
-			location: "/test/location?behavior=oneState",
+			location: "mock:///test/location?behavior=oneState",
 			config:   ptesting.NewConfiguration(),
 		},
 	}
@@ -329,7 +323,7 @@ func _TestSnapshotPathParam(t *testing.T) {
 			require.NoError(t, err, "creating storage")
 
 			ctx := appcontext.NewAppContext()
-			cache := caching.NewManager("/tmp/test_plakar")
+			cache := caching.NewManager("mock:///tmp/test_plakar")
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))

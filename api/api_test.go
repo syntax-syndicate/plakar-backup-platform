@@ -42,7 +42,7 @@ func TestAuthMiddleware(t *testing.T) {
 	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 	require.NoError(t, err)
 
-	lstore, err := storage.Create(map[string]string{"location": "/test/location"}, wrappedConfig)
+	lstore, err := storage.Create(map[string]string{"location": "mock:///test/location"}, wrappedConfig)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -59,7 +59,7 @@ func TestAuthMiddleware(t *testing.T) {
 	mux := http.NewServeMux()
 	SetupRoutes(mux, repo, token)
 
-	req, err := http.NewRequest("GET", "/api/storage/configuration", nil)
+	req, err := http.NewRequest("GET", "/api/info", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func Test_UnknownEndpoint(t *testing.T) {
 	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 	require.NoError(t, err)
 
-	lstore, err := storage.Create(map[string]string{"location": "/test/location"}, wrappedConfig)
+	lstore, err := storage.Create(map[string]string{"location": "mock:///test/location"}, wrappedConfig)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}

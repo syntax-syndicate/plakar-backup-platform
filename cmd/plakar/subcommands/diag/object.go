@@ -12,8 +12,7 @@ import (
 )
 
 type DiagObject struct {
-	RepositoryLocation string
-	RepositorySecret   []byte
+	RepositorySecret []byte
 
 	ObjectID string
 }

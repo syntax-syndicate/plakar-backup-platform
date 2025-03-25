@@ -3,13 +3,14 @@ package resources
 type Type uint32
 
 const (
-	RT_CONFIG      Type = 1
-	RT_LOCK        Type = 2
-	RT_STATE       Type = 3
-	RT_PACKFILE    Type = 4
-	RT_SNAPSHOT    Type = 5
-	RT_SIGNATURE   Type = 6
-	RT_OBJECT      Type = 7
+	RT_CONFIG    Type = 1
+	RT_LOCK      Type = 2
+	RT_STATE     Type = 3
+	RT_PACKFILE  Type = 4
+	RT_SNAPSHOT  Type = 5
+	RT_SIGNATURE Type = 6
+	RT_OBJECT    Type = 7
+	// Type = 8 - unused, can't be used
 	RT_CHUNK       Type = 9
 	RT_VFS_BTREE   Type = 10
 	RT_VFS_NODE    Type = 11
@@ -22,6 +23,10 @@ const (
 	RT_XATTR_ENTRY Type = 18
 	RT_BTREE_ROOT  Type = 19
 	RT_BTREE_NODE  Type = 20
+
+	// Type is a uint32 but we can't set it a value > 255 as state v1
+	// assume it's a uint8
+	RT_RANDOM Type = 255
 )
 
 func Types() []Type {
@@ -45,6 +50,7 @@ func Types() []Type {
 		RT_XATTR_ENTRY,
 		RT_BTREE_ROOT,
 		RT_BTREE_NODE,
+		RT_RANDOM,
 	}
 }
 
@@ -88,6 +94,8 @@ func (r Type) String() string {
 		return "btree root"
 	case RT_BTREE_NODE:
 		return "btree node"
+	case RT_RANDOM:
+		return "random"
 	default:
 		return "unknown"
 	}

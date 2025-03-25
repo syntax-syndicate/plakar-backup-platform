@@ -16,9 +16,9 @@ import (
 )
 
 func init() {
-	storage.Register("fs", func(storeConfig map[string]string) (storage.Store, error) {
+	storage.Register(func(storeConfig map[string]string) (storage.Store, error) {
 		return &MockBackend{location: storeConfig["location"]}, nil
-	})
+	}, "mock")
 }
 
 type mockedBackendBehavior struct {
@@ -108,6 +108,10 @@ func (mb *MockBackend) Open() ([]byte, error) {
 
 func (mb *MockBackend) Location() string {
 	return mb.location
+}
+
+func (mb *MockBackend) Mode() storage.Mode {
+	return storage.ModeRead | storage.ModeWrite
 }
 
 func (mb *MockBackend) GetStates() ([]objects.MAC, error) {

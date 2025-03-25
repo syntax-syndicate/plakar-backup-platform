@@ -38,6 +38,12 @@ type ApiErrorRes struct {
 
 func handleError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, repository.ErrNotReadable):
+		err = &ApiError{
+			HttpCode: 400,
+			ErrCode:  "bad-request",
+			Message:  err.Error(),
+		}
 	case errors.Is(err, repository.ErrBlobNotFound):
 		fallthrough
 	case errors.Is(err, repository.ErrPackfileNotFound):
@@ -108,9 +114,11 @@ func TokenAuthMiddleware(token string) func(http.Handler) http.Handler {
 
 func apiInfo(w http.ResponseWriter, r *http.Request) error {
 	res := &struct {
-		Version string `json:"version"`
+		Version   string `json:"version"`
+		Browsable bool   `json:"browsable"`
 	}{
-		Version: utils.GetVersion(),
+		Version:   utils.GetVersion(),
+		Browsable: lrepository.Store().Mode()&storage.ModeRead != 0,
 	}
 	return json.NewEncoder(w).Encode(res)
 }
@@ -133,11 +141,6 @@ func SetupRoutes(server *http.ServeMux, repo *repository.Repository, token strin
 	}))
 
 	server.Handle("GET /api/info", authToken(JSONAPIView(apiInfo)))
-	server.Handle("GET /api/storage/configuration", authToken(JSONAPIView(storageConfiguration)))
-	server.Handle("GET /api/storage/states", authToken(JSONAPIView(storageStates)))
-	server.Handle("GET /api/storage/state/{state}", authToken(JSONAPIView(storageState)))
-	server.Handle("GET /api/storage/packfiles", authToken(JSONAPIView(storagePackfiles)))
-	server.Handle("GET /api/storage/packfile/{packfile}", authToken(JSONAPIView(storagePackfile)))
 
 	server.Handle("GET /api/repository/configuration", authToken(JSONAPIView(repositoryConfiguration)))
 	server.Handle("GET /api/repository/snapshots", authToken(JSONAPIView(repositorySnapshots)))

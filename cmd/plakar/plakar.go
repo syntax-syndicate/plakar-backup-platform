@@ -40,6 +40,7 @@ import (
 	_ "github.com/PlakarKorp/plakar/snapshot/importer/sftp"
 
 	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
+	_ "github.com/PlakarKorp/plakar/snapshot/exporter/ftp"
 	_ "github.com/PlakarKorp/plakar/snapshot/exporter/s3"
 	_ "github.com/PlakarKorp/plakar/snapshot/exporter/sftp"
 
@@ -274,19 +275,10 @@ func entryPoint() int {
 		}
 	}
 
-	storeConfig := map[string]string{"location": repositoryPath}
-	if strings.HasPrefix(repositoryPath, "@") {
-		remote, ok := ctx.Config.GetRepository(repositoryPath[1:])
-		if !ok {
-			fmt.Fprintf(os.Stderr, "%s: could not resolve repository: %s\n", flag.CommandLine.Name(), repositoryPath)
-			return 1
-		}
-		if _, ok := remote["location"]; !ok {
-			fmt.Fprintf(os.Stderr, "%s: could not resolve repository location: %s\n", flag.CommandLine.Name(), repositoryPath)
-			return 1
-		} else {
-			storeConfig = remote
-		}
+	storeConfig, err := ctx.Config.GetRepository(repositoryPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+		return 1
 	}
 
 	// create is a special case, it operates without a repository...
@@ -436,7 +428,7 @@ func entryPoint() int {
 	if opt_agentless {
 		status, err = cmd.Execute(ctx, repo)
 	} else {
-		status, err = agent.ExecuteRPC(ctx, repo, cmd)
+		status, err = agent.ExecuteRPC(ctx, cmd, storeConfig)
 		if err == agent.ErrRetryAgentless {
 			err = nil
 			// Reopen using the agentless cache, and rebuild a repository

@@ -5,7 +5,6 @@ go 1.23.3
 require (
 	github.com/PlakarKorp/go-cdc-chunkers v0.0.9
 	github.com/alecthomas/chroma v0.10.0
-	github.com/anacrolix/fuse v0.4.0
 	github.com/charmbracelet/bubbletea v1.3.4
 	github.com/charmbracelet/glamour v0.8.0
 	github.com/charmbracelet/lipgloss v1.1.0
@@ -17,7 +16,7 @@ require (
 	github.com/go-playground/validator/v10 v10.25.0
 	github.com/go-viper/mapstructure/v2 v2.2.1
 	github.com/gobwas/glob v0.2.3
-	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/johannesboyne/gofakes3 v0.0.0-20250106100439-5c39aecd6999
 	github.com/minio/minio-go/v7 v7.0.88
@@ -49,6 +48,7 @@ require (
 require (
 	github.com/NickBall/go-aes-key-wrap v0.0.0-20170929221519-1c3aa3e4dfc5 // indirect
 	github.com/alecthomas/chroma/v2 v2.15.0 // indirect
+	github.com/anacrolix/fuse v0.3.1 // indirect
 	github.com/aws/aws-sdk-go v1.44.256 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect

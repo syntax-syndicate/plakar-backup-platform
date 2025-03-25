@@ -35,7 +35,7 @@ type Store struct {
 }
 
 func init() {
-	storage.Register("http", NewStore)
+	storage.Register(NewStore, "http", "https")
 }
 
 func NewStore(storeConfig map[string]string) (storage.Store, error) {
@@ -89,8 +89,8 @@ func (s *Store) Close() error {
 	return nil
 }
 
-func (s *Store) Configuration() storage.Configuration {
-	return s.config
+func (s *Store) Mode() storage.Mode {
+	return storage.ModeRead | storage.ModeWrite
 }
 
 // states

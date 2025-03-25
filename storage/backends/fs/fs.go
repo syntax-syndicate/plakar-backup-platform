@@ -39,7 +39,7 @@ type Store struct {
 }
 
 func init() {
-	storage.Register("fs", NewStore)
+	storage.Register(NewStore, "fs")
 }
 
 func NewStore(storeConfig map[string]string) (storage.Store, error) {
@@ -121,6 +121,10 @@ func (s *Store) Open() ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+func (s *Store) Mode() storage.Mode {
+	return storage.ModeRead | storage.ModeWrite
 }
 
 func (s *Store) GetPackfiles() ([]objects.MAC, error) {
