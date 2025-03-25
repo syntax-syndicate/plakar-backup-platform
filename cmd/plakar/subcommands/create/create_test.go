@@ -33,7 +33,7 @@ func TestExecuteCmdCreateDefaultWithHashing(t *testing.T) {
 	ctx.HomeDir = tmpRepoDirRoot
 	args := []string{"--no-encryption", "--hashing", "SHA256"}
 
-	subcommand, err := parse_cmd_create(ctx, repo, args)
+	subcommand, err := parse_cmd_create(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -87,7 +87,7 @@ func TestExecuteCmdCreateDefaultWithoutEncryption(t *testing.T) {
 	ctx.HomeDir = tmpRepoDirRoot
 	args := []string{"--no-encryption"}
 
-	subcommand, err := parse_cmd_create(ctx, repo, args)
+	subcommand, err := parse_cmd_create(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -128,7 +128,7 @@ func TestExecuteCmdCreateDefaultWeakPassword(t *testing.T) {
 	ctx.HomeDir = tmpRepoDirRoot
 	args := []string{}
 
-	subcommand, err := parse_cmd_create(ctx, repo, args)
+	subcommand, err := parse_cmd_create(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -143,7 +143,7 @@ func TestExecuteCmdCreateDefaultWeakPassword(t *testing.T) {
 	// try again with authorization to use weak passphrase
 	args = []string{"--weak-passphrase"}
 
-	subcommand, err = parse_cmd_create(ctx, repo, args)
+	subcommand, err = parse_cmd_create(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -175,7 +175,7 @@ func TestExecuteCmdCreateDefaultWithKeyfile(t *testing.T) {
 	ctx.KeyFromFile = "aZeRtY123456$#@!@"
 	args := []string{}
 
-	subcommand, err := parse_cmd_create(ctx, repo, args)
+	subcommand, err := parse_cmd_create(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -202,7 +202,7 @@ func TestExecuteCmdCreateDefaultWithEnvPassphrase(t *testing.T) {
 	ctx.HomeDir = tmpRepoDirRoot
 	args := []string{}
 
-	subcommand, err := parse_cmd_create(ctx, repo, args)
+	subcommand, err := parse_cmd_create(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 

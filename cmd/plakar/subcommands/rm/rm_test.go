@@ -43,7 +43,7 @@ func TestExecuteCmdRmDefault(t *testing.T) {
 	ctx.HomeDir = repo.Location()
 	args := []string{"-latest"}
 
-	subcommand, err := parse_cmd_rm(ctx, repo, args)
+	subcommand, err := parse_cmd_rm(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 	require.Equal(t, "rm", subcommand.(*Rm).Name())
@@ -71,7 +71,7 @@ func TestExecuteCmdRmWithSnapshot(t *testing.T) {
 	ctx.HomeDir = repo.Location()
 	args := []string{hex.EncodeToString(snap.Header.GetIndexShortID())}
 
-	subcommand, err := parse_cmd_rm(ctx, repo, args)
+	subcommand, err := parse_cmd_rm(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 	require.Equal(t, "rm", subcommand.(*Rm).Name())
