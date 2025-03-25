@@ -38,7 +38,7 @@ func _Test_RepositoryConfiguration(t *testing.T) {
 	require.NoError(t, err)
 	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 	require.NoError(t, err)
-	lstore, err := storage.Create(map[string]string{"location": "/test/location"}, wrappedConfig)
+	lstore, err := storage.Create(map[string]string{"location": "mock:///test/location"}, wrappedConfig)
 	require.NoError(t, err, "creating storage")
 
 	ctx := appcontext.NewAppContext()
@@ -104,13 +104,13 @@ func _Test_RepositorySnapshots(t *testing.T) {
 	}{
 		{
 			name:     "no snapshots",
-			location: "/test/location",
+			location: "mock:///test/location",
 			config:   ptesting.NewConfiguration(),
 			expected: `{"items": [], "total": 0}`,
 		},
 		{
 			name:     "one snapshot with compression",
-			location: "/test/location?behavior=oneSnapshot",
+			location: "mock:///test/location?behavior=oneSnapshot",
 			config:   ptesting.NewConfiguration(),
 			expected: `{
 						"total": 1,
@@ -207,7 +207,7 @@ func _Test_RepositorySnapshots(t *testing.T) {
 		},
 		{
 			name:     "one snapshot without compression",
-			location: "/test/location?behavior=oneSnapshot",
+			location: "mock:///test/location?behavior=oneSnapshot",
 			config:   ptesting.NewConfiguration(ptesting.WithConfigurationCompression(nil)),
 			expected: `{
 						"total": 1,
@@ -364,38 +364,38 @@ func _Test_RepositorySnapshotsErrors(t *testing.T) {
 	}{
 		{
 			name:     "wrong offset",
-			location: "/test/location",
+			location: "mock:///test/location",
 			params:   url.Values{"offset": []string{"abc"}}.Encode(),
 			status:   http.StatusInternalServerError,
 		},
 		{
 			name:     "offset too big",
-			location: "/test/location",
+			location: "mock:///test/location",
 			params:   url.Values{"offset": []string{"5"}}.Encode(),
 			status:   http.StatusOK,
 			expected: `{"items": [], "total": 0}`,
 		},
 		{
 			name:     "offset + limit too big",
-			location: "/test/location?behavior=oneSnapshot",
+			location: "mock:///test/location?behavior=oneSnapshot",
 			params:   url.Values{"offset": []string{"1"}, "limit": []string{"1"}}.Encode(),
 			status:   http.StatusOK,
 			expected: `{"items": [], "total": 1}`,
 		},
 		{
 			name:     "wrong packfile",
-			location: "/test/location?behavior=nopackfile",
+			location: "mock:///test/location?behavior=nopackfile",
 			status:   http.StatusInternalServerError,
 		},
 		{
 			name:     "wrong limit",
-			location: "/test/location",
+			location: "mock:///test/location",
 			params:   url.Values{"limit": []string{"abc"}}.Encode(),
 			status:   http.StatusInternalServerError,
 		},
 		{
 			name:     "wrong sort",
-			location: "/test/location",
+			location: "mock:///test/location",
 			params:   url.Values{"sort": []string{"abc"}}.Encode(),
 			expected: `{"error":{"code":"invalid_params","message":"Invalid parameter","params":{"sort":{"code":"invalid_argument","message":"invalid sort key: abc"}}}}`,
 			status:   http.StatusBadRequest,
@@ -605,13 +605,13 @@ func Test_RepositoryStateErrors(t *testing.T) {
 	}{
 		{
 			name:     "wrong state id format",
-			location: "/test/location",
+			location: "mock:///test/location",
 			stateId:  "abc",
 			status:   http.StatusBadRequest,
 		},
 		{
 			name:     "wrong state",
-			location: "/test/location?behavior=brokenGetState",
+			location: "mock:///test/location?behavior=brokenGetState",
 			stateId:  "0100000000000000000000000000000000000000000000000000000000000000",
 			status:   http.StatusInternalServerError,
 		},

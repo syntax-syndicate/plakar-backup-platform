@@ -48,7 +48,7 @@ type Store struct {
 }
 
 func init() {
-	storage.Register("sftp", NewStore)
+	storage.Register(NewStore, "sftp")
 }
 
 func defaultSigners() ([]ssh.Signer, error) {
