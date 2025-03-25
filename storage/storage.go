@@ -105,8 +105,8 @@ func (c *Configuration) ToBytes() ([]byte, error) {
 type Mode uint32
 
 const (
-	ModeWrite Mode = 1 << iota
-	ModeRead  Mode = 1 << iota
+	ModeWrite Mode = 1 << 1
+	ModeRead  Mode = 1 << 2
 )
 
 type Store interface {
