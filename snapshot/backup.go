@@ -233,12 +233,7 @@ func (snap *Snapshot) flushDeltaState(bc *BackupContext) {
 			oldStateId := bc.stateId
 
 			// Now make a new state backed by a new cache.
-			identifier, err := MakeSnapIdentifier()
-			if err != nil {
-				snap.deltaMtx.Unlock()
-				snap.Logger().Warn("Failed to generate delta identifier %s\n", err)
-				break
-			}
+			identifier := objects.RandomMAC()
 
 			deltaCache, err := snap.repository.AppContext().GetCache().Scan(identifier)
 			if err != nil {
