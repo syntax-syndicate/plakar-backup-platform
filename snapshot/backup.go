@@ -217,6 +217,14 @@ func (snap *Snapshot) flushDeltaState(bc *BackupContext) {
 				snap.Logger().Warn("Failed to push the final state to the repository %s", err)
 			}
 
+			// We inserted deltas during the process in our aggregated state, we
+			// also need to publish the state so that rebuild doesn't pickit up on
+			// next run.
+			err = snap.repository.PutStateState(bc.stateId)
+			if err != nil {
+				snap.Logger().Warn("Failed to push the state to the local state %s", err)
+			}
+
 			// See below
 			if snap.deltaCache != snap.scanCache {
 				snap.deltaCache.Close()
@@ -255,6 +263,14 @@ func (snap *Snapshot) flushDeltaState(bc *BackupContext) {
 			if err != nil {
 				// XXX: ERROR HANDLING
 				snap.Logger().Warn("Failed to push the state to the repository %s", err)
+			}
+
+			// We inserted deltas during the process in our aggregated state, we
+			// also need to publish the state so that rebuild doesn't pickit up on
+			// next run.
+			err = snap.repository.PutStateState(bc.stateId)
+			if err != nil {
+				snap.Logger().Warn("Failed to push the state to the local state %s", err)
 			}
 
 			// The first cache is always the scanCache, only in this function we
@@ -1001,6 +1017,14 @@ func (snap *Snapshot) Commit(bc *BackupContext) error {
 		err = snap.repository.PutState(snap.Header.Identifier, stateDelta)
 		if err != nil {
 			snap.Logger().Warn("Failed to push the state to the repository %s", err)
+			return err
+		}
+		// We inserted deltas during the process in our aggregated state, we
+		// also need to publish the state so that rebuild doesn't pickit up on
+		// next run.
+		err = snap.repository.PutStateState(snap.Header.Identifier)
+		if err != nil {
+			snap.Logger().Warn("Failed to push the state to the local state %s", err)
 			return err
 		}
 	}
