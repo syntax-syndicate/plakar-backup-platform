@@ -169,11 +169,6 @@ func (s *Store) Create(config []byte) error {
 		return err
 	}
 
-	_, err = s.minioClient.PutObject(context.Background(), s.bucketName, "CONFIG", bytes.NewReader(config), int64(len(config)), putObjectOptions)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
