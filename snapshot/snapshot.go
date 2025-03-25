@@ -158,9 +158,11 @@ func GetSnapshot(repo *repository.Repository, Identifier objects.MAC) (*header.H
 	cache, err := repo.AppContext().GetCache().Repository(repo.Configuration().RepositoryID)
 	if err == nil {
 		if snapshotBytes, err := cache.GetSnapshot(Identifier); err == nil {
-			hdr, err := header.NewFromBytes(snapshotBytes)
-			if err == nil {
-				return hdr, true, nil
+			if snapshotBytes != nil {
+				hdr, err := header.NewFromBytes(snapshotBytes)
+				if err == nil {
+					return hdr, true, nil
+				}
 			}
 		}
 	}
