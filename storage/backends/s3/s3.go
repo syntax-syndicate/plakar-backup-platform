@@ -77,7 +77,7 @@ func NewStore(storeConfig map[string]string) (storage.Store, error) {
 	storageClass := "standard"
 	if value, ok := storeConfig["storage_class"]; ok {
 		storageClass = strings.ToUpper(value)
-		if storageClass != "STANDARD" && storageClass != "REDUCED_REDUNDANCY" && storageClass != "STANDARD_IA" && storageClass != "ONEZONE_IA" && storageClass != "INTELLIGENT_TIERING" && storageClass != "GLACIER" && storageClass != "DEEP_ARCHIVE" {
+		if storageClass != "STANDARD" && storageClass != "REDUCED_REDUNDANCY" && storageClass != "STANDARD_IA" && storageClass != "ONEZONE_IA" && storageClass != "INTELLIGENT_TIERING" && storageClass != "GLACIER" && storageClass != "GLACIER_IR" && storageClass != "DEEP_ARCHIVE" {
 			return nil, fmt.Errorf("invalid storage_class value")
 		}
 	}
