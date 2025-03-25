@@ -36,7 +36,7 @@ func init() {
 	subcommands.Register("diff", parse_cmd_diff)
 }
 
-func parse_cmd_diff(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_diff(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	var opt_highlight bool
 	flags := flag.NewFlagSet("diff", flag.ExitOnError)
 	flags.Usage = func() {

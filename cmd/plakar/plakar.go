@@ -291,7 +291,7 @@ func entryPoint() int {
 		}
 		defer repo.Close()
 
-		cmd, err := subcommands.Parse(ctx, repo, command, args)
+		cmd, err := subcommands.Parse(ctx, command, args)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
@@ -305,7 +305,7 @@ func entryPoint() int {
 
 	// these commands need to be ran before the repository is opened
 	if command == "agent" || command == "config" || command == "version" || command == "help" {
-		cmd, err := subcommands.Parse(ctx, nil, command, args)
+		cmd, err := subcommands.Parse(ctx, command, args)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
@@ -418,7 +418,7 @@ func entryPoint() int {
 
 	// commands below all operate on an open repository
 	t0 := time.Now()
-	cmd, err := subcommands.Parse(ctx, repo, command, args)
+	cmd, err := subcommands.Parse(ctx, command, args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		return 1

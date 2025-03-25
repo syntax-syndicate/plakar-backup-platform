@@ -13,7 +13,7 @@ type Subcommand interface {
 	Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error)
 }
 
-type parseArgsFn func(*appcontext.AppContext, *repository.Repository, []string) (Subcommand, error)
+type parseArgsFn func(*appcontext.AppContext, []string) (Subcommand, error)
 
 var subcommands map[string]parseArgsFn = make(map[string]parseArgsFn)
 
@@ -21,12 +21,12 @@ func Register(command string, fn parseArgsFn) {
 	subcommands[command] = fn
 }
 
-func Parse(ctx *appcontext.AppContext, repo *repository.Repository, command string, args []string) (Subcommand, error) {
+func Parse(ctx *appcontext.AppContext, command string, args []string) (Subcommand, error) {
 	parsefn, exists := subcommands[command]
 	if !exists {
 		return nil, fmt.Errorf("unknown command: %s", command)
 	}
-	return parsefn(ctx, repo, args)
+	return parsefn(ctx, args)
 }
 
 func List() []string {

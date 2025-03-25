@@ -35,7 +35,7 @@ func init() {
 	subcommands.Register("maintenance", parse_cmd_maintenance)
 }
 
-func parse_cmd_maintenance(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_maintenance(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	flags := flag.NewFlagSet("maintenance", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s\n", flags.Name())

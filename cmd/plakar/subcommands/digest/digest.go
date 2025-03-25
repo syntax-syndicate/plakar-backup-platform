@@ -36,7 +36,7 @@ func init() {
 	subcommands.Register("digest", parse_cmd_digest)
 }
 
-func parse_cmd_digest(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_digest(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	var opt_hashing string
 
 	flags := flag.NewFlagSet("digest", flag.ExitOnError)

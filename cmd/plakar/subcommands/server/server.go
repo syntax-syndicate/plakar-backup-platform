@@ -30,7 +30,7 @@ func init() {
 	subcommands.Register("server", parse_cmd_server)
 }
 
-func parse_cmd_server(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_server(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	var opt_listen string
 	var opt_allowdelete bool
 

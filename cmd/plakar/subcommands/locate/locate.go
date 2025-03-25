@@ -34,7 +34,7 @@ func init() {
 	subcommands.Register("locate", parse_cmd_locate)
 }
 
-func parse_cmd_locate(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_locate(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	var opt_snapshot string
 	var opt_name string
 	var opt_category string
