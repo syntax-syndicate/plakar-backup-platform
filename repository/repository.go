@@ -465,9 +465,6 @@ func (r *Repository) PutState(mac objects.MAC, rd io.Reader) error {
 		return err
 	}
 
-	// insertstate
-	// ls.cache.putstate . wrapper du cacche
-
 	return r.store.PutState(mac, rd)
 }
 
