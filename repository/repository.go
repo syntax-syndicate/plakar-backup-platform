@@ -744,16 +744,6 @@ func (r *Repository) GetBlob(Type resources.Type, mac objects.MAC) (io.ReadSeeke
 		r.Logger().Trace("repository", "GetBlob(%s, %x): %s", Type, mac, time.Since(t0))
 	}()
 
-	if Type == resources.RT_SNAPSHOT {
-		cache, err := r.appContext.GetCache().Repository(r.Configuration().RepositoryID)
-		if err == nil {
-			snapshotBytes, err := cache.GetSnapshot(mac)
-			if err == nil {
-				return bytes.NewReader(snapshotBytes), nil
-			}
-		}
-	}
-
 	loc, exists, err := r.state.GetSubpartForBlob(Type, mac)
 	if err != nil {
 		return nil, err
