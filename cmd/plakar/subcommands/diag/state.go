@@ -1,10 +1,8 @@
 package diag
 
 import (
-	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"io"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
@@ -55,15 +53,7 @@ func (cmd *DiagState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 			}
 
 			// Temporary scan cache to reconstruct that state.
-			var identifier objects.MAC
-			n, err := rand.Read(identifier[:])
-			if err != nil {
-				return 1, err
-			}
-			if n != len(identifier) {
-				return 1, io.ErrShortWrite
-			}
-
+			identifier := objects.RandomMAC()
 			scanCache, err := repo.AppContext().GetCache().Scan(identifier)
 			if err != nil {
 				return 1, err

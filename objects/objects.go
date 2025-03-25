@@ -1,6 +1,7 @@
 package objects
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -41,6 +42,16 @@ func (m *MAC) UnmarshalJSON(data []byte) error {
 
 	copy(m[:], decoded)
 	return nil
+}
+
+func RandomMAC() (MAC) {
+	var r MAC
+
+	// According to the documentation, this call never fails and
+	// always return a complete read.
+	rand.Read(r[:])
+
+	return r
 }
 
 type Object struct {

@@ -64,7 +64,7 @@ func TestNewExporter(t *testing.T) {
 		{location: "/", expectedError: "", expectedBackend: "fs"},
 		{location: "fs://some/path", expectedError: "", expectedBackend: "fs"},
 		{location: "s3://bucket/path", expectedError: "", expectedBackend: "s3"},
-		{location: "http://unsupported", expectedError: "unsupported importer protocol", expectedBackend: ""},
+		{location: "http://unsupported", expectedError: "unsupported exporter protocol", expectedBackend: ""},
 	}
 
 	for _, test := range tests {

@@ -18,10 +18,8 @@ package maintenance
 
 import (
 	"bytes"
-	"crypto/rand"
 	"flag"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -294,15 +292,7 @@ func (cmd *Maintenance) Execute(ctx *appcontext.AppContext, repo *repository.Rep
 	cmd.cutoff = time.Now().AddDate(0, 0, -30)
 
 	// This random id generation for non snapshot state should probably be encapsulated somewhere.
-	n, err := rand.Read(cmd.maintenanceID[:])
-	if err != nil {
-		fmt.Fprintf(ctx.Stderr, "maintenance: Failed to read from random source.%s\n", err)
-		return 1, err
-	}
-	if n != len(cmd.maintenanceID) {
-		fmt.Fprintf(ctx.Stderr, "maintenance: Failed to read from random source.%s\n", err)
-		return 1, io.ErrShortWrite
-	}
+	cmd.maintenanceID = objects.RandomMAC()
 
 	done, err := cmd.Lock()
 	if err != nil {
