@@ -60,7 +60,7 @@ func TestExecuteCmdCreateDefaultWithoutCompression(t *testing.T) {
 	ctx.HomeDir = tmpRepoDirRoot
 	args := []string{"--no-encryption", "--no-compression"}
 
-	subcommand, err := parse_cmd_create(ctx, repo, args)
+	subcommand, err := parse_cmd_create(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
