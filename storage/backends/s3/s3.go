@@ -43,6 +43,8 @@ type Store struct {
 	accessKey       string
 	secretAccessKey string
 
+	storageClass string
+
 	putObjectOptions minio.PutObjectOptions
 }
 
@@ -74,15 +76,26 @@ func NewStore(storeConfig map[string]string) (storage.Store, error) {
 		useSsl = tmp
 	}
 
+	storageClass := "standard"
+	if value, ok := storeConfig["storage_class"]; ok {
+		storageClass = strings.ToUpper(value)
+		if storageClass != "STANDARD" && storageClass != "REDUCED_REDUNDANCY" && storageClass != "STANDARD_IA" && storageClass != "ONEZONE_IA" && storageClass != "INTELLIGENT_TIERING" && storageClass != "GLACIER" && storageClass != "GLACIER_IR" && storageClass != "DEEP_ARCHIVE" {
+			return nil, fmt.Errorf("invalid storage_class value")
+		}
+	}
+
 	return &Store{
 		location:        storeConfig["location"],
 		accessKey:       accessKey,
 		secretAccessKey: secretAccessKey,
 		useSsl:          useSsl,
+		storageClass:    storageClass,
+
 		putObjectOptions: minio.PutObjectOptions{
 			// Some providers (eg. BlackBlaze) return the error
 			// "Unsupported header 'x-amz-checksum-algorithm'" if SendContentMd5
 			// is not set.
+			StorageClass:   storageClass,
 			SendContentMd5: true,
 		},
 	}, nil
@@ -141,7 +154,17 @@ func (s *Store) Create(config []byte) error {
 		return fmt.Errorf("bucket already initialized")
 	}
 
-	_, err = s.minioClient.PutObject(context.Background(), s.bucketName, "CONFIG", bytes.NewReader(config), int64(len(config)), s.putObjectOptions)
+	if s.Mode()&storage.ModeRead == 0 {
+		_, err = s.minioClient.PutObject(context.Background(), s.bucketName, "CONFIG.frozen", bytes.NewReader(config), int64(len(config)), s.putObjectOptions)
+		if err != nil {
+			return err
+		}
+	}
+
+	putObjectOptions := s.putObjectOptions
+	putObjectOptions.StorageClass = "STANDARD"
+
+	_, err = s.minioClient.PutObject(context.Background(), s.bucketName, "CONFIG", bytes.NewReader(config), int64(len(config)), putObjectOptions)
 	if err != nil {
 		return err
 	}
@@ -195,6 +218,13 @@ func (s *Store) Close() error {
 	return nil
 }
 
+func (s *Store) Mode() storage.Mode {
+	if s.storageClass == "GLACIER" || s.storageClass == "DEEP_ARCHIVE" {
+		return storage.ModeWrite
+	}
+	return storage.ModeRead | storage.ModeWrite
+}
+
 // states
 func (s *Store) GetStates() ([]objects.MAC, error) {
 	ret := make([]objects.MAC, 0)
@@ -223,6 +253,7 @@ func (s *Store) PutState(mac objects.MAC, rd io.Reader) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -329,7 +360,10 @@ func (s *Store) GetLocks() ([]objects.MAC, error) {
 }
 
 func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) error {
-	_, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("locks/%016x", lockID), rd, -1, s.putObjectOptions)
+	putObjectOptions := s.putObjectOptions
+	putObjectOptions.StorageClass = "STANDARD"
+
+	_, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("locks/%016x", lockID), rd, -1, putObjectOptions)
 	if err != nil {
 		return err
 	}

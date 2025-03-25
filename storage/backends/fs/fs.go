@@ -123,6 +123,10 @@ func (s *Store) Open() ([]byte, error) {
 	return data, nil
 }
 
+func (s *Store) Mode() storage.Mode {
+	return storage.ModeRead | storage.ModeWrite
+}
+
 func (s *Store) GetPackfiles() ([]objects.MAC, error) {
 	return s.packfiles.List()
 }

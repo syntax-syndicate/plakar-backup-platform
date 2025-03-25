@@ -164,6 +164,10 @@ func (s *Store) Close() error {
 	return nil
 }
 
+func (s *Store) Mode() storage.Mode {
+	return storage.ModeRead | storage.ModeWrite
+}
+
 // states
 func (s *Store) GetStates() ([]objects.MAC, error) {
 	rows, err := s.conn.Query("SELECT mac FROM states")

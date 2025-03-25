@@ -35,6 +35,7 @@ import (
 var (
 	ErrPackfileNotFound = errors.New("packfile not found")
 	ErrBlobNotFound     = errors.New("blob not found")
+	ErrNotReadable      = errors.New("repository is not readable")
 )
 
 type Repository struct {

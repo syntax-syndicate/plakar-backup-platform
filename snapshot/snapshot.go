@@ -154,6 +154,19 @@ func (snap *Snapshot) Event(evt events.Event) {
 func GetSnapshot(repo *repository.Repository, Identifier objects.MAC) (*header.Header, bool, error) {
 	repo.Logger().Trace("snapshot", "repository.GetSnapshot(%x)", Identifier)
 
+	// Try to get snapshot from cache first
+	cache, err := repo.AppContext().GetCache().Repository(repo.Configuration().RepositoryID)
+	if err == nil {
+		if snapshotBytes, err := cache.GetSnapshot(Identifier); err == nil {
+			if snapshotBytes != nil {
+				hdr, err := header.NewFromBytes(snapshotBytes)
+				if err == nil {
+					return hdr, true, nil
+				}
+			}
+		}
+	}
+
 	rd, err := repo.GetBlob(resources.RT_SNAPSHOT, Identifier)
 	if err != nil {
 		if errors.Is(err, repository.ErrBlobNotFound) {
@@ -170,6 +183,10 @@ func GetSnapshot(repo *repository.Repository, Identifier objects.MAC) (*header.H
 	hdr, err := header.NewFromBytes(buffer)
 	if err != nil {
 		return nil, false, err
+	}
+
+	if cache != nil {
+		_ = cache.PutSnapshot(Identifier, buffer) // optionally handle/log error
 	}
 
 	return hdr, false, nil

@@ -254,3 +254,19 @@ func (c *_RepositoryCache) GetConfigurations() iter.Seq[[]byte] {
 		}
 	}
 }
+
+func (c *_RepositoryCache) PutSnapshot(stateID objects.MAC, data []byte) error {
+	return c.put("__snapshot__", fmt.Sprintf("%x", stateID), data)
+}
+
+func (c *_RepositoryCache) HasSnapshot(stateID objects.MAC) (bool, error) {
+	return c.has("__snapshot__", fmt.Sprintf("%x", stateID))
+}
+
+func (c *_RepositoryCache) GetSnapshot(stateID objects.MAC) ([]byte, error) {
+	return c.get("__snapshot__", fmt.Sprintf("%x", stateID))
+}
+
+func (c *_RepositoryCache) DelSnapshot(stateID objects.MAC) error {
+	return c.delete("__snapshot__", fmt.Sprintf("%x", stateID))
+}

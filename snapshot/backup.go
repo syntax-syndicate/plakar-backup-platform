@@ -1029,6 +1029,11 @@ func (snap *Snapshot) Commit(bc *BackupContext) error {
 		}
 	}
 
+	cache, err := snap.AppContext().GetCache().Repository(snap.repository.Configuration().RepositoryID)
+	if err == nil {
+		_ = cache.PutSnapshot(snap.Header.Identifier, serializedHdr)
+	}
+
 	snap.Logger().Trace("snapshot", "%x: Commit()", snap.Header.GetIndexShortID())
 	return nil
 }

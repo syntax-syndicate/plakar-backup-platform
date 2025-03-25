@@ -110,6 +110,10 @@ func (mb *MockBackend) Location() string {
 	return mb.location
 }
 
+func (mb *MockBackend) Mode() storage.Mode {
+	return storage.ModeRead | storage.ModeWrite
+}
+
 func (mb *MockBackend) GetStates() ([]objects.MAC, error) {
 	ret := make([]objects.MAC, 0)
 	if mb.behavior == "brokenState" {
