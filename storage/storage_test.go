@@ -8,7 +8,9 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/storage"
+	_ "github.com/PlakarKorp/plakar/storage/backends/fs"
 	ptesting "github.com/PlakarKorp/plakar/testing"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewStore(t *testing.T) {
@@ -16,17 +18,17 @@ func TestNewStore(t *testing.T) {
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
 	ctx.MaxConcurrency = runtime.NumCPU()*8 + 1
 
-	store, err := storage.NewStore("fs", map[string]string{"location": "/test/location"})
+	store, err := storage.NewStore("mock", map[string]string{"location": "mock:///test/location"})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if store.Location() != "/test/location" {
-		t.Errorf("expected location to be '/test/location', got %v", store.Location())
+	if store.Location() != "mock:///test/location" {
+		t.Errorf("expected location to be 'mock:///test/location', got %v", store.Location())
 	}
 
 	// should return an error as the backend does not exist
-	_, err = storage.NewStore("unknown", map[string]string{"location": "/test/location"})
+	_, err = storage.NewStore("unknown", map[string]string{"location": "mock:///test/location"})
 	if err.Error() != "backend 'unknown' does not exist" {
 		t.Fatalf("Expected %s but got %v", "backend 'unknown' does not exist", err)
 	}
@@ -43,13 +45,13 @@ func TestCreateStore(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	_, err = storage.Create(map[string]string{"location": "/test/location"}, serializedConfig)
+	_, err = storage.Create(map[string]string{"location": "mock:///test/location"}, serializedConfig)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
 	// should return an error as the backend Create will return an error
-	_, err = storage.Create(map[string]string{"location": "/test/location/musterror"}, serializedConfig)
+	_, err = storage.Create(map[string]string{"location": "mock:///test/location/musterror"}, serializedConfig)
 	if err.Error() != "creating error" {
 		t.Fatalf("Expected %s but got %v", "opening error", err)
 	}
@@ -66,17 +68,17 @@ func TestOpenStore(t *testing.T) {
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
 	ctx.MaxConcurrency = runtime.NumCPU()*8 + 1
 
-	store, _, err := storage.Open(map[string]string{"location": "/test/location"})
+	store, _, err := storage.Open(map[string]string{"location": "mock:///test/location"})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if store.Location() != "/test/location" {
-		t.Errorf("expected location to be '/test/location', got %v", store.Location())
+	if store.Location() != "mock:///test/location" {
+		t.Errorf("expected location to be 'mock:///test/location', got %v", store.Location())
 	}
 
 	// should return an error as the backend Open will return an error
-	_, _, err = storage.Open(map[string]string{"location": "/test/location/musterror"})
+	_, _, err = storage.Open(map[string]string{"location": "mock:///test/location/musterror"})
 	if err.Error() != "opening error" {
 		t.Fatalf("Expected %s but got %v", "opening error", err)
 	}
@@ -96,43 +98,38 @@ func TestBackends(t *testing.T) {
 	storage.Register(func(storeConfig map[string]string) (storage.Store, error) { return &ptesting.MockBackend{}, nil },
 		"test")
 
-	expected := []string{"fs", "test"}
+	expected := []string{"fs", "mock", "test"}
 	actual := storage.Backends()
-	if len(expected) != len(actual) {
-		t.Errorf("expected %d backends, got %d", len(expected), len(actual))
-	}
+	require.Equal(t, expected, actual)
 }
 
 func TestNew(t *testing.T) {
-	locations := []struct {
-		name     string
-		location string
-	}{
-		{"fs2", "fs://test/location"},
-		{"http", "http://test/location"},
-		{"sqlite", "sqlite:///test/location"},
-		{"s3", "s3://test/location"},
-		{"null", "null://test/location"},
-		{"sftp", "sftp://test/location"},
+	locations := []string{
+		"foo",
+		"bar",
+		"baz",
+		"quux",
 	}
 
-	for _, l := range locations {
-		t.Run(l.name, func(t *testing.T) {
+	for _, name := range locations {
+		t.Run(name, func(t *testing.T) {
 			ctx := appcontext.NewAppContext()
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
 			ctx.MaxConcurrency = runtime.NumCPU()*8 + 1
 
 			storage.Register(func(storeConfig map[string]string) (storage.Store, error) {
 				return ptesting.NewMockBackend(storeConfig), nil
-			}, l.name)
+			}, name)
 
-			store, err := storage.New(map[string]string{"location": l.location})
+			location := name + ":///test/location"
+
+			store, err := storage.New(map[string]string{"location": location})
 			if err != nil {
 				t.Fatalf("expected no error, got %v", err)
 			}
 
-			if store.Location() != l.location {
-				t.Errorf("expected location to be '%s', got %v", l.location, store.Location())
+			if store.Location() != location {
+				t.Errorf("expected location to be '%s', got %v", location, store.Location())
 			}
 		})
 	}
