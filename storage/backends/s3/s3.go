@@ -154,9 +154,11 @@ func (s *Store) Create(config []byte) error {
 		return fmt.Errorf("bucket already initialized")
 	}
 
-	_, err = s.minioClient.PutObject(context.Background(), s.bucketName, "CONFIG.frozen", bytes.NewReader(config), int64(len(config)), s.putObjectOptions)
-	if err != nil {
-		return err
+	if s.Mode()&storage.ModeRead == 0 {
+		_, err = s.minioClient.PutObject(context.Background(), s.bucketName, "CONFIG.frozen", bytes.NewReader(config), int64(len(config)), s.putObjectOptions)
+		if err != nil {
+			return err
+		}
 	}
 
 	putObjectOptions := s.putObjectOptions
