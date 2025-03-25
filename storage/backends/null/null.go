@@ -57,6 +57,10 @@ func (s *Store) Close() error {
 	return nil
 }
 
+func (s *Store) Mode() storage.Mode {
+	return storage.ModeRead | storage.ModeWrite
+}
+
 // snapshots
 func (s *Store) GetSnapshots() ([]objects.MAC, error) {
 	return []objects.MAC{}, nil

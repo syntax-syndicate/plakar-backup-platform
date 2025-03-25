@@ -102,10 +102,18 @@ func (c *Configuration) ToBytes() ([]byte, error) {
 	return msgpack.Marshal(c)
 }
 
+type Mode uint32
+
+const (
+	ModeWrite Mode = 1 << iota
+	ModeRead  Mode = 1 << iota
+)
+
 type Store interface {
 	Create(config []byte) error
 	Open() ([]byte, error)
 	Location() string
+	Mode() Mode
 
 	GetStates() ([]objects.MAC, error)
 	PutState(mac objects.MAC, rd io.Reader) error

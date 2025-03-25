@@ -38,6 +38,12 @@ type ApiErrorRes struct {
 
 func handleError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, repository.ErrNotReadable):
+		err = &ApiError{
+			HttpCode: 400,
+			ErrCode:  "bad-request",
+			Message:  err.Error(),
+		}
 	case errors.Is(err, repository.ErrBlobNotFound):
 		fallthrough
 	case errors.Is(err, repository.ErrPackfileNotFound):
@@ -108,9 +114,11 @@ func TokenAuthMiddleware(token string) func(http.Handler) http.Handler {
 
 func apiInfo(w http.ResponseWriter, r *http.Request) error {
 	res := &struct {
-		Version string `json:"version"`
+		Version   string `json:"version"`
+		Browsable bool   `json:"browsable"`
 	}{
-		Version: utils.GetVersion(),
+		Version:   utils.GetVersion(),
+		Browsable: lrepository.Store().Mode()&storage.ModeRead != 0,
 	}
 	return json.NewEncoder(w).Encode(res)
 }

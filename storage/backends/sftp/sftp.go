@@ -276,6 +276,10 @@ func (s *Store) GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (
 	return res, nil
 }
 
+func (s *Store) Mode() storage.Mode {
+	return storage.ModeRead | storage.ModeWrite
+}
+
 func (s *Store) DeletePackfile(mac objects.MAC) error {
 	return s.packfiles.Remove(mac)
 }

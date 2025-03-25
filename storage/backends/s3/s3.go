@@ -43,6 +43,8 @@ type Store struct {
 	accessKey       string
 	secretAccessKey string
 
+	storageClass string
+
 	putObjectOptions minio.PutObjectOptions
 }
 
@@ -87,6 +89,8 @@ func NewStore(storeConfig map[string]string) (storage.Store, error) {
 		accessKey:       accessKey,
 		secretAccessKey: secretAccessKey,
 		useSsl:          useSsl,
+		storageClass:    storageClass,
+
 		putObjectOptions: minio.PutObjectOptions{
 			// Some providers (eg. BlackBlaze) return the error
 			// "Unsupported header 'x-amz-checksum-algorithm'" if SendContentMd5
@@ -215,6 +219,13 @@ func (s *Store) Open() ([]byte, error) {
 
 func (s *Store) Close() error {
 	return nil
+}
+
+func (s *Store) Mode() storage.Mode {
+	if s.storageClass == "GLACIER" || s.storageClass == "DEEP_ARCHIVE" {
+		return storage.ModeWrite
+	}
+	return storage.ModeRead | storage.ModeWrite
 }
 
 // states
