@@ -1,4 +1,4 @@
-package snapshot
+package snapshot_test
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/snapshot/exporter"
 	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
 	"github.com/stretchr/testify/require"
@@ -15,7 +16,7 @@ func TestRestore(t *testing.T) {
 	snap := generateSnapshot(t, nil)
 	defer snap.Close()
 
-	err := snap.repository.RebuildState()
+	err := snap.Repository().RebuildState()
 	require.NoError(t, err)
 
 	tmpRestoreDir, err := os.MkdirTemp("", "tmp_to_restore")
@@ -28,7 +29,7 @@ func TestRestore(t *testing.T) {
 	require.NoError(t, err)
 	defer exporterInstance.Close()
 
-	opts := &RestoreOptions{
+	opts := &snapshot.RestoreOptions{
 		MaxConcurrency: 1,
 		Strip:          snap.Header.GetSource(0).Importer.Directory,
 	}

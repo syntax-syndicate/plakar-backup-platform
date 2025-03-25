@@ -1,29 +1,17 @@
 package vfs_test
 
 import (
-	"bytes"
-	"fmt"
 	"io"
 	iofs "io/fs"
 	"log"
-	"os"
 	"slices"
 	"strings"
 	"testing"
 
-	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/caching"
-	"github.com/PlakarKorp/plakar/hashing"
-	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/snapshot"
-	"github.com/PlakarKorp/plakar/snapshot/importer/fs"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
-	"github.com/PlakarKorp/plakar/storage"
-	bfs "github.com/PlakarKorp/plakar/storage/backends/fs"
-	"github.com/PlakarKorp/plakar/versioning"
+	ptesting "github.com/PlakarKorp/plakar/testing"
 	"github.com/stretchr/testify/require"
 )
 
@@ -143,68 +131,10 @@ func TestPathCmp(t *testing.T) {
 }
 
 func generateSnapshot(t *testing.T) *snapshot.Snapshot {
-	// init temporary directories
-	tmpRepoDirRoot, err := os.MkdirTemp("", "tmp_repo")
-	require.NoError(t, err)
-	tmpRepoDir := fmt.Sprintf("%s/repo", tmpRepoDirRoot)
-	tmpCacheDir, err := os.MkdirTemp("", "tmp_cache")
-	require.NoError(t, err)
-	tmpBackupDir, err := os.MkdirTemp("", "tmp_to_backup")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		os.RemoveAll(tmpRepoDir)
-		os.RemoveAll(tmpCacheDir)
-		os.RemoveAll(tmpBackupDir)
-		os.RemoveAll(tmpRepoDirRoot)
+	return ptesting.GenerateSnapshot(t, nil, nil, nil, []ptesting.MockFile{
+		ptesting.NewMockDir("subdir"),
+		ptesting.NewMockFile("subdir/dummy.txt", 0644, "hello"),
 	})
-	// create a temporary file to backup later
-	err = os.MkdirAll(tmpBackupDir+"/subdir", 0755)
-	require.NoError(t, err)
-	err = os.WriteFile(tmpBackupDir+"/subdir/dummy.txt", []byte("hello"), 0644)
-	require.NoError(t, err)
-
-	// create a storage
-	r, err := bfs.NewStore(map[string]string{"location": "fs://" + tmpRepoDir})
-	require.NotNil(t, r)
-	require.NoError(t, err)
-	config := storage.NewConfiguration()
-	serialized, err := config.ToBytes()
-	require.NoError(t, err)
-
-	hasher := hashing.GetHasher(storage.DEFAULT_HASHING_ALGORITHM)
-	wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serialized))
-	require.NoError(t, err)
-
-	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
-	require.NoError(t, err)
-
-	err = r.Create(wrappedConfig)
-	require.NoError(t, err)
-
-	// open the storage to load the configuration
-	r, serializedConfig, err := storage.Open(map[string]string{"location": "fs://" + tmpRepoDir})
-	require.NoError(t, err)
-
-	// create a repository
-	ctx := appcontext.NewAppContext()
-	cache := caching.NewManager(tmpCacheDir)
-	ctx.SetCache(cache)
-	logger := logging.NewLogger(os.Stdout, os.Stderr)
-	//logger.EnableTrace("all")
-	ctx.SetLogger(logger)
-	repo, err := repository.New(ctx, r, serializedConfig)
-	require.NoError(t, err, "creating repository")
-
-	// create a snapshot
-	snap, err := snapshot.New(repo)
-	require.NoError(t, err)
-	require.NotNil(t, snap)
-
-	imp, err := fs.NewFSImporter(map[string]string{"location": tmpBackupDir})
-	require.NoError(t, err)
-	snap.Backup(imp, &snapshot.BackupOptions{Name: "test_backup", MaxConcurrency: 1})
-
-	return snap
 }
 
 func TestFiles(t *testing.T) {

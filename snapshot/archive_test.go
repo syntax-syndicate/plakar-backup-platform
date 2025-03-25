@@ -1,10 +1,11 @@
-package snapshot
+package snapshot_test
 
 import (
 	"bytes"
 	"strings"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/snapshot"
 	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
 	"github.com/stretchr/testify/require"
 )
@@ -13,7 +14,7 @@ func TestArchive(t *testing.T) {
 	snap := generateSnapshot(t, nil)
 	defer snap.Close()
 
-	err := snap.repository.RebuildState()
+	err := snap.Repository().RebuildState()
 	require.NoError(t, err)
 
 	// search for the correct filepath as the path was mkdir temp we cannot hardcode it
@@ -28,7 +29,10 @@ func TestArchive(t *testing.T) {
 	}
 	require.NotEmpty(t, filepath)
 
-	for _, format := range []ArchiveFormat{ArchiveTar, ArchiveTarball, ArchiveZip} {
+	fmts := []snapshot.ArchiveFormat{snapshot.ArchiveTar, snapshot.ArchiveTar,
+		snapshot.ArchiveZip}
+
+	for _, format := range fmts {
 		bufOut := bytes.NewBuffer(nil)
 		err = snap.Archive(bufOut, format, []string{filepath}, true)
 		require.NoError(t, err)
