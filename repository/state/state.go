@@ -328,7 +328,7 @@ func DeltaEntryFromBytes(buf []byte) (de DeltaEntry, err error) {
 		return
 	}
 	if n < len(objects.MAC{}) {
-		return de, fmt.Errorf("Short read while deserializing delta entry")
+		return de, fmt.Errorf("short read while deserializing delta entry")
 	}
 
 	n, err = bbuf.Read(de.Location.Packfile[:])
@@ -336,7 +336,7 @@ func DeltaEntryFromBytes(buf []byte) (de DeltaEntry, err error) {
 		return
 	}
 	if n < len(objects.MAC{}) {
-		return de, fmt.Errorf("Short read while deserializing delta entry")
+		return de, fmt.Errorf("short read while deserializing delta entry")
 	}
 
 	de.Location.Offset = binary.LittleEndian.Uint64(bbuf.Next(8))
