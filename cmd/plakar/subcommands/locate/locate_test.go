@@ -42,7 +42,7 @@ func TestExecuteCmdLocateDefault(t *testing.T) {
 	ctx.HomeDir = snap.Repository().Location()
 	args := []string{"dummy.txt"}
 
-	subcommand, err := parse_cmd_locate(ctx, snap.Repository(), args)
+	subcommand, err := parse_cmd_locate(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 	require.Equal(t, "locate", subcommand.(*Locate).Name())
@@ -73,7 +73,7 @@ func TestExecuteCmdLocateWithSnapshotId(t *testing.T) {
 	ctx.HomeDir = snap.Repository().Location()
 	args := []string{"-snapshot", hex.EncodeToString(snap.Header.GetIndexShortID()), "dummy.txt"}
 
-	subcommand, err := parse_cmd_locate(ctx, snap.Repository(), args)
+	subcommand, err := parse_cmd_locate(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 	require.Equal(t, "locate", subcommand.(*Locate).Name())

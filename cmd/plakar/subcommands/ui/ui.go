@@ -35,7 +35,7 @@ func init() {
 	subcommands.Register("ui", parse_cmd_ui)
 }
 
-func parse_cmd_ui(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_ui(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	var opt_addr string
 	var opt_cors bool
 	var opt_noauth bool

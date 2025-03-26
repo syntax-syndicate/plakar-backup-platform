@@ -45,7 +45,7 @@ func TestExecuteCmdDiagSnapshot(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{"snapshot", fmt.Sprintf("%s", hex.EncodeToString(indexId[:]))}
 
-	subcommand, err := parse_cmd_diag(ctx, repo, args)
+	subcommand, err := parse_cmd_diag(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -130,7 +130,7 @@ func TestExecuteCmdDiagErrors(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{"errors", fmt.Sprintf("%s", hex.EncodeToString(indexId[:]))}
 
-	subcommand, err := parse_cmd_diag(ctx, repo, args)
+	subcommand, err := parse_cmd_diag(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -158,7 +158,7 @@ func TestExecuteCmdDiagState(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{"state"}
 
-	subcommand, err := parse_cmd_diag(ctx, repo, args)
+	subcommand, err := parse_cmd_diag(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -175,7 +175,7 @@ func TestExecuteCmdDiagState(t *testing.T) {
 	bufOut.Reset()
 	args = []string{"state", strings.Trim(output, "\n")}
 
-	subcommand, err = parse_cmd_diag(ctx, repo, args)
+	subcommand, err = parse_cmd_diag(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -223,7 +223,7 @@ func TestExecuteCmdDiagPackfile(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{"state"}
 
-	subcommand, err := parse_cmd_diag(ctx, repo, args)
+	subcommand, err := parse_cmd_diag(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -240,7 +240,7 @@ func TestExecuteCmdDiagPackfile(t *testing.T) {
 	bufOut.Reset()
 	args = []string{"state", strings.Trim(output, "\n")}
 
-	subcommand, err = parse_cmd_diag(ctx, repo, args)
+	subcommand, err = parse_cmd_diag(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -288,7 +288,7 @@ func TestExecuteCmdDiagPackfile(t *testing.T) {
 	bufOut.Reset()
 	args = []string{"packfile", hex.EncodeToString(partPackfile)}
 
-	subcommand, err = parse_cmd_diag(ctx, repo, args)
+	subcommand, err = parse_cmd_diag(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -325,7 +325,7 @@ func TestExecuteCmdDiagObject(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{"state"}
 
-	subcommand, err := parse_cmd_diag(ctx, repo, args)
+	subcommand, err := parse_cmd_diag(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -342,7 +342,7 @@ func TestExecuteCmdDiagObject(t *testing.T) {
 	bufOut.Reset()
 	args = []string{"state", strings.Trim(output, "\n")}
 
-	subcommand, err = parse_cmd_diag(ctx, repo, args)
+	subcommand, err = parse_cmd_diag(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -388,7 +388,7 @@ func TestExecuteCmdDiagObject(t *testing.T) {
 	bufOut.Reset()
 	args = []string{"object", hex.EncodeToString(partObject)}
 
-	subcommand, err = parse_cmd_diag(ctx, repo, args)
+	subcommand, err = parse_cmd_diag(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -425,7 +425,7 @@ func TestExecuteCmdDiagVFS(t *testing.T) {
 	backupDir := snap.Header.GetSource(0).Importer.Directory
 	args := []string{"vfs", fmt.Sprintf("%s:%s/subdir/dummy.txt", hex.EncodeToString(indexId[:]), backupDir)}
 
-	subcommand, err := parse_cmd_diag(ctx, repo, args)
+	subcommand, err := parse_cmd_diag(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -463,7 +463,7 @@ func TestExecuteCmdDiagVFS(t *testing.T) {
 	bufOut.Reset()
 	args = []string{"vfs", fmt.Sprintf("%s:%s/subdir", hex.EncodeToString(indexId[:]), backupDir)}
 
-	subcommand, err = parse_cmd_diag(ctx, repo, args)
+	subcommand, err = parse_cmd_diag(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -606,7 +606,7 @@ func TestExecuteCmdDiagXattr(t *testing.T) {
 	backupDir := snap.Header.GetSource(0).Importer.Directory
 	args := []string{"xattr", fmt.Sprintf("%s:%s/subdir/dummy.txt", hex.EncodeToString(indexId[:]), backupDir)}
 
-	subcommand, err := parse_cmd_diag(ctx, repo, args)
+	subcommand, err := parse_cmd_diag(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -637,7 +637,7 @@ func TestExecuteCmdDiagContentType(t *testing.T) {
 	backupDir := snap.Header.GetSource(0).Importer.Directory
 	args := []string{"contenttype", fmt.Sprintf("%s:%s/subdir/dummy.txt", hex.EncodeToString(indexId[:]), backupDir)}
 
-	subcommand, err := parse_cmd_diag(ctx, repo, args)
+	subcommand, err := parse_cmd_diag(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -666,7 +666,7 @@ func TestExecuteCmdDiagLocks(t *testing.T) {
 	ctx.HomeDir = repo.Location()
 	args := []string{"locks"}
 
-	subcommand, err := parse_cmd_diag(ctx, repo, args)
+	subcommand, err := parse_cmd_diag(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -697,7 +697,7 @@ func TestExecuteCmdDiagSearch(t *testing.T) {
 	backupDir := snap.Header.GetSource(0).Importer.Directory
 	args := []string{"search", fmt.Sprintf("%s:%s/subdir/dummy.txt", hex.EncodeToString(indexId[:]), backupDir)}
 
-	subcommand, err := parse_cmd_diag(ctx, repo, args)
+	subcommand, err := parse_cmd_diag(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 

@@ -33,7 +33,7 @@ func init() {
 	subcommands.Register("archive", parse_cmd_archive)
 }
 
-func parse_cmd_archive(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_archive(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	var opt_rebase bool
 	var opt_output string
 	var opt_format string

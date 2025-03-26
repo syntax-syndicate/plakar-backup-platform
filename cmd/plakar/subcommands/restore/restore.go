@@ -34,7 +34,7 @@ func init() {
 	subcommands.Register("restore", parse_cmd_restore)
 }
 
-func parse_cmd_restore(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_restore(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	var opt_name string
 	var opt_category string
 	var opt_environment string

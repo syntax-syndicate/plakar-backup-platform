@@ -29,7 +29,7 @@ func init() {
 	subcommands.Register("config", parse_cmd_config)
 }
 
-func parse_cmd_config(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_config(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	flags := flag.NewFlagSet("config", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s\n", flags.Name())

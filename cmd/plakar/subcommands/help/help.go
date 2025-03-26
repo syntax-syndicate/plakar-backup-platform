@@ -36,7 +36,7 @@ func init() {
 	subcommands.Register("help", parse_cmd_help)
 }
 
-func parse_cmd_help(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_help(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	var opt_style string
 	flags := flag.NewFlagSet("help", flag.ExitOnError)
 	flags.Usage = func() {
