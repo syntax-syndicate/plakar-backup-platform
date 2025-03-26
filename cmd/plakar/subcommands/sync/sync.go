@@ -35,7 +35,7 @@ func init() {
 	subcommands.Register("sync", parse_cmd_sync)
 }
 
-func parse_cmd_sync(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_sync(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	flags := flag.NewFlagSet("sync", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s [SNAPSHOT] to REPOSITORY\n", flags.Name())

@@ -27,7 +27,7 @@ func TestRegister(t *testing.T) {
 		// need to reset the global var between tests
 		subcommands = make(map[string]parseArgsFn)
 	})
-	Register("test", func(*appcontext.AppContext, *repository.Repository, []string) (Subcommand, error) {
+	Register("test", func(*appcontext.AppContext, []string) (Subcommand, error) {
 		return MockedSubcommand{}, nil
 	})
 
@@ -42,19 +42,18 @@ func TestParse(t *testing.T) {
 		subcommands = make(map[string]parseArgsFn)
 	})
 
-	Register("test", func(*appcontext.AppContext, *repository.Repository, []string) (Subcommand, error) {
+	Register("test", func(*appcontext.AppContext, []string) (Subcommand, error) {
 		return MockedSubcommand{}, nil
 	})
 
 	ctx := &appcontext.AppContext{}
-	repo := &repository.Repository{}
 	cmd := "test"
 	args := []string{}
 
-	_, err := Parse(ctx, repo, "unknown", args)
+	_, err := Parse(ctx, "unknown", args)
 	require.Error(t, err, "unknown command: unknown")
 
-	subcmd, err := Parse(ctx, repo, cmd, args)
+	subcmd, err := Parse(ctx, cmd, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcmd)
 }
@@ -65,10 +64,10 @@ func TestList(t *testing.T) {
 		subcommands = make(map[string]parseArgsFn)
 	})
 
-	Register("test1", func(*appcontext.AppContext, *repository.Repository, []string) (Subcommand, error) {
+	Register("test1", func(*appcontext.AppContext, []string) (Subcommand, error) {
 		return nil, nil
 	})
-	Register("test2", func(*appcontext.AppContext, *repository.Repository, []string) (Subcommand, error) {
+	Register("test2", func(*appcontext.AppContext, []string) (Subcommand, error) {
 		return nil, nil
 	})
 

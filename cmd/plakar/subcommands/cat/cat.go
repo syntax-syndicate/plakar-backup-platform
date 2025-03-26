@@ -36,7 +36,7 @@ func init() {
 	subcommands.Register("cat", parse_cmd_cat)
 }
 
-func parse_cmd_cat(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_cat(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	var opt_nodecompress bool
 	var opt_highlight bool
 

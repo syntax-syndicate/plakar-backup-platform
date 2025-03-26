@@ -118,7 +118,7 @@ func TestExecuteCmdCatDefault(t *testing.T) {
 	ctx.HomeDir = repo.Location()
 	args := []string{tmpBackupDir + "/subdir/dummy.txt"}
 
-	subcommand, err := parse_cmd_cat(ctx, repo, args)
+	subcommand, err := parse_cmd_cat(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -164,7 +164,7 @@ func TestExecuteCmdCatErrorAmbiguous(t *testing.T) {
 	ctx.HomeDir = repo.Location()
 	args := []string{tmpBackupDir + "/subdir/dummy.txt"}
 
-	subcommand, err := parse_cmd_cat(ctx, repo, args)
+	subcommand, err := parse_cmd_cat(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -210,7 +210,7 @@ func TestExecuteCmdCatErrorNotRegularFile(t *testing.T) {
 	ctx.HomeDir = repo.Location()
 	args := []string{fmt.Sprintf("%s:/", hex.EncodeToString(snap2.Header.GetIndexShortID()))}
 
-	subcommand, err := parse_cmd_cat(ctx, repo, args)
+	subcommand, err := parse_cmd_cat(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -256,7 +256,7 @@ func TestExecuteCmdCatErrorUnknownFile(t *testing.T) {
 	ctx.HomeDir = repo.Location()
 	args := []string{fmt.Sprintf("%s:/unknown", hex.EncodeToString(snap2.Header.GetIndexShortID()))}
 
-	subcommand, err := parse_cmd_cat(ctx, repo, args)
+	subcommand, err := parse_cmd_cat(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -292,7 +292,7 @@ func TestExecuteCmdCatHighlight(t *testing.T) {
 	ctx.HomeDir = repo.Location()
 	args := []string{"--highlight", tmpBackupDir + "/subdir/dummy.txt"}
 
-	subcommand, err := parse_cmd_cat(ctx, repo, args)
+	subcommand, err := parse_cmd_cat(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 

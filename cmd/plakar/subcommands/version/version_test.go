@@ -15,10 +15,9 @@ import (
 
 func TestParseCmdVersion(t *testing.T) {
 	ctx := &appcontext.AppContext{}
-	repo := &repository.Repository{}
 	args := []string{}
 
-	subcommand, err := parse_cmd_version(ctx, repo, args)
+	subcommand, err := parse_cmd_version(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 }
@@ -33,7 +32,7 @@ func TestExecuteCmdVersion(t *testing.T) {
 	ctx := &appcontext.AppContext{}
 	repo := &repository.Repository{}
 
-	subcommand, err := parse_cmd_version(ctx, repo, []string{})
+	subcommand, err := parse_cmd_version(ctx, []string{})
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 

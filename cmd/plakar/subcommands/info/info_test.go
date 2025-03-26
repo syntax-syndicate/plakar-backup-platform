@@ -43,7 +43,7 @@ func TestExecuteCmdInfoDefault(t *testing.T) {
 	ctx.HomeDir = repo.Location()
 	args := []string{}
 
-	subcommand, err := parse_cmd_info(ctx, repo, args)
+	subcommand, err := parse_cmd_info(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -103,7 +103,7 @@ func TestExecuteCmdInfoSnapshot(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{hex.EncodeToString(indexId[:])}
 
-	subcommand, err := parse_cmd_info(ctx, repo, args)
+	subcommand, err := parse_cmd_info(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -188,7 +188,7 @@ func TestExecuteCmdInfoSnapshotPath(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{fmt.Sprintf("%s:subdir/dummy.txt", hex.EncodeToString(indexId[:]))}
 
-	subcommand, err := parse_cmd_info(ctx, repo, args)
+	subcommand, err := parse_cmd_info(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 

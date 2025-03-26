@@ -33,7 +33,7 @@ func init() {
 	subcommands.Register("check", parse_cmd_check)
 }
 
-func parse_cmd_check(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_check(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	var opt_name string
 	var opt_category string
 	var opt_environment string

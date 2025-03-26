@@ -34,7 +34,7 @@ func init() {
 	subcommands.Register("exec", parse_cmd_exec)
 }
 
-func parse_cmd_exec(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_exec(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	flags := flag.NewFlagSet("exec", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] SNAPSHOT:/path/to/executable [arg]...\n", flags.Name())

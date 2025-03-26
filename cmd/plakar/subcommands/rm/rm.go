@@ -33,7 +33,7 @@ func init() {
 	subcommands.Register("rm", parse_cmd_rm)
 }
 
-func parse_cmd_rm(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_rm(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	var opt_name string
 	var opt_category string
 	var opt_environment string

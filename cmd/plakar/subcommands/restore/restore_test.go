@@ -52,7 +52,7 @@ func TestExecuteCmdRestoreDefault(t *testing.T) {
 	args := []string{}
 	// args := []string{tmpBackupDir + "/subdir/dummy.txt"}
 
-	subcommand, err := parse_cmd_restore(ctx, repo, args)
+	subcommand, err := parse_cmd_restore(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 	require.Equal(t, "restore", subcommand.(*Restore).Name())
@@ -102,7 +102,7 @@ func TestExecuteCmdRestoreSpecificSnapshot(t *testing.T) {
 	ctx.CWD = tmpToRestoreDir
 	indexId := snap.Header.GetIndexID()
 	args := []string{fmt.Sprintf("%s", hex.EncodeToString(indexId[:]))}
-	subcommand, err := parse_cmd_restore(ctx, repo, args)
+	subcommand, err := parse_cmd_restore(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 	require.Equal(t, "restore", subcommand.(*Restore).Name())

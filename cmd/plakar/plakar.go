@@ -281,6 +281,12 @@ func entryPoint() int {
 		return 1
 	}
 
+	cmd, err := subcommands.Parse(ctx, command, args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+		return 1
+	}
+
 	// create is a special case, it operates without a repository...
 	// but needs a repository location to store the new repository
 	if command == "create" || command == "server" {
@@ -291,11 +297,6 @@ func entryPoint() int {
 		}
 		defer repo.Close()
 
-		cmd, err := subcommands.Parse(ctx, repo, command, args)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-			return 1
-		}
 		retval, err := cmd.Execute(ctx, repo)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
@@ -305,23 +306,11 @@ func entryPoint() int {
 
 	// these commands need to be ran before the repository is opened
 	if command == "agent" || command == "config" || command == "version" || command == "help" {
-		cmd, err := subcommands.Parse(ctx, nil, command, args)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-			return 1
-		}
 		retval, err := cmd.Execute(ctx, nil)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		}
 		return retval
-	}
-
-	// special case, server skips passphrase as it only serves storage layer
-	skipPassphrase := false
-	if command == "server" {
-		opt_agentless = true
-		skipPassphrase = true
 	}
 
 	store, serializedConfig, err := storage.Open(storeConfig)
@@ -344,65 +333,63 @@ func entryPoint() int {
 	}
 
 	var secret []byte
-	if !skipPassphrase {
-		if repoConfig.Encryption != nil {
-			derived := false
-			envPassphrase := os.Getenv("PLAKAR_PASSPHRASE")
-			if ctx.KeyFromFile == "" {
-				if passphrase, ok := storeConfig["passphrase"]; ok {
-					key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, []byte(passphrase))
-					if err == nil {
-						if encryption.VerifyCanary(repoConfig.Encryption, key) {
-							secret = key
-							derived = true
-						}
-					}
-				} else {
-					for attempts := 0; attempts < 3; attempts++ {
-						var passphrase []byte
-						if envPassphrase == "" {
-							passphrase, err = utils.GetPassphrase("repository")
-							if err != nil {
-								break
-							}
-						} else {
-							passphrase = []byte(envPassphrase)
-						}
-
-						key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, passphrase)
-						if err != nil {
-							continue
-						}
-						if !encryption.VerifyCanary(repoConfig.Encryption, key) {
-							if envPassphrase != "" {
-								break
-							}
-							continue
-						}
-						secret = key
-						derived = true
-						break
-					}
-				}
-			} else {
-				key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, []byte(ctx.KeyFromFile))
+	if repoConfig.Encryption != nil {
+		derived := false
+		envPassphrase := os.Getenv("PLAKAR_PASSPHRASE")
+		if ctx.KeyFromFile == "" {
+			if passphrase, ok := storeConfig["passphrase"]; ok {
+				key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, []byte(passphrase))
 				if err == nil {
 					if encryption.VerifyCanary(repoConfig.Encryption, key) {
 						secret = key
 						derived = true
 					}
 				}
+			} else {
+				for attempts := 0; attempts < 3; attempts++ {
+					var passphrase []byte
+					if envPassphrase == "" {
+						passphrase, err = utils.GetPassphrase("repository")
+						if err != nil {
+							break
+						}
+					} else {
+						passphrase = []byte(envPassphrase)
+					}
+
+					key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, passphrase)
+					if err != nil {
+						continue
+					}
+					if !encryption.VerifyCanary(repoConfig.Encryption, key) {
+						if envPassphrase != "" {
+							break
+						}
+						continue
+					}
+					secret = key
+					derived = true
+					break
+				}
 			}
-			if !derived {
-				fmt.Fprintf(os.Stderr, "%s: could not derive secret\n", flag.CommandLine.Name())
-				os.Exit(1)
+		} else {
+			key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, []byte(ctx.KeyFromFile))
+			if err == nil {
+				if encryption.VerifyCanary(repoConfig.Encryption, key) {
+					secret = key
+					derived = true
+				}
 			}
-			ctx.SetSecret(secret)
 		}
+		if !derived {
+			fmt.Fprintf(os.Stderr, "%s: could not derive secret\n", flag.CommandLine.Name())
+			os.Exit(1)
+		}
+		ctx.SetSecret(secret)
 	}
 
 	var repo *repository.Repository
-	if opt_agentless && command != "server" {
+	if opt_agentless {
 		repo, err = repository.New(ctx, store, serializedConfig)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
@@ -418,11 +405,6 @@ func entryPoint() int {
 
 	// commands below all operate on an open repository
 	t0 := time.Now()
-	cmd, err := subcommands.Parse(ctx, repo, command, args)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-		return 1
-	}
 
 	var status int
 	if opt_agentless {
