@@ -52,7 +52,7 @@ func TestExecuteCmdExecDefault(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{fmt.Sprintf("%s:subdir/dummy.sh", hex.EncodeToString(indexId[:]))}
 
-	subcommand, err := parse_cmd_exec(ctx, repo, args)
+	subcommand, err := parse_cmd_exec(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 	require.Equal(t, "exec", subcommand.(*Exec).Name())
