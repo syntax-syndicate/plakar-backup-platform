@@ -609,6 +609,9 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 			}
 
 			data, err := vfsCache.GetFileSummary(childPath)
+			if data.Buf == nil {
+				fmt.Printf("NIL SUMMARY FOR '%s'\n", childPath)
+			}
 			if err != nil {
 				continue
 			}
@@ -710,7 +713,6 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 
 	// hits, miss, cachesize := fileidx.Stats()
 	// log.Printf("before persist: fileidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
-
 	rootcsum, err := persistIndex(snap, fileidx, resources.RT_VFS_BTREE,
 		resources.RT_VFS_NODE, func(data []byte) (objects.MAC, error) {
 			return snap.repository.ComputeMAC(data), nil
@@ -751,7 +753,10 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		Errors: errcsum,
 	}
 	snap.Header.Duration = time.Since(beginTime)
-	snap.Header.GetSource(0).Summary = *rootSummary
+	if rootSummary != nil {
+		snap.Header.GetSource(0).Summary = *rootSummary
+	}
+
 	snap.Header.GetSource(0).Indexes = []header.Index{
 		{
 			Name:  "content-type",

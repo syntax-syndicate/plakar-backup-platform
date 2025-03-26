@@ -11,7 +11,8 @@ import (
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/resources"
-	"github.com/cockroachdb/pebble"
+	"github.com/cockroachdb/pebble/v2"
+	"github.com/cockroachdb/pebble/v2/bloom"
 )
 
 type ScanCache struct {
@@ -22,8 +23,44 @@ type ScanCache struct {
 
 func newScanCache(cacheManager *Manager, snapshotID [32]byte) (*ScanCache, error) {
 	cacheDir := filepath.Join(cacheManager.cacheDir, "scan", fmt.Sprintf("%x", snapshotID))
+	opts := &pebble.Options{
+		DisableWAL: true,
+		Comparer: &pebble.Comparer{
+			AbbreviatedKey: func(key []byte) uint64 {
+				prefixKey := extractPrefixKey(key)
+				return pebble.DefaultComparer.AbbreviatedKey(prefixKey)
+			},
+			Separator: func(dst, a, b []byte) []byte {
+				aPrefix := extractPrefixKey(a)
+				rPrefix := extractPrefixKey(b)
 
-	db, err := pebble.Open(cacheDir, &pebble.Options{DisableWAL: true})
+				return pebble.DefaultComparer.Separator(dst, aPrefix, rPrefix)
+			},
+			Successor: func(dst, a []byte) []byte {
+				aPrefix := extractPrefixKey(a)
+				return pebble.DefaultComparer.Successor(dst, aPrefix)
+			},
+			Split: func(key []byte) int {
+				if len(key) == 0 {
+					return 0
+				}
+
+				// Last byte of the key is the suffix len or zero if there are none.
+				suffixLen := int(key[len(key)-1])
+				return len(key) - suffixLen - 1
+			},
+			Name: "cache_comparer",
+		},
+	}
+
+	opts.EnsureDefaults()
+	for i := 0; i < len(opts.Levels); i++ {
+		l := &opts.Levels[i]
+		l.FilterPolicy = bloom.FilterPolicy(10)
+		l.FilterType = pebble.TableFilter
+	}
+
+	db, err := pebble.Open(cacheDir, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -41,11 +78,14 @@ func (c *ScanCache) Close() error {
 }
 
 func (c *ScanCache) put(prefix string, key string, data []byte) error {
-	return c.db.Set([]byte(fmt.Sprintf("%s:%s", prefix, key)), data, &pebble.WriteOptions{Sync: false})
+	mvcckey := makeKey(fmt.Sprintf("%s:%s", prefix, key))
+	return c.db.Set(mvcckey, data, &pebble.WriteOptions{Sync: false})
 }
 
 func (c *ScanCache) get(prefix, key string) ([]byte, error) {
-	data, del, err := c.db.Get([]byte(fmt.Sprintf("%s:%s", prefix, key)))
+	keyByte := makeKey(fmt.Sprintf("%s:%s", prefix, key))
+	data, del, err := c.db.Get(keyByte)
+
 	if err != nil {
 		if err == pebble.ErrNotFound {
 			return nil, nil
@@ -61,7 +101,8 @@ func (c *ScanCache) get(prefix, key string) ([]byte, error) {
 }
 
 func (c *ScanCache) has(prefix, key string) (bool, error) {
-	_, del, err := c.db.Get([]byte(fmt.Sprintf("%s:%s", prefix, key)))
+	keyByte := makeKey(fmt.Sprintf("%s:%s", prefix, key))
+	_, del, err := c.db.Get(keyByte)
 
 	if err != nil {
 		if err == pebble.ErrNotFound {
@@ -182,7 +223,27 @@ func (c *ScanCache) DelState(stateID objects.MAC) error {
 }
 
 func (c *ScanCache) GetDelta(blobType resources.Type, blobCsum objects.MAC) iter.Seq2[objects.MAC, []byte] {
-	return c.getObjects(fmt.Sprintf("__delta__:%d:%x:", blobType, blobCsum))
+	keyPrefix := fmt.Sprintf("__delta__:%d:%x:", blobType, blobCsum)
+	return func(yield func(objects.MAC, []byte) bool) {
+		iter, _ := c.db.NewIter(&pebble.IterOptions{})
+		defer iter.Close()
+
+		for iter.SeekPrefixGE([]byte(keyPrefix)); iter.Valid(); iter.Next() {
+			if !strings.HasPrefix(string(iter.Key()), keyPrefix) {
+				break
+			}
+
+			/* Extract the csum part of the key, this avoids decoding the full
+			 * entry later on if that's the only thing we need */
+			key := iter.Key()
+			hex_csum := string(key[bytes.LastIndexByte(key, byte(':'))+1:])
+			csum, _ := hex.DecodeString(hex_csum)
+
+			if !yield(objects.MAC(csum), iter.Value()) {
+				return
+			}
+		}
+	}
 }
 
 func (c *ScanCache) HasDelta(blobType resources.Type, blobCsum objects.MAC) (bool, error) {
@@ -190,7 +251,8 @@ func (c *ScanCache) HasDelta(blobType resources.Type, blobCsum objects.MAC) (boo
 }
 
 func (c *ScanCache) PutDelta(blobType resources.Type, blobCsum, packfile objects.MAC, data []byte) error {
-	return c.put("__delta__", fmt.Sprintf("%d:%x:%x", blobType, blobCsum, packfile), data)
+	mvcckey := makeSuffixKey(fmt.Sprintf("%d:%x:%x", blobType, blobCsum, packfile), len(packfile))
+	return c.db.Set(mvcckey, data, &pebble.WriteOptions{Sync: false})
 }
 
 func (c *ScanCache) GetDeltasByType(blobType resources.Type) iter.Seq2[objects.MAC, []byte] {
