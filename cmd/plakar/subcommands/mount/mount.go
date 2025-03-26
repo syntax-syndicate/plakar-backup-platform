@@ -22,14 +22,13 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/repository"
 )
 
 func init() {
 	subcommands.Register("mount", parse_cmd_mount)
 }
 
-func parse_cmd_mount(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_mount(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	flags := flag.NewFlagSet("mount", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s PATH\n", flags.Name())

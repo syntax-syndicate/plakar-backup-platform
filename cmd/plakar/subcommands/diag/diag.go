@@ -22,14 +22,13 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/repository"
 )
 
 func init() {
 	subcommands.Register("diag", parse_cmd_diag)
 }
 
-func parse_cmd_diag(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_diag(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	if len(args) == 0 {
 		return &DiagRepository{
 			RepositorySecret: ctx.GetSecret(),

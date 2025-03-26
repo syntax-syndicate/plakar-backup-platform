@@ -50,7 +50,7 @@ func TestExecuteCmdMountDefault(t *testing.T) {
 	ctx.HomeDir = repo.Location()
 	args := []string{tmpMountPoint}
 
-	subcommand, err := parse_cmd_mount(ctx, repo, args)
+	subcommand, err := parse_cmd_mount(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 	require.Equal(t, "mount", subcommand.(*Mount).Name())

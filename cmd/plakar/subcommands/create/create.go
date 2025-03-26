@@ -41,7 +41,7 @@ func init() {
 	subcommands.Register("create", parse_cmd_create)
 }
 
-func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_create(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	var opt_hashing string
 	var opt_noencryption bool
 	var opt_nocompression bool
@@ -74,7 +74,6 @@ func parse_cmd_create(ctx *appcontext.AppContext, repo *repository.Repository, a
 		Hashing:       opt_hashing,
 		NoEncryption:  opt_noencryption,
 		NoCompression: opt_nocompression,
-		Location:      repo.Location(),
 	}, nil
 }
 
@@ -83,7 +82,6 @@ type Create struct {
 	Hashing       string
 	NoEncryption  bool
 	NoCompression bool
-	Location      string
 }
 
 func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {

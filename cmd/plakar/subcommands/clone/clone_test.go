@@ -49,7 +49,7 @@ func TestExecuteCmdClone(t *testing.T) {
 	outputDir := filepath.Join(tmpDestinationDir, "clone_test")
 	args := []string{"to", outputDir}
 
-	subcommand, err := parse_cmd_clone(ctx, snap.Repository(), args)
+	subcommand, err := parse_cmd_clone(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 	require.Equal(t, "clone", subcommand.(*Clone).Name())

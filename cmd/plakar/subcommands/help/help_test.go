@@ -91,7 +91,7 @@ func TestParseCmdHelpDefault(t *testing.T) {
 	ctx.HomeDir = repo.Location()
 	args := []string{"-style", "notty"}
 
-	subcommand, err := parse_cmd_help(ctx, repo, args)
+	subcommand, err := parse_cmd_help(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -185,7 +185,7 @@ func TestParseCmdHelpCommand(t *testing.T) {
 	ctx.HomeDir = repo.Location()
 	args := []string{"-style", "notty", "version"}
 
-	subcommand, err := parse_cmd_help(ctx, repo, args)
+	subcommand, err := parse_cmd_help(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 

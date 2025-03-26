@@ -45,7 +45,7 @@ func TestExecuteCmdDigestDefault(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{fmt.Sprintf("%s", hex.EncodeToString(indexId[:]))}
 
-	subcommand, err := parse_cmd_digest(ctx, repo, args)
+	subcommand, err := parse_cmd_digest(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 	require.Equal(t, "digest", subcommand.(*Digest).Name())
@@ -83,7 +83,7 @@ func TestExecuteCmdDigestNoParam(t *testing.T) {
 	ctx.HomeDir = repo.Location()
 	args := []string{}
 
-	subcommand, err := parse_cmd_digest(ctx, repo, args)
+	subcommand, err := parse_cmd_digest(ctx, args)
 	require.Error(t, err, "at least one parameter is required")
 	require.Nil(t, subcommand)
 }
@@ -104,7 +104,7 @@ func TestExecuteCmdDigestWrongHashing(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{"-hashing", "md5", fmt.Sprintf("%s", hex.EncodeToString(indexId[:]))}
 
-	subcommand, err := parse_cmd_digest(ctx, repo, args)
+	subcommand, err := parse_cmd_digest(ctx, args)
 	require.Error(t, err, "at least one parameter is required")
 	require.Nil(t, subcommand)
 }

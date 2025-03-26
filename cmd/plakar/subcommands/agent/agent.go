@@ -92,7 +92,7 @@ func daemonize(argv []string) error {
 	return nil
 }
 
-func parse_cmd_agent(ctx *appcontext.AppContext, repo *repository.Repository, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_agent(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	var opt_foreground bool
 	var opt_stop bool
 	var opt_prometheus string
