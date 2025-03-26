@@ -52,7 +52,7 @@ func TestExecuteCmdServerDefault(t *testing.T) {
 	ctx.HomeDir = repo.Location()
 	args := []string{"-listen", "127.0.0.1:12345"}
 
-	subcommand, err := parse_cmd_server(ctx, repo, args)
+	subcommand, err := parse_cmd_server(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 	require.Equal(t, "server", subcommand.(*Server).Name())
@@ -99,7 +99,4 @@ func TestExecuteCmdServerDefault(t *testing.T) {
 
 	// we dont test all the field from configuration
 	require.Equal(t, versioning.FromString(storage.VERSION), configInstance.Version)
-
-	// Close the goroutine by canceling the context
-	cancel()
 }
