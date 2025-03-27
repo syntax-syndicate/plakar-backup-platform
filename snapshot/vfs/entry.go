@@ -166,9 +166,7 @@ func (e *Entry) Open(fs *Filesystem, path string) fs.File {
 }
 
 func (e *Entry) Getdents(fsc *Filesystem) (iter.Seq2[*Entry, error], error) {
-	path := path.Join(e.ParentPath, e.FileInfo.Name())
-
-	prefix := path
+	prefix := e.Path()
 	if !strings.HasSuffix(prefix, "/") {
 		prefix += "/"
 	}
