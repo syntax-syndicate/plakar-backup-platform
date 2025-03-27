@@ -293,10 +293,10 @@ func (cmd *Maintenance) Execute(ctx *appcontext.AppContext, repo *repository.Rep
 	// This need to be configurable per repo, but we don't have a mechanism yet (comes in a PR soon!)
 	duration, err := time.ParseDuration(os.Getenv("PLAKAR_GRACEPERIOD"))
 	if err != nil {
-		duration = 5 * time.Hour
+		duration = 30 * 24 * time.Hour
 	}
 
-	cmd.cutoff = time.Now().Add(duration)
+	cmd.cutoff = time.Now().Add(-duration)
 
 	// This random id generation for non snapshot state should probably be encapsulated somewhere.
 	cmd.maintenanceID = objects.RandomMAC()
