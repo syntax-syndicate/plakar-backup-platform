@@ -9,7 +9,9 @@ import (
 	"github.com/google/uuid"
 )
 
-const CACHE_VERSION = "1.0.0"
+const CACHE_VERSION = "2.0.0"
+
+var ErrInUse = fmt.Errorf("cache in use")
 
 type Manager struct {
 	cacheDir string
