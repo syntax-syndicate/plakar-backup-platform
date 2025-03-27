@@ -89,6 +89,48 @@ var (
 			Help: "Total number of failed restores with warnings",
 		},
 	)
+
+	syncSuccess = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "plakar_agent_sync_success",
+			Help: "Total number of successful syncs",
+		},
+	)
+
+	syncWarning = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "plakar_agent_sync_warning",
+			Help: "Total number of successful restores with syncs",
+		},
+	)
+
+	syncFailure = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "plakar_agent_sync_failure",
+			Help: "Total number of failed restores with syncs",
+		},
+	)
+
+	maintenanceSuccess = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "plakar_agent_maintenance_success",
+			Help: "Total number of successful maintenances",
+		},
+	)
+
+	maintenanceWarning = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "plakar_agent_maintenance_warning",
+			Help: "Total number of successful restores with maintenances",
+		},
+	)
+
+	maintenanceFailure = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "plakar_agent_maintenance_failure",
+			Help: "Total number of failed restores with maintenances",
+		},
+	)
 )
 
 func init() {
@@ -108,6 +150,13 @@ func init() {
 	prometheus.MustRegister(restoreWarning)
 	prometheus.MustRegister(restoreFailure)
 
+	prometheus.MustRegister(syncSuccess)
+	prometheus.MustRegister(syncWarning)
+	prometheus.MustRegister(syncFailure)
+
+	prometheus.MustRegister(maintenanceSuccess)
+	prometheus.MustRegister(maintenanceWarning)
+	prometheus.MustRegister(maintenanceFailure)
 }
 
 func SuccessInc(task string) {
@@ -116,8 +165,12 @@ func SuccessInc(task string) {
 		backupSuccess.Inc()
 	case "check":
 		checkSuccess.Inc()
+	case "maintenance":
+		maintenanceSuccess.Inc()
 	case "restore":
 		restoreSuccess.Inc()
+	case "sync":
+		syncSuccess.Inc()
 	}
 }
 
@@ -127,8 +180,12 @@ func WarningInc(task string) {
 		backupWarning.Inc()
 	case "check":
 		checkWarning.Inc()
+	case "maintenance":
+		maintenanceWarning.Inc()
 	case "restore":
 		restoreWarning.Inc()
+	case "sync":
+		syncWarning.Inc()
 	}
 }
 
@@ -138,7 +195,11 @@ func FailureInc(task string) {
 		backupFailure.Inc()
 	case "check":
 		checkFailure.Inc()
+	case "maintenance":
+		maintenanceFailure.Inc()
 	case "restore":
 		restoreFailure.Inc()
+	case "sync":
+		syncFailure.Inc()
 	}
 }
