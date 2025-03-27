@@ -332,6 +332,12 @@ func (cmd *Maintenance) Execute(ctx *appcontext.AppContext, repo *repository.Rep
 }
 
 func (cmd *Maintenance) Lock() (chan bool, error) {
+	lockless, _ := strconv.ParseBool(os.Getenv("PLAKAR_LOCKLESS"))
+	lockDone := make(chan bool)
+	if lockless {
+		return lockDone, nil
+	}
+
 	lock := repository.NewExclusiveLock(cmd.repository.AppContext().Hostname)
 
 	buffer := &bytes.Buffer{}
@@ -390,7 +396,6 @@ func (cmd *Maintenance) Lock() (chan bool, error) {
 
 	// The following bit is a "ping" mechanism, Lock() is a bit badly named at this point,
 	// we are just refreshing the existing lock so that the watchdog doesn't removes us.
-	lockDone := make(chan bool)
 	go func() {
 		for {
 			select {
