@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -338,6 +340,12 @@ func (snap *Snapshot) ListPackfiles() (iter.Seq2[objects.MAC, error], error) {
 }
 
 func (snap *Snapshot) Lock() (chan bool, error) {
+	lockless, _ := strconv.ParseBool(os.Getenv("PLAKAR_LOCKLESS"))
+	lockDone := make(chan bool)
+	if lockless {
+		return lockDone, nil
+	}
+
 	lock := repository.NewSharedLock(snap.AppContext().Hostname)
 
 	buffer := &bytes.Buffer{}
@@ -394,7 +402,6 @@ func (snap *Snapshot) Lock() (chan bool, error) {
 
 	// The following bit is a "ping" mechanism, Lock() is a bit badly named at this point,
 	// we are just refreshing the existing lock so that the watchdog doesn't removes us.
-	lockDone := make(chan bool)
 	go func() {
 		for {
 			select {

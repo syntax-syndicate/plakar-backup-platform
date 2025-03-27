@@ -211,9 +211,18 @@ func (cmd *Ls) list_snapshot(ctx *appcontext.AppContext, repo *repository.Reposi
 		return err
 	}
 
+	resolved := false
 	return pvfs.WalkDir(pathname, func(path string, d *vfs.Entry, err error) error {
 		if err != nil {
 			return err
+		}
+		if !resolved {
+			// pathname might point to a symlink, so we
+			// have to deal with physical vs logical path
+			// in here.  This makes sure we fetch the
+			// right physical path and do our logic on it.
+			resolved = true
+			pathname = d.Path()
 		}
 		if d.IsDir() && path == pathname {
 			return nil
