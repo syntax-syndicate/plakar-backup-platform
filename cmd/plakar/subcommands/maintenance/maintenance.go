@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -210,7 +212,7 @@ func (cmd *Maintenance) colourPass(ctx *appcontext.AppContext, cache *caching.Ma
 }
 
 func (cmd *Maintenance) sweepPass(ctx *appcontext.AppContext, cache *caching.MaintenanceCache) error {
-	doDeletion := false
+	doDeletion, _ := strconv.ParseBool(os.Getenv("PLAKAR_DODELETION"))
 
 	// First go over all the packfiles coloured by first pass.
 	blobRemoved := 0
@@ -289,7 +291,12 @@ func (cmd *Maintenance) Execute(ctx *appcontext.AppContext, repo *repository.Rep
 	cmd.repository = repo
 
 	// This need to be configurable per repo, but we don't have a mechanism yet (comes in a PR soon!)
-	cmd.cutoff = time.Now().AddDate(0, 0, -30)
+	duration, err := time.ParseDuration(os.Getenv("PLAKAR_GRACEPERIOD"))
+	if err != nil {
+		duration = 30 * 24 * time.Hour
+	}
+
+	cmd.cutoff = time.Now().Add(-duration)
 
 	// This random id generation for non snapshot state should probably be encapsulated somewhere.
 	cmd.maintenanceID = objects.RandomMAC()
@@ -325,6 +332,12 @@ func (cmd *Maintenance) Execute(ctx *appcontext.AppContext, repo *repository.Rep
 }
 
 func (cmd *Maintenance) Lock() (chan bool, error) {
+	lockless, _ := strconv.ParseBool(os.Getenv("PLAKAR_LOCKLESS"))
+	lockDone := make(chan bool)
+	if lockless {
+		return lockDone, nil
+	}
+
 	lock := repository.NewExclusiveLock(cmd.repository.AppContext().Hostname)
 
 	buffer := &bytes.Buffer{}
@@ -383,7 +396,6 @@ func (cmd *Maintenance) Lock() (chan bool, error) {
 
 	// The following bit is a "ping" mechanism, Lock() is a bit badly named at this point,
 	// we are just refreshing the existing lock so that the watchdog doesn't removes us.
-	lockDone := make(chan bool)
 	go func() {
 		for {
 			select {

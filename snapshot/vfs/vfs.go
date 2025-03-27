@@ -4,6 +4,7 @@ import (
 	"io"
 	"io/fs"
 	"iter"
+	"os"
 	"path"
 	"strings"
 
@@ -213,7 +214,7 @@ func (fsc *Filesystem) ResolveXattr(mac objects.MAC) (*Xattr, error) {
 }
 
 func (fsc *Filesystem) Open(path string) (fs.File, error) {
-	entry, err := fsc.lookup(path)
+	entry, err := fsc.GetEntry(path)
 	if err != nil {
 		return nil, err
 	}
@@ -310,8 +311,70 @@ func (fsc *Filesystem) Pathnames() iter.Seq2[string, error] {
 	}
 }
 
-func (fsc *Filesystem) GetEntry(path string) (*Entry, error) {
-	return fsc.lookup(path)
+func (fsc *Filesystem) GetEntry(entrypath string) (*Entry, error) {
+	if !strings.HasPrefix(entrypath, "/") {
+		entrypath = "/" + entrypath
+	}
+	entrypath = path.Clean(entrypath)
+	if entrypath == "" {
+		entrypath = "/"
+	}
+
+	csum, found, err := fsc.tree.Find(entrypath)
+	if err != nil {
+		return nil, err
+	}
+
+	var entry *Entry
+	if !found {
+		// try again, but this time resolving each component
+		// since there might be symlinks.
+		components := strings.Split(entrypath, "/")
+		wip := "/"
+		for _, c := range components {
+			new := path.Join(wip, c)
+			csum, found, err = fsc.tree.Find(new)
+			if err != nil {
+				return nil, err
+			}
+			if !found {
+				return nil, os.ErrNotExist
+			}
+
+			entry, err = fsc.ResolveEntry(csum)
+			if err != nil {
+				return nil, err
+			}
+
+			if entry.FileInfo.Lmode&os.ModeSymlink == 0 {
+				wip = new
+				continue
+			}
+
+			// handle symlink
+			if path.IsAbs(entry.SymlinkTarget) {
+				wip = entry.SymlinkTarget
+			} else {
+				wip = path.Join(wip, entry.SymlinkTarget)
+			}
+		}
+	}
+
+	if entry == nil {
+		entry, err = fsc.ResolveEntry(csum)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if entry.FileInfo.Lmode&os.ModeSymlink == 0 {
+		return entry, nil
+	}
+
+	if path.IsAbs(entry.SymlinkTarget) {
+		return fsc.lookup(entry.SymlinkTarget)
+	}
+	return fsc.lookup(path.Join(path.Dir(entry.Path()), entry.SymlinkTarget))
 }
 
 func (fsc *Filesystem) Children(path string) (iter.Seq2[*Entry, error], error) {
