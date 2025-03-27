@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -210,7 +212,7 @@ func (cmd *Maintenance) colourPass(ctx *appcontext.AppContext, cache *caching.Ma
 }
 
 func (cmd *Maintenance) sweepPass(ctx *appcontext.AppContext, cache *caching.MaintenanceCache) error {
-	doDeletion := false
+	doDeletion, _ := strconv.ParseBool(os.Getenv("PLAKAR_DODELETION"))
 
 	// First go over all the packfiles coloured by first pass.
 	blobRemoved := 0
@@ -289,7 +291,12 @@ func (cmd *Maintenance) Execute(ctx *appcontext.AppContext, repo *repository.Rep
 	cmd.repository = repo
 
 	// This need to be configurable per repo, but we don't have a mechanism yet (comes in a PR soon!)
-	cmd.cutoff = time.Now().AddDate(0, 0, -30)
+	duration, err := time.ParseDuration(os.Getenv("PLAKAR_GRACEPERIOD"))
+	if err != nil {
+		duration = 5 * time.Hour
+	}
+
+	cmd.cutoff = time.Now().Add(duration)
 
 	// This random id generation for non snapshot state should probably be encapsulated somewhere.
 	cmd.maintenanceID = objects.RandomMAC()
