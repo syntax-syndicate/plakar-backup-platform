@@ -229,13 +229,6 @@ func (signer SnapshotReaderURLSigner) VerifyMiddleware(next http.Handler) http.H
 			return
 		}
 
-		snapshotID32, path, err := SnapshotPathParam(r, lrepository, "snapshot_path")
-		if err != nil {
-			handleError(w, r, parameterError("snapshot_path", InvalidArgument, err))
-			return
-		}
-		snapshotId := fmt.Sprintf("%0x", snapshotID32[:])
-
 		jwtToken, err := jwt.ParseWithClaims(signature, &SnapshotSignedURLClaims{}, func(jwtToken *jwt.Token) (interface{}, error) {
 			if _, ok := jwtToken.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, authError(fmt.Sprintf("unexpected signing method: %v", jwtToken.Header["alg"]))
@@ -251,6 +244,13 @@ func (signer SnapshotReaderURLSigner) VerifyMiddleware(next http.Handler) http.H
 			handleError(w, r, authError(fmt.Sprintf("unable to parse JWT token: %v", err)))
 			return
 		}
+
+		snapshotID32, path, err := SnapshotPathParam(r, lrepository, "snapshot_path")
+		if err != nil {
+			handleError(w, r, parameterError("snapshot_path", InvalidArgument, err))
+			return
+		}
+		snapshotId := fmt.Sprintf("%0x", snapshotID32[:])
 
 		if claims, ok := jwtToken.Claims.(*SnapshotSignedURLClaims); ok {
 			if claims.Path != path {
