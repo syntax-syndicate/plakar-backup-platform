@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/PlakarKorp/plakar/objects"
@@ -95,50 +97,74 @@ func snapshotReader(w http.ResponseWriter, r *http.Request) error {
 		w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(filepath.Base(path)))
 	}
 
-	if do_highlight {
-		lexer := lexers.Match(path)
-		if lexer == nil {
-			lexer = lexers.Get(entry.ResolvedObject.ContentType)
-		}
-		if lexer == nil {
-			lexer = lexers.Fallback // Fallback if no lexer is found
-		}
-		formatter := formatters.Get("html")
-		style := styles.Get("dracula")
-
-		w.Header().Set("Content-Type", "text/html")
-		if _, err := w.Write([]byte("<!DOCTYPE html>")); err != nil {
-			return err
-		}
-
-		reader := bufio.NewReader(file)
-		buffer := make([]byte, 4096) // Fixed-size buffer for chunked reading
-		for {
-			n, err := reader.Read(buffer) // Read up to the size of the buffer
-			if n > 0 {
-				chunk := string(buffer[:n])
-
-				// Tokenize the chunk and apply syntax highlighting
-				iterator, errTokenize := lexer.Tokenise(nil, chunk)
-				if errTokenize != nil {
-					break
-				}
-
-				errFormat := formatter.Format(w, style, iterator)
-				if errFormat != nil {
-					break
-				}
-			}
-
-			// Check for end of file (EOF)
-			if err == io.EOF {
-				break
-			} else if err != nil {
-				break
+	if !do_highlight {
+		ctype := mime.TypeByExtension(filepath.Ext(path))
+		if ctype == "" {
+			content := file.(io.ReadSeeker)
+			// read a chunk to decide between utf-8 text and binary
+			var buf [512]byte
+			n, _ := io.ReadFull(content, buf[:])
+			ctype = http.DetectContentType(buf[:n])
+			_, err := content.Seek(0, io.SeekStart) // rewind to output whole file
+			if err != nil {
+				http.Error(w, "seeker can't seek", http.StatusInternalServerError)
+				return nil
 			}
 		}
-	} else {
+
+		// best-effort to serve HTML as-is.  golang http
+		// sniffer actually alway uses "text/html;
+		// charset=utf-8".
+		if strings.HasPrefix(ctype, "text/html") {
+			ctype = "text/plain; charset=utf-8"
+		}
+
+		w.Header().Set("Content-Type", ctype)
+
 		http.ServeContent(w, r, filepath.Base(path), entry.Stat().ModTime(), file.(io.ReadSeeker))
+		return nil
+	}
+
+	lexer := lexers.Match(path)
+	if lexer == nil {
+		lexer = lexers.Get(entry.ResolvedObject.ContentType)
+	}
+	if lexer == nil {
+		lexer = lexers.Fallback // Fallback if no lexer is found
+	}
+	formatter := formatters.Get("html")
+	style := styles.Get("dracula")
+
+	w.Header().Set("Content-Type", "text/html")
+	if _, err := w.Write([]byte("<!DOCTYPE html>")); err != nil {
+		return err
+	}
+
+	reader := bufio.NewReader(file)
+	buffer := make([]byte, 4096) // Fixed-size buffer for chunked reading
+	for {
+		n, err := reader.Read(buffer) // Read up to the size of the buffer
+		if n > 0 {
+			chunk := string(buffer[:n])
+
+			// Tokenize the chunk and apply syntax highlighting
+			iterator, errTokenize := lexer.Tokenise(nil, chunk)
+			if errTokenize != nil {
+				break
+			}
+
+			errFormat := formatter.Format(w, style, iterator)
+			if errFormat != nil {
+				break
+			}
+		}
+
+		// Check for end of file (EOF)
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			break
+		}
 	}
 
 	return nil
@@ -413,7 +439,7 @@ func snapshotVFSSearch(w http.ResponseWriter, r *http.Request) error {
 		Prefix:    path,
 
 		Offset: offset,
-		Limit: limit,
+		Limit:  limit,
 	}
 
 	items := ItemsPage[*vfs.Entry]{
