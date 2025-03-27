@@ -318,7 +318,6 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			read := func(v interface{}) (interface{}, error) {
 				if err := decoder.Decode(v); err != nil {
 					if isDisconnectError(err) {
-						handleDisconnect()
 						cancel()
 					}
 					return nil, err
@@ -759,6 +758,14 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			}()
 
 			status, err := subcommand.Execute(clientContext, repo)
+
+			if status == 0 {
+				SuccessInc(subcommand.Name())
+			} else if status == 1 {
+				FailureInc(subcommand.Name())
+			} else {
+				WarningInc(subcommand.Name())
+			}
 
 			clientContext.Close()
 			<-eventsDone
