@@ -214,7 +214,7 @@ func (fsc *Filesystem) ResolveXattr(mac objects.MAC) (*Xattr, error) {
 }
 
 func (fsc *Filesystem) Open(path string) (fs.File, error) {
-	entry, err := fsc.lookup(path)
+	entry, err := fsc.GetEntry(path)
 	if err != nil {
 		return nil, err
 	}
