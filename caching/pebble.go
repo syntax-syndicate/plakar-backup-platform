@@ -18,8 +18,7 @@ type PebbleCache struct {
 
 func New(dir string) (*PebbleCache, error) {
 	opts := pebble.Options{
-		DisableWAL:   true,
-		MemTableSize: 64 << 20,
+		MemTableSize: 256 << 20,
 	}
 	db, err := pebble.Open(dir, &opts)
 	if err != nil {
