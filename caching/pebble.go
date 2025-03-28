@@ -2,6 +2,7 @@ package caching
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -16,9 +17,19 @@ type PebbleCache struct {
 	db *pebble.DB
 }
 
+// Lifter from internal/logger pebble.
+type NoopLoggerAndTracer struct{}
+
+func (l NoopLoggerAndTracer) Infof(format string, args ...interface{})                       {}
+func (l NoopLoggerAndTracer) Errorf(format string, args ...interface{})                      {}
+func (l NoopLoggerAndTracer) Fatalf(format string, args ...interface{})                      {}
+func (l NoopLoggerAndTracer) Eventf(ctx context.Context, format string, args ...interface{}) {}
+func (l NoopLoggerAndTracer) IsTracingEnabled(ctx context.Context) bool                      { return false }
+
 func New(dir string) (*PebbleCache, error) {
 	opts := pebble.Options{
 		MemTableSize: 256 << 20,
+		Logger:       NoopLoggerAndTracer{},
 	}
 	db, err := pebble.Open(dir, &opts)
 	if err != nil {
