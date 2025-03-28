@@ -48,6 +48,10 @@ func (m *Manager) Close() error {
 		cache.Close()
 	}
 
+	for _, cache := range m.maintenanceCache {
+		cache.Close()
+	}
+
 	// we may rework the interface later to allow for error handling
 	// at this point closing is best effort
 	return nil
