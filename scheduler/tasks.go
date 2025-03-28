@@ -120,6 +120,7 @@ func (s *Scheduler) backupTask(taskset Task, task BackupConfig) error {
 				backupCtx.Close()
 				goto close
 			}
+			reporter.WithSnapshotID(repo, backupCtx.SnapshotID)
 
 			backupCtx.Close()
 
