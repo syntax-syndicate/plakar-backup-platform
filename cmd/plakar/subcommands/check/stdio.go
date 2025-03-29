@@ -2,6 +2,7 @@ package check
 
 import (
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -17,18 +18,18 @@ func eventsProcessorStdio(ctx *appcontext.AppContext, quiet bool) chan struct{} 
 		for event := range ctx.Events().Listen() {
 			switch event := event.(type) {
 			case events.DirectoryMissing:
-				ctx.GetLogger().Warn("%x: %s %s: missing directory", event.SnapshotID[:4], crossMark, event.Pathname)
+				ctx.GetLogger().Warn("%x: %s %s: missing directory", event.SnapshotID[:4], crossMark, utils.EscapeANSICodes(event.Pathname))
 			case events.FileMissing:
-				ctx.GetLogger().Warn("%x: %s %s: missing file", event.SnapshotID[:4], crossMark, event.Pathname)
+				ctx.GetLogger().Warn("%x: %s %s: missing file", event.SnapshotID[:4], crossMark, utils.EscapeANSICodes(event.Pathname))
 			case events.ObjectMissing:
 				ctx.GetLogger().Warn("%x: %s %x: missing object", event.SnapshotID[:4], crossMark, event.MAC)
 			case events.ChunkMissing:
 				ctx.GetLogger().Warn("%x: %s %x: missing chunk", event.SnapshotID[:4], crossMark, event.MAC)
 
 			case events.DirectoryCorrupted:
-				ctx.GetLogger().Warn("%x: %s %s: corrupted directory", event.SnapshotID[:4], crossMark, event.Pathname)
+				ctx.GetLogger().Warn("%x: %s %s: corrupted directory", event.SnapshotID[:4], crossMark, utils.EscapeANSICodes(event.Pathname))
 			case events.FileCorrupted:
-				ctx.GetLogger().Warn("%x: %s %s: corrupted file", event.SnapshotID[:4], crossMark, event.Pathname)
+				ctx.GetLogger().Warn("%x: %s %s: corrupted file", event.SnapshotID[:4], crossMark, utils.EscapeANSICodes(event.Pathname))
 			case events.ObjectCorrupted:
 				ctx.GetLogger().Warn("%x: %s %x: corrupted object", event.SnapshotID[:4], crossMark, event.MAC)
 			case events.ChunkCorrupted:
@@ -36,11 +37,11 @@ func eventsProcessorStdio(ctx *appcontext.AppContext, quiet bool) chan struct{} 
 
 			case events.DirectoryOK:
 				if !quiet {
-					ctx.GetLogger().Info("%x: %s %s", event.SnapshotID[:4], checkMark, event.Pathname)
+					ctx.GetLogger().Info("%x: %s %s", event.SnapshotID[:4], checkMark, utils.EscapeANSICodes(event.Pathname))
 				}
 			case events.FileOK:
 				if !quiet {
-					ctx.GetLogger().Info("%x: %s %s", event.SnapshotID[:4], checkMark, event.Pathname)
+					ctx.GetLogger().Info("%x: %s %s", event.SnapshotID[:4], checkMark, utils.EscapeANSICodes(event.Pathname))
 				}
 			default:
 			}

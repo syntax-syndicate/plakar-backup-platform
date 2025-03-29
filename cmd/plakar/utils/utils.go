@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"syscall"
@@ -306,4 +307,16 @@ func NormalizePath(path string) (string, error) {
 	}
 
 	return normalizedPath, nil
+}
+
+var ansiEscapeSeq = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]`)
+
+func EscapeANSICodes(input string) string {
+	return ansiEscapeSeq.ReplaceAllStringFunc(input, func(seq string) string {
+		escaped := ""
+		for i := 0; i < len(seq); i++ {
+			escaped += fmt.Sprintf("\\x%02x", seq[i])
+		}
+		return escaped
+	})
 }
