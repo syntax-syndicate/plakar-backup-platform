@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"path"
 	"sort"
 	"strings"
 
@@ -298,7 +299,6 @@ func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 		return locations[i].Snapshot.Timestamp.Before(locations[j].Snapshot.Timestamp)
 	})
 
-	//header.SortHeaders(headers, sortKeys)
 	if offset > uint32(len(locations)) {
 		locations = []TimelineLocation{}
 	} else if offset+limit > uint32(len(locations)) {
@@ -309,6 +309,131 @@ func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 
 	items := Items[TimelineLocation]{
 		Total: totalSnapshots,
+		Items: make([]TimelineLocation, 0, len(locations)),
+	}
+	items.Items = append(items.Items, locations...)
+
+	return json.NewEncoder(w).Encode(items)
+}
+
+func repositoryLocateResource(w http.ResponseWriter, r *http.Request) error {
+	offset, err := QueryParamToUint32(r, "offset", 0, 0)
+	if err != nil {
+		return err
+	}
+	limit, err := QueryParamToUint32(r, "limit", 1, 50)
+	if err != nil {
+		return err
+	}
+
+	importerType, _, err := QueryParamToString(r, "importerType")
+	if err != nil {
+		return err
+	}
+
+	importerOrigin, _, err := QueryParamToString(r, "importerOrigin")
+	if err != nil {
+		return err
+	}
+
+	resource, _, err := QueryParamToString(r, "resource")
+	if err != nil {
+		return err
+	}
+
+	sortKeys, err := QueryParamToSortKeys(r, "sort", "Timestamp")
+	if err != nil {
+		return err
+	}
+	_ = sortKeys
+
+	lrepository.RebuildState()
+
+	snapshotIDs, err := lrepository.GetSnapshots()
+	if err != nil {
+		return err
+	}
+
+	totalEntries := int(0)
+	locations := make([]TimelineLocation, 0, len(snapshotIDs))
+
+	for _, snapshotID := range snapshotIDs {
+		snap, err := snapshot.Load(lrepository, snapshotID)
+		if err != nil {
+			return err
+		}
+
+		if importerType != "" && strings.ToLower(snap.Header.GetSource(0).Importer.Type) != strings.ToLower(importerType) {
+			snap.Close()
+			continue
+		}
+
+		if importerOrigin != "" && strings.ToLower(snap.Header.GetSource(0).Importer.Origin) != strings.ToLower(importerOrigin) {
+			snap.Close()
+			continue
+		}
+
+		pvfs, err := snap.Filesystem()
+		if err != nil {
+			snap.Close()
+			continue
+		}
+
+		//
+		for pathname, err := range pvfs.Pathnames() {
+			if err != nil {
+				snap.Close()
+				continue
+			}
+
+			matched := false
+			if path.Base(pathname) == resource {
+				matched = true
+			}
+			if !matched {
+				matched, err := path.Match(resource, path.Base(pathname))
+				if err != nil {
+					snap.Close()
+					continue
+				}
+				if !matched {
+					continue
+				}
+			}
+
+			entry, err := pvfs.GetEntry(pathname)
+			if err != nil {
+				snap.Close()
+				continue
+			}
+
+			locations = append(locations, TimelineLocation{
+				Snapshot: *snap.Header,
+				Entry:    *entry,
+			})
+			totalEntries++
+		}
+		snap.Close()
+	}
+
+	if limit == 0 {
+		limit = uint32(len(locations))
+	}
+
+	sort.Slice(locations, func(i, j int) bool {
+		return locations[i].Snapshot.Timestamp.Before(locations[j].Snapshot.Timestamp)
+	})
+
+	if offset > uint32(len(locations)) {
+		locations = []TimelineLocation{}
+	} else if offset+limit > uint32(len(locations)) {
+		locations = locations[offset:]
+	} else {
+		locations = locations[offset : offset+limit]
+	}
+
+	items := Items[TimelineLocation]{
+		Total: totalEntries,
 		Items: make([]TimelineLocation, 0, len(locations)),
 	}
 	items.Items = append(items.Items, locations...)

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"path"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -630,4 +631,112 @@ func snapshotVFSDownloaderSigned(w http.ResponseWriter, r *http.Request) error {
 	w.Header().Set("Content-Type", mime)
 
 	return snap.Archive(w, format, link.files, link.rebase)
+}
+
+func snapshotLocateResource(w http.ResponseWriter, r *http.Request) error {
+	snapshotID32, pathname, err := SnapshotPathParam(r, lrepository, "snapshot_path")
+	if err != nil {
+		return err
+	}
+
+	offset, err := QueryParamToUint32(r, "offset", 0, 0)
+	if err != nil {
+		return err
+	}
+	limit, err := QueryParamToUint32(r, "limit", 1, 50)
+	if err != nil {
+		return err
+	}
+
+	resource, _, err := QueryParamToString(r, "resource")
+	if err != nil {
+		return err
+	}
+
+	sortKeys, err := QueryParamToSortKeys(r, "sort", "Timestamp")
+	if err != nil {
+		return err
+	}
+	_ = sortKeys
+
+	lrepository.RebuildState()
+
+	totalEntries := int(0)
+	locations := make([]TimelineLocation, 0)
+
+	snap, err := snapshot.Load(lrepository, snapshotID32)
+	if err != nil {
+		snap.Close()
+		return err
+	}
+
+	pvfs, err := snap.Filesystem()
+	if err != nil {
+		snap.Close()
+		return err
+	}
+
+	//
+	for entry, err := range pvfs.Pathnames() {
+		if err != nil {
+			snap.Close()
+			break
+		}
+
+		if !strings.HasPrefix(entry, pathname) {
+			continue
+		}
+
+		matched := false
+		if path.Base(entry) == resource {
+			matched = true
+		}
+		if !matched {
+			matched, err := path.Match(resource, path.Base(entry))
+			if err != nil {
+				snap.Close()
+				break
+			}
+			if !matched {
+				continue
+			}
+		}
+
+		entry, err := pvfs.GetEntry(entry)
+		if err != nil {
+			snap.Close()
+			continue
+		}
+
+		locations = append(locations, TimelineLocation{
+			Snapshot: *snap.Header,
+			Entry:    *entry,
+		})
+		totalEntries++
+	}
+	snap.Close()
+
+	if limit == 0 {
+		limit = uint32(len(locations))
+	}
+
+	sort.Slice(locations, func(i, j int) bool {
+		return locations[i].Snapshot.Timestamp.Before(locations[j].Snapshot.Timestamp)
+	})
+
+	if offset > uint32(len(locations)) {
+		locations = []TimelineLocation{}
+	} else if offset+limit > uint32(len(locations)) {
+		locations = locations[offset:]
+	} else {
+		locations = locations[offset : offset+limit]
+	}
+
+	items := Items[TimelineLocation]{
+		Total: totalEntries,
+		Items: make([]TimelineLocation, 0, len(locations)),
+	}
+	items.Items = append(items.Items, locations...)
+
+	return json.NewEncoder(w).Encode(items)
 }

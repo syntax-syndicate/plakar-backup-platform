@@ -148,8 +148,10 @@ func SetupRoutes(server *http.ServeMux, repo *repository.Repository, token strin
 	server.Handle("GET /api/repository/importer-types", authToken(JSONAPIView(repositoryImporterTypes)))
 	server.Handle("GET /api/repository/states", authToken(JSONAPIView(repositoryStates)))
 	server.Handle("GET /api/repository/state/{state}", authToken(JSONAPIView(repositoryState)))
+	server.Handle("GET /api/repository/locate", authToken(JSONAPIView(repositoryLocateResource)))
 
 	server.Handle("GET /api/snapshot/{snapshot}", authToken(JSONAPIView(snapshotHeader)))
+	server.Handle("GET /api/snapshot/locate/{snapshot_path...}", authToken(JSONAPIView(snapshotLocateResource)))
 	server.Handle("GET /api/snapshot/reader/{snapshot_path...}", urlSigner.VerifyMiddleware(APIView(snapshotReader)))
 	server.Handle("POST /api/snapshot/reader-sign-url/{snapshot_path...}", authToken(JSONAPIView(urlSigner.Sign)))
 
