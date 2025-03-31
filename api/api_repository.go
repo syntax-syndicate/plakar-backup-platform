@@ -355,7 +355,7 @@ func repositoryLocateResource(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	totalEntries := int(0)
-	locations := make([]TimelineLocation, 0, len(snapshotIDs))
+	locations := make([]TimelineLocation, 0)
 
 	for _, snapshotID := range snapshotIDs {
 		snap, err := snapshot.Load(lrepository, snapshotID)
