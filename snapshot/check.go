@@ -24,12 +24,7 @@ func snapshotCheckPath(snap *Snapshot, opts *CheckOptions, concurrency chan bool
 			return err
 		}
 
-		serializedEntry, err := e.ToBytes()
-		if err != nil {
-			return err
-		}
-
-		entryMAC := snap.repository.ComputeMAC(serializedEntry)
+		entryMAC := e.MAC()
 		entryStatus, err := snap.checkCache.GetVFSEntryStatus(entryMAC)
 		if err != nil {
 			return err
