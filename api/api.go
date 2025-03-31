@@ -1,12 +1,12 @@
 package api
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"io/fs"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
@@ -101,7 +101,7 @@ func TokenAuthMiddleware(token string) func(http.Handler) http.Handler {
 					return
 				}
 
-				if strings.Compare(key, "Bearer "+token) != 0 {
+				if subtle.ConstantTimeCompare([]byte(key), []byte("Bearer "+token)) == 0 {
 					handleError(w, r, authError("invalid token"))
 					return
 				}
