@@ -325,7 +325,7 @@ func issafe(str string) bool {
 	return true
 }
 
-func EscapeANSICodes(input string) string {
+func SanitizeText(input string) string {
 	if issafe(input) {
 		return input
 	}
