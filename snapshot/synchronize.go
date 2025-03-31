@@ -186,8 +186,8 @@ func (src *Snapshot) Synchronize(dst *Snapshot) error {
 	})
 	dst.Header.GetSource(0).Indexes = []header.Index{
 		{
-			Name: "content-type",
-			Type: "btree",
+			Name:  "content-type",
+			Type:  "btree",
 			Value: ctsum,
 		},
 	}
