@@ -124,6 +124,10 @@ func GenerateSnapshot(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer, 
 	require.NoError(t, err)
 	require.NotNil(t, snap)
 
+	checkCache, err := cache.Check()
+	require.NoError(t, err)
+	snap.SetCheckCache(checkCache)
+
 	imp, err := fs.NewFSImporter(map[string]string{"location": tmpBackupDir})
 	require.NoError(t, err)
 	snap.Backup(imp, &snapshot.BackupOptions{Name: "test_backup", MaxConcurrency: 1})
