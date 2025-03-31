@@ -55,6 +55,15 @@ type Entry struct {
 	Classifications []Classification `msgpack:"classifications,omitempty" json:"classifications"`
 	CustomMetadata  []CustomMetadata `msgpack:"custom_metadata,omitempty" json:"custom_metadata"`
 	Tags            []string         `msgpack:"tags,omitempty" json:"tags"`
+
+	// mac of the entry itself
+	mac objects.MAC
+}
+
+// MAC return the entry' MAC.  It only works for entries returned by
+// the VFS layer.
+func (e *Entry) MAC() objects.MAC {
+	return e.mac
 }
 
 func (e *Entry) HasObject() bool {
