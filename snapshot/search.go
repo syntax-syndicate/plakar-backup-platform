@@ -139,8 +139,29 @@ func visitfiles(snap *Snapshot, opts *SearchOpts) (iter.Seq2[*vfs.Entry, error],
 				return
 			}
 
+			entryPath := entry.Path()
+			if !strings.HasPrefix(entryPath, opts.Prefix) {
+				continue
+			}
+
 			if !matchmime(opts.Mime, entry.ContentType()) {
 				continue
+			}
+
+			if opts.NameFilter != "" {
+				matched := false
+				if path.Base(entryPath) == opts.NameFilter {
+					matched = true
+				}
+				if !matched {
+					matched, err := path.Match(opts.NameFilter, path.Base(entryPath))
+					if err != nil {
+						continue
+					}
+					if !matched {
+						continue
+					}
+				}
 			}
 
 			if !yield(entry, nil) {
