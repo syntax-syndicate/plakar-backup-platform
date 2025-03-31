@@ -58,7 +58,7 @@ func (p *SFTPImporter) walkDir_addPrefixDirectories(jobs chan<- string, results 
 	directory := filepath.Clean(p.rootDir)
 	atoms := strings.Split(directory, string(os.PathSeparator))
 
-	for i := 0; i < len(atoms)-1; i++ {
+	for i := range len(atoms)-1 {
 		path := filepath.Join(atoms[0 : i+1]...)
 
 		if !strings.HasPrefix(path, "/") {
