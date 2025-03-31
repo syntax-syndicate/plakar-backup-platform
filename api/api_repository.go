@@ -311,9 +311,7 @@ func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 		Total: totalSnapshots,
 		Items: make([]TimelineLocation, 0, len(locations)),
 	}
-	for i, timelineLocation := range locations {
-		items.Items[i] = timelineLocation
-	}
+	items.Items = append(items.Items, locations...)
 
 	return json.NewEncoder(w).Encode(items)
 }
