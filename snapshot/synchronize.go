@@ -73,7 +73,7 @@ func persistVFS(src *Snapshot, dst *Snapshot, fs *vfs.Filesystem, ctidx *btree.B
 			}
 		}
 
-		entryMAC := entry.MAC()
+		entryMAC := entry.MAC
 		if !dst.BlobExists(resources.RT_VFS_ENTRY, entryMAC) {
 			serializedEntry, err := entry.ToBytes()
 			if err != nil {
