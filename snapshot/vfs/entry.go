@@ -358,7 +358,6 @@ func (vf *vdir) ReadDir(n int) (entries []fs.DirEntry, err error) {
 		}
 	}
 
-	all := n <= 0
 	for vf.iter.Next() {
 		path, csum := vf.iter.Current()
 
@@ -375,11 +374,8 @@ func (vf *vdir) ReadDir(n int) (entries []fs.DirEntry, err error) {
 		}
 
 		entries = append(entries, &vdirent{dirent})
-
-		if !all {
-			if n--; n == 0 {
-				break
-			}
+		if n > 0 && len(entries) == n {
+			break
 		}
 	}
 
