@@ -57,13 +57,7 @@ type Entry struct {
 	Tags            []string         `msgpack:"tags,omitempty" json:"tags"`
 
 	// mac of the entry itself
-	mac objects.MAC
-}
-
-// MAC return the entry' MAC.  It only works for entries returned by
-// the VFS layer.
-func (e *Entry) MAC() objects.MAC {
-	return e.mac
+	MAC objects.MAC `msgpack:"-" json:"mac"`
 }
 
 func (e *Entry) HasObject() bool {
