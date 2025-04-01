@@ -160,7 +160,7 @@ func (fsc *Filesystem) ResolveEntry(csum objects.MAC) (*Entry, error) {
 		return nil, err
 	}
 
-	entry.mac = csum
+	entry.MAC = csum
 
 	if entry.HasObject() {
 		rd, err := fsc.repo.GetBlob(resources.RT_OBJECT, entry.Object)

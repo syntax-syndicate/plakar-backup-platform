@@ -13,6 +13,7 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/snapshot/header"
+	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/PlakarKorp/plakar/storage"
 )
 
@@ -199,6 +200,11 @@ func repositoryImporterTypes(w http.ResponseWriter, r *http.Request) error {
 	return json.NewEncoder(w).Encode(items)
 }
 
+type TimelineLocation struct {
+	Snapshot header.Header `json:"snapshot"`
+	Entry    vfs.Entry     `json:"vfs_entry"`
+}
+
 func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 	offset, err := QueryParamToUint32(r, "offset", 0, 0)
 	if err != nil {
@@ -228,6 +234,7 @@ func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	_ = sortKeys
 
 	lrepository.RebuildState()
 
@@ -237,7 +244,7 @@ func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	totalSnapshots := int(0)
-	headers := make([]header.Header, 0, len(snapshotIDs))
+	locations := make([]TimelineLocation, 0, len(snapshotIDs))
 	for _, snapshotID := range snapshotIDs {
 		snap, err := snapshot.Load(lrepository, snapshotID)
 		if err != nil {
@@ -269,37 +276,41 @@ func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 			continue
 		}
 
-		_, err = pvfs.GetEntry(resource)
+		entry, err := pvfs.GetEntry(resource)
 		if err != nil {
 			snap.Close()
 			continue
 		}
 
-		headers = append(headers, *snap.Header)
+		locations = append(locations, TimelineLocation{
+			Snapshot: *snap.Header,
+			Entry:    *entry,
+		})
 		totalSnapshots++
 		snap.Close()
 	}
 
 	if limit == 0 {
-		limit = uint32(len(headers))
+		limit = uint32(len(locations))
 	}
 
-	header.SortHeaders(headers, sortKeys)
-	if offset > uint32(len(headers)) {
-		headers = []header.Header{}
-	} else if offset+limit > uint32(len(headers)) {
-		headers = headers[offset:]
+	sort.Slice(locations, func(i, j int) bool {
+		return locations[i].Snapshot.Timestamp.Before(locations[j].Snapshot.Timestamp)
+	})
+
+	if offset > uint32(len(locations)) {
+		locations = []TimelineLocation{}
+	} else if offset+limit > uint32(len(locations)) {
+		locations = locations[offset:]
 	} else {
-		headers = headers[offset : offset+limit]
+		locations = locations[offset : offset+limit]
 	}
 
-	items := Items[header.Header]{
+	items := Items[TimelineLocation]{
 		Total: totalSnapshots,
-		Items: make([]header.Header, len(headers)),
+		Items: make([]TimelineLocation, 0, len(locations)),
 	}
-	for i, header := range headers {
-		items.Items[i] = header
-	}
+	items.Items = append(items.Items, locations...)
 
 	return json.NewEncoder(w).Encode(items)
 }

@@ -24,7 +24,7 @@ func snapshotCheckPath(snap *Snapshot, opts *CheckOptions, concurrency chan bool
 			return err
 		}
 
-		entryMAC := e.MAC()
+		entryMAC := e.MAC
 		entryStatus, err := snap.checkCache.GetVFSEntryStatus(entryMAC)
 		if err != nil {
 			return err
