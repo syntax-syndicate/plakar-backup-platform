@@ -298,7 +298,6 @@ func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 		return locations[i].Snapshot.Timestamp.Before(locations[j].Snapshot.Timestamp)
 	})
 
-	//header.SortHeaders(headers, sortKeys)
 	if offset > uint32(len(locations)) {
 		locations = []TimelineLocation{}
 	} else if offset+limit > uint32(len(locations)) {
