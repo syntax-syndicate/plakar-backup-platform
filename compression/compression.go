@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/pierrec/lz4/v4"
 )
@@ -122,11 +123,20 @@ func InflateGzipStream(r io.Reader) (io.Reader, error) {
 	return pr, nil
 }
 
+var lz4ReaderPool = sync.Pool{
+	New: func() any {
+		return lz4.NewReader(nil)
+	},
+}
+
 func InflateLZ4Stream(r io.Reader) (io.Reader, error) {
 	pr, pw := io.Pipe()
 	go func() {
-		lz := lz4.NewReader(r)
+		lz := lz4ReaderPool.Get().(*lz4.Reader)
+		lz.Reset(r)
+
 		defer pw.Close()
+		defer lz4ReaderPool.Put(lz)
 
 		_, err := io.Copy(pw, lz)
 		if err != nil {
