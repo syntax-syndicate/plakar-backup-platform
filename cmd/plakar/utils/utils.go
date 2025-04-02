@@ -257,7 +257,7 @@ func GetConfigDir(appName string) (string, error) {
 	return configDir, nil
 }
 
-var VERSION = "v1.0.1-beta.14"
+var VERSION = "v1.0.1-beta.15"
 
 func init() {
 	if !semver.IsValid(VERSION) {
