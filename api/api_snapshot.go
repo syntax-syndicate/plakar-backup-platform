@@ -440,7 +440,7 @@ func snapshotVFSSearch(w http.ResponseWriter, r *http.Request) error {
 
 	searchOpts := snapshot.SearchOpts{
 		Recursive:  r.URL.Query().Get("recursive") == "true",
-		Mime:       r.URL.Query().Get("mime"),
+		Mimes:      r.URL.Query()["mime"],
 		Prefix:     path,
 		NameFilter: pattern,
 

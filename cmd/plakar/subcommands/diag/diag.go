@@ -19,6 +19,7 @@ package diag
 import (
 	"flag"
 	"fmt"
+	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
@@ -116,20 +117,22 @@ func parse_cmd_diag(ctx *appcontext.AppContext, args []string) (subcommands.Subc
 			RepositorySecret: ctx.GetSecret(),
 		}, nil
 	case "search":
-		var path, mime string
+		var path string
+		var mimes []string
+
 		switch flags.NArg() {
 		case 2:
 			path = flag.Arg(2)
 		case 3:
-			path, mime = flag.Arg(2), flag.Arg(3)
+			path, mimes = flag.Arg(2), strings.Split(flag.Arg(3), ",")
 		default:
-			return nil, fmt.Errorf("usage: %s search snapshot[:path] mime",
+			return nil, fmt.Errorf("usage: %s search snapshot[:path] mimes",
 				flags.Name())
 		}
 		return &DiagSearch{
 			RepositorySecret: ctx.GetSecret(),
 			SnapshotPath:     path,
-			Mime:             mime,
+			Mimes:            mimes,
 		}, nil
 	}
 	return nil, fmt.Errorf("Invalid parameter. usage: diag [contenttype|snapshot|object|state|packfile|vfs|xattr|errors|search]")
