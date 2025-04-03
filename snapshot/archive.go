@@ -24,7 +24,7 @@ const (
 
 var (
 	ErrInvalidArchiveFormat = errors.New("unknown archive format")
-	ErrNotADirectory = errors.New("is not a directory")
+	ErrNotADirectory        = errors.New("is not a directory")
 )
 
 func (snap *Snapshot) Archive(w io.Writer, format ArchiveFormat, paths []string, rebase bool) error {

@@ -132,7 +132,7 @@ func GenerateSnapshot(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer, 
 	require.NoError(t, err)
 	snap.Backup(imp, &snapshot.BackupOptions{Name: "test_backup", MaxConcurrency: 1})
 
-	err = snap.Repository().RebuildState()
+	err = repo.RebuildState()
 	require.NoError(t, err)
 
 	return snap

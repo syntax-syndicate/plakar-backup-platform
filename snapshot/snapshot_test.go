@@ -41,16 +41,4 @@ func TestSnapshot(t *testing.T) {
 
 	require.Equal(t, snap.Header.Identifier, snap2.Header.Identifier)
 	require.Equal(t, snap.Header.Timestamp.Truncate(time.Nanosecond), snap2.Header.Timestamp.Truncate(time.Nanosecond))
-
-	snap3, err := snapshot.Clone(snap.Repository(), snap.Header.Identifier)
-	require.NoError(t, err)
-	require.NotNil(t, snap3)
-
-	require.NotEqual(t, snap.Header.Identifier, snap3.Header.Identifier)
-
-	snap4, err := snapshot.Fork(snap.Repository(), snap.Header.Identifier)
-	require.NoError(t, err)
-	require.NotNil(t, snap4)
-
-	require.NotEqual(t, snap.Header.Identifier, snap4.Header.Identifier)
 }

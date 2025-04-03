@@ -31,7 +31,10 @@ var (
 )
 
 type Snapshot struct {
-	repository *repository.Repository
+	appContext   *appcontext.AppContext
+	repositoryrw *repository.RepositoryWriter
+	repository   *repository.Repository
+
 	scanCache  *caching.ScanCache
 	checkCache *caching.CheckCache
 
@@ -54,9 +57,9 @@ func Create(repo *repository.Repository) (*Snapshot, error) {
 	}
 
 	snap := &Snapshot{
-		repository: repo,
 		scanCache:  scanCache,
 		deltaCache: scanCache,
+		appContext: repo.AppContext(),
 
 		Header: header.NewHeader("default", identifier),
 	}
@@ -77,8 +80,7 @@ func Create(repo *repository.Repository) (*Snapshot, error) {
 	snap.Header.SetContext("MaxProcs", fmt.Sprintf("%d", runtime.GOMAXPROCS(0)))
 	snap.Header.SetContext("Client", snap.AppContext().Client)
 
-	repo.StartTransaction(scanCache)
-	repo.StartPackerManager(snap.Header.Identifier)
+	snap.repositoryrw = repo.NewRepositoryWriter(scanCache, snap.Header.Identifier)
 
 	repo.Logger().Trace("snapshot", "%x: New()", snap.Header.GetIndexShortID())
 	return snap, nil
@@ -93,41 +95,10 @@ func Load(repo *repository.Repository, Identifier objects.MAC) (*Snapshot, error
 	snapshot := &Snapshot{}
 	snapshot.repository = repo
 	snapshot.Header = hdr
+	snapshot.appContext = repo.AppContext()
 
 	repo.Logger().Trace("snapshot", "%x: Load()", snapshot.Header.GetIndexShortID())
 	return snapshot, nil
-}
-
-func Clone(repo *repository.Repository, Identifier objects.MAC) (*Snapshot, error) {
-	snap, err := Load(repo, Identifier)
-	if err != nil {
-		return nil, err
-	}
-	snap.Header.Timestamp = time.Now()
-
-	uuidBytes, err := uuid.Must(uuid.NewRandom()).MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	snap.Header.Identifier = repo.ComputeMAC(uuidBytes[:])
-	repo.StartPackerManager(snap.Header.Identifier)
-
-	repo.Logger().Trace("snapshot", "%x: Clone(): %s", snap.Header.Identifier, snap.Header.GetIndexShortID())
-	return snap, nil
-}
-
-func Fork(repo *repository.Repository, Identifier objects.MAC) (*Snapshot, error) {
-	identifier := objects.RandomMAC()
-	snap, err := Clone(repo, Identifier)
-	if err != nil {
-		return nil, err
-	}
-
-	snap.Header.Identifier = identifier
-
-	snap.Logger().Trace("snapshot", "%x: Fork(): %x", snap.Header.Identifier, snap.Header.GetIndexShortID())
-	return snap, nil
 }
 
 func (snap *Snapshot) Close() error {
@@ -141,7 +112,7 @@ func (snap *Snapshot) Close() error {
 }
 
 func (snap *Snapshot) AppContext() *appcontext.AppContext {
-	return snap.Repository().AppContext()
+	return snap.appContext
 }
 
 func (snap *Snapshot) Event(evt events.Event) {
@@ -187,10 +158,6 @@ func GetSnapshot(repo *repository.Repository, Identifier objects.MAC) (*header.H
 	}
 
 	return hdr, false, nil
-}
-
-func (snap *Snapshot) Repository() *repository.Repository {
-	return snap.repository
 }
 
 func (snap *Snapshot) LookupObject(mac objects.MAC) (*objects.Object, error) {
@@ -308,14 +275,14 @@ func (snap *Snapshot) ListPackfiles() (iter.Seq2[objects.MAC, error], error) {
 		if !yield(getPackfileForBlobWithError(snap, resources.RT_BTREE_ROOT, snap.Header.GetSource(0).Indexes[0].Value)) {
 			return
 		}
-		rd, err := snap.Repository().GetBlob(resources.RT_BTREE_ROOT, snap.Header.GetSource(0).Indexes[0].Value)
+		rd, err := snap.repository.GetBlob(resources.RT_BTREE_ROOT, snap.Header.GetSource(0).Indexes[0].Value)
 		if err != nil {
 			if !yield(objects.MAC{}, fmt.Errorf("Failed to load Index root entry %s", err)) {
 				return
 			}
 		}
 
-		store := repository.NewRepositoryStore[string, objects.MAC](snap.Repository(), resources.RT_BTREE_NODE)
+		store := repository.NewRepositoryStore[string, objects.MAC](snap.repository, resources.RT_BTREE_NODE)
 		tree, err := btree.Deserialize(rd, store, strings.Compare)
 		if err != nil {
 			if !yield(objects.MAC{}, fmt.Errorf("Failed to deserialize root entry %s", err)) {
@@ -349,44 +316,44 @@ func (snap *Snapshot) Lock() (chan bool, error) {
 		return nil, err
 	}
 
-	err = snap.repository.PutLock(snap.Header.Identifier, buffer)
+	err = snap.repositoryrw.PutLock(snap.Header.Identifier, buffer)
 	if err != nil {
 		return nil, err
 	}
 
 	// We installed the lock, now let's see if there is a conflicting exclusive lock or not.
-	locksID, err := snap.repository.GetLocks()
+	locksID, err := snap.repositoryrw.GetLocks()
 	if err != nil {
 		// We still need to delete it, and we need to do so manually.
-		snap.repository.DeleteLock(snap.Header.Identifier)
+		snap.repositoryrw.DeleteLock(snap.Header.Identifier)
 		return nil, err
 	}
 
 	for _, lockID := range locksID {
-		version, rd, err := snap.repository.GetLock(lockID)
+		version, rd, err := snap.repositoryrw.GetLock(lockID)
 		if err != nil {
-			snap.repository.DeleteLock(snap.Header.Identifier)
+			snap.repositoryrw.DeleteLock(snap.Header.Identifier)
 			return nil, err
 		}
 
 		lock, err := repository.NewLockFromStream(version, rd)
 		if err != nil {
-			snap.repository.DeleteLock(snap.Header.Identifier)
+			snap.repositoryrw.DeleteLock(snap.Header.Identifier)
 			return nil, err
 		}
 
 		/* Kick out stale locks */
 		if lock.IsStale() {
-			err := snap.repository.DeleteLock(lockID)
+			err := snap.repositoryrw.DeleteLock(lockID)
 			if err != nil {
-				snap.repository.DeleteLock(snap.Header.Identifier)
+				snap.repositoryrw.DeleteLock(snap.Header.Identifier)
 				return nil, err
 			}
 		}
 
 		// There is an exclusive lock in place, we need to abort.
 		if lock.Exclusive {
-			err := snap.repository.DeleteLock(snap.Header.Identifier)
+			err := snap.repositoryrw.DeleteLock(snap.Header.Identifier)
 			if err != nil {
 				return nil, err
 			}
@@ -401,7 +368,7 @@ func (snap *Snapshot) Lock() (chan bool, error) {
 		for {
 			select {
 			case <-lockDone:
-				snap.repository.DeleteLock(snap.Header.Identifier)
+				snap.repositoryrw.DeleteLock(snap.Header.Identifier)
 				return
 			case <-time.After(repository.LOCK_REFRESH_RATE):
 				lock := repository.NewSharedLock(snap.AppContext().Hostname)
@@ -412,7 +379,7 @@ func (snap *Snapshot) Lock() (chan bool, error) {
 				// correctly, and if they happen we will be ripped by the
 				// watchdog anyway.
 				lock.SerializeToStream(buffer)
-				snap.repository.PutLock(snap.Header.Identifier, buffer)
+				snap.repositoryrw.PutLock(snap.Header.Identifier, buffer)
 			}
 		}
 	}()

@@ -13,7 +13,7 @@ import (
 )
 
 func persistObject(src, dst *Snapshot, object *objects.Object) (objects.MAC, error) {
-	hasher := dst.Repository().GetMACHasher()
+	hasher := dst.repositoryrw.GetMACHasher()
 	newObject := *object
 	newObject.Chunks = make([]objects.Chunk, 0, len(object.Chunks))
 
@@ -25,9 +25,9 @@ func persistObject(src, dst *Snapshot, object *objects.Object) (objects.MAC, err
 
 		hasher.Write(chunk)
 
-		chunkMAC := dst.Repository().ComputeMAC(chunk)
-		if !dst.repository.BlobExists(resources.RT_CHUNK, chunkMAC) {
-			err = dst.repository.PutBlob(resources.RT_CHUNK, chunkMAC, chunk)
+		chunkMAC := dst.repositoryrw.ComputeMAC(chunk)
+		if !dst.repositoryrw.BlobExists(resources.RT_CHUNK, chunkMAC) {
+			err = dst.repositoryrw.PutBlob(resources.RT_CHUNK, chunkMAC, chunk)
 			if err != nil {
 				return objects.MAC{}, err
 			}
@@ -48,9 +48,9 @@ func persistObject(src, dst *Snapshot, object *objects.Object) (objects.MAC, err
 		return objects.MAC{}, err
 	}
 
-	mac := dst.Repository().ComputeMAC(serializedObject)
-	if !dst.repository.BlobExists(resources.RT_OBJECT, mac) {
-		err = dst.repository.PutBlob(resources.RT_OBJECT, mac, serializedObject)
+	mac := dst.repositoryrw.ComputeMAC(serializedObject)
+	if !dst.repositoryrw.BlobExists(resources.RT_OBJECT, mac) {
+		err = dst.repositoryrw.PutBlob(resources.RT_OBJECT, mac, serializedObject)
 		if err != nil {
 			return objects.MAC{}, err
 		}
@@ -74,12 +74,12 @@ func persistVFS(src *Snapshot, dst *Snapshot, fs *vfs.Filesystem, ctidx *btree.B
 		}
 
 		entryMAC := entry.MAC
-		if !dst.repository.BlobExists(resources.RT_VFS_ENTRY, entryMAC) {
+		if !dst.repositoryrw.BlobExists(resources.RT_VFS_ENTRY, entryMAC) {
 			serializedEntry, err := entry.ToBytes()
 			if err != nil {
 				return objects.MAC{}, err
 			}
-			err = dst.repository.PutBlob(resources.RT_VFS_ENTRY, entryMAC, serializedEntry)
+			err = dst.repositoryrw.PutBlob(resources.RT_VFS_ENTRY, entryMAC, serializedEntry)
 			if err != nil {
 				return objects.MAC{}, err
 			}
@@ -105,9 +105,9 @@ func persistErrors(src *Snapshot, dst *Snapshot) func(objects.MAC) (objects.MAC,
 			return objects.MAC{}, err
 		}
 
-		newmac := dst.Repository().ComputeMAC(data)
-		if !dst.repository.BlobExists(resources.RT_ERROR_ENTRY, newmac) {
-			err = dst.repository.PutBlob(resources.RT_ERROR_ENTRY, newmac, data)
+		newmac := dst.repositoryrw.ComputeMAC(data)
+		if !dst.repositoryrw.BlobExists(resources.RT_ERROR_ENTRY, newmac) {
+			err = dst.repositoryrw.PutBlob(resources.RT_ERROR_ENTRY, newmac, data)
 		}
 		return newmac, err
 	}
@@ -126,9 +126,9 @@ func persistXattrs(src *Snapshot, dst *Snapshot, fs *vfs.Filesystem) func(object
 			return objects.MAC{}, err
 		}
 
-		newmac := dst.Repository().ComputeMAC(serialized)
-		if !dst.repository.BlobExists(resources.RT_XATTR_ENTRY, newmac) {
-			err = dst.repository.PutBlob(resources.RT_XATTR_ENTRY, newmac, serialized)
+		newmac := dst.repositoryrw.ComputeMAC(serialized)
+		if !dst.repositoryrw.BlobExists(resources.RT_XATTR_ENTRY, newmac) {
+			err = dst.repositoryrw.PutBlob(resources.RT_XATTR_ENTRY, newmac, serialized)
 			if err != nil {
 				return objects.MAC{}, err
 			}
@@ -144,10 +144,10 @@ func (src *Snapshot) Synchronize(dst *Snapshot) error {
 			return err
 		}
 
-		newmac := dst.Repository().ComputeMAC(data)
+		newmac := dst.repositoryrw.ComputeMAC(data)
 		dst.Header.Identifier = newmac
-		if dst.repository.BlobExists(resources.RT_SIGNATURE, newmac) {
-			err = dst.repository.PutBlob(resources.RT_SIGNATURE, newmac, data)
+		if dst.repositoryrw.BlobExists(resources.RT_SIGNATURE, newmac) {
+			err = dst.repositoryrw.PutBlob(resources.RT_SIGNATURE, newmac, data)
 			if err != nil {
 				return err
 			}

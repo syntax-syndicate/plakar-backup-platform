@@ -115,7 +115,7 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 
 	wg := sync.WaitGroup{}
 	filesChannel := make(chan *importer.ScanRecord, 1000)
-	repoLocation := snap.repository.Location()
+	repoLocation := snap.repositoryrw.Location()
 
 	go func() {
 		startEvent := events.StartImporterEvent()
@@ -208,7 +208,7 @@ func (snap *Snapshot) flushDeltaState(bc *BackupContext) {
 		select {
 		case <-bc.flushEnd:
 			// End of backup we push the last and final State. No need to take any locks at this point.
-			err := snap.repository.CommitTransaction(bc.stateId)
+			err := snap.repositoryrw.CommitTransaction(bc.stateId)
 			if err != nil {
 				// XXX: ERROR HANDLING
 				snap.Logger().Warn("Failed to push the final state to the repository %s", err)
@@ -229,7 +229,7 @@ func (snap *Snapshot) flushDeltaState(bc *BackupContext) {
 			oldStateId := bc.stateId
 
 			identifier := objects.RandomMAC()
-			deltaCache, err := snap.repository.AppContext().GetCache().Scan(identifier)
+			deltaCache, err := snap.repositoryrw.AppContext().GetCache().Scan(identifier)
 			if err != nil {
 				// XXX: ERROR HANDLING
 				snap.deltaMtx.Unlock()
@@ -242,7 +242,7 @@ func (snap *Snapshot) flushDeltaState(bc *BackupContext) {
 
 			// Now that the backup is free to progress we can serialize and push
 			// the resulting statefile to the repo.
-			err = snap.repository.FlushTransaction(deltaCache, oldStateId)
+			err = snap.repositoryrw.FlushTransaction(deltaCache, oldStateId)
 			if err != nil {
 				// XXX: ERROR HANDLING
 				snap.Logger().Warn("Failed to push the state to the repository %s", err)
@@ -269,7 +269,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 	}
 	defer snap.Unlock(done)
 
-	vfsCache, err := snap.AppContext().GetCache().VFS(snap.repository.Configuration().RepositoryID, imp.Type(), imp.Origin())
+	vfsCache, err := snap.AppContext().GetCache().VFS(snap.repositoryrw.Configuration().RepositoryID, imp.Type(), imp.Origin())
 	if err != nil {
 		return err
 	}
@@ -381,7 +381,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				if err != nil {
 					snap.Logger().Warn("VFS CACHE: Error unmarshaling filename: %v", err)
 				} else {
-					cachedFileEntryMAC = snap.repository.ComputeMAC(data)
+					cachedFileEntryMAC = snap.repositoryrw.ComputeMAC(data)
 					if cachedFileEntry.Stat().Equal(&record.FileInfo) {
 						fileEntry = cachedFileEntry
 						if fileEntry.FileInfo.Mode().IsRegular() {
@@ -394,7 +394,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 									snap.Logger().Warn("VFS CACHE: Error unmarshaling object: %v", err)
 								} else {
 									object = cachedObject
-									objectMAC = snap.Repository().ComputeMAC(data)
+									objectMAC = snap.repositoryrw.ComputeMAC(data)
 									objectSerialized = data
 								}
 							}
@@ -404,7 +404,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 			}
 
 			if object != nil {
-				err = snap.repository.PutBlobIfNotExists(resources.RT_OBJECT, objectMAC, objectSerialized)
+				err = snap.repositoryrw.PutBlobIfNotExists(resources.RT_OBJECT, objectMAC, objectSerialized)
 				if err != nil {
 					backupCtx.recordError(record.Pathname, err)
 					return
@@ -413,7 +413,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 
 			// Chunkify the file if it is a regular file and we don't have a cached object
 			if record.FileInfo.Mode().IsRegular() {
-				if object == nil || !snap.repository.BlobExists(resources.RT_OBJECT, objectMAC) {
+				if object == nil || !snap.repositoryrw.BlobExists(resources.RT_OBJECT, objectMAC) {
 					object, err = snap.chunkify(imp, cf, record)
 					if err != nil {
 						backupCtx.recordError(record.Pathname, err)
@@ -424,13 +424,13 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
-					objectMAC = snap.repository.ComputeMAC(objectSerialized)
+					objectMAC = snap.repositoryrw.ComputeMAC(objectSerialized)
 					if err := vfsCache.PutObject(objectMAC, objectSerialized); err != nil {
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
 
-					err := snap.repository.PutBlob(resources.RT_OBJECT, objectMAC, objectSerialized)
+					err := snap.repositoryrw.PutBlob(resources.RT_OBJECT, objectMAC, objectSerialized)
 					if err != nil {
 						backupCtx.recordError(record.Pathname, err)
 						return
@@ -444,7 +444,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				return
 			}
 
-			if fileEntry == nil || !snap.repository.BlobExists(resources.RT_VFS_ENTRY, cachedFileEntryMAC) {
+			if fileEntry == nil || !snap.repositoryrw.BlobExists(resources.RT_VFS_ENTRY, cachedFileEntryMAC) {
 				fileEntry = vfs.NewEntry(path.Dir(record.Pathname), record)
 				if object != nil {
 					fileEntry.Object = objectMAC
@@ -461,8 +461,8 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 					return
 				}
 
-				fileEntryMAC := snap.repository.ComputeMAC(serialized)
-				err = snap.repository.PutBlob(resources.RT_VFS_ENTRY, fileEntryMAC, serialized)
+				fileEntryMAC := snap.repositoryrw.ComputeMAC(serialized)
+				err = snap.repositoryrw.PutBlob(resources.RT_VFS_ENTRY, fileEntryMAC, serialized)
 				if err != nil {
 					backupCtx.recordError(record.Pathname, err)
 					return
@@ -510,7 +510,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 					backupCtx.recordError(record.Pathname, err)
 					return
 				}
-				err = ctidx.Insert(k, snap.repository.ComputeMAC(bytes))
+				err = ctidx.Insert(k, snap.repositoryrw.ComputeMAC(bytes))
 				if err != nil {
 					backupCtx.recordError(record.Pathname, err)
 					return
@@ -665,8 +665,8 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 			return err
 		}
 
-		mac := snap.repository.ComputeMAC(serialized)
-		if err := snap.repository.PutBlobIfNotExists(resources.RT_VFS_ENTRY, mac, serialized); err != nil {
+		mac := snap.repositoryrw.ComputeMAC(serialized)
+		if err := snap.repositoryrw.PutBlobIfNotExists(resources.RT_VFS_ENTRY, mac, serialized); err != nil {
 			return err
 		}
 
@@ -684,7 +684,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 
 	rootcsum, err := persistIndex(snap, fileidx, resources.RT_VFS_BTREE,
 		resources.RT_VFS_NODE, func(data []byte) (objects.MAC, error) {
-			return snap.repository.ComputeMAC(data), nil
+			return snap.repositoryrw.ComputeMAC(data), nil
 		})
 	if err != nil {
 		return err
@@ -775,7 +775,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 	object := objects.NewObject()
 	object.ContentType = mime.TypeByExtension(path.Ext(record.Pathname))
 
-	objectHasher := snap.repository.GetMACHasher()
+	objectHasher := snap.repositoryrw.GetMACHasher()
 
 	var firstChunk = true
 	var cdcOffset uint64
@@ -788,7 +788,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 	// Helper function to process a chunk
 	processChunk := func(data []byte) error {
 		var chunk_t32 objects.MAC
-		chunkHasher := snap.repository.GetMACHasher()
+		chunkHasher := snap.repositoryrw.GetMACHasher()
 
 		if firstChunk {
 			if object.ContentType == "" {
@@ -819,7 +819,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 		totalEntropy += chunk.Entropy * float64(len(data))
 		totalDataSize += uint64(len(data))
 
-		return snap.repository.PutBlobIfNotExists(resources.RT_CHUNK, chunk.ContentMAC, data)
+		return snap.repositoryrw.PutBlobIfNotExists(resources.RT_CHUNK, chunk.ContentMAC, data)
 	}
 
 	if record.FileInfo.Size() == 0 {
@@ -827,7 +827,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 		if err := processChunk([]byte{}); err != nil {
 			return nil, err
 		}
-	} else if record.FileInfo.Size() < int64(snap.repository.Configuration().Chunking.MinSize) {
+	} else if record.FileInfo.Size() < int64(snap.repositoryrw.Configuration().Chunking.MinSize) {
 		// Small file case: read entire file into memory
 		buf, err := io.ReadAll(rd)
 		if err != nil {
@@ -838,7 +838,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 		}
 	} else {
 		// Large file case: chunk file with chunker
-		chk, err := snap.repository.Chunker(rd)
+		chk, err := snap.repositoryrw.Chunker(rd)
 		if err != nil {
 			return nil, err
 		}
@@ -886,17 +886,17 @@ func (snap *Snapshot) Commit(bc *BackupContext) error {
 	}
 
 	if kp := snap.AppContext().Keypair; kp != nil {
-		serializedHdrMAC := snap.repository.ComputeMAC(serializedHdr)
+		serializedHdrMAC := snap.repositoryrw.ComputeMAC(serializedHdr)
 		signature := kp.Sign(serializedHdrMAC[:])
-		if err := snap.repository.PutBlob(resources.RT_SIGNATURE, snap.Header.Identifier, signature); err != nil {
+		if err := snap.repositoryrw.PutBlob(resources.RT_SIGNATURE, snap.Header.Identifier, signature); err != nil {
 			return err
 		}
 	}
 
-	if err := snap.repository.PutBlob(resources.RT_SNAPSHOT, snap.Header.Identifier, serializedHdr); err != nil {
+	if err := snap.repositoryrw.PutBlob(resources.RT_SNAPSHOT, snap.Header.Identifier, serializedHdr); err != nil {
 		return err
 	}
-	snap.repository.PackerManager.Wait()
+	snap.repositoryrw.PackerManager.Wait()
 
 	// We are done with packfiles we can flush the last state, either through
 	// the flusher, or manually here.
@@ -905,14 +905,14 @@ func (snap *Snapshot) Commit(bc *BackupContext) error {
 		close(bc.flushEnd)
 		<-bc.flushEnded
 	} else {
-		err = snap.repository.CommitTransaction(snap.Header.Identifier)
+		err = snap.repositoryrw.CommitTransaction(snap.Header.Identifier)
 		if err != nil {
 			snap.Logger().Warn("Failed to push the state to the repository %s", err)
 			return err
 		}
 	}
 
-	cache, err := snap.AppContext().GetCache().Repository(snap.repository.Configuration().RepositoryID)
+	cache, err := snap.AppContext().GetCache().Repository(snap.repositoryrw.Configuration().RepositoryID)
 	if err == nil {
 		_ = cache.PutSnapshot(snap.Header.Identifier, serializedHdr)
 	}
