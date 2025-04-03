@@ -2,6 +2,7 @@ package api
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -474,13 +475,16 @@ func snapshotVFSSearch(w http.ResponseWriter, r *http.Request) error {
 		Items: []*vfs.Entry{},
 	}
 
-	it, err := snap.Search(&searchOpts)
+	it, err := snap.Search(r.Context(), &searchOpts)
 	if err != nil {
 		return err
 	}
 
 	for entry, err := range it {
 		if err != nil {
+			if err == context.Canceled {
+				return nil
+			}
 			return err
 		}
 
