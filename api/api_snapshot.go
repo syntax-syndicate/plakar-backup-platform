@@ -421,6 +421,10 @@ func snapshotVFSSearch(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
+	if len(r.URL.Query()["mime"]) > 20 {
+		return parameterError("mime", InvalidArgument, errors.New("too many mime types, you can only specify 20"))
+	}
+
 	if str := r.URL.Query().Get("pattern"); str != "" {
 		pattern = str
 	}
@@ -440,7 +444,7 @@ func snapshotVFSSearch(w http.ResponseWriter, r *http.Request) error {
 
 	searchOpts := snapshot.SearchOpts{
 		Recursive:  r.URL.Query().Get("recursive") == "true",
-		Mime:       r.URL.Query().Get("mime"),
+		Mimes:      r.URL.Query()["mime"],
 		Prefix:     path,
 		NameFilter: pattern,
 
