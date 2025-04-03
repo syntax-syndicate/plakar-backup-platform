@@ -1,6 +1,7 @@
 package snapshot
 
 import (
+	"context"
 	"iter"
 	"path"
 	"strings"
@@ -39,7 +40,7 @@ func matchmime(matches []string, target string) bool {
 	return false
 }
 
-func visitmimes(snap *Snapshot, opts *SearchOpts) (iter.Seq2[*vfs.Entry, error], error) {
+func visitmimes(ctx context.Context, snap *Snapshot, opts *SearchOpts) (iter.Seq2[*vfs.Entry, error], error) {
 	idx, err := snap.ContentTypeIdx()
 	if err != nil {
 		return nil, err
@@ -70,6 +71,11 @@ func visitmimes(snap *Snapshot, opts *SearchOpts) (iter.Seq2[*vfs.Entry, error],
 			}
 
 			for it.Next() {
+				if err := ctx.Err(); err != nil {
+					yield(nil, err)
+					return
+				}
+
 				p, mac := it.Current()
 
 				if !strings.HasPrefix(p, prefix) {
@@ -113,9 +119,9 @@ func visitmimes(snap *Snapshot, opts *SearchOpts) (iter.Seq2[*vfs.Entry, error],
 	}, nil
 }
 
-func visitfiles(snap *Snapshot, opts *SearchOpts) (iter.Seq2[*vfs.Entry, error], error) {
+func visitfiles(ctx context.Context, snap *Snapshot, opts *SearchOpts) (iter.Seq2[*vfs.Entry, error], error) {
 	if opts.Recursive && len(opts.Mimes) > 0 {
-		it, err := visitmimes(snap, opts)
+		it, err := visitmimes(ctx, snap, opts)
 		if it != nil || err != nil {
 			return it, err
 		}
@@ -140,6 +146,11 @@ func visitfiles(snap *Snapshot, opts *SearchOpts) (iter.Seq2[*vfs.Entry, error],
 	return func(yield func(*vfs.Entry, error) bool) {
 		for entry, err := range it {
 			if err != nil {
+				yield(nil, err)
+				return
+			}
+
+			if err := ctx.Err(); err != nil {
 				yield(nil, err)
 				return
 			}
@@ -176,7 +187,7 @@ func visitfiles(snap *Snapshot, opts *SearchOpts) (iter.Seq2[*vfs.Entry, error],
 	}, nil
 }
 
-func (snap *Snapshot) Search(opts *SearchOpts) (iter.Seq2[*vfs.Entry, error], error) {
+func (snap *Snapshot) Search(ctx context.Context, opts *SearchOpts) (iter.Seq2[*vfs.Entry, error], error) {
 	if opts.Prefix != "" {
 		opts.Prefix = path.Clean(opts.Prefix)
 		if !strings.HasSuffix(opts.Prefix, "/") {
@@ -184,7 +195,7 @@ func (snap *Snapshot) Search(opts *SearchOpts) (iter.Seq2[*vfs.Entry, error], er
 		}
 	}
 
-	it, err := visitfiles(snap, opts)
+	it, err := visitfiles(ctx, snap, opts)
 	if err != nil {
 		return nil, err
 	}
