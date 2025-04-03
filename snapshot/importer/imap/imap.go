@@ -116,7 +116,7 @@ func (p IMAPImporter) Scan() (<-chan *importer.ScanResult, error) {
 
 		for _, email := range emails {
 			filepath := strings.ReplaceAll(f, ".", "/")
-			pathname := fmt.Sprintf("%s/%d", filepath, email.UID)
+			pathname := fmt.Sprintf("/%s/%d", filepath, email.UID)
 			fileinfo := imapFileInfo(path.Base(pathname), int64(email.Size), email.Sent, false)
 			results <- importer.NewScanRecord(pathname, "", fileinfo, []string{})
 		}
@@ -155,11 +155,13 @@ func imapFileInfo(name string, size int64, t time.Time, isFolder bool) objects.F
 
 func (p IMAPImporter) NewReader(pathname string) (io.ReadCloser, error) {
 	parts := strings.Split(pathname, "/")
+	log.Printf("IMAPImporter.NewReader: %s", pathname)
 	imappath := ""
 	if len(parts) > 1 {
-		imappath = strings.Join(parts[:len(parts)-1], ".")
+		imappath = strings.Join(parts[1:len(parts)-1], ".")
 	}
 	mailuid := parts[len(parts)-1]
+	log.Printf("imappath: %s, mailuid: %s", imappath, mailuid)
 
 	p.client, _ = connectToIMAP(p.server, p.port, p.username, p.password)
 	defer p.client.Close()
