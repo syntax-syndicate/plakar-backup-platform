@@ -44,8 +44,6 @@ type Snapshot struct {
 	SkipDirs []string
 
 	Header *header.Header
-
-	packerManager *PackerManager
 }
 
 func Create(repo *repository.Repository) (*Snapshot, error) {
@@ -62,7 +60,6 @@ func Create(repo *repository.Repository) (*Snapshot, error) {
 
 		Header: header.NewHeader("default", identifier),
 	}
-	snap.packerManager = NewPackerManager(snap)
 
 	if snap.AppContext().Identity != uuid.Nil {
 		snap.Header.Identity.Identifier = snap.AppContext().Identity
@@ -81,7 +78,7 @@ func Create(repo *repository.Repository) (*Snapshot, error) {
 	snap.Header.SetContext("Client", snap.AppContext().Client)
 
 	repo.StartTransaction(scanCache)
-	go snap.packerManager.Run()
+	repo.StartPackerManager(snap.Header.Identifier)
 
 	repo.Logger().Trace("snapshot", "%x: New()", snap.Header.GetIndexShortID())
 	return snap, nil
@@ -114,8 +111,7 @@ func Clone(repo *repository.Repository, Identifier objects.MAC) (*Snapshot, erro
 	}
 
 	snap.Header.Identifier = repo.ComputeMAC(uuidBytes[:])
-	snap.packerManager = NewPackerManager(snap)
-	go snap.packerManager.Run()
+	repo.StartPackerManager(snap.Header.Identifier)
 
 	repo.Logger().Trace("snapshot", "%x: Clone(): %s", snap.Header.Identifier, snap.Header.GetIndexShortID())
 	return snap, nil
@@ -198,7 +194,7 @@ func (snap *Snapshot) Repository() *repository.Repository {
 }
 
 func (snap *Snapshot) LookupObject(mac objects.MAC) (*objects.Object, error) {
-	buffer, err := snap.GetBlob(resources.RT_OBJECT, mac)
+	buffer, err := snap.repository.GetBlobBytes(resources.RT_OBJECT, mac)
 	if err != nil {
 		return nil, err
 	}
