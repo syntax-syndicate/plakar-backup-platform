@@ -6,19 +6,57 @@ import (
 	"flag"
 	"io"
 	"log"
+	"math"
 	"os"
 
 	"github.com/PlakarKorp/plakar/compression"
 	"github.com/PlakarKorp/plakar/hashing"
+	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/plakar/packfile"
+	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/resources"
+	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/google/uuid"
 )
 
+// File format:
+// [0:8]: CONFIG LEN
+// [8:8+CONFIG_LEN]: CONFIG
+// [8+CONFIG_LEN:]: PACKFILE * N
+// STATE
+
+var currentOffset = uint64(0)
+var packfileIdx []packfile.Blob
+var packfileFooter packfile.PackFileFooter
+
+var packfileWriter io.Writer = nil
+
+func PutBlob(Type resources.Type, version versioning.Version, mac objects.MAC, data []byte, flags uint32) error {
+	_, err := packfileWriter.Write(data)
+	if err != nil {
+		return err
+	}
+
+	packfileIdx = append(packfileIdx, packfile.Blob{
+		Type:    Type,
+		Version: version,
+		MAC:     mac,
+		Offset:  currentOffset,
+		Length:  uint32(len(data)),
+		Flags:   flags,
+	})
+	currentOffset += uint64(len(data))
+
+	packfileFooter.Count++
+	packfileFooter.IndexOffset = currentOffset
+
+	return nil
+}
+
 func main() {
 	flag.Parse()
-
 	if flag.NArg() == 0 {
 		log.Fatal("No command specified")
 	}
@@ -34,6 +72,7 @@ func main() {
 	config.Compression = compression.NewDefaultConfiguration()
 	config.Hashing = *hashing.NewDefaultConfiguration()
 	config.Encryption = nil
+	config.Packfile.MaxSize = math.MaxUint64
 
 	serializedConfig, err := config.ToBytes()
 	if err != nil {
