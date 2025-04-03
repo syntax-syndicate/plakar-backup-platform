@@ -116,7 +116,7 @@ func (p IMAPImporter) Scan() (<-chan *importer.ScanResult, error) {
 
 		for _, email := range emails {
 			filepath := strings.ReplaceAll(f, ".", "/")
-			pathname := fmt.Sprintf(%s/%d", filepath, email.UID)
+			pathname := fmt.Sprintf("%s/%d", filepath, email.UID)
 			fileinfo := imapFileInfo(path.Base(pathname), int64(email.Size), email.Sent, false)
 			results <- importer.NewScanRecord(pathname, "", fileinfo, []string{})
 		}
