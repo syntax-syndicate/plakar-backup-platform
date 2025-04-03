@@ -1,6 +1,7 @@
 package diag
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -32,7 +33,7 @@ func (cmd *DiagSearch) Execute(ctx *appcontext.AppContext, repo *repository.Repo
 		Prefix:    pathname,
 		Mimes:     cmd.Mimes,
 	}
-	it, err := snap.Search(&opts)
+	it, err := snap.Search(context.Background(), &opts)
 	if err != nil {
 		return 1, err
 	}
