@@ -53,7 +53,7 @@ func NewIMAPImporter(config map[string]string) (importer.Importer, error) {
 		username:       config["username"],
 		password:       config["password"],
 		client:         client,
-		maxConcurrency: make(chan struct{}, 4),
+		maxConcurrency: make(chan struct{}, 1),
 	}, nil
 }
 
@@ -83,8 +83,11 @@ func connectToIMAP(server string, port int, username string, password string) (*
 
 func (p IMAPImporter) Scan() (<-chan *importer.ScanResult, error) {
 	//-------
+	p.maxConcurrency <- struct{}{}
+
 	folders, err := p.client.GetFolders()
-	if err != nil {
+	func() { <-p.maxConcurrency }()
+		if err != nil {
 		return nil, err
 	}
 
@@ -93,7 +96,9 @@ func (p IMAPImporter) Scan() (<-chan *importer.ScanResult, error) {
 
 	go func() {
 		for _, f := range folders {
+			p.maxConcurrency <- struct{}{}
 			err = p.client.SelectFolder(f)
+			func() { <-p.maxConcurrency }()
 
 			pathname := fmt.Sprintf("/%s", strings.ReplaceAll(f, ".", "/"))
 
@@ -102,13 +107,17 @@ func (p IMAPImporter) Scan() (<-chan *importer.ScanResult, error) {
 				continue
 			}
 
+			p.maxConcurrency <- struct{}{}
 			uids, err := p.client.GetUIDs("ALL")
+			func() { <-p.maxConcurrency }()
 			if err != nil {
 				results <- importer.NewScanError(pathname, err)
 				continue
 			}
 
+			p.maxConcurrency <- struct{}{}
 			emails, err := p.client.GetEmails(uids...)
+			func() { <-p.maxConcurrency }()
 			if err != nil {
 				results <- importer.NewScanError(pathname, err)
 				continue
@@ -161,13 +170,10 @@ func imapFileInfo(name string, size int64, t time.Time, isFolder bool) objects.F
 func (p IMAPImporter) NewReader(pathname string) (io.ReadCloser, error) {
 	//return nil, fmt.Errorf("IMAP does not support reading files")
 	p.maxConcurrency <- struct{}{}
-	defer func() { <-p.maxConcurrency }()
 
-	client, err := connectToIMAP(p.server, p.port, p.username, p.password) //not satisfied with connecting for every mails
-	if err != nil {
-		return nil, err
-	}
-	defer client.Close()
+	client := p.client
+
+	func() { <-p.maxConcurrency }()
 
 	parts := strings.Split(pathname, "/")
 	//log.Printf("IMAPImporter.NewReader: %s", pathname)
@@ -178,17 +184,24 @@ func (p IMAPImporter) NewReader(pathname string) (io.ReadCloser, error) {
 	mailuid := parts[len(parts)-1]
 	_ = imappath
 
-	err = client.SelectFolder(imappath)
+	p.maxConcurrency <- struct{}{}
+
+	err := client.SelectFolder(imappath)
+	func() { <-p.maxConcurrency }()
 	if err != nil {
 		return nil, err
 	}
+
 
 	uid, err := strconv.Atoi(mailuid)
 	if err != nil {
 		return nil, err
 	}
+	p.maxConcurrency <- struct{}{}
 
 	email, err := client.GetEmails(uid)
+
+	func() { <-p.maxConcurrency }()
 	if err != nil {
 		return nil, err
 	}
