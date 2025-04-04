@@ -63,7 +63,7 @@ func parse_cmd_backup(ctx *appcontext.AppContext, args []string) (subcommands.Su
 	flags := flag.NewFlagSet("backup", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] path\n", flags.Name())
-		fmt.Fprintf(flags.Output(), "       %s [OPTIONS] s3://path\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s [OPTIONS] @LOCATION\n", flags.Name())
 		fmt.Fprintf(flags.Output(), "\nOPTIONS:\n")
 		flags.PrintDefaults()
 	}
