@@ -78,7 +78,6 @@ func connectToIMAP(server string, port int, username string, password string) (*
 		return nil, err
 	}
 
-	//log.Printf("Connected to IMAP server %s", server)
 	return c, nil
 }
 
@@ -169,15 +168,11 @@ func imapFileInfo(name string, size int64, t time.Time, isFolder bool) objects.F
 }
 
 func (p IMAPImporter) NewReader(pathname string) (io.ReadCloser, error) {
-	//return nil, fmt.Errorf("IMAP does not support reading files")
 	p.maxConcurrency <- struct{}{}
-
 	client := p.client
-
 	func() { <-p.maxConcurrency }()
 
 	parts := strings.Split(pathname, "/")
-	//log.Printf("IMAPImporter.NewReader: %s", pathname)
 	imappath := ""
 	if len(parts) > 1 {
 		imappath = strings.Join(parts[1:len(parts)-1], ".")
@@ -186,9 +181,9 @@ func (p IMAPImporter) NewReader(pathname string) (io.ReadCloser, error) {
 	_ = imappath
 
 	p.maxConcurrency <- struct{}{}
-
 	err := client.SelectFolder(imappath)
 	func() { <-p.maxConcurrency }()
+
 	if err != nil {
 		return nil, err
 	}
@@ -197,11 +192,11 @@ func (p IMAPImporter) NewReader(pathname string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	p.maxConcurrency <- struct{}{}
-
 	emails, err := client.GetEmails(uid)
-
 	func() { <-p.maxConcurrency }()
+
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +210,6 @@ func (p IMAPImporter) NewReader(pathname string) (io.ReadCloser, error) {
 			return nil, err
 		}
 		scontent := fmt.Sprintf("%s", content)
-		log.Println(scontent)
 		reader := strings.NewReader(scontent)
 		return io.NopCloser(reader), nil
 	}
