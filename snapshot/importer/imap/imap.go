@@ -2,7 +2,6 @@ package imap
 
 import (
 	"fmt"
-	"github.com/PlakarKorp/plakar/objects"
 	"io"
 	"log"
 	"net/url"
@@ -11,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/PlakarKorp/plakar/objects"
 
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 
@@ -23,6 +24,8 @@ type IMAPImporter struct {
 	username string
 	password string
 	client   *imap.Dialer
+
+	maxConcurrency chan struct{}
 }
 
 func init() {
@@ -39,12 +42,18 @@ func NewIMAPImporter(config map[string]string) (importer.Importer, error) {
 		return nil, fmt.Errorf("invalid location: %w", err)
 	}
 
+	client, err := connectToIMAP(parsedURL.Hostname(), port, config["username"], config["password"])
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to IMAP server: %w", err)
+	}
+
 	return &IMAPImporter{
-		server:   parsedURL.Hostname(),
-		port:     port,
-		username: config["username"],
-		password: config["password"],
-		client:   nil,
+		server:         parsedURL.Hostname(),
+		port:           port,
+		username:       config["username"],
+		password:       config["password"],
+		client:         client,
+		maxConcurrency: make(chan struct{}, 4),
 	}, nil
 }
 
@@ -57,7 +66,7 @@ func (p IMAPImporter) Type() string {
 }
 
 func (p IMAPImporter) Root() string {
-	return p.server
+	return "/"
 }
 
 func connectToIMAP(server string, port int, username string, password string) (*imap.Dialer, error) {
@@ -68,59 +77,55 @@ func connectToIMAP(server string, port int, username string, password string) (*
 		return nil, err
 	}
 
-	log.Printf("Connected to IMAP server %s", server)
+	//log.Printf("Connected to IMAP server %s", server)
 	return c, nil
 }
 
 func (p IMAPImporter) Scan() (<-chan *importer.ScanResult, error) {
-	c, err := connectToIMAP(p.server, p.port, p.username, p.password)
+	//-------
+	folders, err := p.client.GetFolders()
 	if err != nil {
 		return nil, err
 	}
-	p.client = c
 
 	results := make(chan *importer.ScanResult, 1000)
-	//-------
-	folders, err := c.GetFolders()
-	if err != nil {
-		results <- importer.NewScanError("/.", err)
-		return nil, err
-	}
+	results <- importer.NewScanRecord("/", "", imapFileInfo("/", 4096, time.Now(), true), []string{})
 
-	results <- importer.NewScanRecord("/.", "", imapFileInfo("/", 4096, time.Now(), true), []string{})
+	go func() {
+		for _, f := range folders {
+			err = p.client.SelectFolder(f)
 
-	for _, f := range folders {
-		err = c.SelectFolder(f)
+			pathname := fmt.Sprintf("/%s", strings.ReplaceAll(f, ".", "/"))
 
-		pathname := fmt.Sprintf("/%s", strings.ReplaceAll(f, ".", "/"))
+			if err != nil {
+				results <- importer.NewScanError(pathname, err)
+				continue
+			}
 
-		if err != nil {
-			results <- importer.NewScanError(pathname, err)
-			continue
-		}
+			uids, err := p.client.GetUIDs("ALL")
+			if err != nil {
+				results <- importer.NewScanError(pathname, err)
+				continue
+			}
 
-		uids, err := c.GetUIDs("ALL")
-		if err != nil {
-			results <- importer.NewScanError(pathname, err)
-			continue
-		}
+			emails, err := p.client.GetEmails(uids...)
+			if err != nil {
+				results <- importer.NewScanError(pathname, err)
+				continue
+			}
 
-		emails, err := c.GetEmails(uids...)
-		if err != nil {
-			results <- importer.NewScanError(pathname, err)
-			continue
-		}
-
-		fileinfo := imapFileInfo(path.Base(pathname), 4096, time.Now(), true)
-		results <- importer.NewScanRecord(pathname, "", fileinfo, []string{})
-
-		for _, email := range emails {
-			filepath := strings.ReplaceAll(f, ".", "/")
-			pathname := fmt.Sprintf("/%s/%d", filepath, email.UID)
-			fileinfo := imapFileInfo(path.Base(pathname), int64(email.Size), email.Sent, false)
+			fileinfo := imapFileInfo(path.Base(pathname), 4096, time.Now(), true)
 			results <- importer.NewScanRecord(pathname, "", fileinfo, []string{})
+
+			for _, email := range emails {
+				filepath := strings.ReplaceAll(f, ".", "/")
+				pathname := fmt.Sprintf("/%s/%d", filepath, email.UID)
+				fileinfo := imapFileInfo(path.Base(pathname), int64(email.Size), email.Sent, false)
+				results <- importer.NewScanRecord(pathname, "", fileinfo, []string{})
+			}
 		}
-	}
+		close(results)
+	}()
 
 	return results, nil
 }
@@ -154,17 +159,26 @@ func imapFileInfo(name string, size int64, t time.Time, isFolder bool) objects.F
 }
 
 func (p IMAPImporter) NewReader(pathname string) (io.ReadCloser, error) {
+	//return nil, fmt.Errorf("IMAP does not support reading files")
+	p.maxConcurrency <- struct{}{}
+	defer func() { <-p.maxConcurrency }()
+
+	client, err := connectToIMAP(p.server, p.port, p.username, p.password) //not satisfied with connecting for every mails
+	if err != nil {
+		return nil, err
+	}
+	defer client.Close()
+
 	parts := strings.Split(pathname, "/")
-	log.Printf("IMAPImporter.NewReader: %s", pathname)
+	//log.Printf("IMAPImporter.NewReader: %s", pathname)
 	imappath := ""
 	if len(parts) > 1 {
 		imappath = strings.Join(parts[1:len(parts)-1], ".")
 	}
 	mailuid := parts[len(parts)-1]
+	_ = imappath
 
-	p.client, _ = connectToIMAP(p.server, p.port, p.username, p.password) //not satisfied with connecting for every mails
-	defer p.client.Close()
-	err := p.client.SelectFolder(imappath)
+	err = client.SelectFolder(imappath)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +188,7 @@ func (p IMAPImporter) NewReader(pathname string) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	email, err := p.client.GetEmails(uid)
+	email, err := client.GetEmails(uid)
 	if err != nil {
 		return nil, err
 	}
@@ -185,6 +199,7 @@ func (p IMAPImporter) NewReader(pathname string) (io.ReadCloser, error) {
 	content := fmt.Sprintf("%v", email)
 	reader := strings.NewReader(content)
 	return io.NopCloser(reader), nil
+
 }
 
 func (p IMAPImporter) NewExtendedAttributeReader(s string, s2 string) (io.ReadCloser, error) {
@@ -196,5 +211,6 @@ func (p IMAPImporter) GetExtendedAttributes(s string) ([]importer.ExtendedAttrib
 }
 
 func (p IMAPImporter) Close() error {
+	log.Printf("Disconnected to IMAP server")
 	return p.client.Close()
 }
