@@ -1,7 +1,6 @@
 package btree
 
 import (
-	"errors"
 	"io"
 	"slices"
 	"sync"
@@ -9,10 +8,6 @@ import (
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/vmihailenco/msgpack/v5"
-)
-
-var (
-	ErrExists = errors.New("Item already exists")
 )
 
 const BTREE_VERSION = "1.0.0"
@@ -33,6 +28,17 @@ type Storer[K any, P comparable, V any] interface {
 	Put(*Node[K, P, V]) (P, error)
 }
 
+type OpCode int
+const (
+	OpAdd OpCode = iota
+)
+
+type Op[K, V any] struct {
+	Opcode OpCode
+	Key K
+	Val V
+}
+
 type Node[K any, P comparable, V any] struct {
 	Version versioning.Version `msgpack:"version"`
 
@@ -47,6 +53,9 @@ type Node[K any, P comparable, V any] struct {
 	Values   []V `msgpack:"values"`
 	Prev     *P  `msgpack:"prev,omitempty"` // unused for now
 	Next     *P  `msgpack:"next,omitempty"`
+
+	// invariant: len(Ops) < order
+	Ops []Op[K, V]
 }
 
 // BTree implements a B+tree.  K is the type for the key, V for the
@@ -209,7 +218,7 @@ func (n *Node[K, P, V]) split() (new *Node[K, P, V]) {
 	return new
 }
 
-func (b *BTree[K, P, V]) insert(key K, val V, overwrite bool) error {
+func (b *BTree[K, P, V]) insert(key K, val V) error {
 	node, path, err := b.findleaf(key)
 	if err != nil {
 		return err
@@ -220,11 +229,8 @@ func (b *BTree[K, P, V]) insert(key K, val V, overwrite bool) error {
 
 	idx, found := b.findsplit(key, node)
 	if found {
-		if overwrite {
-			node.Values[idx] = val
-			return b.cache.Update(ptr, node)
-		}
-		return ErrExists
+		node.Values[idx] = val
+		return b.cache.Update(ptr, node)
 	}
 
 	b.Count++
@@ -253,14 +259,7 @@ func (b *BTree[K, P, V]) Insert(key K, val V) error {
 	b.rwlock.Lock()
 	defer b.rwlock.Unlock()
 
-	return b.insert(key, val, false)
-}
-
-func (b *BTree[K, P, V]) Update(key K, val V) error {
-	b.rwlock.Lock()
-	defer b.rwlock.Unlock()
-
-	return b.insert(key, val, true)
+	return b.insert(key, val)
 }
 
 func (b *BTree[K, P, V]) insertUpwards(key K, ptr P, path []P) error {

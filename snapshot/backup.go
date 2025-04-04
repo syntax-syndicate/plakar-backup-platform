@@ -601,7 +601,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 
 			childPath := prefix + relpath
 
-			if err := fileidx.Insert(childPath, dupBytes); err != nil && err != btree.ErrExists {
+			if err := fileidx.Insert(childPath, dupBytes); err != nil {
 				return err
 			}
 
@@ -695,7 +695,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 			return err
 		}
 
-		if err := fileidx.Insert(dirPath, serialized); err != nil && err != btree.ErrExists {
+		if err := fileidx.Insert(dirPath, serialized); err != nil {
 			return err
 		}
 

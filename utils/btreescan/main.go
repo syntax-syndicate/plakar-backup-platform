@@ -140,7 +140,7 @@ func main() {
 			continue
 		case record.Record != nil:
 			path := record.Record.Pathname
-			if err := idx.Insert(path, empty{}); err != nil && err != btree.ErrExists {
+			if err := idx.Insert(path, empty{}); err != nil {
 				log.Fatalf("failed to insert %s: %v", path, err)
 			}
 			items++
