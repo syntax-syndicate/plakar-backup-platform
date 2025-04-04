@@ -1,6 +1,7 @@
 package imap
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -87,7 +88,7 @@ func (p IMAPImporter) Scan() (<-chan *importer.ScanResult, error) {
 
 	folders, err := p.client.GetFolders()
 	func() { <-p.maxConcurrency }()
-		if err != nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -192,27 +193,33 @@ func (p IMAPImporter) NewReader(pathname string) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-
 	uid, err := strconv.Atoi(mailuid)
 	if err != nil {
 		return nil, err
 	}
 	p.maxConcurrency <- struct{}{}
 
-	email, err := client.GetEmails(uid)
+	emails, err := client.GetEmails(uid)
 
 	func() { <-p.maxConcurrency }()
 	if err != nil {
 		return nil, err
 	}
-	if len(email) != 1 {
-		return nil, fmt.Errorf("email not found")
+
+	for _, email := range emails {
+		content, err := json.MarshalIndent(email, "", "  ")
+		if content == nil {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		scontent := fmt.Sprintf("%s", content)
+		log.Println(scontent)
+		reader := strings.NewReader(scontent)
+		return io.NopCloser(reader), nil
 	}
-
-	content := fmt.Sprintf("%v", email)
-	reader := strings.NewReader(content)
-	return io.NopCloser(reader), nil
-
+	return nil, fmt.Errorf("no email found with UID %s", mailuid)
 }
 
 func (p IMAPImporter) NewExtendedAttributeReader(s string, s2 string) (io.ReadCloser, error) {
