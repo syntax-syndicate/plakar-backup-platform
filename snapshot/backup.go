@@ -49,6 +49,7 @@ type BackupOptions struct {
 	Name           string
 	Tags           []string
 	Excludes       []glob.Glob
+	NoCheckpoint   bool
 }
 
 func (bc *BackupContext) recordEntry(entry *vfs.Entry) error {
@@ -286,7 +287,12 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	if err != nil {
 		return err
 	}
-	go snap.flushDeltaState(backupCtx)
+
+	/* checkpoint handling */
+	if !options.NoCheckpoint {
+		backupCtx.flushTick = time.NewTicker(1 * time.Hour)
+		go snap.flushDeltaState(backupCtx)
+	}
 
 	/* importer */
 	filesChannel, err := snap.importerJob(backupCtx, options)
@@ -469,7 +475,7 @@ func (snap *Builder) Commit(bc *BackupContext) error {
 
 	// If we end up in here without a BackupContext we come from Sync and we
 	// can't rely on the flusher
-	if bc != nil {
+	if bc != nil && bc.flushTick != nil {
 		bc.flushTick.Stop()
 	}
 
@@ -493,7 +499,7 @@ func (snap *Builder) Commit(bc *BackupContext) error {
 
 	// We are done with packfiles we can flush the last state, either through
 	// the flusher, or manually here.
-	if bc != nil {
+	if bc != nil && bc.flushTick != nil {
 		bc.flushEnd <- true
 		close(bc.flushEnd)
 		<-bc.flushEnded
@@ -531,7 +537,6 @@ func (snap *Builder) prepareBackup(imp importer.Importer, backupOpts *BackupOpti
 		maxConcurrency: maxConcurrency,
 		scanCache:      snap.scanCache,
 		vfsCache:       vfsCache,
-		flushTick:      time.NewTicker(1 * time.Hour),
 		flushEnd:       make(chan bool),
 		flushEnded:     make(chan bool),
 		stateId:        snap.Header.Identifier,
