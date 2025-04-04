@@ -83,11 +83,11 @@ func (p IMAPImporter) Scan() (<-chan *importer.ScanResult, error) {
 	//-------
 	folders, err := c.GetFolders()
 	if err != nil {
-		results <- importer.NewScanError("/", err)
+		results <- importer.NewScanError("/.", err)
 		return nil, err
 	}
 
-	results <- importer.NewScanRecord("/", "", imapFileInfo("/", 4096, time.Now(), true), []string{})
+	results <- importer.NewScanRecord("/.", "", imapFileInfo("/", 4096, time.Now(), true), []string{})
 
 	for _, f := range folders {
 		err = c.SelectFolder(f)
@@ -128,7 +128,7 @@ func (p IMAPImporter) Scan() (<-chan *importer.ScanResult, error) {
 func imapFileInfo(name string, size int64, t time.Time, isFolder bool) objects.FileInfo {
 	mode := os.FileMode(0)
 	if isFolder {
-		mode = os.ModeDir
+		mode = os.ModeDir | 0644
 	} else {
 		mode = os.FileMode(0644)
 	}
@@ -161,9 +161,8 @@ func (p IMAPImporter) NewReader(pathname string) (io.ReadCloser, error) {
 		imappath = strings.Join(parts[1:len(parts)-1], ".")
 	}
 	mailuid := parts[len(parts)-1]
-	log.Printf("imappath: %s, mailuid: %s", imappath, mailuid)
 
-	p.client, _ = connectToIMAP(p.server, p.port, p.username, p.password)
+	p.client, _ = connectToIMAP(p.server, p.port, p.username, p.password) //not satisfied with connecting for every mails
 	defer p.client.Close()
 	err := p.client.SelectFolder(imappath)
 	if err != nil {
@@ -189,11 +188,11 @@ func (p IMAPImporter) NewReader(pathname string) (io.ReadCloser, error) {
 }
 
 func (p IMAPImporter) NewExtendedAttributeReader(s string, s2 string) (io.ReadCloser, error) {
-	return nil, fmt.Errorf("IMAPImporter.NewExtendedAttributeReader not implemented")
+	return nil, fmt.Errorf("extended attributes are not supported on IMAP")
 }
 
 func (p IMAPImporter) GetExtendedAttributes(s string) ([]importer.ExtendedAttributes, error) {
-	return nil, fmt.Errorf("IMAPImporter.GetExtendedAttributes not implemented")
+	return nil, fmt.Errorf("extended attributes are not supported on IMAP")
 }
 
 func (p IMAPImporter) Close() error {
