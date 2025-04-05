@@ -44,6 +44,9 @@ type Repository struct {
 	configuration storage.Configuration
 
 	appContext *appcontext.AppContext
+
+	wBytes int64
+	rBytes int64
 }
 
 func Inexistent(ctx *appcontext.AppContext, storeConfig map[string]string) (*Repository, error) {
@@ -234,6 +237,14 @@ func (r *Repository) Store() storage.Store {
 	return r.store
 }
 
+func (r *Repository) RBytes() int64 {
+	return r.rBytes
+}
+
+func (r *Repository) WBytes() int64 {
+	return r.wBytes
+}
+
 func (r *Repository) Close() error {
 	t0 := time.Now()
 	defer func() {
@@ -410,7 +421,7 @@ func (r *Repository) DeleteSnapshot(snapshotID objects.MAC) error {
 	}
 
 	mac := r.ComputeMAC(buffer.Bytes())
-	if _, err := r.PutState(mac, buffer); err != nil {
+	if err := r.PutState(mac, buffer); err != nil {
 		return err
 	}
 
@@ -449,7 +460,7 @@ func (r *Repository) GetState(mac objects.MAC) (versioning.Version, io.Reader, e
 	return version, rd, err
 }
 
-func (r *Repository) PutState(mac objects.MAC, rd io.Reader) (int64, error) {
+func (r *Repository) PutState(mac objects.MAC, rd io.Reader) error {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "PutState(%x, ...): %s", mac, time.Since(t0))
@@ -457,15 +468,17 @@ func (r *Repository) PutState(mac objects.MAC, rd io.Reader) (int64, error) {
 
 	rd, err := r.Encode(rd)
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	rd, err = storage.Serialize(r.GetMACHasher(), resources.RT_STATE, versioning.GetCurrentVersion(resources.RT_STATE), rd)
 	if err != nil {
-		return 0, err
+		return err
 	}
 
-	return r.store.PutState(mac, rd)
+	nbytes, err := r.store.PutState(mac, rd)
+	r.wBytes += nbytes
+	return err
 }
 
 func (r *Repository) DeleteState(mac objects.MAC) error {
@@ -633,7 +646,7 @@ func (r *Repository) GetPackfileBlob(loc state.Location) (io.ReadSeeker, error) 
 	return bytes.NewReader(decoded), nil
 }
 
-func (r *Repository) PutPackfile(mac objects.MAC, rd io.Reader) (int64, error) {
+func (r *Repository) PutPackfile(mac objects.MAC, rd io.Reader) error {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "PutPackfile(%x, ...): %s", mac, time.Since(t0))
@@ -641,9 +654,12 @@ func (r *Repository) PutPackfile(mac objects.MAC, rd io.Reader) (int64, error) {
 
 	rd, err := storage.Serialize(r.GetMACHasher(), resources.RT_PACKFILE, versioning.GetCurrentVersion(resources.RT_PACKFILE), rd)
 	if err != nil {
-		return 0, err
+		return err
 	}
-	return r.store.PutPackfile(mac, rd)
+
+	nbytes, err := r.store.PutPackfile(mac, rd)
+	r.wBytes += nbytes
+	return err
 }
 
 // Deletes a packfile from the store. Warning this is a true delete and is unrecoverable.
@@ -755,6 +771,8 @@ func (r *Repository) GetBlob(Type resources.Type, mac objects.MAC) (io.ReadSeeke
 		return nil, err
 	}
 
+	r.rBytes += int64(loc.Length)
+
 	return rd, nil
 }
 
@@ -826,7 +844,7 @@ func (r *Repository) ListPackfiles() iter.Seq[objects.MAC] {
 
 // Saves the full aggregated state to the repository, might be heavy handed use
 // with care.
-func (r *Repository) PutCurrentState() (int64, error) {
+func (r *Repository) PutCurrentState() error {
 	pr, pw := io.Pipe()
 
 	/* By using a pipe and a goroutine we bound the max size in memory. */

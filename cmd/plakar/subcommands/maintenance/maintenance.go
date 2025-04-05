@@ -216,7 +216,7 @@ func (cmd *Maintenance) colourPass(ctx *appcontext.AppContext, cache *caching.Ma
 			return err
 		}
 
-		if _, err := cmd.repository.PutState(cmd.maintenanceID, buf); err != nil {
+		if err := cmd.repository.PutState(cmd.maintenanceID, buf); err != nil {
 			return err
 		}
 	}
@@ -273,7 +273,7 @@ func (cmd *Maintenance) sweepPass(ctx *appcontext.AppContext, cache *caching.Mai
 	fmt.Fprintf(ctx.Stdout, "maintenance: %d blobs and %d packfiles were removed\n", blobRemoved, len(toDelete))
 
 	if len(toDelete) > 0 {
-		if _, err := cmd.repository.PutCurrentState(); err != nil {
+		if err := cmd.repository.PutCurrentState(); err != nil {
 			return err
 		}
 	}
