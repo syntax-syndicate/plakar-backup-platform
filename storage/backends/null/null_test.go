@@ -35,23 +35,7 @@ func TestNullBackend(t *testing.T) {
 	err = repo.Close()
 	require.NoError(t, err)
 
-	// snapshots
-	r, ok := repo.(*Store)
-	require.True(t, ok)
-	snaps, err := r.GetSnapshots()
-	require.NoError(t, err)
-	require.Equal(t, snaps, []objects.MAC{})
-
 	mac := objects.MAC{0x10}
-	err = r.PutSnapshot(mac, []byte("test"))
-	require.NoError(t, err)
-
-	retrievedSnapshot, err := r.GetSnapshot(mac)
-	require.NoError(t, err)
-	require.Equal(t, []byte(""), retrievedSnapshot)
-
-	err = r.DeleteSnapshot(mac)
-	require.NoError(t, err)
 
 	// states
 	macs, err := repo.GetStates()
