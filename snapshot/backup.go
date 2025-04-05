@@ -211,7 +211,7 @@ func (snap *Snapshot) flushDeltaState(bc *BackupContext) {
 		case <-bc.flushEnd:
 			// End of backup we push the last and final State. No need to take any locks at this point.
 			stateDeltaStream := buildSerializedDeltaState(snap.deltaState)
-			err := snap.repository.PutState(bc.stateId, stateDeltaStream)
+			_, err := snap.repository.PutState(bc.stateId, stateDeltaStream)
 			if err != nil {
 				// XXX: ERROR HANDLING
 				snap.Logger().Warn("Failed to push the final state to the repository %s", err)
@@ -259,7 +259,7 @@ func (snap *Snapshot) flushDeltaState(bc *BackupContext) {
 			// Now that the backup is free to progress we can serialize and push
 			// the resulting statefile to the repo.
 			stateDeltaStream := buildSerializedDeltaState(oldState)
-			err = snap.repository.PutState(oldStateId, stateDeltaStream)
+			_, err = snap.repository.PutState(oldStateId, stateDeltaStream)
 			if err != nil {
 				// XXX: ERROR HANDLING
 				snap.Logger().Warn("Failed to push the state to the repository %s", err)
@@ -933,7 +933,7 @@ func (snap *Snapshot) PutPackfile(packer *Packer) error {
 	mac := snap.repository.ComputeMAC(serializedPackfile)
 
 	repo.Logger().Trace("snapshot", "%x: PutPackfile(%x, ...)", snap.Header.GetIndexShortID(), mac)
-	err = snap.repository.PutPackfile(mac, bytes.NewBuffer(serializedPackfile))
+	_, err = snap.repository.PutPackfile(mac, bytes.NewBuffer(serializedPackfile))
 	if err != nil {
 		return fmt.Errorf("could not write pack file %s", err.Error())
 	}
@@ -1014,7 +1014,7 @@ func (snap *Snapshot) Commit(bc *BackupContext) error {
 		<-bc.flushEnded
 	} else {
 		stateDelta := buildSerializedDeltaState(snap.deltaState)
-		err = snap.repository.PutState(snap.Header.Identifier, stateDelta)
+		_, err = snap.repository.PutState(snap.Header.Identifier, stateDelta)
 		if err != nil {
 			snap.Logger().Warn("Failed to push the state to the repository %s", err)
 			return err

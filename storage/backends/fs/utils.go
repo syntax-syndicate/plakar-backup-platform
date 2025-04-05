@@ -82,32 +82,33 @@ func ClosingLimitedReaderFromOffset(file *os.File, offset, length int64) (io.Rea
 	}, nil
 }
 
-func WriteToFileAtomic(filename string, rd io.Reader) error {
+func WriteToFileAtomic(filename string, rd io.Reader) (int64, error) {
 	return WriteToFileAtomicTempDir(filename, rd, filepath.Dir(filename))
 }
 
-func WriteToFileAtomicTempDir(filename string, rd io.Reader, tmpdir string) error {
+func WriteToFileAtomicTempDir(filename string, rd io.Reader, tmpdir string) (int64, error) {
 	f, err := os.CreateTemp(tmpdir, "tmp.")
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	if _, err := io.Copy(f, rd); err != nil {
+	var nbytes int64
+	if nbytes, err = io.Copy(f, rd); err != nil {
 		f.Close()
 		os.Remove(f.Name())
-		return err
+		return 0, err
 	}
 
 	if err = f.Close(); err != nil {
 		os.Remove(f.Name())
-		return err
+		return 0, err
 	}
 
 	err = os.Rename(f.Name(), filename)
 	if err != nil {
 		os.Remove(f.Name())
-		return err
+		return 0, err
 	}
 
-	return nil
+	return nbytes, nil
 }

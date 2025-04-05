@@ -58,7 +58,7 @@ func TestNullBackend(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, macs, []objects.MAC{})
 
-	err = repo.PutState(mac, bytes.NewReader([]byte("test")))
+	_, err = repo.PutState(mac, bytes.NewReader([]byte("test")))
 	require.NoError(t, err)
 
 	rd, err := repo.GetState(mac)
@@ -76,7 +76,7 @@ func TestNullBackend(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, macs, []objects.MAC{})
 
-	err = repo.PutPackfile(mac, bytes.NewReader([]byte("test")))
+	_, err = repo.PutPackfile(mac, bytes.NewReader([]byte("test")))
 	require.NoError(t, err)
 
 	rd, err = repo.GetPackfile(mac)

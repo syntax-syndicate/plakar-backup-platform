@@ -410,7 +410,7 @@ func (r *Repository) DeleteSnapshot(snapshotID objects.MAC) error {
 	}
 
 	mac := r.ComputeMAC(buffer.Bytes())
-	if err := r.PutState(mac, buffer); err != nil {
+	if _, err := r.PutState(mac, buffer); err != nil {
 		return err
 	}
 
@@ -449,7 +449,7 @@ func (r *Repository) GetState(mac objects.MAC) (versioning.Version, io.Reader, e
 	return version, rd, err
 }
 
-func (r *Repository) PutState(mac objects.MAC, rd io.Reader) error {
+func (r *Repository) PutState(mac objects.MAC, rd io.Reader) (int64, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "PutState(%x, ...): %s", mac, time.Since(t0))
@@ -457,12 +457,12 @@ func (r *Repository) PutState(mac objects.MAC, rd io.Reader) error {
 
 	rd, err := r.Encode(rd)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	rd, err = storage.Serialize(r.GetMACHasher(), resources.RT_STATE, versioning.GetCurrentVersion(resources.RT_STATE), rd)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	return r.store.PutState(mac, rd)
@@ -633,7 +633,7 @@ func (r *Repository) GetPackfileBlob(loc state.Location) (io.ReadSeeker, error) 
 	return bytes.NewReader(decoded), nil
 }
 
-func (r *Repository) PutPackfile(mac objects.MAC, rd io.Reader) error {
+func (r *Repository) PutPackfile(mac objects.MAC, rd io.Reader) (int64, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "PutPackfile(%x, ...): %s", mac, time.Since(t0))
@@ -641,7 +641,7 @@ func (r *Repository) PutPackfile(mac objects.MAC, rd io.Reader) error {
 
 	rd, err := storage.Serialize(r.GetMACHasher(), resources.RT_PACKFILE, versioning.GetCurrentVersion(resources.RT_PACKFILE), rd)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	return r.store.PutPackfile(mac, rd)
 }
@@ -826,7 +826,7 @@ func (r *Repository) ListPackfiles() iter.Seq[objects.MAC] {
 
 // Saves the full aggregated state to the repository, might be heavy handed use
 // with care.
-func (r *Repository) PutCurrentState() error {
+func (r *Repository) PutCurrentState() (int64, error) {
 	pr, pw := io.Pipe()
 
 	/* By using a pipe and a goroutine we bound the max size in memory. */
@@ -881,7 +881,7 @@ func (r *Repository) GetLock(lockID objects.MAC) (versioning.Version, io.Reader,
 	return version, rd, err
 }
 
-func (r *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
+func (r *Repository) PutLock(lockID objects.MAC, rd io.Reader) (int64, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "PutLock(%x, ...): %s", lockID, time.Since(t0))
@@ -889,12 +889,12 @@ func (r *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
 
 	rd, err := r.Encode(rd)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	rd, err = storage.Serialize(r.GetMACHasher(), resources.RT_LOCK, versioning.GetCurrentVersion(resources.RT_LOCK), rd)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	return r.store.PutLock(lockID, rd)
