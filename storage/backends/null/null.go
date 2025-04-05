@@ -61,23 +61,6 @@ func (s *Store) Mode() storage.Mode {
 	return storage.ModeRead | storage.ModeWrite
 }
 
-// snapshots
-func (s *Store) GetSnapshots() ([]objects.MAC, error) {
-	return []objects.MAC{}, nil
-}
-
-func (s *Store) PutSnapshot(snapshotID objects.MAC, data []byte) error {
-	return nil
-}
-
-func (s *Store) GetSnapshot(snapshotID objects.MAC) ([]byte, error) {
-	return []byte{}, nil
-}
-
-func (s *Store) DeleteSnapshot(snapshotID objects.MAC) error {
-	return nil
-}
-
 // states
 func (s *Store) GetStates() ([]objects.MAC, error) {
 	return []objects.MAC{}, nil
