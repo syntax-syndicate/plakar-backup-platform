@@ -280,6 +280,10 @@ func (s *Store) Mode() storage.Mode {
 	return storage.ModeRead | storage.ModeWrite
 }
 
+func (s *Store) Size() int64 {
+	return -1
+}
+
 func (s *Store) DeletePackfile(mac objects.MAC) error {
 	return s.packfiles.Remove(mac)
 }

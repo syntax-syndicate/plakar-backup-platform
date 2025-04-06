@@ -49,14 +49,15 @@ func NewStore(storeConfig map[string]string) (storage.Store, error) {
 }
 
 func (s *Store) Location() string {
-	return s.location
+	location := s.location
+	if strings.HasPrefix(location, "fs://") {
+		location = location[4:]
+	}
+	return location
 }
 
 func (s *Store) Path(args ...string) string {
 	root := s.Location()
-	if strings.HasPrefix(root, "fs://") {
-		root = root[4:]
-	}
 
 	args = append(args, "")
 	copy(args[1:], args)
@@ -125,6 +126,29 @@ func (s *Store) Open() ([]byte, error) {
 
 func (s *Store) Mode() storage.Mode {
 	return storage.ModeRead | storage.ModeWrite
+}
+
+func (s *Store) Size() int64 {
+	var size int64
+	_ = filepath.WalkDir(s.Location(), func(_ string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if d.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+
+		if !d.IsDir() {
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			size += info.Size()
+		}
+		return nil
+	})
+	return size
 }
 
 func (s *Store) GetPackfiles() ([]objects.MAC, error) {

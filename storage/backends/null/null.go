@@ -61,6 +61,10 @@ func (s *Store) Mode() storage.Mode {
 	return storage.ModeRead | storage.ModeWrite
 }
 
+func (s *Store) Size() int64 {
+	return -1
+}
+
 // snapshots
 func (s *Store) GetSnapshots() ([]objects.MAC, error) {
 	return []objects.MAC{}, nil

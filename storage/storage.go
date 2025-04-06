@@ -114,6 +114,7 @@ type Store interface {
 	Open() ([]byte, error)
 	Location() string
 	Mode() Mode
+	Size() int64
 
 	GetStates() ([]objects.MAC, error)
 	PutState(mac objects.MAC, rd io.Reader) error
