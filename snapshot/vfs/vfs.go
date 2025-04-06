@@ -227,7 +227,7 @@ func (fsc *Filesystem) ResolveEntry(csum objects.MAC) (*Entry, error) {
 		entry.ResolvedObject = obj
 	}
 
-	return entry, nil
+	return fsc.markChroot(entry), nil
 
 }
 
