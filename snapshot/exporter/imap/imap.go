@@ -17,22 +17,22 @@
 package imap
 
 import (
-	"encoding/json"
+	//"encoding/json"
 	"fmt"
 	"io"
 	"net/url"
-	"log"
+	//"log"
 	"strconv"
-	"bytes"
+	//"bytes"
 
 	"github.com/PlakarKorp/plakar/objects"
 
 	"github.com/PlakarKorp/plakar/snapshot/exporter"
 
-	"github.com/emersion/go-imap"
+	//"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
-	"github.com/emersion/go-message"
-	"github.com/emersion/go-message/textproto"
+	//"github.com/emersion/go-message"
+	//"github.com/emersion/go-message/textproto"
 )
 
 type IMAPExporter struct {
