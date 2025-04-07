@@ -388,6 +388,8 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				scannerWg.Done()
 			}()
 
+			var err error
+
 			snap.Event(events.FileEvent(snap.Header.Identifier, record.Pathname))
 
 			var fileEntry *vfs.Entry
@@ -441,6 +443,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				if object == nil || !snap.BlobExists(resources.RT_OBJECT, objectMAC) {
 					object, err = snap.chunkify(imp, cf, record)
 					if err != nil {
+						snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
@@ -455,7 +458,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 						return
 					}
 
-					err := snap.PutBlob(resources.RT_OBJECT, objectMAC, objectSerialized)
+					err = snap.PutBlob(resources.RT_OBJECT, objectMAC, objectSerialized)
 					if err != nil {
 						backupCtx.recordError(record.Pathname, err)
 						return
