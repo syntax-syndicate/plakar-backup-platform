@@ -355,7 +355,7 @@ func (snap *Snapshot) Lock() (chan bool, error) {
 		return nil, err
 	}
 
-	err = snap.repository.PutLock(snap.Header.Identifier, buffer)
+	_, err = snap.repository.PutLock(snap.Header.Identifier, buffer)
 	if err != nil {
 		return nil, err
 	}

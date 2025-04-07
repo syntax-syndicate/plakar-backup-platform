@@ -67,7 +67,7 @@ func putState(w http.ResponseWriter, r *http.Request) {
 
 	var resPutIndex network.ResPutState
 	data := reqPutState.Data
-	err := store.PutState(reqPutState.MAC, bytes.NewBuffer(data))
+	_, err := store.PutState(reqPutState.MAC, bytes.NewBuffer(data))
 	if err != nil {
 		resPutIndex.Err = err.Error()
 	}
@@ -154,7 +154,7 @@ func putPackfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var resPutPackfile network.ResPutPackfile
-	err := store.PutPackfile(reqPutPackfile.MAC, bytes.NewBuffer(reqPutPackfile.Data))
+	_, err := store.PutPackfile(reqPutPackfile.MAC, bytes.NewBuffer(reqPutPackfile.Data))
 	if err != nil {
 		resPutPackfile.Err = err.Error()
 	}
@@ -265,7 +265,7 @@ func putLock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var res network.ResPutLock
-	if err := store.PutLock(req.Mac, bytes.NewReader(req.Data)); err != nil {
+	if _, err := store.PutLock(req.Mac, bytes.NewReader(req.Data)); err != nil {
 		res.Err = err.Error()
 	}
 

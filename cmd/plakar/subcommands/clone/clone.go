@@ -123,7 +123,7 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 				return
 			}
 
-			err = cloneStore.PutPackfile(packfileMAC, rd)
+			_, err = cloneStore.PutPackfile(packfileMAC, rd)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "could not put packfile to repository: %s\n", err)
 				return
@@ -149,7 +149,7 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 				return
 			}
 
-			err = cloneStore.PutState(indexMAC, data)
+			_, err = cloneStore.PutState(indexMAC, data)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "could not put packfile to repository: %s\n", err)
 				return

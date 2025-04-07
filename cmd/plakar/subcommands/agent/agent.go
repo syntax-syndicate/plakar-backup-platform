@@ -42,7 +42,6 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/diag"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/diff"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/digest"
-	cmd_exec "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/exec"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/info"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/locate"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ls"
@@ -644,17 +643,6 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				var cmd struct {
 					Name       string
 					Subcommand diff.Diff
-				}
-				if err := msgpack.Unmarshal(request, &cmd); err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
-					return
-				}
-				subcommand = &cmd.Subcommand
-				repositorySecret = cmd.Subcommand.RepositorySecret
-			case (&cmd_exec.Exec{}).Name():
-				var cmd struct {
-					Name       string
-					Subcommand cmd_exec.Exec
 				}
 				if err := msgpack.Unmarshal(request, &cmd); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
