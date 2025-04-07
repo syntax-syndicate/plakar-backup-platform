@@ -22,7 +22,7 @@ func TestFsBackend(t *testing.T) {
 	}
 
 	location := repo.Location()
-	require.Equal(t, "fs:///tmp/testfs", location)
+	require.Equal(t, "/tmp/testfs", location)
 
 	config := storage.NewConfiguration()
 	serialized, err := config.ToBytes()

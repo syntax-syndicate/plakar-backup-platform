@@ -114,6 +114,10 @@ func (mb *MockBackend) Mode() storage.Mode {
 	return storage.ModeRead | storage.ModeWrite
 }
 
+func (mb *MockBackend) Size() int64 {
+	return 0
+}
+
 func (mb *MockBackend) GetStates() ([]objects.MAC, error) {
 	ret := make([]objects.MAC, 0)
 	if mb.behavior == "brokenState" {

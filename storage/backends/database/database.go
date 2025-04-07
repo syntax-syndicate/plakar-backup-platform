@@ -168,6 +168,10 @@ func (s *Store) Mode() storage.Mode {
 	return storage.ModeRead | storage.ModeWrite
 }
 
+func (s *Store) Size() int64 {
+	return -1
+}
+
 // states
 func (s *Store) GetStates() ([]objects.MAC, error) {
 	rows, err := s.conn.Query("SELECT mac FROM states")

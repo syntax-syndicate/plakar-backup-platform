@@ -86,16 +86,40 @@ func (cmd *InfoRepository) Execute(ctx *appcontext.AppContext, repo *repository.
 	}
 
 	fmt.Fprintln(ctx.Stdout, "Snapshots:", len(snapshotIDs))
-	totalSize := uint64(0)
+
+	storageSize := repo.Store().Size()
+
+	logicalSize := uint64(0)
 	for _, snapshotID := range snapshotIDs {
 		snap, err := snapshot.Load(repo, snapshotID)
 		if err != nil {
 			return 1, err
 		}
-		totalSize += snap.Header.GetSource(0).Summary.Directory.Size + snap.Header.GetSource(0).Summary.Below.Size
+		logicalSize += snap.Header.GetSource(0).Summary.Directory.Size + snap.Header.GetSource(0).Summary.Below.Size
 		snap.Close()
 	}
-	fmt.Fprintf(ctx.Stdout, "Size: %s (%d bytes)\n", humanize.Bytes(totalSize), totalSize)
+
+	fmt.Fprintf(ctx.Stdout, "Storage size: %s (%d bytes)\n", humanize.Bytes(uint64(storageSize)), uint64(storageSize))
+	fmt.Fprintf(ctx.Stdout, "Logical size: %s (%d bytes)\n", humanize.Bytes(logicalSize), logicalSize)
+
+	if storageSize == -1 || logicalSize == 0 {
+		fmt.Fprintln(ctx.Stdout, "Storage efficiency: N/A")
+	} else {
+
+		usagePercent := (float64(storageSize) / float64(logicalSize)) * 100
+
+		if usagePercent <= 100 {
+			savings := 100 - usagePercent
+			fmt.Fprintf(ctx.Stdout, "Storage efficiency: %.2f%% reduction\n", savings)
+		} else {
+			increase := usagePercent - 100
+			if increase > 100 {
+				fmt.Fprintf(ctx.Stdout, "Storage efficiency: >100%% increase\n")
+			} else {
+				fmt.Fprintf(ctx.Stdout, "Storage efficiency: %.2f%% increase\n", increase)
+			}
+		}
+	}
 
 	return 0, nil
 }

@@ -93,6 +93,10 @@ func (s *Store) Mode() storage.Mode {
 	return storage.ModeRead | storage.ModeWrite
 }
 
+func (s *Store) Size() int64 {
+	return -1
+}
+
 // states
 func (s *Store) GetStates() ([]objects.MAC, error) {
 	r, err := s.sendRequest("GET", "/states", network.ReqGetStates{})
