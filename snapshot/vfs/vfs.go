@@ -254,7 +254,7 @@ func (fsc *Filesystem) Open(path string) (fs.File, error) {
 		return nil, err
 	}
 
-	return entry.Open(fsc, path), nil
+	return entry.Open(fsc), nil
 }
 
 func (fsc *Filesystem) ReadDir(path string) (entries []fs.DirEntry, err error) {
