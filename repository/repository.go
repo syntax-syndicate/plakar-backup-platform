@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"math/bits"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	chunkers "github.com/PlakarKorp/go-cdc-chunkers"
@@ -45,8 +46,8 @@ type Repository struct {
 
 	appContext *appcontext.AppContext
 
-	wBytes int64
-	rBytes int64
+	wBytes atomic.Int64
+	rBytes atomic.Int64
 }
 
 func Inexistent(ctx *appcontext.AppContext, storeConfig map[string]string) (*Repository, error) {
@@ -238,11 +239,11 @@ func (r *Repository) Store() storage.Store {
 }
 
 func (r *Repository) RBytes() int64 {
-	return r.rBytes
+	return r.rBytes.Load()
 }
 
 func (r *Repository) WBytes() int64 {
-	return r.wBytes
+	return r.wBytes.Load()
 }
 
 func (r *Repository) Close() error {
@@ -477,7 +478,7 @@ func (r *Repository) PutState(mac objects.MAC, rd io.Reader) error {
 	}
 
 	nbytes, err := r.store.PutState(mac, rd)
-	r.wBytes += nbytes
+	r.wBytes.Add(nbytes)
 	return err
 }
 
@@ -658,7 +659,7 @@ func (r *Repository) PutPackfile(mac objects.MAC, rd io.Reader) error {
 	}
 
 	nbytes, err := r.store.PutPackfile(mac, rd)
-	r.wBytes += nbytes
+	r.wBytes.Add(nbytes)
 	return err
 }
 
@@ -771,7 +772,7 @@ func (r *Repository) GetBlob(Type resources.Type, mac objects.MAC) (io.ReadSeeke
 		return nil, err
 	}
 
-	r.rBytes += int64(loc.Length)
+	r.rBytes.Add(int64(loc.Length))
 
 	return rd, nil
 }
