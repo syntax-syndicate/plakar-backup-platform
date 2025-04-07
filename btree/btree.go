@@ -1,8 +1,11 @@
 package btree
 
 import (
+	"fmt"
 	"io"
+	"log"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/PlakarKorp/plakar/resources"
@@ -29,14 +32,15 @@ type Storer[K any, P comparable, V any] interface {
 }
 
 type OpCode int
+
 const (
 	OpAdd OpCode = iota
 )
 
 type Op[K, V any] struct {
 	Opcode OpCode
-	Key K
-	Val V
+	Key    K
+	Val    V
 }
 
 type Node[K any, P comparable, V any] struct {
@@ -68,7 +72,7 @@ type BTree[K any, P comparable, V any] struct {
 	Root    P
 	cache   *cache[K, P, V]
 	compare func(K, K) int
-	rwlock  sync.RWMutex
+	mtx     sync.Mutex
 }
 
 // New returns a new, empty tree.
@@ -131,6 +135,127 @@ func (n *Node[K, P, V]) isleaf() bool {
 	return len(n.Pointers) == 0
 }
 
+func (b *BTree[K, P, V]) pickforflush(node *Node[K, P, V]) (dest P, ops []Op[K, V]) {
+	var (
+		tot    = make([]int, len(node.Pointers))
+		dests  = make([]int, len(node.Ops))
+		newops = make([]Op[K, V], 0, len(node.Ops))
+		max    int
+		target int
+	)
+
+	if node.isleaf() {
+		panic("pickforflush on a leaf!")
+	}
+
+	if len(node.Keys) + 1 != len(node.Pointers) {
+		panic(fmt.Sprintf("invariant broken (keys %d; pointers %d; values %d)",
+			len(node.Keys), len(node.Pointers), len(node.Values)))
+	}
+
+	for i := range node.Ops {
+		idx, found := slices.BinarySearchFunc(node.Keys, node.Ops[i].Key, b.compare)
+		if found {
+			idx++
+		}
+		dests[i] = idx
+		if tot[idx]++; tot[idx] > max {
+			max = tot[idx]
+			target = idx
+		}
+	}
+
+	for i := 0; i < len(node.Ops); i++ {
+		if dests[i] == target && len(ops) < b.Order {
+			ops = append(ops, node.Ops[i])
+		} else {
+			newops = append(newops, node.Ops[i])
+		}
+	}
+	log.Printf("got %d ops; now we have %d newop and %d flushed ops", len(node.Ops), len(newops), len(ops))
+
+	node.Ops = newops
+	return node.Pointers[target], ops
+}
+
+func (b *BTree[K, P, V]) putop(ops []Op[K, V]) error {
+	log.Println("in putop")
+	defer log.Println("done putop")
+
+	ptr := b.Root
+
+	var (
+		path []P
+		node *Node[K, P, V]
+		err  error
+	)
+
+	for {
+		if len(ops) > b.Order {
+			panic("can't propagate too many ops")
+		}
+
+		path = append(path, ptr)
+		node, err = b.cache.Get(ptr)
+		if err != nil {
+			return err
+		}
+
+		if node.isleaf() {
+			for i := range ops {
+				node.apply(&ops[i], b.compare)
+			}
+			node.Ops = nil
+
+			if len(node.Values) > b.Order * 2 {
+				log.Printf("added %d ops to a node with %d vals for a total of %d",
+					len(ops), len(node.Values) - len(ops), len(node.Values))
+				panic("invariant broken: more values than expected")
+			}
+
+			if len(node.Keys) < b.Order {
+				return b.cache.Update(ptr, node)
+			}
+
+			new := node.split(b.compare)
+			new.Next = node.Next
+			newptr, err := b.cache.Put(new)
+			if err != nil {
+				return err
+			}
+			node.Next = &newptr
+			if err := b.cache.Update(ptr, node); err != nil {
+				return err
+			}
+
+			return b.insertUpwards(new.Keys[0], newptr, path[:len(path)-1])
+		}
+
+		log.Printf("about to append %d ops to a node with %d (order is %d)",
+			len(ops), len(node.Ops), b.Order)
+		node.Ops = append(node.Ops, ops...)
+		if len(node.Ops) >= b.Order {
+			// flush the ops down one level to the node
+			// which should receive the most.
+			var newptr P
+			newptr, ops = b.pickforflush(node)
+
+			if len(node.Ops) >= b.Order {
+				panic("pickforflush wasn't enough")
+			}
+
+			if err := b.cache.Update(ptr, node); err != nil {
+				return err
+			}
+
+			ptr = newptr
+			continue
+		}
+
+		return b.cache.Update(ptr, node)
+	}
+}
+
 func (b *BTree[K, P, V]) findleaf(key K) (node *Node[K, P, V], path []P, err error) {
 	ptr := b.Root
 
@@ -158,8 +283,8 @@ func (b *BTree[K, P, V]) findleaf(key K) (node *Node[K, P, V], path []P, err err
 }
 
 func (b *BTree[K, P, V]) Find(key K) (val V, found bool, err error) {
-	b.rwlock.RLock()
-	defer b.rwlock.RUnlock()
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
 
 	leaf, _, err := b.findleaf(key)
 	if err != nil {
@@ -201,7 +326,18 @@ func (b *BTree[K, P, V]) findsplit(key K, node *Node[K, P, V]) (int, bool) {
 	return slices.BinarySearchFunc(node.Keys, key, b.compare)
 }
 
-func (n *Node[K, P, V]) split() (new *Node[K, P, V]) {
+func (node *Node[K, P, V]) apply(op *Op[K, V], cmp func(K, K) int) {
+	// assume only OpAdd for now
+
+	idx, has := slices.BinarySearchFunc(node.Keys, op.Key, cmp)
+	if has {
+		node.Values[idx] = op.Val
+		return
+	}
+	node.insertAt(idx, op.Key, op.Val)
+}
+
+func (n *Node[K, P, V]) split(cmp func(K, K) int) (new *Node[K, P, V]) {
 	cutoff := (len(n.Keys)+1)/2 - 1
 	if cutoff == 0 {
 		cutoff = 1
@@ -214,55 +350,47 @@ func (n *Node[K, P, V]) split() (new *Node[K, P, V]) {
 		new = newNodeFrom(n.Keys[cutoff:], n.Pointers[cutoff+1:], []V{})
 		n.Pointers = n.Pointers[:cutoff+1]
 	}
+
+	var nops []Op[K, V]
+	for i := range n.Ops {
+		if cmp(n.Ops[i].Key, new.Keys[0]) == -1 {
+			nops = append(nops, n.Ops[i])
+		} else {
+			new.Ops = append(new.Ops, n.Ops[i])
+		}
+	}
+
+	log.Println("new.keys[0] is", new.Keys[0], "and the split was")
+	var a, b strings.Builder
+	for i := range nops {
+		fmt.Fprintf(&a, "%v ", nops[i].Key)
+	}
+	for i := range n.Ops {
+		fmt.Fprintf(&a, "%v ", n.Ops[i].Key)
+	}
+	log.Println("node: ", a.String())
+	log.Println("new:  ", b.String())
+
 	n.Keys = n.Keys[:cutoff]
 	return new
 }
 
-func (b *BTree[K, P, V]) insert(key K, val V) error {
-	node, path, err := b.findleaf(key)
-	if err != nil {
-		return err
-	}
-
-	ptr := path[len(path)-1]
-	path = path[:len(path)-1]
-
-	idx, found := b.findsplit(key, node)
-	if found {
-		node.Values[idx] = val
-		return b.cache.Update(ptr, node)
-	}
-
-	b.Count++
-
-	node.insertAt(idx, key, val)
-	if len(node.Keys) < b.Order {
-		return b.cache.Update(ptr, node)
-	}
-
-	new := node.split()
-	new.Next = node.Next
-	newptr, err := b.cache.Put(new)
-	if err != nil {
-		return err
-	}
-	node.Next = &newptr
-	if err := b.cache.Update(ptr, node); err != nil {
-		return err
-	}
-
-	key = new.Keys[0]
-	return b.insertUpwards(key, newptr, path)
-}
-
 func (b *BTree[K, P, V]) Insert(key K, val V) error {
-	b.rwlock.Lock()
-	defer b.rwlock.Unlock()
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
 
-	return b.insert(key, val)
+	op := Op[K, V]{
+		Opcode: OpAdd,
+		Key:    key,
+		Val:    val,
+	}
+	return b.putop([]Op[K, V]{op})
 }
 
 func (b *BTree[K, P, V]) insertUpwards(key K, ptr P, path []P) error {
+	log.Println("in insertUpwards")
+	defer log.Println("done insertUpwards")
+
 	for i := len(path) - 1; i >= 0; i-- {
 		node, err := b.cache.Get(path[i])
 		if err != nil {
@@ -279,7 +407,7 @@ func (b *BTree[K, P, V]) insertUpwards(key K, ptr P, path []P) error {
 			return b.cache.Update(path[i], node)
 		}
 
-		new := node.split()
+		new := node.split(b.compare)
 		key = new.Keys[0]
 		new.Keys = new.Keys[1:]
 		ptr, err = b.cache.Put(new)
@@ -290,6 +418,8 @@ func (b *BTree[K, P, V]) insertUpwards(key K, ptr P, path []P) error {
 			return err
 		}
 	}
+
+	log.Println("growing")
 
 	// reached the root, growing the tree
 	newroot := &Node[K, P, V]{
