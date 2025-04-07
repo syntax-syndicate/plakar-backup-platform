@@ -239,7 +239,9 @@ func (r *Repository) RebuildState() error {
 	// naturally with concurrent first backups.
 	r.state.UpdateSerialOr(r.configuration.RepositoryID)
 
-	r.storageSizeDirty = rebuilt
+	if rebuilt {
+		r.storageSizeDirty = true
+	}
 
 	return nil
 }
