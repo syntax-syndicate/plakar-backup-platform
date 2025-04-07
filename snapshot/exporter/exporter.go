@@ -47,7 +47,6 @@ func Backends() []string {
 }
 
 func NewExporter(config map[string]string) (Exporter, error) {
-
 	location, ok := config["location"]
 	if !ok {
 		return nil, fmt.Errorf("missing location")
@@ -66,6 +65,8 @@ func NewExporter(config map[string]string) (Exporter, error) {
 			backendName = "ftp"
 		} else if strings.HasPrefix(location, "sftp://") {
 			backendName = "sftp"
+		} else if strings.HasPrefix(location, "imap://") {
+			backendName = "imap"
 		} else {
 			if strings.Contains(location, "://") {
 				return nil, fmt.Errorf("unsupported exporter protocol")
