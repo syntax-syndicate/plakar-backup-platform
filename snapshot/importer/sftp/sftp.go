@@ -181,26 +181,26 @@ func sha256Fingerprint(key ssh.PublicKey) string {
 	return "SHA256:" + base64.StdEncoding.EncodeToString(hash[:])
 }
 
-func knownHostLine(hostname string, key ssh.PublicKey) string {
-	authorized := strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key)))
-
-	// Only format [host]:port if it's a valid host:port
-	host, port, err := net.SplitHostPort(hostname)
-	if err == nil && port != "22" {
-		return fmt.Sprintf("[%s]:%s %s", host, port, authorized)
-	}
-
-	// Otherwise, fallback to the raw hostname
-	return fmt.Sprintf("%s %s", hostname, authorized)
-}
-
 func safeHostKeyCallback(knownHostsPath string, ignore bool) (ssh.HostKeyCallback, error) {
 	if ignore {
 		return ssh.InsecureIgnoreHostKey(), nil
 	}
 
 	if _, err := os.Stat(knownHostsPath); err == nil {
-		return knownhosts.New(knownHostsPath)
+		rawCallback, err := knownhosts.New(knownHostsPath)
+		if err != nil {
+			return nil, err
+		}
+
+		// Wrap it to sanitize remote
+		return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			// Sanitize remote to avoid SplitHostPort crash
+			safeRemote := remote
+			if remote == nil || !strings.Contains(remote.String(), ":") {
+				safeRemote = dummyAddrWithPort("0.0.0.0:22")
+			}
+			return rawCallback(hostname, safeRemote, key)
+		}, nil
 	}
 
 	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
@@ -219,7 +219,7 @@ func safeHostKeyCallback(knownHostsPath string, ignore bool) (ssh.HostKeyCallbac
 		}
 
 		// Append to known_hosts file
-		line := knownHostLine(hostname, key)
+		line := fmt.Sprintf("%s %s", hostname, strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key))))
 		if err := os.MkdirAll(filepath.Dir(knownHostsPath), 0700); err != nil {
 			return fmt.Errorf("could not create .ssh dir: %w", err)
 		}
@@ -445,3 +445,8 @@ type dummyAddr string
 
 func (d dummyAddr) Network() string { return string(d) }
 func (d dummyAddr) String() string  { return string(d) }
+
+type dummyAddrWithPort string
+
+func (d dummyAddrWithPort) Network() string { return "tcp" }
+func (d dummyAddrWithPort) String() string  { return string(d) }
