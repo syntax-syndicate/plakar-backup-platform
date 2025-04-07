@@ -257,6 +257,14 @@ func (fsc *Filesystem) Open(path string) (fs.File, error) {
 	return entry.Open(fsc), nil
 }
 
+func (fsc *Filesystem) Stat(name string) (fs.FileInfo, error) {
+	entry, err := fsc.GetEntry(name)
+	if err != nil {
+		return nil, err
+	}
+	return entry.FileInfo, nil
+}
+
 func (fsc *Filesystem) ReadDir(path string) (entries []fs.DirEntry, err error) {
 	fp, err := fsc.Open(path)
 	if err != nil {
