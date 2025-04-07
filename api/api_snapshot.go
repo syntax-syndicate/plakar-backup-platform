@@ -2,6 +2,7 @@ package api
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,7 +15,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/PlakarKorp/plakar/caching/lru"
 	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/snapshot/header"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
@@ -32,10 +35,26 @@ type downloadSignedUrl struct {
 	files      []string
 }
 
+var snapcache = lru.New[[32]byte, *snapshot.Snapshot](30, nil)
+
 var downloadSignedUrls = ttlmap.New[string, downloadSignedUrl](1 * time.Hour)
 
 func init() {
 	downloadSignedUrls.AutoExpire()
+}
+
+func loadsnap(repo *repository.Repository, id [32]byte) (*snapshot.Snapshot, error) {
+	if snap, ok := snapcache.Get(id); ok {
+		return snap, nil
+	}
+
+	snap, err := snapshot.Load(repo, id)
+	if err != nil {
+		return nil, err
+	}
+
+	snapcache.Put(id, snap)
+	return snap, nil
 }
 
 func snapshotHeader(w http.ResponseWriter, r *http.Request) error {
@@ -44,7 +63,7 @@ func snapshotHeader(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	snap, err := snapshot.Load(lrepository, snapshotID32)
+	snap, err := loadsnap(lrepository, snapshotID32)
 	if err != nil {
 		return err
 	}
@@ -71,7 +90,7 @@ func snapshotReader(w http.ResponseWriter, r *http.Request) error {
 		do_highlight = true
 	}
 
-	snap, err := snapshot.Load(lrepository, snapshotID32)
+	snap, err := loadsnap(lrepository, snapshotID32)
 	if err != nil {
 		return err
 	}
@@ -276,7 +295,7 @@ func snapshotVFSBrowse(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	snap, err := snapshot.Load(lrepository, snapshotID32)
+	snap, err := loadsnap(lrepository, snapshotID32)
 	if err != nil {
 		return err
 	}
@@ -323,7 +342,7 @@ func snapshotVFSChildren(w http.ResponseWriter, r *http.Request) error {
 	}
 	_ = sortKeys
 
-	snap, err := snapshot.Load(lrepository, snapshotID32)
+	snap, err := loadsnap(lrepository, snapshotID32)
 	if err != nil {
 		return err
 	}
@@ -421,11 +440,15 @@ func snapshotVFSSearch(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
+	if len(r.URL.Query()["mime"]) > 20 {
+		return parameterError("mime", InvalidArgument, errors.New("too many mime types, you can only specify 20"))
+	}
+
 	if str := r.URL.Query().Get("pattern"); str != "" {
 		pattern = str
 	}
 
-	snap, err := snapshot.Load(lrepository, snapshotID32)
+	snap, err := loadsnap(lrepository, snapshotID32)
 	if err != nil {
 		return err
 	}
@@ -440,7 +463,7 @@ func snapshotVFSSearch(w http.ResponseWriter, r *http.Request) error {
 
 	searchOpts := snapshot.SearchOpts{
 		Recursive:  r.URL.Query().Get("recursive") == "true",
-		Mime:       r.URL.Query().Get("mime"),
+		Mimes:      r.URL.Query()["mime"],
 		Prefix:     path,
 		NameFilter: pattern,
 
@@ -452,13 +475,16 @@ func snapshotVFSSearch(w http.ResponseWriter, r *http.Request) error {
 		Items: []*vfs.Entry{},
 	}
 
-	it, err := snap.Search(&searchOpts)
+	it, err := snap.Search(r.Context(), &searchOpts)
 	if err != nil {
 		return err
 	}
 
 	for entry, err := range it {
 		if err != nil {
+			if err == context.Canceled {
+				return nil
+			}
 			return err
 		}
 
@@ -497,7 +523,7 @@ func snapshotVFSErrors(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	snap, err := snapshot.Load(lrepository, snapshotID32)
+	snap, err := loadsnap(lrepository, snapshotID32)
 	if err != nil {
 		return err
 	}
@@ -556,7 +582,7 @@ func snapshotVFSDownloader(w http.ResponseWriter, r *http.Request) error {
 		return parameterError("BODY", InvalidArgument, err)
 	}
 
-	if _, err = snapshot.Load(lrepository, snapshotID32); err != nil {
+	if _, err = loadsnap(lrepository, snapshotID32); err != nil {
 		return nil
 	}
 
@@ -597,7 +623,7 @@ func snapshotVFSDownloaderSigned(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
-	snap, err := snapshot.Load(lrepository, link.snapshotID)
+	snap, err := loadsnap(lrepository, link.snapshotID)
 	if err != nil {
 		return err
 	}

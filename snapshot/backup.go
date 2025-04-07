@@ -388,6 +388,8 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				scannerWg.Done()
 			}()
 
+			var err error
+
 			snap.Event(events.FileEvent(snap.Header.Identifier, record.Pathname))
 
 			var fileEntry *vfs.Entry
@@ -429,8 +431,8 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 			}
 
 			if object != nil {
-				err = snap.PutBlobIfNotExists(resources.RT_OBJECT, objectMAC, objectSerialized)
-				if err != nil {
+				if err := snap.PutBlobIfNotExists(resources.RT_OBJECT, objectMAC, objectSerialized); err != nil {
+					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 					backupCtx.recordError(record.Pathname, err)
 					return
 				}
@@ -441,22 +443,25 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				if object == nil || !snap.BlobExists(resources.RT_OBJECT, objectMAC) {
 					object, err = snap.chunkify(imp, cf, record)
 					if err != nil {
+						snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
 					objectSerialized, err = object.Serialize()
 					if err != nil {
+						snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
 					objectMAC = snap.repository.ComputeMAC(objectSerialized)
 					if err := vfsCache.PutObject(objectMAC, objectSerialized); err != nil {
+						snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
 
-					err := snap.PutBlob(resources.RT_OBJECT, objectMAC, objectSerialized)
-					if err != nil {
+					if err := snap.PutBlob(resources.RT_OBJECT, objectMAC, objectSerialized); err != nil {
+						snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
@@ -482,20 +487,21 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 
 				serialized, err := fileEntry.ToBytes()
 				if err != nil {
+					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 					backupCtx.recordError(record.Pathname, err)
 					return
 				}
 
 				fileEntryMAC := snap.repository.ComputeMAC(serialized)
-				err = snap.PutBlob(resources.RT_VFS_ENTRY, fileEntryMAC, serialized)
-				if err != nil {
+				if err := snap.PutBlob(resources.RT_VFS_ENTRY, fileEntryMAC, serialized); err != nil {
+					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 					backupCtx.recordError(record.Pathname, err)
 					return
 				}
 
 				// Store the newly generated FileEntry in the cache for future runs
-				err = vfsCache.PutFilename(record.Pathname, serialized)
-				if err != nil {
+				if err := vfsCache.PutFilename(record.Pathname, serialized); err != nil {
+					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 					backupCtx.recordError(record.Pathname, err)
 					return
 				}
@@ -514,12 +520,13 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 
 				seralizedFileSummary, err := fileSummary.Serialize()
 				if err != nil {
+					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 					backupCtx.recordError(record.Pathname, err)
 					return
 				}
 
-				err = vfsCache.PutFileSummary(record.Pathname, seralizedFileSummary)
-				if err != nil {
+				if err := vfsCache.PutFileSummary(record.Pathname, seralizedFileSummary); err != nil {
+					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 					backupCtx.recordError(record.Pathname, err)
 					return
 				}
@@ -532,17 +539,19 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				k := fmt.Sprintf("/%s%s", mime, fileEntry.Path())
 				bytes, err := fileEntry.ToBytes()
 				if err != nil {
+					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 					backupCtx.recordError(record.Pathname, err)
 					return
 				}
-				err = ctidx.Insert(k, snap.repository.ComputeMAC(bytes))
-				if err != nil {
+				if err := ctidx.Insert(k, snap.repository.ComputeMAC(bytes)); err != nil {
+					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 					backupCtx.recordError(record.Pathname, err)
 					return
 				}
 			}
 
 			if err := backupCtx.recordEntry(fileEntry); err != nil {
+				snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 				backupCtx.recordError(record.Pathname, err)
 				return
 			}
@@ -1014,11 +1023,12 @@ func (snap *Snapshot) Commit(bc *BackupContext) error {
 		<-bc.flushEnded
 	} else {
 		stateDelta := buildSerializedDeltaState(snap.deltaState)
-		err = snap.repository.PutState(snap.Header.Identifier, stateDelta)
+		err := snap.repository.PutState(snap.Header.Identifier, stateDelta)
 		if err != nil {
 			snap.Logger().Warn("Failed to push the state to the repository %s", err)
 			return err
 		}
+
 		// We inserted deltas during the process in our aggregated state, we
 		// also need to publish the state so that rebuild doesn't pickit up on
 		// next run.

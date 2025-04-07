@@ -9,7 +9,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/snapshot/header"
@@ -18,8 +17,10 @@ import (
 )
 
 type RepositoryInfoSnapshots struct {
-	Total int    `json:"total"`
-	Size  uint64 `json:"size"`
+	Total       int     `json:"total"`
+	StorageSize int64   `json:"storage_size"`
+	LogicalSize int64   `json:"logical_size"`
+	Efficiency  float64 `json:"efficiency"`
 }
 
 type RepositoryInfoResponse struct {
@@ -32,26 +33,37 @@ func repositoryInfo(w http.ResponseWriter, r *http.Request) error {
 
 	configuration := lrepository.Configuration()
 
-	snapshotIDs, err := utils.LocateSnapshotIDs(lrepository, nil)
+	nSnapshots, logicalSize, err := snapshot.LogicalSize(lrepository)
 	if err != nil {
-		return fmt.Errorf("unable to locate snapshots: %w", err)
+		return fmt.Errorf("unable to calculate logical size: %w", err)
 	}
 
-	totalSize := uint64(0)
-	for _, snapshotID := range snapshotIDs {
-		snap, err := snapshot.Load(lrepository, snapshotID)
-		if err != nil {
-			return fmt.Errorf("unable to load snapshot: %w", err)
+	efficiency := float64(0)
+	storageSize := lrepository.StorageSize()
+	if storageSize == -1 || logicalSize == 0 {
+		efficiency = -1
+	} else {
+		usagePercent := (float64(storageSize) / float64(logicalSize)) * 100
+		if usagePercent <= 100 {
+			savings := 100 - usagePercent
+			efficiency = savings
+		} else {
+			increase := usagePercent - 100
+			if increase > 100 {
+				efficiency = -1
+			} else {
+				efficiency = -1 * increase
+			}
 		}
-		totalSize += snap.Header.GetSource(0).Summary.Directory.Size + snap.Header.GetSource(0).Summary.Below.Size
-		snap.Close()
 	}
 
 	return json.NewEncoder(w).Encode(Item[RepositoryInfoResponse]{Item: RepositoryInfoResponse{
 		Location: lrepository.Location(),
 		Snapshots: RepositoryInfoSnapshots{
-			Total: len(snapshotIDs),
-			Size:  totalSize,
+			Total:       nSnapshots,
+			StorageSize: int64(lrepository.StorageSize()),
+			LogicalSize: logicalSize,
+			Efficiency:  efficiency,
 		},
 		Configuration: configuration,
 	}})

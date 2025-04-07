@@ -183,8 +183,8 @@ func LocateSnapshotIDs(repo *repository.Repository, opts *LocateOptions) ([]obje
 	}
 
 	if opts.Latest {
-		if len(workSet) > 1 {
-			workSet = workSet[len(workSet)-1:]
+		if len(workSet) >= 1 {
+			workSet = workSet[:1]
 		}
 	}
 

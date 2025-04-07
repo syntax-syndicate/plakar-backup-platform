@@ -50,6 +50,22 @@ type Snapshot struct {
 	packerManager *PackerManager
 }
 
+func LogicalSize(repo *repository.Repository) (int, int64, error) {
+	nSnapshots := 0
+	totalSize := int64(0)
+	for snapshotID := range repo.ListSnapshots() {
+		snap, err := Load(repo, snapshotID)
+		if err != nil {
+			continue
+		}
+		nSnapshots++
+		totalSize += int64(snap.Header.GetSource(0).Summary.Directory.Size + snap.Header.GetSource(0).Summary.Below.Size)
+		snap.Close()
+	}
+
+	return nSnapshots, totalSize, nil
+}
+
 func New(repo *repository.Repository) (*Snapshot, error) {
 	identifier := objects.RandomMAC()
 	scanCache, err := repo.AppContext().GetCache().Scan(identifier)
@@ -355,7 +371,7 @@ func (snap *Snapshot) Lock() (chan bool, error) {
 		return nil, err
 	}
 
-	err = snap.repository.PutLock(snap.Header.Identifier, buffer)
+	_, err = snap.repository.PutLock(snap.Header.Identifier, buffer)
 	if err != nil {
 		return nil, err
 	}

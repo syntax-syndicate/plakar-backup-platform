@@ -1,8 +1,10 @@
 package snapshot
 
 import (
+	"context"
 	"iter"
 	"path"
+	"regexp"
 	"strings"
 
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
@@ -12,7 +14,7 @@ type SearchOpts struct {
 	// file filters
 	Recursive  bool
 	Prefix     string // prefix directory
-	Mime       string
+	Mimes      []string
 	NameFilter string
 
 	// pagination
@@ -20,24 +22,26 @@ type SearchOpts struct {
 	Limit  int
 }
 
-func matchmime(match, target string) bool {
-	if match == "" {
+func matchmime(matches []string, target string) bool {
+	if len(matches) == 0 {
 		return true
 	}
 
-	m := strings.SplitN(match, "/", 2)
 	t := strings.SplitN(target, "/", 2)
 
-	if m[0] != t[0] {
-		return false
+	for _, match := range matches {
+		m := strings.SplitN(match, "/", 2)
+
+		if len(m) == 2 && len(t) == 2 && m[0] == t[0] && m[0] == t[1] {
+			return true
+		} else if m[0] == t[0] {
+			return true
+		}
 	}
-	if len(m) == 2 && len(t) == 2 {
-		return m[1] == t[1]
-	}
-	return true
+	return false
 }
 
-func visitmimes(snap *Snapshot, opts *SearchOpts) (iter.Seq2[*vfs.Entry, error], error) {
+func visitmimes(ctx context.Context, snap *Snapshot, opts *SearchOpts) (iter.Seq2[*vfs.Entry, error], error) {
 	idx, err := snap.ContentTypeIdx()
 	if err != nil {
 		return nil, err
@@ -51,66 +55,74 @@ func visitmimes(snap *Snapshot, opts *SearchOpts) (iter.Seq2[*vfs.Entry, error],
 		return nil, err
 	}
 
-	prefix := "/" + opts.Mime
-	if !strings.HasSuffix(prefix, "/") {
-		prefix += "/"
-	}
-
-	// XXX: to further optimize this routine we'd need a ScanGlob
-	// method.  Basically what we're trying to do here is to
-	// resolve globs like "application/*/prefix/*"
-	it, err := idx.ScanFrom(prefix)
-	if err != nil {
-		return nil, err
-	}
-
 	return func(yield func(*vfs.Entry, error) bool) {
-		for it.Next() {
-			p, mac := it.Current()
-
-			if !strings.HasPrefix(p, prefix) {
-				break
+		for _, mime := range opts.Mimes {
+			prefix := "/" + mime
+			if !strings.HasSuffix(prefix, "/") {
+				prefix += "/"
 			}
 
-			entry, err := fsp.ResolveEntry(mac)
+			// XXX: to further optimize this routine we'd need a ScanGlob
+			// method.  Basically what we're trying to do here is to
+			// resolve globs like "application/*/prefix/*"
+			it, err := idx.ScanFrom(prefix)
 			if err != nil {
 				yield(nil, err)
 				return
 			}
-			entryPath := entry.Path()
-			if !strings.HasPrefix(entryPath, opts.Prefix) {
-				continue
-			}
 
-			if opts.NameFilter != "" {
-				matched := false
-				if path.Base(entryPath) == opts.NameFilter {
-					matched = true
+			for it.Next() {
+				if err := ctx.Err(); err != nil {
+					yield(nil, err)
+					return
 				}
-				if !matched {
-					matched, err := path.Match(opts.NameFilter, path.Base(entryPath))
-					if err != nil {
-						continue
+
+				p, mac := it.Current()
+
+				if !strings.HasPrefix(p, prefix) {
+					break
+				}
+
+				entry, err := fsp.ResolveEntry(mac)
+				if err != nil {
+					yield(nil, err)
+					return
+				}
+				entryPath := entry.Path()
+				if !strings.HasPrefix(entryPath, opts.Prefix) {
+					continue
+				}
+
+				if opts.NameFilter != "" {
+					matched := false
+					if path.Base(entryPath) == opts.NameFilter {
+						matched = true
 					}
 					if !matched {
-						continue
+						matched, err := path.Match(opts.NameFilter, path.Base(entryPath))
+						if err != nil {
+							continue
+						}
+						if !matched {
+							continue
+						}
 					}
 				}
-			}
 
-			if !yield(entry, nil) {
-				return
+				if !yield(entry, nil) {
+					return
+				}
 			}
-		}
-		if err := it.Err(); err != nil {
-			yield(nil, err)
+			if err := it.Err(); err != nil {
+				yield(nil, err)
+			}
 		}
 	}, nil
 }
 
-func visitfiles(snap *Snapshot, opts *SearchOpts) (iter.Seq2[*vfs.Entry, error], error) {
-	if opts.Recursive && opts.Mime != "" {
-		it, err := visitmimes(snap, opts)
+func visitfiles(ctx context.Context, snap *Snapshot, opts *SearchOpts) (iter.Seq2[*vfs.Entry, error], error) {
+	if opts.Recursive && len(opts.Mimes) > 0 {
+		it, err := visitmimes(ctx, snap, opts)
 		if it != nil || err != nil {
 			return it, err
 		}
@@ -139,12 +151,17 @@ func visitfiles(snap *Snapshot, opts *SearchOpts) (iter.Seq2[*vfs.Entry, error],
 				return
 			}
 
+			if err := ctx.Err(); err != nil {
+				yield(nil, err)
+				return
+			}
+
 			entryPath := entry.Path()
 			if !strings.HasPrefix(entryPath, opts.Prefix) {
 				continue
 			}
 
-			if !matchmime(opts.Mime, entry.ContentType()) {
+			if !matchmime(opts.Mimes, entry.ContentType()) {
 				continue
 			}
 
@@ -154,7 +171,13 @@ func visitfiles(snap *Snapshot, opts *SearchOpts) (iter.Seq2[*vfs.Entry, error],
 					matched = true
 				}
 				if !matched {
-					matched, err := path.Match(opts.NameFilter, path.Base(entryPath))
+					matched, err = path.Match(opts.NameFilter, path.Base(entryPath))
+					if err != nil {
+						continue
+					}
+				}
+				if !matched {
+					matched, err = regexp.Match(opts.NameFilter, []byte(path.Base(entryPath)))
 					if err != nil {
 						continue
 					}
@@ -171,7 +194,7 @@ func visitfiles(snap *Snapshot, opts *SearchOpts) (iter.Seq2[*vfs.Entry, error],
 	}, nil
 }
 
-func (snap *Snapshot) Search(opts *SearchOpts) (iter.Seq2[*vfs.Entry, error], error) {
+func (snap *Snapshot) Search(ctx context.Context, opts *SearchOpts) (iter.Seq2[*vfs.Entry, error], error) {
 	if opts.Prefix != "" {
 		opts.Prefix = path.Clean(opts.Prefix)
 		if !strings.HasSuffix(opts.Prefix, "/") {
@@ -179,7 +202,7 @@ func (snap *Snapshot) Search(opts *SearchOpts) (iter.Seq2[*vfs.Entry, error], er
 		}
 	}
 
-	it, err := visitfiles(snap, opts)
+	it, err := visitfiles(ctx, snap, opts)
 	if err != nil {
 		return nil, err
 	}

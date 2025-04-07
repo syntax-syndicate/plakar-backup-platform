@@ -249,9 +249,9 @@ func TestHttpBackend(t *testing.T) {
 	// states
 	MAC1 := objects.MAC{0x10, 0x20}
 	MAC2 := objects.MAC{0x30, 0x40}
-	err = repo.PutState(MAC1, bytes.NewReader([]byte("test1")))
+	_, err = repo.PutState(MAC1, bytes.NewReader([]byte("test1")))
 	require.NoError(t, err)
-	err = repo.PutState(MAC2, bytes.NewReader([]byte("test2")))
+	_, err = repo.PutState(MAC2, bytes.NewReader([]byte("test2")))
 	require.NoError(t, err)
 
 	states, err := repo.GetStates()
@@ -280,9 +280,9 @@ func TestHttpBackend(t *testing.T) {
 	// packfiles
 	MAC3 := objects.MAC{0x50, 0x60}
 	MAC4 := objects.MAC{0x60, 0x70}
-	err = repo.PutPackfile(MAC3, bytes.NewReader([]byte("test3")))
+	_, err = repo.PutPackfile(MAC3, bytes.NewReader([]byte("test3")))
 	require.NoError(t, err)
-	err = repo.PutPackfile(MAC4, bytes.NewReader([]byte("test4")))
+	_, err = repo.PutPackfile(MAC4, bytes.NewReader([]byte("test4")))
 	require.NoError(t, err)
 
 	packfiles, err := repo.GetPackfiles()
