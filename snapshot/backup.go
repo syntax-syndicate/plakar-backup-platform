@@ -433,6 +433,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 			if object != nil {
 				err = snap.PutBlobIfNotExists(resources.RT_OBJECT, objectMAC, objectSerialized)
 				if err != nil {
+					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 					backupCtx.recordError(record.Pathname, err)
 					return
 				}
@@ -449,17 +450,20 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 					}
 					objectSerialized, err = object.Serialize()
 					if err != nil {
+						snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
 					objectMAC = snap.repository.ComputeMAC(objectSerialized)
 					if err := vfsCache.PutObject(objectMAC, objectSerialized); err != nil {
+						snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
 
 					err = snap.PutBlob(resources.RT_OBJECT, objectMAC, objectSerialized)
 					if err != nil {
+						snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 						backupCtx.recordError(record.Pathname, err)
 						return
 					}
@@ -468,6 +472,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 
 			// xattrs are a special case
 			if record.IsXattr {
+				snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 				backupCtx.recordXattr(record, objectMAC, object.Size())
 				return
 			}
@@ -485,6 +490,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 
 				serialized, err := fileEntry.ToBytes()
 				if err != nil {
+					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 					backupCtx.recordError(record.Pathname, err)
 					return
 				}
@@ -492,6 +498,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				fileEntryMAC := snap.repository.ComputeMAC(serialized)
 				err = snap.PutBlob(resources.RT_VFS_ENTRY, fileEntryMAC, serialized)
 				if err != nil {
+					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 					backupCtx.recordError(record.Pathname, err)
 					return
 				}
@@ -499,6 +506,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				// Store the newly generated FileEntry in the cache for future runs
 				err = vfsCache.PutFilename(record.Pathname, serialized)
 				if err != nil {
+					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 					backupCtx.recordError(record.Pathname, err)
 					return
 				}
@@ -517,12 +525,14 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 
 				seralizedFileSummary, err := fileSummary.Serialize()
 				if err != nil {
+					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 					backupCtx.recordError(record.Pathname, err)
 					return
 				}
 
 				err = vfsCache.PutFileSummary(record.Pathname, seralizedFileSummary)
 				if err != nil {
+					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 					backupCtx.recordError(record.Pathname, err)
 					return
 				}
@@ -535,17 +545,20 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				k := fmt.Sprintf("/%s%s", mime, fileEntry.Path())
 				bytes, err := fileEntry.ToBytes()
 				if err != nil {
+					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 					backupCtx.recordError(record.Pathname, err)
 					return
 				}
 				err = ctidx.Insert(k, snap.repository.ComputeMAC(bytes))
 				if err != nil {
+					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 					backupCtx.recordError(record.Pathname, err)
 					return
 				}
 			}
 
 			if err := backupCtx.recordEntry(fileEntry); err != nil {
+				snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 				backupCtx.recordError(record.Pathname, err)
 				return
 			}
