@@ -24,4 +24,5 @@ import (
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ui"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/version"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/webdav"
 )
