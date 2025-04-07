@@ -228,6 +228,14 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		}
 		defer checkSnap.Close()
 
+		checkCache, err := ctx.GetCache().Check()
+		if err != nil {
+			return 1, err
+		}
+		defer checkCache.Close()
+
+		checkSnap.SetCheckCache(checkCache)
+
 		ok, err := checkSnap.Check("/", checkOptions)
 		if err != nil {
 			return 1, fmt.Errorf("failed to check snapshot: %w", err)
