@@ -83,7 +83,9 @@ func NewExporter(ctx *appcontext.AppContext, config map[string]string) (Exporter
 		return nil, fmt.Errorf("backend '%s' does not exist", backendName)
 	} else {
 		backendInstance, err := backend(config)
-		if err != nil && backendName == "fs" {
+		if err != nil && backendName != "fs" {
+			return nil, err
+		} else if err != nil {
 			location = strings.TrimPrefix(location, "fs://")
 			if !filepath.IsAbs(location) {
 				location = filepath.Join(ctx.CWD, location)
