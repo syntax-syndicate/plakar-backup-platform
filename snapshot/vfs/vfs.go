@@ -140,7 +140,7 @@ func (fsc *Filesystem) Chroot(pathname string) (*Filesystem, error) {
 	}
 
 	chrootedVFS := *fsc
-	chrootedVFS.chroot = pathname
+	chrootedVFS.chroot = entry.Path()
 
 	return &chrootedVFS, nil
 }
@@ -216,7 +216,6 @@ func (fsc *Filesystem) ResolveEntry(csum objects.MAC) (*Entry, error) {
 	}
 
 	return fsc.markChroot(entry), nil
-
 }
 
 func (fsc *Filesystem) ResolveXattr(mac objects.MAC) (*Xattr, error) {
