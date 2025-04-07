@@ -98,16 +98,17 @@ func (p *IMAPExporter) Root() string {
 }
 
 func (p *IMAPExporter) CreateDirectory(pathname string) error {
-	err := p.client.Create(pathname)
+	/*err := p.client.Create(pathname)
 	if err != nil {
 		fmt.Println("Trouble creating folder :", err)
 	} else {
 		fmt.Println("Folder created :", pathname)
-	}
+	}*/
+	return nil
 }
 
 func (p *IMAPExporter) StoreFile(pathname string, fp io.Reader) error {
-	folderName := pathname
+	/*folderName := pathname
 	_, err := p.client.Select(folderName, false)
 	if err != nil {
 		return fmt.Errorf("error selecting folder: %w", err)
@@ -144,7 +145,7 @@ func (p *IMAPExporter) StoreFile(pathname string, fp io.Reader) error {
 	err = p.client.Append(folderName, appendFlags, bytes.NewReader(buf.Bytes()), nil)
 	if err != nil {
 		return fmt.Errorf("error adding email: %w", err)
-	}
+	}*/
 	return nil
 }
 
