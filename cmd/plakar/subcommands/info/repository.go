@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/dustin/go-humanize"
@@ -80,22 +79,36 @@ func (cmd *InfoRepository) Execute(ctx *appcontext.AppContext, repo *repository.
 		}
 	}
 
-	snapshotIDs, err := utils.LocateSnapshotIDs(repo, nil)
+	nSnapshots, logicalSize, err := snapshot.LogicalSize(repo)
 	if err != nil {
-		return 1, err
+		return 1, fmt.Errorf("unable to calculate logical size: %w", err)
 	}
 
-	fmt.Fprintln(ctx.Stdout, "Snapshots:", len(snapshotIDs))
-	totalSize := uint64(0)
-	for _, snapshotID := range snapshotIDs {
-		snap, err := snapshot.Load(repo, snapshotID)
-		if err != nil {
-			return 1, err
+	fmt.Fprintln(ctx.Stdout, "Snapshots:", nSnapshots)
+
+	storageSize := repo.Store().Size()
+
+	fmt.Fprintf(ctx.Stdout, "Storage size: %s (%d bytes)\n", humanize.Bytes(uint64(storageSize)), uint64(storageSize))
+	fmt.Fprintf(ctx.Stdout, "Logical size: %s (%d bytes)\n", humanize.Bytes(uint64(logicalSize)), logicalSize)
+
+	efficiency := float64(0)
+	if storageSize == -1 || logicalSize == 0 {
+		efficiency = -1
+	} else {
+		usagePercent := (float64(storageSize) / float64(logicalSize)) * 100
+		if usagePercent <= 100 {
+			savings := 100 - usagePercent
+			efficiency = savings
+		} else {
+			increase := usagePercent - 100
+			if increase > 100 {
+				efficiency = -1
+			} else {
+				efficiency = -1 * increase
+			}
 		}
-		totalSize += snap.Header.GetSource(0).Summary.Directory.Size + snap.Header.GetSource(0).Summary.Below.Size
-		snap.Close()
 	}
-	fmt.Fprintf(ctx.Stdout, "Size: %s (%d bytes)\n", humanize.Bytes(totalSize), totalSize)
+	fmt.Fprintf(ctx.Stdout, "Storage efficiency: %.2f%%\n", efficiency)
 
 	return 0, nil
 }

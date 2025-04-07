@@ -48,6 +48,7 @@ type Filesystem struct {
 	xattrs *btree.BTree[string, objects.MAC, objects.MAC]
 	errors *btree.BTree[string, objects.MAC, objects.MAC]
 	repo   *repository.Repository
+	chroot string
 }
 
 func PathCmp(a, b string) int {
@@ -123,6 +124,35 @@ func NewFilesystem(repo *repository.Repository, root, xattrs, errors objects.MAC
 	return fs, nil
 }
 
+func (fsc *Filesystem) Chroot(pathname string) (*Filesystem, error) {
+	if pathname == "" {
+		return nil, fs.ErrInvalid
+	}
+
+	if !strings.HasPrefix(pathname, "/") {
+		pathname = "/" + pathname
+	}
+	pathname = path.Clean(pathname)
+
+	if pathname == "" {
+		return fsc, nil
+	}
+
+	entry, err := fsc.GetEntry(pathname)
+	if err != nil {
+		return nil, err
+	}
+
+	if !entry.IsDir() {
+		return nil, fs.ErrInvalid
+	}
+
+	chrootedVFS := *fsc
+	chrootedVFS.chroot = pathname
+
+	return &chrootedVFS, nil
+}
+
 func (fsc *Filesystem) lookup(entrypath string) (*Entry, error) {
 	if !strings.HasPrefix(entrypath, "/") {
 		entrypath = "/" + entrypath
@@ -142,6 +172,22 @@ func (fsc *Filesystem) lookup(entrypath string) (*Entry, error) {
 	}
 
 	return fsc.ResolveEntry(csum)
+}
+
+func (fsc *Filesystem) markChroot(entry *Entry) *Entry {
+	// if no chroot is set, return the entry as is
+	if fsc.chroot == "" {
+		return entry
+	}
+
+	// otherwise we need to patch its Lname and ParentPath
+	chrootedPath := strings.TrimPrefix(entry.Path(), fsc.chroot)
+	if chrootedPath == "" {
+		chrootedPath = "/"
+	}
+	entry.FileInfo.Lname = path.Base(chrootedPath)
+	entry.ParentPath = path.Dir(chrootedPath)
+	return entry
 }
 
 func (fsc *Filesystem) ResolveEntry(csum objects.MAC) (*Entry, error) {
@@ -181,7 +227,7 @@ func (fsc *Filesystem) ResolveEntry(csum objects.MAC) (*Entry, error) {
 		entry.ResolvedObject = obj
 	}
 
-	return entry, nil
+	return fsc.markChroot(entry), nil
 
 }
 
@@ -314,6 +360,11 @@ func (fsc *Filesystem) Pathnames() iter.Seq2[string, error] {
 }
 
 func (fsc *Filesystem) GetEntry(entrypath string) (*Entry, error) {
+	if fsc.chroot != "" {
+		entrypath = path.Clean(entrypath)
+		entrypath = path.Join(fsc.chroot, entrypath)
+	}
+
 	if !strings.HasPrefix(entrypath, "/") {
 		entrypath = "/" + entrypath
 	}
@@ -370,13 +421,22 @@ func (fsc *Filesystem) GetEntry(entrypath string) (*Entry, error) {
 	}
 
 	if entry.FileInfo.Lmode&os.ModeSymlink == 0 {
-		return entry, nil
+		return fsc.markChroot(entry), nil
 	}
 
 	if path.IsAbs(entry.SymlinkTarget) {
-		return fsc.lookup(entry.SymlinkTarget)
+		entry, err = fsc.lookup(entry.SymlinkTarget)
+		if err != nil {
+			return nil, err
+		}
+		return fsc.markChroot(entry), nil
 	}
-	return fsc.lookup(path.Join(path.Dir(entry.Path()), entry.SymlinkTarget))
+
+	entry, err = fsc.lookup(path.Join(path.Dir(entry.Path()), entry.SymlinkTarget))
+	if err != nil {
+		return nil, err
+	}
+	return fsc.markChroot(entry), nil
 }
 
 func (fsc *Filesystem) Children(path string) (iter.Seq2[*Entry, error], error) {

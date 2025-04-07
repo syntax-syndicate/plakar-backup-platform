@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"math/bits"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	chunkers "github.com/PlakarKorp/go-cdc-chunkers"
@@ -44,6 +45,12 @@ type Repository struct {
 	configuration storage.Configuration
 
 	appContext *appcontext.AppContext
+
+	wBytes atomic.Int64
+	rBytes atomic.Int64
+
+	storageSize      int64
+	storageSizeDirty bool
 }
 
 func Inexistent(ctx *appcontext.AppContext, storeConfig map[string]string) (*Repository, error) {
@@ -54,9 +61,11 @@ func Inexistent(ctx *appcontext.AppContext, storeConfig map[string]string) (*Rep
 	defer st.Close()
 
 	return &Repository{
-		store:         st,
-		configuration: *storage.NewConfiguration(),
-		appContext:    ctx,
+		store:            st,
+		configuration:    *storage.NewConfiguration(),
+		appContext:       ctx,
+		storageSize:      -1,
+		storageSizeDirty: true,
 	}, nil
 }
 
@@ -89,9 +98,11 @@ func New(ctx *appcontext.AppContext, store storage.Store, config []byte) (*Repos
 	}
 
 	r := &Repository{
-		store:         store,
-		configuration: *configInstance,
-		appContext:    ctx,
+		store:            store,
+		configuration:    *configInstance,
+		appContext:       ctx,
+		storageSize:      -1,
+		storageSizeDirty: true,
 	}
 
 	if err := r.RebuildState(); err != nil {
@@ -142,9 +153,11 @@ func NewNoRebuild(ctx *appcontext.AppContext, store storage.Store, config []byte
 	}
 
 	r := &Repository{
-		store:         store,
-		configuration: *configInstance,
-		appContext:    ctx,
+		store:            store,
+		configuration:    *configInstance,
+		appContext:       ctx,
+		storageSize:      -1,
+		storageSizeDirty: true,
 	}
 
 	return r, nil
@@ -199,6 +212,7 @@ func (r *Repository) RebuildState() error {
 		}
 	}
 
+	rebuilt := false
 	for _, stateID := range missingStates {
 		version, remoteStateRd, err := r.GetState(stateID)
 		if err != nil {
@@ -208,6 +222,7 @@ func (r *Repository) RebuildState() error {
 		if err := aggregatedState.MergeState(version, stateID, remoteStateRd); err != nil {
 			return err
 		}
+		rebuilt = true
 	}
 
 	// delete local states that are not present in remote
@@ -215,6 +230,7 @@ func (r *Repository) RebuildState() error {
 		if err := aggregatedState.DelState(stateID); err != nil {
 			return err
 		}
+		rebuilt = true
 	}
 
 	r.state = aggregatedState
@@ -222,6 +238,8 @@ func (r *Repository) RebuildState() error {
 	// The first Serial id is our repository ID, this allows us to deal
 	// naturally with concurrent first backups.
 	r.state.UpdateSerialOr(r.configuration.RepositoryID)
+
+	r.storageSizeDirty = rebuilt
 
 	return nil
 }
@@ -232,6 +250,22 @@ func (r *Repository) AppContext() *appcontext.AppContext {
 
 func (r *Repository) Store() storage.Store {
 	return r.store
+}
+
+func (r *Repository) StorageSize() int64 {
+	if r.storageSizeDirty {
+		r.storageSize = r.store.Size()
+		r.storageSizeDirty = false
+	}
+	return r.storageSize
+}
+
+func (r *Repository) RBytes() int64 {
+	return r.rBytes.Load()
+}
+
+func (r *Repository) WBytes() int64 {
+	return r.wBytes.Load()
 }
 
 func (r *Repository) Close() error {
@@ -465,7 +499,9 @@ func (r *Repository) PutState(mac objects.MAC, rd io.Reader) error {
 		return err
 	}
 
-	return r.store.PutState(mac, rd)
+	nbytes, err := r.store.PutState(mac, rd)
+	r.wBytes.Add(nbytes)
+	return err
 }
 
 func (r *Repository) DeleteState(mac objects.MAC) error {
@@ -643,7 +679,10 @@ func (r *Repository) PutPackfile(mac objects.MAC, rd io.Reader) error {
 	if err != nil {
 		return err
 	}
-	return r.store.PutPackfile(mac, rd)
+
+	nbytes, err := r.store.PutPackfile(mac, rd)
+	r.wBytes.Add(nbytes)
+	return err
 }
 
 // Deletes a packfile from the store. Warning this is a true delete and is unrecoverable.
@@ -754,6 +793,8 @@ func (r *Repository) GetBlob(Type resources.Type, mac objects.MAC) (io.ReadSeeke
 	if err != nil {
 		return nil, err
 	}
+
+	r.rBytes.Add(int64(loc.Length))
 
 	return rd, nil
 }
@@ -881,7 +922,7 @@ func (r *Repository) GetLock(lockID objects.MAC) (versioning.Version, io.Reader,
 	return version, rd, err
 }
 
-func (r *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
+func (r *Repository) PutLock(lockID objects.MAC, rd io.Reader) (int64, error) {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "PutLock(%x, ...): %s", lockID, time.Since(t0))
@@ -889,12 +930,12 @@ func (r *Repository) PutLock(lockID objects.MAC, rd io.Reader) error {
 
 	rd, err := r.Encode(rd)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	rd, err = storage.Serialize(r.GetMACHasher(), resources.RT_LOCK, versioning.GetCurrentVersion(resources.RT_LOCK), rd)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	return r.store.PutLock(lockID, rd)

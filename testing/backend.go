@@ -114,6 +114,10 @@ func (mb *MockBackend) Mode() storage.Mode {
 	return storage.ModeRead | storage.ModeWrite
 }
 
+func (mb *MockBackend) Size() int64 {
+	return 0
+}
+
 func (mb *MockBackend) GetStates() ([]objects.MAC, error) {
 	ret := make([]objects.MAC, 0)
 	if mb.behavior == "brokenState" {
@@ -122,8 +126,8 @@ func (mb *MockBackend) GetStates() ([]objects.MAC, error) {
 	return behaviors[mb.behavior].statesMACs, nil
 }
 
-func (mb *MockBackend) PutState(MAC objects.MAC, rd io.Reader) error {
-	return nil
+func (mb *MockBackend) PutState(MAC objects.MAC, rd io.Reader) (int64, error) {
+	return 0, nil
 }
 
 func (mb *MockBackend) GetState(MAC objects.MAC) (io.Reader, error) {
@@ -148,8 +152,8 @@ func (mb *MockBackend) GetPackfiles() ([]objects.MAC, error) {
 	return packfiles, nil
 }
 
-func (mb *MockBackend) PutPackfile(MAC objects.MAC, rd io.Reader) error {
-	return nil
+func (mb *MockBackend) PutPackfile(MAC objects.MAC, rd io.Reader) (int64, error) {
+	return 0, nil
 }
 
 func (mb *MockBackend) GetPackfile(MAC objects.MAC) (io.Reader, error) {
@@ -194,7 +198,7 @@ func (mb *MockBackend) GetLocks() ([]objects.MAC, error) {
 	panic("Not implemented yet")
 }
 
-func (mb *MockBackend) PutLock(lockID objects.MAC, rd io.Reader) error {
+func (mb *MockBackend) PutLock(lockID objects.MAC, rd io.Reader) (int64, error) {
 	panic("Not implemented yet")
 }
 

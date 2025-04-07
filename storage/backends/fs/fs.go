@@ -49,14 +49,11 @@ func NewStore(storeConfig map[string]string) (storage.Store, error) {
 }
 
 func (s *Store) Location() string {
-	return s.location
+	return strings.TrimPrefix(s.location, "fs://")
 }
 
 func (s *Store) Path(args ...string) string {
 	root := s.Location()
-	if strings.HasPrefix(root, "fs://") {
-		root = root[4:]
-	}
 
 	args = append(args, "")
 	copy(args[1:], args)
@@ -101,7 +98,8 @@ func (s *Store) Create(config []byte) error {
 		return err
 	}
 
-	return WriteToFileAtomic(s.Path("CONFIG"), bytes.NewReader(config))
+	_, err = WriteToFileAtomic(s.Path("CONFIG"), bytes.NewReader(config))
+	return err
 }
 
 func (s *Store) Open() ([]byte, error) {
@@ -125,6 +123,29 @@ func (s *Store) Open() ([]byte, error) {
 
 func (s *Store) Mode() storage.Mode {
 	return storage.ModeRead | storage.ModeWrite
+}
+
+func (s *Store) Size() int64 {
+	var size int64
+	_ = filepath.WalkDir(s.Location(), func(_ string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if d.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+
+		if !d.IsDir() {
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			size += info.Size()
+		}
+		return nil
+	})
+	return size
 }
 
 func (s *Store) GetPackfiles() ([]objects.MAC, error) {
@@ -158,7 +179,7 @@ func (s *Store) DeletePackfile(mac objects.MAC) error {
 	return s.packfiles.Remove(mac)
 }
 
-func (s *Store) PutPackfile(mac objects.MAC, rd io.Reader) error {
+func (s *Store) PutPackfile(mac objects.MAC, rd io.Reader) (int64, error) {
 	return s.packfiles.Put(mac, rd)
 }
 
@@ -171,7 +192,7 @@ func (s *Store) GetStates() ([]objects.MAC, error) {
 	return s.states.List()
 }
 
-func (s *Store) PutState(mac objects.MAC, rd io.Reader) error {
+func (s *Store) PutState(mac objects.MAC, rd io.Reader) (int64, error) {
 	return s.states.Put(mac, rd)
 }
 
@@ -211,7 +232,7 @@ func (s *Store) GetLocks() ([]objects.MAC, error) {
 	return ret, nil
 }
 
-func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) error {
+func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) (int64, error) {
 	return WriteToFileAtomicTempDir(filepath.Join(s.Path("locks"), hex.EncodeToString(lockID[:])), rd, s.Path(""))
 }
 

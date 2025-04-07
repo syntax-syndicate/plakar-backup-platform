@@ -225,6 +225,10 @@ func (s *Store) Mode() storage.Mode {
 	return storage.ModeRead | storage.ModeWrite
 }
 
+func (s *Store) Size() int64 {
+	return -1
+}
+
 // states
 func (s *Store) GetStates() ([]objects.MAC, error) {
 	ret := make([]objects.MAC, 0)
@@ -248,13 +252,13 @@ func (s *Store) GetStates() ([]objects.MAC, error) {
 	return ret, nil
 }
 
-func (s *Store) PutState(mac objects.MAC, rd io.Reader) error {
-	_, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("states/%02x/%016x", mac[0], mac), rd, -1, s.putObjectOptions)
+func (s *Store) PutState(mac objects.MAC, rd io.Reader) (int64, error) {
+	info, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("states/%02x/%016x", mac[0], mac), rd, -1, s.putObjectOptions)
 	if err != nil {
-		return fmt.Errorf("put object: %w", err)
+		return 0, fmt.Errorf("put object: %w", err)
 	}
 
-	return nil
+	return info.Size, nil
 }
 
 func (s *Store) GetState(mac objects.MAC) (io.Reader, error) {
@@ -297,12 +301,12 @@ func (s *Store) GetPackfiles() ([]objects.MAC, error) {
 	return ret, nil
 }
 
-func (s *Store) PutPackfile(mac objects.MAC, rd io.Reader) error {
-	_, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), rd, -1, s.putObjectOptions)
+func (s *Store) PutPackfile(mac objects.MAC, rd io.Reader) (int64, error) {
+	info, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), rd, -1, s.putObjectOptions)
 	if err != nil {
-		return fmt.Errorf("put object: %w", err)
+		return 0, fmt.Errorf("put object: %w", err)
 	}
-	return nil
+	return info.Size, nil
 }
 
 func (s *Store) GetPackfile(mac objects.MAC) (io.Reader, error) {
@@ -359,15 +363,15 @@ func (s *Store) GetLocks() ([]objects.MAC, error) {
 	return ret, nil
 }
 
-func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) error {
+func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) (int64, error) {
 	putObjectOptions := s.putObjectOptions
 	putObjectOptions.StorageClass = "STANDARD"
 
-	_, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("locks/%016x", lockID), rd, -1, putObjectOptions)
+	info, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("locks/%016x", lockID), rd, -1, putObjectOptions)
 	if err != nil {
-		return fmt.Errorf("put object: %w", err)
+		return 0, fmt.Errorf("put object: %w", err)
 	}
-	return nil
+	return info.Size, nil
 }
 
 func (s *Store) GetLock(lockID objects.MAC) (io.Reader, error) {

@@ -47,9 +47,9 @@ func TestS3Backend(t *testing.T) {
 	// states
 	mac1 := objects.MAC{0x10, 0x20}
 	mac2 := objects.MAC{0x30, 0x40}
-	err = repo.PutState(mac1, bytes.NewReader([]byte("test1")))
+	_, err = repo.PutState(mac1, bytes.NewReader([]byte("test1")))
 	require.NoError(t, err)
-	err = repo.PutState(mac2, bytes.NewReader([]byte("test2")))
+	_, err = repo.PutState(mac2, bytes.NewReader([]byte("test2")))
 	require.NoError(t, err)
 
 	states, err := repo.GetStates()
@@ -78,9 +78,9 @@ func TestS3Backend(t *testing.T) {
 	// packfiles
 	mac3 := objects.MAC{0x50, 0x60}
 	mac4 := objects.MAC{0x60, 0x70}
-	err = repo.PutPackfile(mac3, bytes.NewReader([]byte("test3")))
+	_, err = repo.PutPackfile(mac3, bytes.NewReader([]byte("test3")))
 	require.NoError(t, err)
-	err = repo.PutPackfile(mac4, bytes.NewReader([]byte("test4")))
+	_, err = repo.PutPackfile(mac4, bytes.NewReader([]byte("test4")))
 	require.NoError(t, err)
 
 	packfiles, err := repo.GetPackfiles()

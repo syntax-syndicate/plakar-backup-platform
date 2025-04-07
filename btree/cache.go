@@ -18,6 +18,9 @@ func cachefor[K any, P comparable, V any](store Storer[K, P, V], order int) *cac
 	return &cache[K, P, V]{
 		store: store,
 		lru: lru.New(order, func(ptr P, n *cacheitem[K, P, V]) error {
+			if !n.dirty {
+				return nil
+			}
 			return store.Update(ptr, n.node)
 		}),
 	}

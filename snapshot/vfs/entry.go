@@ -170,6 +170,11 @@ func (e *Entry) Open(fs *Filesystem, path string) fs.File {
 
 func (e *Entry) Getdents(fsc *Filesystem) (iter.Seq2[*Entry, error], error) {
 	prefix := e.Path()
+
+	// if chroot is set, prefix must be relative to it for ScanFrom to work as expected
+	if fsc.chroot != "" {
+		prefix = path.Join(fsc.chroot, prefix)
+	}
 	if !strings.HasSuffix(prefix, "/") {
 		prefix += "/"
 	}

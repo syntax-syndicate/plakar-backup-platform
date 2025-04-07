@@ -168,6 +168,10 @@ func (s *Store) Mode() storage.Mode {
 	return storage.ModeRead | storage.ModeWrite
 }
 
+func (s *Store) Size() int64 {
+	return -1
+}
+
 // states
 func (s *Store) GetStates() ([]objects.MAC, error) {
 	rows, err := s.conn.Query("SELECT mac FROM states")
@@ -190,15 +194,15 @@ func (s *Store) GetStates() ([]objects.MAC, error) {
 	return macs, nil
 }
 
-func (s *Store) PutState(mac objects.MAC, rd io.Reader) error {
+func (s *Store) PutState(mac objects.MAC, rd io.Reader) (int64, error) {
 	data, err := io.ReadAll(rd)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	statement, err := s.conn.Prepare(`INSERT INTO states (mac, data) VALUES(?, ?)`)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer statement.Close()
 
@@ -208,14 +212,14 @@ func (s *Store) PutState(mac objects.MAC, rd io.Reader) error {
 	if err != nil {
 		var sqliteErr *sqlite.Error
 		if !errors.As(err, &sqliteErr) {
-			return err
+			return 0, err
 		}
 		if sqliteErr.Code() != sqlite3.SQLITE_CONSTRAINT {
-			return err
+			return 0, err
 		}
 	}
 
-	return nil
+	return int64(len(data)), nil
 }
 
 func (s *Store) GetState(mac objects.MAC) (io.Reader, error) {
@@ -266,15 +270,15 @@ func (s *Store) GetPackfiles() ([]objects.MAC, error) {
 	return macs, nil
 }
 
-func (s *Store) PutPackfile(mac objects.MAC, rd io.Reader) error {
+func (s *Store) PutPackfile(mac objects.MAC, rd io.Reader) (int64, error) {
 	data, err := io.ReadAll(rd)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	statement, err := s.conn.Prepare(`INSERT INTO packfiles (mac, data) VALUES(?, ?)`)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer statement.Close()
 
@@ -284,14 +288,14 @@ func (s *Store) PutPackfile(mac objects.MAC, rd io.Reader) error {
 	if err != nil {
 		var sqliteErr *sqlite.Error
 		if !errors.As(err, &sqliteErr) {
-			return err
+			return 0, err
 		}
 		if sqliteErr.Code() != sqlite3.SQLITE_CONSTRAINT {
-			return err
+			return 0, err
 		}
 	}
 
-	return nil
+	return int64(len(data)), nil
 }
 
 func (s *Store) GetPackfile(mac objects.MAC) (io.Reader, error) {
@@ -362,15 +366,15 @@ func (s *Store) GetLocks() ([]objects.MAC, error) {
 	return ret, nil
 }
 
-func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) error {
+func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) (int64, error) {
 	data, err := io.ReadAll(rd)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	statement, err := s.conn.Prepare(`INSERT INTO locks (mac, data) VALUES(?, ?)`)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer statement.Close()
 
@@ -380,14 +384,14 @@ func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) error {
 	if err != nil {
 		var sqliteErr *sqlite.Error
 		if !errors.As(err, &sqliteErr) {
-			return err
+			return 0, err
 		}
 		if sqliteErr.Code() != sqlite3.SQLITE_CONSTRAINT {
-			return err
+			return 0, err
 		}
 	}
 
-	return nil
+	return int64(len(data)), nil
 }
 
 func (s *Store) GetLock(lockID objects.MAC) (io.Reader, error) {
