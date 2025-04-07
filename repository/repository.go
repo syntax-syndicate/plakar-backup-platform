@@ -255,7 +255,6 @@ func (r *Repository) Store() storage.Store {
 }
 
 func (r *Repository) StorageSize() int64 {
-	fmt.Println("StorageSize()", r.storageSize, r.storageSizeDirty)
 	if r.storageSizeDirty {
 		r.storageSize = r.store.Size()
 		r.storageSizeDirty = false
