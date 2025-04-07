@@ -472,7 +472,6 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 
 			// xattrs are a special case
 			if record.IsXattr {
-				snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 				backupCtx.recordXattr(record, objectMAC, object.Size())
 				return
 			}
