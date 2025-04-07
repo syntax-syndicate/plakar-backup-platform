@@ -49,11 +49,7 @@ func NewStore(storeConfig map[string]string) (storage.Store, error) {
 }
 
 func (s *Store) Location() string {
-	location := s.location
-	if strings.HasPrefix(location, "fs://") {
-		location = location[4:]
-	}
-	return location
+	return strings.TrimPrefix(s.location, "fs://")
 }
 
 func (s *Store) Path(args ...string) string {
