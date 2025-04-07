@@ -17,22 +17,22 @@
 package imap
 
 import (
-	//"encoding/json"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/url"
-	//"log"
+	"path"
 	"strconv"
-	//"bytes"
+	"strings"
 
 	"github.com/PlakarKorp/plakar/objects"
 
 	"github.com/PlakarKorp/plakar/snapshot/exporter"
 
-	//"github.com/emersion/go-imap"
+	imap2 "github.com/BrianLeishman/go-imap"
 	"github.com/emersion/go-imap/client"
-	//"github.com/emersion/go-message"
-	//"github.com/emersion/go-message/textproto"
 )
 
 type IMAPExporter struct {
@@ -98,58 +98,61 @@ func (p *IMAPExporter) Root() string {
 }
 
 func (p *IMAPExporter) CreateDirectory(pathname string) error {
-	/*err := p.client.Create(pathname)
+	p.maxConcurrency <- struct{}{}
+	defer func() { <-p.maxConcurrency }()
+	if pathname == "/" {
+		return nil
+	}
+	err := p.client.Create(strings.ReplaceAll(pathname[1:], "/", "."))
 	if err != nil {
-		fmt.Println("Trouble creating folder :", err)
-	} else {
-		fmt.Println("Folder created :", pathname)
-	}*/
-	return nil
+		log.Printf("Failed to create directory %s: %v", strings.ReplaceAll(pathname[1:], "/", "."), err)
+		return nil
+	}
+	return nil //todo: check error if err == "Mailbox already exists" return nil else return err
 }
 
 func (p *IMAPExporter) StoreFile(pathname string, fp io.Reader) error {
-	/*folderName := pathname
+
+	p.maxConcurrency <- struct{}{}
+	defer func() { <-p.maxConcurrency }()
+
+	pathh, _ := strings.CutSuffix(pathname, "/"+path.Base(pathname))
+	pathhh, _ := strings.CutPrefix(pathh, "/")
+	folderName := strings.ReplaceAll(pathhh, "/", ".")
+	log.Printf("Folder name: %s", folderName)
 	_, err := p.client.Select(folderName, false)
 	if err != nil {
 		return fmt.Errorf("error selecting folder: %w", err)
 	}
 
-	var buf bytes.Buffer
-	header := textproto.Header{}
-	header.Set("From", "user@example.com")
-	header.Set("To", "recipient@example.com")
-	header.Set("Subject", "Email added to IMAP")
-
-	writer, err := message.CreateWriter(&buf, "text/plain")
+	emailRaw, err := io.ReadAll(fp)
 	if err != nil {
-		return fmt.Errorf("error creating message writer: %w", err)
+		return fmt.Errorf("error reading file: %w", err)
+	}
+	var email imap2.Email
+	err = json.Unmarshal(emailRaw, &email)
+	if err != nil {
+		return fmt.Errorf("error unmarshalling email: %w", err)
 	}
 
-	part, err := writer.CreatePart(message.Header{Header: header})
+	var b bytes.Buffer
+	b.WriteString("From: " + email.From.String() + "\r\n")
+	b.WriteString("To: " + email.To.String() + "\r\n")
+	b.WriteString("ReplyTo: " + email.ReplyTo.String() + "\r\n")
+	b.WriteString("Subject: " + email.Subject + "\r\n")
+	b.WriteString("Received: " + email.Received.String() + "\r\n")
+	b.WriteString("Sent: " + email.Sent.String() + "\r\n")
+	b.WriteString("CC: " + email.CC.String() + "\r\n")
+	b.WriteString("BCC: " + email.BCC.String() + "\r\n")
+	b.WriteString("\r\n")
+	b.WriteString(email.Text)
+
+	err = p.client.Append(folderName, email.Flags, email.Received, &b)
 	if err != nil {
-		return fmt.Errorf("error creating message part: %w", err)
+		return fmt.Errorf("error appending email to folder: %w", err)
 	}
-
-	emailContent, err := json.Marshal(fp) // TODO: pqrse the json
-	if emailContent != nil {
-		_, err = io.Copy(part, emailContent)
-		if err != nil {
-			return fmt.Errorf("error writing email content: %w", err)
-		}
-	}
-
-	part.Close()
-	writer.Close()
-
-	appendFlags := []string{imap.SeenFlag}
-	err = p.client.Append(folderName, appendFlags, bytes.NewReader(buf.Bytes()), nil)
-	if err != nil {
-		return fmt.Errorf("error adding email: %w", err)
-	}*/
 	return nil
 }
-
-
 
 func (p *IMAPExporter) SetPermissions(pathname string, fileinfo *objects.FileInfo) error {
 	return nil
