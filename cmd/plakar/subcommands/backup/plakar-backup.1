@@ -1,4 +1,4 @@
-.Dd March 3, 2025
+.Dd April 4, 2025
 .Dt PLAKAR-BACKUP 1
 .Os
 .Sh NAME
@@ -12,16 +12,21 @@
 .Op Fl check
 .Op Fl quiet
 .Op Fl tag Ar tag
-.Op Ar directory
+.Op Ar place
 .Sh DESCRIPTION
 The
 .Nm
 command creates a new snapshot of
-.Ar directory ,
-or the current directory,
-in a Plakar repository.
+.Ar place ,
+or the current directory.
 Snapshots can be filtered to exclude specific files or directories
 based on patterns provided through options.
+.Pp
+.Ar place
+can be either a path, an URI, or a label on the form
+.Dq @ Ns Ar name
+to reference a remote configured with
+.Xr plakar-config 1 .
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -68,4 +73,5 @@ An error occurred, such as failure to access the repository or issues
 with exclusion patterns.
 .El
 .Sh SEE ALSO
-.Xr plakar 1
+.Xr plakar 1 ,
+.Xr plakar-config 1

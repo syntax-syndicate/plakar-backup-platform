@@ -141,11 +141,6 @@ The following commands are available:
 > Compute digests for files in a Plakar snapshot, documented in
 > plakar-digest(1).
 
-**exec**
-
-> Execute a file from a Plakar snapshot, documented in
-> plakar-exec(1).
-
 **help**
 
 > Show this manpage and the ones for the subcommands.

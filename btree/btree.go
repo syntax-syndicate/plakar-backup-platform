@@ -102,7 +102,7 @@ func Deserialize[K any, P comparable, V any](rd io.Reader, store Storer[K, P, V]
 }
 
 func (b *BTree[K, P, V]) Close() error {
-	return b.cache.flushall()
+	return b.cache.Close()
 }
 
 func newNodeFrom[K any, P comparable, V any](keys []K, pointers []P, values []V) *Node[K, P, V] {
@@ -306,6 +306,6 @@ func (b *BTree[K, P, V]) insertUpwards(key K, ptr P, path []P) error {
 	return nil
 }
 
-func (b *BTree[K, P, V]) Stats() (hits, miss, size int) {
-	return b.cache.hits, b.cache.miss, b.cache.size
+func (b *BTree[K, P, V]) Stats() (hits, miss, size uint64) {
+	return b.cache.lru.Stats()
 }

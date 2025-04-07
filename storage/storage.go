@@ -114,20 +114,21 @@ type Store interface {
 	Open() ([]byte, error)
 	Location() string
 	Mode() Mode
+	Size() int64 // this can be costly, call with caution
 
 	GetStates() ([]objects.MAC, error)
-	PutState(mac objects.MAC, rd io.Reader) error
+	PutState(mac objects.MAC, rd io.Reader) (int64, error)
 	GetState(mac objects.MAC) (io.Reader, error)
 	DeleteState(mac objects.MAC) error
 
 	GetPackfiles() ([]objects.MAC, error)
-	PutPackfile(mac objects.MAC, rd io.Reader) error
+	PutPackfile(mac objects.MAC, rd io.Reader) (int64, error)
 	GetPackfile(mac objects.MAC) (io.Reader, error)
 	GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (io.Reader, error)
 	DeletePackfile(mac objects.MAC) error
 
 	GetLocks() ([]objects.MAC, error)
-	PutLock(lockID objects.MAC, rd io.Reader) error
+	PutLock(lockID objects.MAC, rd io.Reader) (int64, error)
 	GetLock(lockID objects.MAC) (io.Reader, error)
 	DeleteLock(lockID objects.MAC) error
 

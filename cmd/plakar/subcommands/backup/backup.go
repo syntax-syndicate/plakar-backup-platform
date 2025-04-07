@@ -63,7 +63,7 @@ func parse_cmd_backup(ctx *appcontext.AppContext, args []string) (subcommands.Su
 	flags := flag.NewFlagSet("backup", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] path\n", flags.Name())
-		fmt.Fprintf(flags.Output(), "       %s [OPTIONS] s3://path\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s [OPTIONS] @LOCATION\n", flags.Name())
 		fmt.Fprintf(flags.Output(), "\nOPTIONS:\n")
 		flags.PrintDefaults()
 	}
@@ -237,11 +237,21 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		}
 	}
 
-	ctx.GetLogger().Info("%s: created %s snapshot %x of size %s in %s",
+	totalSize := snap.Header.GetSource(0).Summary.Directory.Size + snap.Header.GetSource(0).Summary.Below.Size
+	savings := float64(totalSize-uint64(snap.Repository().WBytes())) / float64(totalSize) * 100
+
+	if uint64(snap.Repository().RBytes()) > totalSize {
+		savings = 0
+	}
+
+	ctx.GetLogger().Info("%s: created %s snapshot %x of size %s in %s (wrote %s, saved %0.2f%%)",
 		cmd.Name(),
 		"unsigned",
 		snap.Header.GetIndexShortID(),
-		humanize.Bytes(snap.Header.GetSource(0).Summary.Directory.Size+snap.Header.GetSource(0).Summary.Below.Size),
-		snap.Header.Duration)
+		humanize.Bytes(totalSize),
+		snap.Header.Duration,
+		humanize.Bytes(uint64(snap.Repository().WBytes())),
+		savings,
+	)
 	return 0, nil
 }

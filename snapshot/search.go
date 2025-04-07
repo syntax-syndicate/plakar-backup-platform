@@ -4,6 +4,7 @@ import (
 	"context"
 	"iter"
 	"path"
+	"regexp"
 	"strings"
 
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
@@ -170,7 +171,13 @@ func visitfiles(ctx context.Context, snap *Snapshot, opts *SearchOpts) (iter.Seq
 					matched = true
 				}
 				if !matched {
-					matched, err := path.Match(opts.NameFilter, path.Base(entryPath))
+					matched, err = path.Match(opts.NameFilter, path.Base(entryPath))
+					if err != nil {
+						continue
+					}
+				}
+				if !matched {
+					matched, err = regexp.Match(opts.NameFilter, []byte(path.Base(entryPath)))
 					if err != nil {
 						continue
 					}

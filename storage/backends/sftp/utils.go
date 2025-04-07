@@ -83,33 +83,34 @@ func ClosingLimitedReaderFromOffset(file *sftp.File, offset, length int64) (io.R
 	}, nil
 }
 
-func WriteToFileAtomic(sftpClient *sftp.Client, filename string, rd io.Reader) error {
+func WriteToFileAtomic(sftpClient *sftp.Client, filename string, rd io.Reader) (int64, error) {
 	return WriteToFileAtomicTempDir(sftpClient, filename, rd, filepath.Dir(filename))
 }
 
-func WriteToFileAtomicTempDir(sftpClient *sftp.Client, filename string, rd io.Reader, tmpdir string) error {
+func WriteToFileAtomicTempDir(sftpClient *sftp.Client, filename string, rd io.Reader, tmpdir string) (int64, error) {
 	tmp := fmt.Sprintf("%s.tmp", filename)
 	f, err := sftpClient.Create(tmp)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	if _, err := io.Copy(f, rd); err != nil {
+	var nbytes int64
+	if nbytes, err = io.Copy(f, rd); err != nil {
 		f.Close()
 		sftpClient.Remove(f.Name())
-		return err
+		return 0, err
 	}
 
 	if err = f.Close(); err != nil {
 		sftpClient.Remove(f.Name())
-		return err
+		return 0, err
 	}
 
 	err = sftpClient.Rename(f.Name(), filename)
 	if err != nil {
 		sftpClient.Remove(f.Name())
-		return err
+		return 0, err
 	}
 
-	return nil
+	return nbytes, nil
 }

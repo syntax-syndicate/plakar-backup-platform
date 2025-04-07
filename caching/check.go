@@ -33,7 +33,7 @@ func newCheckCache(cacheManager *Manager) (*CheckCache, error) {
 
 func (c *CheckCache) Close() error {
 	c.PebbleCache.Close()
-	return os.RemoveAll(filepath.Join(c.manager.cacheDir, "scan", c.id))
+	return os.RemoveAll(filepath.Join(c.manager.cacheDir, "check", c.id))
 }
 
 func (c *CheckCache) PutPackfileStatus(mac objects.MAC, err []byte) error {
