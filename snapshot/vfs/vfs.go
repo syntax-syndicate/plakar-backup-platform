@@ -124,9 +124,9 @@ func NewFilesystem(repo *repository.Repository, root, xattrs, errors objects.MAC
 	return fs, nil
 }
 
-func (fsc *Filesystem) Chroot(pathname string) error {
+func (fsc *Filesystem) Chroot(pathname string) (*Filesystem, error) {
 	if pathname == "" {
-		return fs.ErrInvalid
+		return nil, fs.ErrInvalid
 	}
 
 	if !strings.HasPrefix(pathname, "/") {
@@ -135,22 +135,22 @@ func (fsc *Filesystem) Chroot(pathname string) error {
 	pathname = path.Clean(pathname)
 
 	if pathname == "" {
-		fsc.chroot = "/"
-		return nil
+		return fsc, nil
 	}
 
 	entry, err := fsc.GetEntry(pathname)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if !entry.IsDir() {
-		return fs.ErrInvalid
+		return nil, fs.ErrInvalid
 	}
 
-	fsc.chroot = pathname
+	chrootedVFS := *fsc
+	chrootedVFS.chroot = pathname
 
-	return nil
+	return &chrootedVFS, nil
 }
 
 func (fsc *Filesystem) lookup(entrypath string) (*Entry, error) {
