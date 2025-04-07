@@ -116,6 +116,6 @@ func (buckets *Buckets) Remove(mac objects.MAC) error {
 	return os.Remove(buckets.Path(mac))
 }
 
-func (buckets *Buckets) Put(mac objects.MAC, rd io.Reader) error {
+func (buckets *Buckets) Put(mac objects.MAC, rd io.Reader) (int64, error) {
 	return WriteToFileAtomicTempDir(buckets.Path(mac), rd, buckets.path)
 }

@@ -359,7 +359,7 @@ func (cmd *Maintenance) Lock() (chan bool, error) {
 		return nil, err
 	}
 
-	err = cmd.repository.PutLock(cmd.maintenanceID, buffer)
+	_, err = cmd.repository.PutLock(cmd.maintenanceID, buffer)
 	if err != nil {
 		return nil, err
 	}

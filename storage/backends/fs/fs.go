@@ -101,7 +101,8 @@ func (s *Store) Create(config []byte) error {
 		return err
 	}
 
-	return WriteToFileAtomic(s.Path("CONFIG"), bytes.NewReader(config))
+	_, err = WriteToFileAtomic(s.Path("CONFIG"), bytes.NewReader(config))
+	return err
 }
 
 func (s *Store) Open() ([]byte, error) {
@@ -158,7 +159,7 @@ func (s *Store) DeletePackfile(mac objects.MAC) error {
 	return s.packfiles.Remove(mac)
 }
 
-func (s *Store) PutPackfile(mac objects.MAC, rd io.Reader) error {
+func (s *Store) PutPackfile(mac objects.MAC, rd io.Reader) (int64, error) {
 	return s.packfiles.Put(mac, rd)
 }
 
@@ -171,7 +172,7 @@ func (s *Store) GetStates() ([]objects.MAC, error) {
 	return s.states.List()
 }
 
-func (s *Store) PutState(mac objects.MAC, rd io.Reader) error {
+func (s *Store) PutState(mac objects.MAC, rd io.Reader) (int64, error) {
 	return s.states.Put(mac, rd)
 }
 
@@ -211,7 +212,7 @@ func (s *Store) GetLocks() ([]objects.MAC, error) {
 	return ret, nil
 }
 
-func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) error {
+func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) (int64, error) {
 	return WriteToFileAtomicTempDir(filepath.Join(s.Path("locks"), hex.EncodeToString(lockID[:])), rd, s.Path(""))
 }
 

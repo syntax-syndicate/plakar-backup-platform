@@ -115,10 +115,10 @@ func (s *Store) GetStates() ([]objects.MAC, error) {
 	return ret, nil
 }
 
-func (s *Store) PutState(MAC objects.MAC, rd io.Reader) error {
+func (s *Store) PutState(MAC objects.MAC, rd io.Reader) (int64, error) {
 	data, err := io.ReadAll(rd)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	r, err := s.sendRequest("PUT", "/state", network.ReqPutState{
@@ -126,17 +126,17 @@ func (s *Store) PutState(MAC objects.MAC, rd io.Reader) error {
 		Data: data,
 	})
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	var resPutState network.ResPutState
 	if err := json.NewDecoder(r.Body).Decode(&resPutState); err != nil {
-		return err
+		return 0, err
 	}
 	if resPutState.Err != "" {
-		return fmt.Errorf("%s", resPutState.Err)
+		return 0, fmt.Errorf("%s", resPutState.Err)
 	}
-	return nil
+	return int64(len(data)), nil
 }
 
 func (s *Store) GetState(MAC objects.MAC) (io.Reader, error) {
@@ -197,27 +197,27 @@ func (s *Store) GetPackfiles() ([]objects.MAC, error) {
 	return ret, nil
 }
 
-func (s *Store) PutPackfile(MAC objects.MAC, rd io.Reader) error {
+func (s *Store) PutPackfile(MAC objects.MAC, rd io.Reader) (int64, error) {
 	data, err := io.ReadAll(rd)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	r, err := s.sendRequest("PUT", "/packfile", network.ReqPutPackfile{
 		MAC:  MAC,
 		Data: data,
 	})
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	var resPutPackfile network.ResPutPackfile
 	if err := json.NewDecoder(r.Body).Decode(&resPutPackfile); err != nil {
-		return err
+		return 0, err
 	}
 	if resPutPackfile.Err != "" {
-		return fmt.Errorf("%s", resPutPackfile.Err)
+		return 0, fmt.Errorf("%s", resPutPackfile.Err)
 	}
-	return nil
+	return int64(len(data)), nil
 }
 
 func (s *Store) GetPackfile(MAC objects.MAC) (io.Reader, error) {
@@ -293,10 +293,10 @@ func (s *Store) GetLocks() ([]objects.MAC, error) {
 	return res.Locks, nil
 }
 
-func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) error {
+func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) (int64, error) {
 	data, err := io.ReadAll(rd)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	req := network.ReqPutLock{
@@ -305,17 +305,17 @@ func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) error {
 	}
 	r, err := s.sendRequest("PUT", "/lock", &req)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	var res network.ResPutLock
 	if err := json.NewDecoder(r.Body).Decode(&res); err != nil {
-		return err
+		return 0, err
 	}
 	if res.Err != "" {
-		return fmt.Errorf("%s", res.Err)
+		return 0, fmt.Errorf("%s", res.Err)
 	}
-	return nil
+	return int64(len(data)), nil
 }
 
 func (s *Store) GetLock(lockID objects.MAC) (io.Reader, error) {
