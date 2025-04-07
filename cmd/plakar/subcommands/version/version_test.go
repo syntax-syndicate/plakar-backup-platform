@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -48,6 +49,7 @@ func TestExecuteCmdVersion(t *testing.T) {
 	io.Copy(&buf, r)
 
 	output := buf.String()
-	require.Equal(t, fmt.Sprintf("%s\n", utils.GetVersion()), output)
+	version := strings.Split(output, "\n")[0]
+	require.Equal(t, fmt.Sprintf("plakar/%s", utils.GetVersion()), version)
 
 }
