@@ -184,12 +184,13 @@ func sha256Fingerprint(key ssh.PublicKey) string {
 func knownHostLine(hostname string, key ssh.PublicKey) string {
 	authorized := strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key)))
 
-	if strings.Contains(hostname, ":") && !strings.Contains(hostname, "]") {
-		host, port, err := net.SplitHostPort(hostname)
-		if err == nil && port != "22" {
-			return fmt.Sprintf("[%s]:%s %s", host, port, authorized)
-		}
+	// Only format [host]:port if it's a valid host:port
+	host, port, err := net.SplitHostPort(hostname)
+	if err == nil && port != "22" {
+		return fmt.Sprintf("[%s]:%s %s", host, port, authorized)
 	}
+
+	// Otherwise, fallback to the raw hostname
 	return fmt.Sprintf("%s %s", hostname, authorized)
 }
 
