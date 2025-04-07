@@ -286,11 +286,6 @@ func loadSigners(keyPath string) ([]ssh.Signer, error) {
 	return signers, nil
 }
 
-func sha256Fingerprint(key ssh.PublicKey) string {
-	hash := sha256.Sum256(key.Marshal())
-	return "SHA256:" + base64.StdEncoding.EncodeToString(hash[:])
-}
-
 func safeHostKeyCallback(knownHostsPath string, ignore bool) (ssh.HostKeyCallback, error) {
 	if ignore {
 		return ssh.InsecureIgnoreHostKey(), nil
@@ -314,7 +309,9 @@ func safeHostKeyCallback(knownHostsPath string, ignore bool) (ssh.HostKeyCallbac
 	}
 
 	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-		fingerprint := sha256Fingerprint(key)
+		hash := sha256.Sum256(key.Marshal())
+		fingerprint := "SHA256:" + base64.StdEncoding.EncodeToString(hash[:])
+
 		fmt.Printf("The authenticity of host '%s' can't be established.\n", hostname)
 		fmt.Printf("%s key fingerprint is %s.\n", key.Type(), fingerprint)
 		fmt.Print("Are you sure you want to continue connecting (yes/no)? ")
