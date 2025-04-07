@@ -25,17 +25,25 @@ import (
 )
 
 func Connect(endpoint *url.URL, config map[string]string) (*sftp.Client, error) {
+	// if plakar config has identity or insecure_ignore_host_key, use them
 	identity := config["identity"]
 	ignoreHostKey := config["insecure_ignore_host_key"] == "true"
 
+	// resolve ~/.ssh/config and provide fallback values
 	sshConfig := resolveSSHConfig(endpoint.User.Username(), endpoint.Hostname(), endpoint.Port())
 
 	var username string
 	var host string
 	var port string
 
+	// this is either the override or the default fallback
 	host = sshConfig["host"]
+	port = sshConfig["port"]
 
+	// if username is set in the URL, use it otherwise:
+	// - fallback to ssh_config
+	// - fallback to the user environment variable
+	// - fallback to the current user
 	if endpoint.User.Username() != "" {
 		username = endpoint.User.Username()
 	} else {
@@ -52,12 +60,7 @@ func Connect(endpoint *url.URL, config map[string]string) (*sftp.Client, error) 
 		}
 	}
 
-	if endpoint.Port() != "" {
-		port = endpoint.Port()
-	} else {
-		port = sshConfig["port"]
-	}
-
+	// if identity is set in sshConfig and we didn't get one from the config, use it
 	if sshConfig["identity"] != "" && identity == "" {
 		identity = sshConfig["identity"]
 		if strings.HasPrefix(identity, "~/") {
@@ -69,11 +72,13 @@ func Connect(endpoint *url.URL, config map[string]string) (*sftp.Client, error) 
 		}
 	}
 
+	// look for home directory to resolve known hosts...
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get home directory: %v", err)
 	}
 
+	// ... unless one was provided in config for override
 	knownHostsPath := filepath.Join(homeDir, ".ssh", "known_hosts")
 	if customPath := sshConfig["known_hosts"]; customPath != "" {
 		knownHostsPath = customPath
@@ -100,6 +105,7 @@ func Connect(endpoint *url.URL, config map[string]string) (*sftp.Client, error) 
 	target := net.JoinHostPort(host, port)
 	proxyCommand := sshConfig["proxy_command"]
 
+	// if there's a proxy command, pipe
 	var conn net.Conn
 	if proxyCommand != "" {
 		proxyCommand = strings.ReplaceAll(proxyCommand, "%h", host)
@@ -129,11 +135,14 @@ func Connect(endpoint *url.URL, config map[string]string) (*sftp.Client, error) 
 			return nil, fmt.Errorf("failed to connect to %s: %w", target, err)
 		}
 	}
+
+	// we're done !
+	// connect to the server (or proxy)
 	sshClientConn, chans, reqs, err := ssh.NewClientConn(conn, target, &ssh.ClientConfig{
 		User: username,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeysCallback(func() ([]ssh.Signer, error) {
-				return loadSignersForHost(host, identity)
+				return loadSigners(identity)
 			}),
 		},
 		HostKeyCallback: hostKeyCallback,
@@ -176,7 +185,7 @@ func resolveSSHConfig(username string, host string, port string) map[string]stri
 	return map[string]string{
 		"host":                 fallback(get("HostName"), host),
 		"user":                 fallback(get("User"), username),
-		"port":                 fallback(get("Port"), "22"),
+		"port":                 fallback(fallback(get("Port"), port), "22"),
 		"identity":             get("IdentityFile"),
 		"known_hosts":          get("UserKnownHostsFile"),
 		"strict_host_checking": get("StrictHostKeyChecking"),
@@ -191,7 +200,7 @@ func fallback(primary, fallback string) string {
 	return fallback
 }
 
-func loadSignersForHost(host string, keyPath string) ([]ssh.Signer, error) {
+func loadSigners(keyPath string) ([]ssh.Signer, error) {
 	var signers []ssh.Signer
 
 	// 0. Check for explicitly configured identity file
