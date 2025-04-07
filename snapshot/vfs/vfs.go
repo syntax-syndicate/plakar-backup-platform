@@ -1,6 +1,8 @@
 package vfs
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"iter"
@@ -49,6 +51,7 @@ type Filesystem struct {
 	errors *btree.BTree[string, objects.MAC, objects.MAC]
 	repo   *repository.Repository
 	chroot string
+	mount  string
 }
 
 func PathCmp(a, b string) int {
@@ -124,10 +127,31 @@ func NewFilesystem(repo *repository.Repository, root, xattrs, errors objects.MAC
 	return fs, nil
 }
 
+// Mount return a Filesystem that pretends to be "mounted" at
+// pathname.  All the vfs entries will result below pathname.
+func (fsc *Filesystem) Mount(pathname string) (*Filesystem, error) {
+	pathname = path.Clean(pathname)
+	if !path.IsAbs(pathname) {
+		return nil, fs.ErrInvalid
+	}
+
+	if fsc.chroot != "" {
+		return nil, fmt.Errorf("fs already chrooted; can't mount")
+	}
+
+	newfs := *fsc
+	fsc.mount = pathname
+	return &newfs, nil
+}
+
 func (fsc *Filesystem) Chroot(pathname string) (*Filesystem, error) {
 	pathname = path.Clean(pathname)
 	if !path.IsAbs(pathname) {
 		return nil, fs.ErrInvalid
+	}
+
+	if fsc.mount != "" {
+		return nil, fmt.Errorf("fs already mounted; can't chroot")
 	}
 
 	entry, err := fsc.GetEntry(pathname)
@@ -162,19 +186,22 @@ func (fsc *Filesystem) lookup(entrypath string) (*Entry, error) {
 	return fsc.ResolveEntry(csum)
 }
 
+// patch patches the given entry wrt the current Chroot and/or Mount
+// operation, so that later paths returned by it are proper.
 func (fsc *Filesystem) patch(entry *Entry) *Entry {
-	// if no chroot is set, return the entry as is
-	if fsc.chroot == "" {
-		return entry
+	var newpath string
+
+	if fsc.chroot != "" {
+		newpath = strings.TrimPrefix(entry.Path(), fsc.chroot)
+	}
+	if fsc.mount != "" {
+		newpath = path.Join(fsc.mount, entry.Path())
 	}
 
-	// otherwise we need to patch its Lname and ParentPath
-	chrootedPath := strings.TrimPrefix(entry.Path(), fsc.chroot)
-	if chrootedPath == "" {
-		chrootedPath = "/"
+	if newpath != "" {
+		entry.FileInfo.Lname = path.Base(newpath)
+		entry.ParentPath = path.Dir(newpath)
 	}
-	entry.FileInfo.Lname = path.Base(chrootedPath)
-	entry.ParentPath = path.Dir(chrootedPath)
 	return entry
 }
 
@@ -357,6 +384,12 @@ func (fsc *Filesystem) Pathnames() iter.Seq2[string, error] {
 func (fsc *Filesystem) GetEntry(entrypath string) (*Entry, error) {
 	if fsc.chroot != "" {
 		entrypath = path.Join(fsc.chroot, entrypath)
+	} else if fsc.mount != "" {
+		if !strings.HasPrefix(entrypath, fsc.mount) {
+			return nil, errors.ErrUnsupported
+		}
+		entrypath = strings.TrimPrefix(entrypath, fsc.mount)
+		entrypath = path.Clean(entrypath)
 	} else {
 		entrypath = path.Clean(entrypath)
 	}
