@@ -48,6 +48,9 @@ type Repository struct {
 
 	wBytes atomic.Int64
 	rBytes atomic.Int64
+
+	storageSize      int64
+	storageSizeDirty bool
 }
 
 func Inexistent(ctx *appcontext.AppContext, storeConfig map[string]string) (*Repository, error) {
@@ -58,9 +61,11 @@ func Inexistent(ctx *appcontext.AppContext, storeConfig map[string]string) (*Rep
 	defer st.Close()
 
 	return &Repository{
-		store:         st,
-		configuration: *storage.NewConfiguration(),
-		appContext:    ctx,
+		store:            st,
+		configuration:    *storage.NewConfiguration(),
+		appContext:       ctx,
+		storageSize:      -1,
+		storageSizeDirty: true,
 	}, nil
 }
 
@@ -93,9 +98,11 @@ func New(ctx *appcontext.AppContext, store storage.Store, config []byte) (*Repos
 	}
 
 	r := &Repository{
-		store:         store,
-		configuration: *configInstance,
-		appContext:    ctx,
+		store:            store,
+		configuration:    *configInstance,
+		appContext:       ctx,
+		storageSize:      -1,
+		storageSizeDirty: true,
 	}
 
 	if err := r.RebuildState(); err != nil {
@@ -146,9 +153,11 @@ func NewNoRebuild(ctx *appcontext.AppContext, store storage.Store, config []byte
 	}
 
 	r := &Repository{
-		store:         store,
-		configuration: *configInstance,
-		appContext:    ctx,
+		store:            store,
+		configuration:    *configInstance,
+		appContext:       ctx,
+		storageSize:      -1,
+		storageSizeDirty: true,
 	}
 
 	return r, nil
@@ -203,6 +212,7 @@ func (r *Repository) RebuildState() error {
 		}
 	}
 
+	rebuilt := false
 	for _, stateID := range missingStates {
 		version, remoteStateRd, err := r.GetState(stateID)
 		if err != nil {
@@ -212,6 +222,7 @@ func (r *Repository) RebuildState() error {
 		if err := aggregatedState.MergeState(version, stateID, remoteStateRd); err != nil {
 			return err
 		}
+		rebuilt = true
 	}
 
 	// delete local states that are not present in remote
@@ -219,6 +230,7 @@ func (r *Repository) RebuildState() error {
 		if err := aggregatedState.DelState(stateID); err != nil {
 			return err
 		}
+		rebuilt = true
 	}
 
 	r.state = aggregatedState
@@ -226,6 +238,8 @@ func (r *Repository) RebuildState() error {
 	// The first Serial id is our repository ID, this allows us to deal
 	// naturally with concurrent first backups.
 	r.state.UpdateSerialOr(r.configuration.RepositoryID)
+
+	r.storageSizeDirty = rebuilt
 
 	return nil
 }
@@ -236,6 +250,14 @@ func (r *Repository) AppContext() *appcontext.AppContext {
 
 func (r *Repository) Store() storage.Store {
 	return r.store
+}
+
+func (r *Repository) StorageSize() int64 {
+	if r.storageSizeDirty {
+		r.storageSize = r.store.Size()
+		r.storageSizeDirty = false
+	}
+	return r.storageSize
 }
 
 func (r *Repository) RBytes() int64 {
