@@ -65,30 +65,13 @@ func (s *Store) Size() int64 {
 	return -1
 }
 
-// snapshots
-func (s *Store) GetSnapshots() ([]objects.MAC, error) {
-	return []objects.MAC{}, nil
-}
-
-func (s *Store) PutSnapshot(snapshotID objects.MAC, data []byte) error {
-	return nil
-}
-
-func (s *Store) GetSnapshot(snapshotID objects.MAC) ([]byte, error) {
-	return []byte{}, nil
-}
-
-func (s *Store) DeleteSnapshot(snapshotID objects.MAC) error {
-	return nil
-}
-
 // states
 func (s *Store) GetStates() ([]objects.MAC, error) {
 	return []objects.MAC{}, nil
 }
 
-func (s *Store) PutState(mac objects.MAC, rd io.Reader) error {
-	return nil
+func (s *Store) PutState(mac objects.MAC, rd io.Reader) (int64, error) {
+	return 0, nil
 }
 
 func (s *Store) GetState(mac objects.MAC) (io.Reader, error) {
@@ -104,8 +87,8 @@ func (s *Store) GetPackfiles() ([]objects.MAC, error) {
 	return []objects.MAC{}, nil
 }
 
-func (s *Store) PutPackfile(mac objects.MAC, rd io.Reader) error {
-	return nil
+func (s *Store) PutPackfile(mac objects.MAC, rd io.Reader) (int64, error) {
+	return 0, nil
 }
 
 func (s *Store) GetPackfile(mac objects.MAC) (io.Reader, error) {
@@ -125,8 +108,8 @@ func (s *Store) GetLocks() ([]objects.MAC, error) {
 	return []objects.MAC{}, nil
 }
 
-func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) error {
-	return nil
+func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) (int64, error) {
+	return 0, nil
 }
 
 func (s *Store) GetLock(lockID objects.MAC) (io.Reader, error) {

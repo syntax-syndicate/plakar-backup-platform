@@ -1014,11 +1014,12 @@ func (snap *Snapshot) Commit(bc *BackupContext) error {
 		<-bc.flushEnded
 	} else {
 		stateDelta := buildSerializedDeltaState(snap.deltaState)
-		err = snap.repository.PutState(snap.Header.Identifier, stateDelta)
+		err := snap.repository.PutState(snap.Header.Identifier, stateDelta)
 		if err != nil {
 			snap.Logger().Warn("Failed to push the state to the repository %s", err)
 			return err
 		}
+
 		// We inserted deltas during the process in our aggregated state, we
 		// also need to publish the state so that rebuild doesn't pickit up on
 		// next run.
