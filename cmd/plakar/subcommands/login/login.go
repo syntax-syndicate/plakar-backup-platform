@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-package version
+package login
 
 import (
 	"bytes"
@@ -23,21 +23,24 @@ import (
 	"fmt"
 	"net/http"
 	"net/mail"
+	"net/url"
 	"strings"
+	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
+	"golang.org/x/oauth2"
 )
 
 func init() {
-	subcommands.Register("register", parse_cmd_register)
+	subcommands.Register("login", parse_cmd_login)
 }
 
-func parse_cmd_register(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
+func parse_cmd_login(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
 	var opt_provider string
 
-	flags := flag.NewFlagSet("register", flag.ExitOnError)
+	flags := flag.NewFlagSet("login", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s\n", flags.Name())
 		flags.PrintDefaults()
@@ -55,13 +58,13 @@ func parse_cmd_register(ctx *appcontext.AppContext, args []string) (subcommands.
 		return nil, fmt.Errorf("invalid email address: %s", flags.Arg(0))
 	}
 
-	return &Register{
+	return &Login{
 		Email:    strings.ToLower(flags.Arg(0)),
 		Provider: opt_provider,
 	}, nil
 }
 
-type Register struct {
+type Login struct {
 	//
 	Email    string
 	Provider string
@@ -76,8 +79,8 @@ type LoginResponse struct {
 	URL string `json:"url"`
 }
 
-func (cmd *Register) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	fmt.Println("DOING A REGISTER")
+func (cmd *Login) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+	fmt.Println("DOING A LOGIN")
 
 	//reader := bufio.NewReader(os.Stdin)
 	//fmt.Print("Enter your email address: ")
@@ -94,10 +97,9 @@ func (cmd *Register) Execute(ctx *appcontext.AppContext, repo *repository.Reposi
 		return 1, err
 	}
 
-	//url := "http://api.plakar.io/v1.0.0/register"
-	url := "http://localhost:8080/registration/v1.0.0/register"
+	endpoint := "http://localhost:8080/registration/v1.0.0/login"
 
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(data))
+	resp, err := http.Post(endpoint, "application/json", bytes.NewBuffer(data))
 	if err != nil {
 		return 1, err
 	}
@@ -111,7 +113,58 @@ func (cmd *Register) Execute(ctx *appcontext.AppContext, repo *repository.Reposi
 		return 1, err
 	}
 
+	// parse url
+	parsedUrl, err := url.Parse(loginResponse.URL)
+	if err != nil {
+		return 1, err
+	}
+
+	state := parsedUrl.Query().Get("state")
+	if state == "" {
+		return 1, fmt.Errorf("missing state in URL")
+	}
+
 	fmt.Printf("Login URL: %s\n", loginResponse.URL)
+
+	fmt.Printf("Waiting for confirmation")
+	found := false
+	var token string
+	for _ = range 30 {
+		// poll for token
+		pollUrl := fmt.Sprintf("http://localhost:8080/registration/v1.0.0/token?state=%s", state)
+		resp, err := http.Get(pollUrl)
+		if err != nil {
+			return 1, err
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			if resp.StatusCode == http.StatusNotFound {
+				fmt.Printf(".")
+			} else {
+				resp.Body.Close()
+				return 1, fmt.Errorf("failed to poll token: %s", resp.Status)
+			}
+		} else {
+			found = true
+			var tokenResult struct {
+				Token *oauth2.Token `json:"token"`
+			}
+			if err := json.NewDecoder(resp.Body).Decode(&tokenResult); err != nil {
+				resp.Body.Close()
+				return 1, err
+			}
+			if tokenResult.Token != nil {
+				token = tokenResult.Token.AccessToken
+			}
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	if !found {
+		fmt.Println()
+		return 1, fmt.Errorf("token not found")
+	}
+	fmt.Println("\nAuthenticated with token", token)
 
 	//fmt.Println(utils.GetVersion())
 	return 0, nil
