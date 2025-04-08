@@ -32,9 +32,8 @@ func init() {
 // NewRcloneImporter creates a new RcloneImporter instance. It expects the location
 // to be in the format "remote:path/to/dir". The path is optional, but the remote
 // storage location is required, so the colon separator is always expected.
-func NewRcloneImporter(location string) (importer.Importer, error) {
-	location = strings.TrimPrefix(location, "rclone://")
-
+func NewRcloneImporter(config map[string]string) (importer.Importer, error) {
+	location := strings.TrimPrefix(config["location"], "rclone://")
 	remote, base, found := strings.Cut(location, ":")
 
 	if !found {
@@ -48,8 +47,8 @@ func NewRcloneImporter(location string) (importer.Importer, error) {
 	}, nil
 }
 
-func (p *RcloneImporter) Scan() (<-chan importer.ScanResult, error) {
-	results := make(chan importer.ScanResult)
+func (p *RcloneImporter) Scan() (<-chan *importer.ScanResult, error) {
+	results := make(chan *importer.ScanResult)
 	go func() {
 		defer close(results)
 
@@ -79,14 +78,14 @@ func (p *RcloneImporter) getPathInBackup(path string) string {
 //
 // For example, if the base is "remote:/path/to/dir", this function generates
 // the directories "/path/to/dir", "/path/to", "/path", and "/".
-func (p *RcloneImporter) generateBaseDirectories(results chan importer.ScanResult) {
+func (p *RcloneImporter) generateBaseDirectories(results chan *importer.ScanResult) {
 	parts := generatePathComponents(p.getPathInBackup(""))
 
 	for _, part := range parts {
-		results <- importer.ScanRecord{
-			Type:     importer.RecordTypeDirectory,
-			Pathname: part,
-			FileInfo: objects.NewFileInfo(
+		results <- importer.NewScanRecord(
+			part,
+			"",
+			objects.NewFileInfo(
 				path.Base(part),
 				0,
 				0700|os.ModeDir,
@@ -96,7 +95,9 @@ func (p *RcloneImporter) generateBaseDirectories(results chan importer.ScanResul
 				0,
 				0,
 				0,
-			)}
+			),
+			nil,
+		)
 	}
 }
 
@@ -132,7 +133,7 @@ func generatePathComponents(path string) []string {
 	return components
 }
 
-func (p *RcloneImporter) scanRecursive(results chan importer.ScanResult, path string) {
+func (p *RcloneImporter) scanRecursive(results chan *importer.ScanResult, path string) {
 	payload := map[string]interface{}{
 		"fs":     fmt.Sprintf("%s:%s", p.remote, p.base),
 		"remote": path,
@@ -140,13 +141,13 @@ func (p *RcloneImporter) scanRecursive(results chan importer.ScanResult, path st
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		results <- importer.ScanError{Pathname: p.getPathInBackup(path), Err: err}
+		results <- importer.NewScanError(p.getPathInBackup(path), err)
 		return
 	}
 
 	req, err := http.NewRequest("POST", p.apiUrl+"/operations/list", bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		results <- importer.ScanError{Pathname: p.getPathInBackup(path), Err: err}
+		results <- importer.NewScanError(p.getPathInBackup(path), err)
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -154,14 +155,14 @@ func (p *RcloneImporter) scanRecursive(results chan importer.ScanResult, path st
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		results <- importer.ScanError{Pathname: p.getPathInBackup(path), Err: err}
+		results <- importer.NewScanError(p.getPathInBackup(path), err)
 		return
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		results <- importer.ScanError{Pathname: p.getPathInBackup(path), Err: err}
+		results <- importer.NewScanError(p.getPathInBackup(path), err)
 		return
 	}
 
@@ -179,7 +180,7 @@ func (p *RcloneImporter) scanRecursive(results chan importer.ScanResult, path st
 
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		results <- importer.ScanError{Pathname: p.getPathInBackup(path), Err: err}
+		results <- importer.NewScanError(p.getPathInBackup(path), err)
 		return
 	}
 
@@ -193,10 +194,10 @@ func (p *RcloneImporter) scanRecursive(results chan importer.ScanResult, path st
 		if file.IsDir {
 			p.scanRecursive(results, file.Path)
 
-			results <- importer.ScanRecord{
-				Type:     importer.RecordTypeDirectory,
-				Pathname: p.getPathInBackup(file.Path),
-				FileInfo: objects.NewFileInfo(
+			results <- importer.NewScanRecord(
+				p.getPathInBackup(file.Path),
+				"",
+				objects.NewFileInfo(
 					stdpath.Base(file.Name),
 					0,
 					0700|os.ModeDir,
@@ -206,7 +207,9 @@ func (p *RcloneImporter) scanRecursive(results chan importer.ScanResult, path st
 					0,
 					0,
 					0,
-				)}
+				),
+				nil,
+			)
 		} else {
 			filesize := file.Size
 
@@ -219,13 +222,13 @@ func (p *RcloneImporter) scanRecursive(results chan importer.ScanResult, path st
 			if file.Size < 0 {
 				handle, err := p.NewReader(p.getPathInBackup(file.Path))
 				if err != nil {
-					results <- importer.ScanError{Pathname: p.getPathInBackup(path), Err: err}
+					results <- importer.NewScanError(p.getPathInBackup(path), err)
 					continue
 				}
 				name := handle.(*AutoremoveTmpFile).Name()
 				size, err := os.Stat(name)
 				if err != nil {
-					results <- importer.ScanError{Pathname: p.getPathInBackup(path), Err: err}
+					results <- importer.NewScanError(p.getPathInBackup(path), err)
 					continue
 				}
 
@@ -246,11 +249,12 @@ func (p *RcloneImporter) scanRecursive(results chan importer.ScanResult, path st
 				0,
 			)
 
-			results <- importer.ScanRecord{
-				Type:     importer.RecordTypeFile,
-				Pathname: p.getPathInBackup(file.Path),
-				FileInfo: fi,
-			}
+			results <- importer.NewScanRecord(
+				p.getPathInBackup(file.Path),
+				"",
+				fi,
+				nil,
+			)
 		}
 	}
 }
@@ -332,4 +336,12 @@ func (p *RcloneImporter) Origin() string {
 
 func (p *RcloneImporter) Type() string {
 	return "rclone"
+}
+
+func (p *RcloneImporter) NewExtendedAttributeReader(pathname string, attribute string) (io.ReadCloser, error) {
+	return nil, fmt.Errorf("extended attributes are not supported on rclone")
+}
+
+func (p *RcloneImporter) GetExtendedAttributes(pathname string) ([]importer.ExtendedAttributes, error) {
+	return nil, fmt.Errorf("extended attributes are not supported on rclone")
 }

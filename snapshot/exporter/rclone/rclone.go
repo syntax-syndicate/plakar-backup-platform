@@ -24,11 +24,8 @@ func init() {
 	exporter.Register("rclone", NewRcloneExporter)
 }
 
-func NewRcloneExporter(location string) (exporter.Exporter, error) {
-
-	fmt.Printf("NewRcloneExporter: %v\n", location)
-
-	location = strings.TrimPrefix(location, "rclone://")
+func NewRcloneExporter(config map[string]string) (exporter.Exporter, error) {
+	location := strings.TrimPrefix(config["location"], "rclone://")
 
 	remote, base, found := strings.Cut(location, ":")
 
