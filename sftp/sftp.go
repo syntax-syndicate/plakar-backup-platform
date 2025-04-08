@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -286,32 +287,41 @@ func loadSigners(keyPath string) ([]ssh.Signer, error) {
 	return signers, nil
 }
 
+func sha256Fingerprint(key ssh.PublicKey) string {
+	hash := sha256.Sum256(key.Marshal())
+	return "SHA256:" + base64.StdEncoding.EncodeToString(hash[:])
+}
+
 func safeHostKeyCallback(knownHostsPath string, ignore bool) (ssh.HostKeyCallback, error) {
 	if ignore {
 		return ssh.InsecureIgnoreHostKey(), nil
 	}
 
-	if _, err := os.Stat(knownHostsPath); err == nil {
-		rawCallback, err := knownhosts.New(knownHostsPath)
-		if err != nil {
-			return nil, err
-		}
-
-		// Wrap it to sanitize remote
-		return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-			// Sanitize remote to avoid SplitHostPort crash
-			safeRemote := remote
-			if remote == nil || !strings.Contains(remote.String(), ":") {
-				safeRemote = dummyAddrWithPort("0.0.0.0:22")
-			}
-			return rawCallback(hostname, safeRemote, key)
-		}, nil
+	rawCallback, err := knownhosts.New(knownHostsPath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("failed to parse known_hosts: %w", err)
 	}
 
 	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-		hash := sha256.Sum256(key.Marshal())
-		fingerprint := "SHA256:" + base64.StdEncoding.EncodeToString(hash[:])
+		safeRemote := remote
+		if remote == nil || !strings.Contains(remote.String(), ":") {
+			safeRemote = dummyAddrWithPort("0.0.0.0:22")
+		}
 
+		if rawCallback != nil {
+			err := rawCallback(hostname, safeRemote, key)
+			if err == nil {
+				return nil
+			}
+			// Handle unknown key
+			var keyErr *knownhosts.KeyError
+			if !errors.As(err, &keyErr) || len(keyErr.Want) > 0 {
+				return err
+			}
+		}
+
+		// Prompt user to trust
+		fingerprint := sha256Fingerprint(key)
 		fmt.Printf("The authenticity of host '%s' can't be established.\n", hostname)
 		fmt.Printf("%s key fingerprint is %s.\n", key.Type(), fingerprint)
 		fmt.Print("Are you sure you want to continue connecting (yes/no)? ")
@@ -325,8 +335,13 @@ func safeHostKeyCallback(knownHostsPath string, ignore bool) (ssh.HostKeyCallbac
 			return fmt.Errorf("host key not accepted")
 		}
 
-		// Append to known_hosts file
-		line := fmt.Sprintf("%s %s", hostname, strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key))))
+		// Add entry to known_hosts
+		hostKey := hostname
+		if port := getPort(remote); port != "22" {
+			hostKey = fmt.Sprintf("[%s]:%s", hostname, port)
+		}
+		line := fmt.Sprintf("%s %s", hostKey, strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key))))
+
 		if err := os.MkdirAll(filepath.Dir(knownHostsPath), 0700); err != nil {
 			return fmt.Errorf("could not create .ssh dir: %w", err)
 		}
@@ -340,8 +355,20 @@ func safeHostKeyCallback(knownHostsPath string, ignore bool) (ssh.HostKeyCallbac
 			return fmt.Errorf("failed to write known_hosts entry: %w", err)
 		}
 
+		fmt.Printf("Added %s to known hosts.\n", hostKey)
 		return nil
 	}, nil
+}
+
+func getPort(addr net.Addr) string {
+	if addr == nil {
+		return "22"
+	}
+	_, port, err := net.SplitHostPort(addr.String())
+	if err != nil {
+		return "22"
+	}
+	return port
 }
 
 // Wraps stdin/stdout of ProxyCommand as a net.Conn
