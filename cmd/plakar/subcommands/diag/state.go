@@ -89,7 +89,7 @@ func (cmd *DiagState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 					printBlobs(Type.String(), Type)
 				}
 			} else {
-				fmt.Fprintf(ctx.Stdout, "%x\n", st)
+				fmt.Fprintf(ctx.Stdout, "%x\n", stmac)
 			}
 		}
 	} else {
