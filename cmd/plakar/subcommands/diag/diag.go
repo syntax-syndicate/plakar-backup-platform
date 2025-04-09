@@ -76,9 +76,19 @@ func parse_cmd_diag(ctx *appcontext.AppContext, args []string) (subcommands.Subc
 			Args:             flags.Args()[1:],
 		}, nil
 	case "packfile":
+		optLocate := ""
+		flags := flag.NewFlagSet("diag packfile", flag.ExitOnError)
+		flags.Usage = func() {
+			fmt.Fprintf(flags.Output(), "Usage: %s\n", flags.Name())
+			fmt.Fprintf(flags.Output(), "       %s packfile [PACKFILE]...\n", flags.Name())
+		}
+		flags.StringVar(&optLocate, "locate", "", "Locate resource in packfile")
+		flags.Parse(args[1:])
+
 		return &DiagPackfile{
 			RepositorySecret: ctx.GetSecret(),
-			Args:             flags.Args()[1:],
+			Args:             flags.Args(),
+			Locate:           optLocate,
 		}, nil
 	case "object":
 		if len(flags.Args()) < 2 {

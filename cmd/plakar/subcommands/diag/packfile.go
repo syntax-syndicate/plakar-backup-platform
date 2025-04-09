@@ -3,6 +3,7 @@ package diag
 import (
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -13,6 +14,8 @@ type DiagPackfile struct {
 	RepositorySecret []byte
 
 	Args []string
+
+	Locate string
 }
 
 func (cmd *DiagPackfile) Name() string {
@@ -27,7 +30,19 @@ func (cmd *DiagPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Re
 		}
 
 		for _, packfile := range packfiles {
-			fmt.Fprintf(ctx.Stdout, "%x\n", packfile)
+			if cmd.Locate != "" {
+				p, err := repo.GetPackfile(packfile)
+				if err != nil {
+					return 1, err
+				}
+				for i, entry := range p.Index {
+					if strings.Contains(fmt.Sprintf("%x", entry.MAC), cmd.Locate) {
+						fmt.Fprintf(ctx.Stdout, "packfile=%x: blob[%d]: %x %d %d %x %s\n", packfile, i, entry.MAC, entry.Offset, entry.Length, entry.Flags, entry.Type)
+					}
+				}
+			} else {
+				fmt.Fprintf(ctx.Stdout, "%x\n", packfile)
+			}
 		}
 	} else {
 		for _, arg := range cmd.Args {
