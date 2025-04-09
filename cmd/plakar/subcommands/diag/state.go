@@ -3,6 +3,7 @@ package diag
 import (
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
@@ -15,6 +16,8 @@ type DiagState struct {
 	RepositorySecret []byte
 
 	Args []string
+
+	Locate string
 }
 
 func (cmd *DiagState) Name() string {
@@ -28,8 +31,66 @@ func (cmd *DiagState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 			return 1, err
 		}
 
-		for _, state := range states {
-			fmt.Fprintf(ctx.Stdout, "%x\n", state)
+		for _, st := range states {
+			if cmd.Locate != "" {
+				version, rawStateRd, err := repo.GetState(st)
+				if err != nil {
+					return 1, err
+				}
+
+				// Temporary scan cache to reconstruct that state.
+				identifier := objects.RandomMAC()
+				scanCache, err := repo.AppContext().GetCache().Scan(identifier)
+				if err != nil {
+					return 1, err
+				}
+				defer scanCache.Close()
+
+				st, err := state.FromStream(version, rawStateRd, scanCache)
+				if err != nil {
+					return 1, err
+				}
+
+				printBlobs := func(name string, Type resources.Type) {
+					for snapshot, err := range st.ListObjectsOfType(Type) {
+						if err != nil {
+							fmt.Fprintf(ctx.Stdout, "Could not fetch blob entry for %s\n", name)
+						} else {
+							if strings.Contains(fmt.Sprintf("%x", snapshot.Blob), cmd.Locate) {
+								fmt.Fprintf(ctx.Stdout, "state=%x: %s %x : packfile %x, offset %d, length %d\n",
+									st,
+									name,
+									snapshot.Blob,
+									snapshot.Location.Packfile,
+									snapshot.Location.Offset,
+									snapshot.Location.Length)
+							}
+						}
+					}
+				}
+				printDeleted := func(name string, Type resources.Type) {
+					for deletedEntry, err := range st.ListDeletedResources(Type) {
+						if err != nil {
+							fmt.Fprintf(ctx.Stdout, "Could not fetch deleted blob entry for %s\n", name)
+						} else {
+							if strings.Contains(fmt.Sprintf("%x", deletedEntry.Blob), cmd.Locate) {
+								fmt.Fprintf(ctx.Stdout, "state=%x, deleted %s: %x, when=%s\n",
+									st,
+									name,
+									deletedEntry.Blob,
+									deletedEntry.When)
+							}
+						}
+					}
+				}
+
+				for _, Type := range resources.Types() {
+					printDeleted(Type.String(), Type)
+					printBlobs(Type.String(), Type)
+				}
+			} else {
+				fmt.Fprintf(ctx.Stdout, "%x\n", st)
+			}
 		}
 	} else {
 		for _, arg := range cmd.Args {
