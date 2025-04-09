@@ -31,20 +31,20 @@ func (cmd *DiagState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 			return 1, err
 		}
 
+		// Temporary scan cache to reconstruct that state.
+		identifier := objects.RandomMAC()
+		scanCache, err := repo.AppContext().GetCache().Scan(identifier)
+		if err != nil {
+			return 1, err
+		}
+		defer scanCache.Close()
+
 		for _, st := range states {
 			if cmd.Locate != "" {
 				version, rawStateRd, err := repo.GetState(st)
 				if err != nil {
 					return 1, err
 				}
-
-				// Temporary scan cache to reconstruct that state.
-				identifier := objects.RandomMAC()
-				scanCache, err := repo.AppContext().GetCache().Scan(identifier)
-				if err != nil {
-					return 1, err
-				}
-				defer scanCache.Close()
 
 				st, err := state.FromStream(version, rawStateRd, scanCache)
 				if err != nil {
