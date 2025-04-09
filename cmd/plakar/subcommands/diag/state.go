@@ -39,9 +39,9 @@ func (cmd *DiagState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 		}
 		defer scanCache.Close()
 
-		for _, st := range states {
+		for _, stmac := range states {
 			if cmd.Locate != "" {
-				version, rawStateRd, err := repo.GetState(st)
+				version, rawStateRd, err := repo.GetState(stmac)
 				if err != nil {
 					return 1, err
 				}
@@ -58,7 +58,7 @@ func (cmd *DiagState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 						} else {
 							if strings.Contains(fmt.Sprintf("%x", snapshot.Blob), cmd.Locate) {
 								fmt.Fprintf(ctx.Stdout, "state=%x: %s %x : packfile %x, offset %d, length %d\n",
-									st,
+									stmac,
 									name,
 									snapshot.Blob,
 									snapshot.Location.Packfile,
@@ -75,7 +75,7 @@ func (cmd *DiagState) Execute(ctx *appcontext.AppContext, repo *repository.Repos
 						} else {
 							if strings.Contains(fmt.Sprintf("%x", deletedEntry.Blob), cmd.Locate) {
 								fmt.Fprintf(ctx.Stdout, "state=%x, deleted %s: %x, when=%s\n",
-									st,
+									stmac,
 									name,
 									deletedEntry.Blob,
 									deletedEntry.When)
