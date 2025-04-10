@@ -68,7 +68,6 @@ func NewRcloneImporter(config map[string]string) (importer.Importer, error) {
 	}
 
 	serverChan := startRcloneServer()
-	time.Sleep(2 * time.Second)
 	if serverChan == nil {
 		return nil, fmt.Errorf("failed to start rclone server")
 	}
