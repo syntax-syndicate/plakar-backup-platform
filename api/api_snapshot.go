@@ -408,6 +408,13 @@ func snapshotVFSChildren(w http.ResponseWriter, r *http.Request) error {
 		if i >= limit+offset {
 			break
 		}
+
+		// These might be huge and we don't need them in this
+		// context in the UI.
+		if child.ResolvedObject != nil {
+			child.ResolvedObject.Chunks = nil
+		}
+
 		items.Items = append(items.Items, child)
 		i++
 	}
