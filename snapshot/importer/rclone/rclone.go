@@ -184,11 +184,6 @@ func (p *RcloneImporter) scanRecursive(results chan *importer.ScanResult, path s
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
-	// print the request
-	print(string(req.Method), "\n")
-	print(string(req.URL.String()), "\n")
-	// print the body of the request
-	print(string(jsonPayload), "\n")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
