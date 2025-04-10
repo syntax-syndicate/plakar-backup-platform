@@ -43,8 +43,7 @@ type Repository struct {
 	store         storage.Store
 	state         *state.LocalState
 	configuration storage.Configuration
-
-	appContext *appcontext.AppContext
+	appContext    *appcontext.AppContext
 
 	wBytes atomic.Int64
 	rBytes atomic.Int64
@@ -396,8 +395,13 @@ func (r *Repository) Chunker(rd io.ReadCloser) (*chunkers.Chunker, error) {
 	})
 }
 
-func (r *Repository) NewStateDelta(cache *caching.ScanCache) *state.LocalState {
-	return r.state.Derive(cache)
+func (r *Repository) NewRepositoryWriter(cache *caching.ScanCache, id objects.MAC) *RepositoryWriter {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "NewRepositoryWriter(): %s", time.Since(t0))
+	}()
+
+	return r.newRepositoryWriter(cache, id)
 }
 
 func (r *Repository) Location() string {
@@ -671,22 +675,6 @@ func (r *Repository) GetPackfileBlob(loc state.Location) (io.ReadSeeker, error) 
 	return bytes.NewReader(decoded), nil
 }
 
-func (r *Repository) PutPackfile(mac objects.MAC, rd io.Reader) error {
-	t0 := time.Now()
-	defer func() {
-		r.Logger().Trace("repository", "PutPackfile(%x, ...): %s", mac, time.Since(t0))
-	}()
-
-	rd, err := storage.Serialize(r.GetMACHasher(), resources.RT_PACKFILE, versioning.GetCurrentVersion(resources.RT_PACKFILE), rd)
-	if err != nil {
-		return err
-	}
-
-	nbytes, err := r.store.PutPackfile(mac, rd)
-	r.wBytes.Add(nbytes)
-	return err
-}
-
 // Deletes a packfile from the store. Warning this is a true delete and is unrecoverable.
 func (r *Repository) DeletePackfile(mac objects.MAC) error {
 	t0 := time.Now()
@@ -801,11 +789,26 @@ func (r *Repository) GetBlob(Type resources.Type, mac objects.MAC) (io.ReadSeeke
 	return rd, nil
 }
 
+func (r *Repository) GetBlobBytes(Type resources.Type, mac objects.MAC) ([]byte, error) {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "GetBlobByte(%s, %x): %s", Type, mac, time.Since(t0))
+	}()
+
+	rd, err := r.GetBlob(Type, mac)
+	if err != nil {
+		return nil, err
+	}
+
+	return io.ReadAll(rd)
+}
+
 func (r *Repository) BlobExists(Type resources.Type, mac objects.MAC) bool {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "BlobExists(%s, %x): %s", Type, mac, time.Since(t0))
 	}()
+
 	return r.state.BlobExists(Type, mac)
 }
 
@@ -816,31 +819,6 @@ func (r *Repository) RemoveBlob(Type resources.Type, mac, packfileMAC objects.MA
 		r.Logger().Trace("repository", "DeleteBlob(%s, %x, %x): %s", Type, mac, packfileMAC, time.Since(t0))
 	}()
 	return r.state.DelDelta(Type, mac, packfileMAC)
-}
-
-func (r *Repository) PutStateDelta(de *state.DeltaEntry) error {
-	t0 := time.Now()
-	defer func() {
-		r.Logger().Trace("repository", "PutStateDelta(%x): %s", de.Blob, time.Since(t0))
-	}()
-	return r.state.PutDelta(de)
-}
-
-func (r *Repository) PutStatePackfile(stateId, packfile objects.MAC) error {
-	t0 := time.Now()
-	defer func() {
-		r.Logger().Trace("repository", "PutStatePackfile(%x, %x): %s", stateId, packfile, time.Since(t0))
-	}()
-	return r.state.PutPackfile(stateId, packfile)
-}
-
-/* Publishes the current state to our local aggregated state */
-func (r *Repository) PutStateState(stateId objects.MAC) error {
-	t0 := time.Now()
-	defer func() {
-		r.Logger().Trace("repository", "PutStateState(%x): %s", stateId, time.Since(t0))
-	}()
-	return r.state.PutState(stateId)
 }
 
 func (r *Repository) ListOrphanBlobs() iter.Seq2[state.DeltaEntry, error] {

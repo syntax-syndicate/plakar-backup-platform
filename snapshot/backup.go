@@ -1,8 +1,6 @@
 package snapshot
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"math"
@@ -86,7 +84,7 @@ func (bc *BackupContext) recordXattr(record *importer.ScanRecord, objectMAC obje
 	return bc.xattridx.Insert(xattr.ToPath(), serialized)
 }
 
-func (snapshot *Snapshot) skipExcludedPathname(options *BackupOptions, record *importer.ScanResult) bool {
+func (snapshot *Builder) skipExcludedPathname(options *BackupOptions, record *importer.ScanResult) bool {
 	var pathname string
 	switch {
 	case record.Record != nil:
@@ -109,7 +107,7 @@ func (snapshot *Snapshot) skipExcludedPathname(options *BackupOptions, record *i
 	return doExclude
 }
 
-func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptions) (chan *importer.ScanRecord, error) {
+func (snap *Builder) importerJob(backupCtx *BackupContext, options *BackupOptions) (chan *importer.ScanRecord, error) {
 	scanner, err := backupCtx.imp.Scan()
 	if err != nil {
 		return nil, err
@@ -205,24 +203,15 @@ func (snap *Snapshot) importerJob(backupCtx *BackupContext, options *BackupOptio
 	return filesChannel, nil
 }
 
-func (snap *Snapshot) flushDeltaState(bc *BackupContext) {
+func (snap *Builder) flushDeltaState(bc *BackupContext) {
 	for {
 		select {
 		case <-bc.flushEnd:
 			// End of backup we push the last and final State. No need to take any locks at this point.
-			stateDeltaStream := buildSerializedDeltaState(snap.deltaState)
-			err := snap.repository.PutState(bc.stateId, stateDeltaStream)
+			err := snap.repository.CommitTransaction(bc.stateId)
 			if err != nil {
 				// XXX: ERROR HANDLING
 				snap.Logger().Warn("Failed to push the final state to the repository %s", err)
-			}
-
-			// We inserted deltas during the process in our aggregated state, we
-			// also need to publish the state so that rebuild doesn't pickit up on
-			// next run.
-			err = snap.repository.PutStateState(bc.stateId)
-			if err != nil {
-				snap.Logger().Warn("Failed to push the state to the local state %s", err)
 			}
 
 			// See below
@@ -234,15 +223,12 @@ func (snap *Snapshot) flushDeltaState(bc *BackupContext) {
 			close(bc.flushEnded)
 			return
 		case <-bc.flushTick.C:
-			// Take the write lock to be able to swap the pointers
+			// Now make a new state backed by a new cache.
 			snap.deltaMtx.Lock()
-			oldState := snap.deltaState
 			oldCache := snap.deltaCache
 			oldStateId := bc.stateId
 
-			// Now make a new state backed by a new cache.
 			identifier := objects.RandomMAC()
-
 			deltaCache, err := snap.repository.AppContext().GetCache().Scan(identifier)
 			if err != nil {
 				// XXX: ERROR HANDLING
@@ -252,25 +238,14 @@ func (snap *Snapshot) flushDeltaState(bc *BackupContext) {
 			}
 
 			bc.stateId = identifier
-			snap.deltaCache = deltaCache
-			snap.deltaState = snap.repository.NewStateDelta(deltaCache)
 			snap.deltaMtx.Unlock()
 
 			// Now that the backup is free to progress we can serialize and push
 			// the resulting statefile to the repo.
-			stateDeltaStream := buildSerializedDeltaState(oldState)
-			err = snap.repository.PutState(oldStateId, stateDeltaStream)
+			err = snap.repository.FlushTransaction(deltaCache, oldStateId)
 			if err != nil {
 				// XXX: ERROR HANDLING
 				snap.Logger().Warn("Failed to push the state to the repository %s", err)
-			}
-
-			// We inserted deltas during the process in our aggregated state, we
-			// also need to publish the state so that rebuild doesn't pickit up on
-			// next run.
-			err = snap.repository.PutStateState(bc.stateId)
-			if err != nil {
-				snap.Logger().Warn("Failed to push the state to the local state %s", err)
 			}
 
 			// The first cache is always the scanCache, only in this function we
@@ -284,7 +259,7 @@ func (snap *Snapshot) flushDeltaState(bc *BackupContext) {
 	}
 }
 
-func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) error {
+func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error {
 	snap.Event(events.StartEvent())
 	defer snap.Event(events.DoneEvent())
 
@@ -421,7 +396,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 									snap.Logger().Warn("VFS CACHE: Error unmarshaling object: %v", err)
 								} else {
 									object = cachedObject
-									objectMAC = snap.Repository().ComputeMAC(data)
+									objectMAC = snap.repository.ComputeMAC(data)
 									objectSerialized = data
 								}
 							}
@@ -431,7 +406,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 			}
 
 			if object != nil {
-				if err := snap.PutBlobIfNotExists(resources.RT_OBJECT, objectMAC, objectSerialized); err != nil {
+				if err := snap.repository.PutBlobIfNotExists(resources.RT_OBJECT, objectMAC, objectSerialized); err != nil {
 					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 					backupCtx.recordError(record.Pathname, err)
 					return
@@ -440,7 +415,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 
 			// Chunkify the file if it is a regular file and we don't have a cached object
 			if record.FileInfo.Mode().IsRegular() {
-				if object == nil || !snap.BlobExists(resources.RT_OBJECT, objectMAC) {
+				if object == nil || !snap.repository.BlobExists(resources.RT_OBJECT, objectMAC) {
 					object, err = snap.chunkify(imp, cf, record)
 					if err != nil {
 						snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
@@ -460,7 +435,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 						return
 					}
 
-					if err := snap.PutBlob(resources.RT_OBJECT, objectMAC, objectSerialized); err != nil {
+					if err := snap.repository.PutBlob(resources.RT_OBJECT, objectMAC, objectSerialized); err != nil {
 						snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 						backupCtx.recordError(record.Pathname, err)
 						return
@@ -474,7 +449,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				return
 			}
 
-			if fileEntry == nil || !snap.BlobExists(resources.RT_VFS_ENTRY, cachedFileEntryMAC) {
+			if fileEntry == nil || !snap.repository.BlobExists(resources.RT_VFS_ENTRY, cachedFileEntryMAC) {
 				fileEntry = vfs.NewEntry(path.Dir(record.Pathname), record)
 				if object != nil {
 					fileEntry.Object = objectMAC
@@ -493,7 +468,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 				}
 
 				fileEntryMAC := snap.repository.ComputeMAC(serialized)
-				if err := snap.PutBlob(resources.RT_VFS_ENTRY, fileEntryMAC, serialized); err != nil {
+				if err := snap.repository.PutBlob(resources.RT_VFS_ENTRY, fileEntryMAC, serialized); err != nil {
 					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 					backupCtx.recordError(record.Pathname, err)
 					return
@@ -700,7 +675,7 @@ func (snap *Snapshot) Backup(imp importer.Importer, options *BackupOptions) erro
 		}
 
 		mac := snap.repository.ComputeMAC(serialized)
-		if err := snap.PutBlobIfNotExists(resources.RT_VFS_ENTRY, mac, serialized); err != nil {
+		if err := snap.repository.PutBlobIfNotExists(resources.RT_VFS_ENTRY, mac, serialized); err != nil {
 			return err
 		}
 
@@ -791,7 +766,7 @@ func entropy(data []byte) (float64, [256]float64) {
 	return entropy, freq
 }
 
-func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier, record *importer.ScanRecord) (*objects.Object, error) {
+func (snap *Builder) chunkify(imp importer.Importer, cf *classifier.Classifier, record *importer.ScanRecord) (*objects.Object, error) {
 	var rd io.ReadCloser
 	var err error
 
@@ -853,7 +828,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 		totalEntropy += chunk.Entropy * float64(len(data))
 		totalDataSize += uint64(len(data))
 
-		return snap.PutBlobIfNotExists(resources.RT_CHUNK, chunk.ContentMAC, data)
+		return snap.repository.PutBlobIfNotExists(resources.RT_CHUNK, chunk.ContentMAC, data)
 	}
 
 	if record.FileInfo.Size() == 0 {
@@ -904,90 +879,7 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 	return object, nil
 }
 
-func (snap *Snapshot) PutPackfile(packer *Packer) error {
-
-	repo := snap.repository
-
-	serializedData, err := packer.Packfile.SerializeData()
-	if err != nil {
-		return fmt.Errorf("could not serialize pack file data %s", err.Error())
-	}
-	serializedIndex, err := packer.Packfile.SerializeIndex()
-	if err != nil {
-		return fmt.Errorf("could not serialize pack file index %s", err.Error())
-	}
-	serializedFooter, err := packer.Packfile.SerializeFooter()
-	if err != nil {
-		return fmt.Errorf("could not serialize pack file footer %s", err.Error())
-	}
-
-	encryptedIndex, err := repo.EncodeBuffer(serializedIndex)
-	if err != nil {
-		return err
-	}
-
-	encryptedFooter, err := repo.EncodeBuffer(serializedFooter)
-	if err != nil {
-		return err
-	}
-
-	serializedPackfile := append(serializedData, encryptedIndex...)
-	serializedPackfile = append(serializedPackfile, encryptedFooter...)
-
-	/* it is necessary to track the footer _encrypted_ length */
-	encryptedFooterLength := make([]byte, 4)
-	binary.LittleEndian.PutUint32(encryptedFooterLength, uint32(len(encryptedFooter)))
-	serializedPackfile = append(serializedPackfile, encryptedFooterLength...)
-
-	mac := snap.repository.ComputeMAC(serializedPackfile)
-
-	repo.Logger().Trace("snapshot", "%x: PutPackfile(%x, ...)", snap.Header.GetIndexShortID(), mac)
-	err = snap.repository.PutPackfile(mac, bytes.NewBuffer(serializedPackfile))
-	if err != nil {
-		return fmt.Errorf("could not write pack file %s", err.Error())
-	}
-
-	snap.deltaMtx.RLock()
-	defer snap.deltaMtx.RUnlock()
-	for _, Type := range packer.Types() {
-		for blobMAC := range packer.Blobs[Type] {
-			for idx, blob := range packer.Packfile.Index {
-				if blob.MAC == blobMAC && blob.Type == Type {
-					delta := &state.DeltaEntry{
-						Type:    blob.Type,
-						Version: packer.Packfile.Index[idx].Version,
-						Blob:    blobMAC,
-						Location: state.Location{
-							Packfile: mac,
-							Offset:   packer.Packfile.Index[idx].Offset,
-							Length:   packer.Packfile.Index[idx].Length,
-						},
-					}
-
-					if err := snap.deltaState.PutDelta(delta); err != nil {
-						return err
-					}
-
-					if err := snap.repository.PutStateDelta(delta); err != nil {
-						return err
-					}
-
-				}
-			}
-		}
-	}
-
-	if err := snap.deltaState.PutPackfile(snap.Header.Identifier, mac); err != nil {
-		return err
-	}
-	if err := snap.repository.PutStatePackfile(snap.Header.Identifier, mac); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (snap *Snapshot) Commit(bc *BackupContext) error {
+func (snap *Builder) Commit(bc *BackupContext) error {
 	// First thing is to stop the ticker, as we don't want any concurrent flushes to run.
 	// Maybe this could be stopped earlier.
 
@@ -1005,15 +897,15 @@ func (snap *Snapshot) Commit(bc *BackupContext) error {
 	if kp := snap.AppContext().Keypair; kp != nil {
 		serializedHdrMAC := snap.repository.ComputeMAC(serializedHdr)
 		signature := kp.Sign(serializedHdrMAC[:])
-		if err := snap.PutBlob(resources.RT_SIGNATURE, snap.Header.Identifier, signature); err != nil {
+		if err := snap.repository.PutBlob(resources.RT_SIGNATURE, snap.Header.Identifier, signature); err != nil {
 			return err
 		}
 	}
 
-	if err := snap.PutBlob(resources.RT_SNAPSHOT, snap.Header.Identifier, serializedHdr); err != nil {
+	if err := snap.repository.PutBlob(resources.RT_SNAPSHOT, snap.Header.Identifier, serializedHdr); err != nil {
 		return err
 	}
-	snap.packerManager.Wait()
+	snap.repository.PackerManager.Wait()
 
 	// We are done with packfiles we can flush the last state, either through
 	// the flusher, or manually here.
@@ -1022,19 +914,9 @@ func (snap *Snapshot) Commit(bc *BackupContext) error {
 		close(bc.flushEnd)
 		<-bc.flushEnded
 	} else {
-		stateDelta := buildSerializedDeltaState(snap.deltaState)
-		err := snap.repository.PutState(snap.Header.Identifier, stateDelta)
+		err = snap.repository.CommitTransaction(snap.Header.Identifier)
 		if err != nil {
 			snap.Logger().Warn("Failed to push the state to the repository %s", err)
-			return err
-		}
-
-		// We inserted deltas during the process in our aggregated state, we
-		// also need to publish the state so that rebuild doesn't pickit up on
-		// next run.
-		err = snap.repository.PutStateState(snap.Header.Identifier)
-		if err != nil {
-			snap.Logger().Warn("Failed to push the state to the local state %s", err)
 			return err
 		}
 	}
