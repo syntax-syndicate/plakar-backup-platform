@@ -421,6 +421,52 @@ func snapshotVFSChildren(w http.ResponseWriter, r *http.Request) error {
 	return json.NewEncoder(w).Encode(items)
 }
 
+func snapshotVFSChunks(w http.ResponseWriter, r *http.Request) error {
+	snapshotID32, entrypath, err := SnapshotPathParam(r, lrepository, "snapshot_path")
+	if err != nil {
+		return err
+	}
+
+	offset, err := QueryParamToInt64(r, "offset", 0, 0)
+	if err != nil {
+		return err
+	}
+
+	limit, err := QueryParamToInt64(r, "limit", 1, 50)
+	if err != nil {
+		return err
+	}
+
+	snap, err := loadsnap(lrepository, snapshotID32)
+	if err != nil {
+		return err
+	}
+
+	fs, err := snap.Filesystem()
+	if err != nil {
+		return err
+	}
+
+	entry, err := fs.GetEntry(entrypath)
+	if err != nil {
+		return nil
+	}
+
+	var tot int
+	if entry.ResolvedObject != nil {
+		tot = len(entry.ResolvedObject.Chunks)
+	}
+
+	items := Items[objects.Chunk]{
+		Total: tot,
+	}
+
+	for i := offset; i < min(offset + limit, int64(tot)); i++ {
+		items.Items = append(items.Items, entry.ResolvedObject.Chunks[i])
+	}
+	return json.NewEncoder(w).Encode(items)
+}
+
 func snapshotVFSSearch(w http.ResponseWriter, r *http.Request) error {
 	snapshotID32, path, err := SnapshotPathParam(r, lrepository, "snapshot_path")
 	if err != nil {
