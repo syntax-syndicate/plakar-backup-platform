@@ -31,7 +31,9 @@ type BackupContext struct {
 	abortedReason  error
 	imp            importer.Importer
 	maxConcurrency uint64
-	scanCache      *caching.ScanCache
+
+	scanCache *caching.ScanCache
+	vfsCache  *caching.VFSCache
 
 	stateId objects.MAC
 
@@ -41,6 +43,7 @@ type BackupContext struct {
 
 	erridx   *btree.BTree[string, int, []byte]
 	xattridx *btree.BTree[string, int, []byte]
+	ctidx    *btree.BTree[string, int, objects.MAC]
 }
 
 type BackupOptions struct {
@@ -300,6 +303,7 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 		imp:            imp,
 		maxConcurrency: maxConcurrency,
 		scanCache:      snap.scanCache,
+		vfsCache:       vfsCache,
 		flushTick:      time.NewTicker(1 * time.Hour),
 		flushEnd:       make(chan bool),
 		flushEnded:     make(chan bool),
@@ -330,7 +334,7 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 		Prefix: "__contenttype__",
 		Cache:  snap.scanCache,
 	}
-	ctidx, err := btree.New(&ctstore, strings.Compare, 50)
+	backupCtx.ctidx, err = btree.New(&ctstore, strings.Compare, 50)
 	if err != nil {
 		return err
 	}
@@ -344,197 +348,10 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 		return err
 	}
 
-	concurrencyChan := make(chan struct{}, maxConcurrency)
-
 	/* scanner */
-	scannerWg := sync.WaitGroup{}
-	for _record := range filesChannel {
-		select {
-		case <-snap.AppContext().GetContext().Done():
-			return snap.AppContext().GetContext().Err()
-		default:
-		}
+	snap.processFiles(backupCtx, filesChannel)
 
-		concurrencyChan <- struct{}{}
-		scannerWg.Add(1)
-		go func(record *importer.ScanRecord) {
-			defer func() {
-				<-concurrencyChan
-				scannerWg.Done()
-			}()
-
-			var err error
-
-			snap.Event(events.FileEvent(snap.Header.Identifier, record.Pathname))
-
-			var fileEntry *vfs.Entry
-			var object *objects.Object
-			var objectMAC objects.MAC
-			var objectSerialized []byte
-
-			var cachedFileEntry *vfs.Entry
-			var cachedFileEntryMAC objects.MAC
-
-			// Check if the file entry and underlying objects are already in the cache
-			if data, err := vfsCache.GetFilename(record.Pathname); err != nil {
-				snap.Logger().Warn("VFS CACHE: Error getting filename: %v", err)
-			} else if data != nil {
-				cachedFileEntry, err = vfs.EntryFromBytes(data)
-				if err != nil {
-					snap.Logger().Warn("VFS CACHE: Error unmarshaling filename: %v", err)
-				} else {
-					cachedFileEntryMAC = snap.repository.ComputeMAC(data)
-					if cachedFileEntry.Stat().Equal(&record.FileInfo) {
-						fileEntry = cachedFileEntry
-						if fileEntry.FileInfo.Mode().IsRegular() {
-							data, err := vfsCache.GetObject(cachedFileEntry.Object)
-							if err != nil {
-								snap.Logger().Warn("VFS CACHE: Error getting object: %v", err)
-							} else if data != nil {
-								cachedObject, err := objects.NewObjectFromBytes(data)
-								if err != nil {
-									snap.Logger().Warn("VFS CACHE: Error unmarshaling object: %v", err)
-								} else {
-									object = cachedObject
-									objectMAC = snap.repository.ComputeMAC(data)
-									objectSerialized = data
-								}
-							}
-						}
-					}
-				}
-			}
-
-			if object != nil {
-				if err := snap.repository.PutBlobIfNotExists(resources.RT_OBJECT, objectMAC, objectSerialized); err != nil {
-					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-					backupCtx.recordError(record.Pathname, err)
-					return
-				}
-			}
-
-			// Chunkify the file if it is a regular file and we don't have a cached object
-			if record.FileInfo.Mode().IsRegular() {
-				if object == nil || !snap.repository.BlobExists(resources.RT_OBJECT, objectMAC) {
-					object, err = snap.chunkify(imp, cf, record)
-					if err != nil {
-						snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-						backupCtx.recordError(record.Pathname, err)
-						return
-					}
-					objectSerialized, err = object.Serialize()
-					if err != nil {
-						snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-						backupCtx.recordError(record.Pathname, err)
-						return
-					}
-					objectMAC = snap.repository.ComputeMAC(objectSerialized)
-					if err := vfsCache.PutObject(objectMAC, objectSerialized); err != nil {
-						snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-						backupCtx.recordError(record.Pathname, err)
-						return
-					}
-
-					if err := snap.repository.PutBlob(resources.RT_OBJECT, objectMAC, objectSerialized); err != nil {
-						snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-						backupCtx.recordError(record.Pathname, err)
-						return
-					}
-				}
-			}
-
-			// xattrs are a special case
-			if record.IsXattr {
-				backupCtx.recordXattr(record, objectMAC, object.Size())
-				return
-			}
-
-			if fileEntry == nil || !snap.repository.BlobExists(resources.RT_VFS_ENTRY, cachedFileEntryMAC) {
-				fileEntry = vfs.NewEntry(path.Dir(record.Pathname), record)
-				if object != nil {
-					fileEntry.Object = objectMAC
-				}
-
-				classifications := cf.Processor(record.Pathname).File(fileEntry)
-				for _, result := range classifications {
-					fileEntry.AddClassification(result.Analyzer, result.Classes)
-				}
-
-				serialized, err := fileEntry.ToBytes()
-				if err != nil {
-					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-					backupCtx.recordError(record.Pathname, err)
-					return
-				}
-
-				fileEntryMAC := snap.repository.ComputeMAC(serialized)
-				if err := snap.repository.PutBlob(resources.RT_VFS_ENTRY, fileEntryMAC, serialized); err != nil {
-					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-					backupCtx.recordError(record.Pathname, err)
-					return
-				}
-
-				// Store the newly generated FileEntry in the cache for future runs
-				if err := vfsCache.PutFilename(record.Pathname, serialized); err != nil {
-					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-					backupCtx.recordError(record.Pathname, err)
-					return
-				}
-
-				fileSummary := &vfs.FileSummary{
-					Size:    uint64(record.FileInfo.Size()),
-					Mode:    record.FileInfo.Mode(),
-					ModTime: record.FileInfo.ModTime().Unix(),
-				}
-				if object != nil {
-					fileSummary.Objects++
-					fileSummary.Chunks += uint64(len(object.Chunks))
-					fileSummary.ContentType = object.ContentType
-					fileSummary.Entropy = object.Entropy
-				}
-
-				seralizedFileSummary, err := fileSummary.Serialize()
-				if err != nil {
-					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-					backupCtx.recordError(record.Pathname, err)
-					return
-				}
-
-				if err := vfsCache.PutFileSummary(record.Pathname, seralizedFileSummary); err != nil {
-					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-					backupCtx.recordError(record.Pathname, err)
-					return
-				}
-			}
-
-			if object != nil {
-				parts := strings.SplitN(object.ContentType, ";", 2)
-				mime := parts[0]
-
-				k := fmt.Sprintf("/%s%s", mime, fileEntry.Path())
-				bytes, err := fileEntry.ToBytes()
-				if err != nil {
-					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-					backupCtx.recordError(record.Pathname, err)
-					return
-				}
-				if err := ctidx.Insert(k, snap.repository.ComputeMAC(bytes)); err != nil {
-					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-					backupCtx.recordError(record.Pathname, err)
-					return
-				}
-			}
-
-			if err := backupCtx.recordEntry(fileEntry); err != nil {
-				snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-				backupCtx.recordError(record.Pathname, err)
-				return
-			}
-
-			snap.Event(events.FileOKEvent(snap.Header.Identifier, record.Pathname, record.FileInfo.Size()))
-		}(_record)
-	}
-	scannerWg.Wait()
+	/* tree builders */
 
 	errcsum, err := persistMACIndex(snap, backupCtx.erridx,
 		resources.RT_ERROR_BTREE, resources.RT_ERROR_NODE, resources.RT_ERROR_ENTRY)
@@ -711,7 +528,7 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	// hits, miss, cachesize = ctidx.Stats()
 	// log.Printf("before persist: ctidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
 
-	ctmac, err := persistIndex(snap, ctidx, resources.RT_BTREE_ROOT, resources.RT_BTREE_NODE, func(mac objects.MAC) (objects.MAC, error) {
+	ctmac, err := persistIndex(snap, backupCtx.ctidx, resources.RT_BTREE_ROOT, resources.RT_BTREE_NODE, func(mac objects.MAC) (objects.MAC, error) {
 		return mac, nil
 	})
 	if err != nil {
@@ -766,7 +583,7 @@ func entropy(data []byte) (float64, [256]float64) {
 	return entropy, freq
 }
 
-func (snap *Builder) chunkify(imp importer.Importer, cf *classifier.Classifier, record *importer.ScanRecord) (*objects.Object, error) {
+func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord) (*objects.Object, error) {
 	var rd io.ReadCloser
 	var err error
 
@@ -942,4 +759,207 @@ func buildSerializedDeltaState(deltaState *state.LocalState) io.Reader {
 	}()
 
 	return pr
+}
+
+func (snap *Builder) processFiles(backupCtx *BackupContext, filesChannel <-chan *importer.ScanRecord) error {
+	var wg sync.WaitGroup
+	semaphore := make(chan struct{}, backupCtx.maxConcurrency)
+
+	ctx := snap.AppContext().GetContext()
+
+	for {
+		select {
+		case <-ctx.Done():
+			wg.Wait()
+			return ctx.Err()
+
+		case record, ok := <-filesChannel:
+			if !ok {
+				wg.Wait()
+				return nil
+			}
+
+			semaphore <- struct{}{}
+			wg.Add(1)
+
+			go func(record *importer.ScanRecord) {
+				defer wg.Done()
+				defer func() { <-semaphore }()
+
+				if err := snap.processFileRecord(backupCtx, record); err != nil {
+					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
+					backupCtx.recordError(record.Pathname, err)
+				}
+			}(record)
+		}
+	}
+}
+
+func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importer.ScanRecord) error {
+	snap.Event(events.FileEvent(snap.Header.Identifier, record.Pathname))
+
+	vfsCache := backupCtx.vfsCache
+
+	var err error
+	var fileEntry *vfs.Entry
+	var object *objects.Object
+	var objectMAC objects.MAC
+	var objectSerialized []byte
+
+	var cachedFileEntry *vfs.Entry
+	var cachedFileEntryMAC objects.MAC
+
+	// Check if the file entry and underlying objects are already in the cache
+	if data, err := vfsCache.GetFilename(record.Pathname); err != nil {
+		snap.Logger().Warn("VFS CACHE: Error getting filename: %v", err)
+	} else if data != nil {
+		cachedFileEntry, err = vfs.EntryFromBytes(data)
+		if err != nil {
+			snap.Logger().Warn("VFS CACHE: Error unmarshaling filename: %v", err)
+		} else {
+			cachedFileEntryMAC = snap.repository.ComputeMAC(data)
+			if cachedFileEntry.Stat().Equal(&record.FileInfo) {
+				fileEntry = cachedFileEntry
+				if fileEntry.FileInfo.Mode().IsRegular() {
+					data, err := vfsCache.GetObject(cachedFileEntry.Object)
+					if err != nil {
+						snap.Logger().Warn("VFS CACHE: Error getting object: %v", err)
+					} else if data != nil {
+						cachedObject, err := objects.NewObjectFromBytes(data)
+						if err != nil {
+							snap.Logger().Warn("VFS CACHE: Error unmarshaling object: %v", err)
+						} else {
+							object = cachedObject
+							objectMAC = snap.repository.ComputeMAC(data)
+							objectSerialized = data
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if object != nil {
+		if err := snap.repository.PutBlobIfNotExists(resources.RT_OBJECT, objectMAC, objectSerialized); err != nil {
+			snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
+			backupCtx.recordError(record.Pathname, err)
+			return err
+		}
+	}
+
+	// Chunkify the file if it is a regular file and we don't have a cached object
+	if record.FileInfo.Mode().IsRegular() {
+		if object == nil || !snap.repository.BlobExists(resources.RT_OBJECT, objectMAC) {
+			object, err = snap.chunkify(backupCtx.imp, record)
+			if err != nil {
+				snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
+				backupCtx.recordError(record.Pathname, err)
+				return err
+			}
+			objectSerialized, err = object.Serialize()
+			if err != nil {
+				snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
+				backupCtx.recordError(record.Pathname, err)
+				return err
+			}
+			objectMAC = snap.repository.ComputeMAC(objectSerialized)
+			if err := vfsCache.PutObject(objectMAC, objectSerialized); err != nil {
+				snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
+				backupCtx.recordError(record.Pathname, err)
+				return err
+			}
+
+			if err := snap.repository.PutBlob(resources.RT_OBJECT, objectMAC, objectSerialized); err != nil {
+				snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
+				backupCtx.recordError(record.Pathname, err)
+				return err
+			}
+		}
+	}
+
+	// xattrs are a special case
+	if record.IsXattr {
+		backupCtx.recordXattr(record, objectMAC, object.Size())
+		return err
+	}
+
+	if fileEntry == nil || !snap.repository.BlobExists(resources.RT_VFS_ENTRY, cachedFileEntryMAC) {
+		fileEntry = vfs.NewEntry(path.Dir(record.Pathname), record)
+		if object != nil {
+			fileEntry.Object = objectMAC
+		}
+
+		serialized, err := fileEntry.ToBytes()
+		if err != nil {
+			snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
+			backupCtx.recordError(record.Pathname, err)
+			return err
+		}
+
+		fileEntryMAC := snap.repository.ComputeMAC(serialized)
+		if err := snap.repository.PutBlob(resources.RT_VFS_ENTRY, fileEntryMAC, serialized); err != nil {
+			snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
+			backupCtx.recordError(record.Pathname, err)
+			return err
+		}
+
+		// Store the newly generated FileEntry in the cache for future runs
+		if err := vfsCache.PutFilename(record.Pathname, serialized); err != nil {
+			snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
+			backupCtx.recordError(record.Pathname, err)
+			return err
+		}
+
+		fileSummary := &vfs.FileSummary{
+			Size:    uint64(record.FileInfo.Size()),
+			Mode:    record.FileInfo.Mode(),
+			ModTime: record.FileInfo.ModTime().Unix(),
+		}
+		if object != nil {
+			fileSummary.Objects++
+			fileSummary.Chunks += uint64(len(object.Chunks))
+			fileSummary.ContentType = object.ContentType
+			fileSummary.Entropy = object.Entropy
+		}
+
+		seralizedFileSummary, err := fileSummary.Serialize()
+		if err != nil {
+			snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
+			backupCtx.recordError(record.Pathname, err)
+			return err
+		}
+
+		if err := vfsCache.PutFileSummary(record.Pathname, seralizedFileSummary); err != nil {
+			snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
+			backupCtx.recordError(record.Pathname, err)
+			return err
+		}
+	}
+
+	if object != nil {
+		parts := strings.SplitN(object.ContentType, ";", 2)
+		mime := parts[0]
+
+		k := fmt.Sprintf("/%s%s", mime, fileEntry.Path())
+		bytes, err := fileEntry.ToBytes()
+		if err != nil {
+			snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
+			backupCtx.recordError(record.Pathname, err)
+			return err
+		}
+		if err := backupCtx.ctidx.Insert(k, snap.repository.ComputeMAC(bytes)); err != nil {
+			snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
+			backupCtx.recordError(record.Pathname, err)
+			return err
+		}
+	}
+
+	if err := backupCtx.recordEntry(fileEntry); err != nil {
+		snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
+		backupCtx.recordError(record.Pathname, err)
+		return err
+	}
+
+	snap.Event(events.FileOKEvent(snap.Header.Identifier, record.Pathname, record.FileInfo.Size()))
+	return nil
 }
