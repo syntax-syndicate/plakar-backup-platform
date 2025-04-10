@@ -17,6 +17,9 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 
+	_ "github.com/rclone/rclone/backend/all" // import all backends
+	"github.com/rclone/rclone/fs/config/configfile"
+
 	"github.com/rclone/rclone/fs/operations"
 	"github.com/rclone/rclone/fs/rc"
 	"github.com/rclone/rclone/fs/rc/rcserver"
@@ -36,6 +39,8 @@ func init() {
 }
 
 func startRcloneServer() chan *rcserver.Server {
+	configfile.Install()
+
 	_ = operations.List
 	rc.Opt.Enabled = true
 	rc.Opt.NoAuth = true
