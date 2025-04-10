@@ -2,9 +2,11 @@ package rclone
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path"
@@ -15,12 +17,17 @@ import (
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
+
+	"github.com/rclone/rclone/fs/operations"
+	"github.com/rclone/rclone/fs/rc"
+	"github.com/rclone/rclone/fs/rc/rcserver"
 )
 
 type RcloneImporter struct {
-	apiUrl string
-	remote string
-	base   string
+	apiUrl       string
+	remote       string
+	base         string
+	RCloneServer chan *rcserver.Server
 
 	ino uint64
 }
@@ -40,10 +47,24 @@ func NewRcloneImporter(config map[string]string) (importer.Importer, error) {
 		return nil, fmt.Errorf("invalid location: %s. Expected format: remote:path/to/dir", location)
 	}
 
+	rc.Opt.Enabled = true
+	rc.Opt.NoAuth = true
+	tmp := operations.CheckOpt{}
+	log.Printf("CheckOpt: %+v", tmp)
+	serverChan := make(chan *rcserver.Server, 1)
+	go func() {
+		s, err := rcserver.Start(context.Background(), &rc.Opt)
+		if err != nil {
+			serverChan <- nil
+		} else {
+			serverChan <- s
+		}
+	}()
 	return &RcloneImporter{
-		apiUrl: "http://127.0.0.1:5572",
-		remote: remote,
-		base:   base,
+		apiUrl:       "http://127.0.0.1:5572",
+		remote:       remote,
+		base:         base,
+		RCloneServer: serverChan,
 	}, nil
 }
 
@@ -323,6 +344,12 @@ func (p *RcloneImporter) NewReader(pathname string) (io.ReadCloser, error) {
 }
 
 func (p *RcloneImporter) Close() error {
+	if p.RCloneServer != nil {
+		s := <-p.RCloneServer
+		if s != nil {
+			s.Shutdown()
+		}
+	}
 	return nil
 }
 
