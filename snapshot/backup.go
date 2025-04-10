@@ -14,7 +14,6 @@ import (
 
 	"github.com/PlakarKorp/plakar/btree"
 	"github.com/PlakarKorp/plakar/caching"
-	"github.com/PlakarKorp/plakar/classifier"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository/state"
@@ -263,6 +262,7 @@ func (snap *Builder) flushDeltaState(bc *BackupContext) {
 }
 
 func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error {
+	beginTime := time.Now()
 	snap.Event(events.StartEvent())
 	defer snap.Event(events.DoneEvent())
 
@@ -271,16 +271,6 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 		return err
 	}
 	defer snap.Unlock(done)
-
-	vfsCache, err := snap.AppContext().GetCache().VFS(snap.repository.Configuration().RepositoryID, imp.Type(), imp.Origin())
-	if err != nil {
-		return err
-	}
-	cf, err := classifier.NewClassifier(snap.AppContext())
-	if err != nil {
-		return err
-	}
-	defer cf.Close()
 
 	snap.Header.GetSource(0).Importer.Origin = imp.Origin()
 	snap.Header.GetSource(0).Importer.Type = imp.Type()
@@ -291,56 +281,14 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	} else {
 		snap.Header.Name = options.Name
 	}
-
 	snap.Header.GetSource(0).Importer.Directory = imp.Root()
 
-	maxConcurrency := options.MaxConcurrency
-	if maxConcurrency == 0 {
-		maxConcurrency = uint64(snap.AppContext().MaxConcurrency)
-	}
-
-	backupCtx := &BackupContext{
-		imp:            imp,
-		maxConcurrency: maxConcurrency,
-		scanCache:      snap.scanCache,
-		vfsCache:       vfsCache,
-		flushTick:      time.NewTicker(1 * time.Hour),
-		flushEnd:       make(chan bool),
-		flushEnded:     make(chan bool),
-		stateId:        snap.Header.Identifier,
+	backupCtx, err := snap.prepareBackup(imp, options)
+	if err != nil {
+		return err
 	}
 
 	go snap.flushDeltaState(backupCtx)
-
-	errstore := caching.DBStore[string, []byte]{
-		Prefix: "__error__",
-		Cache:  snap.scanCache,
-	}
-	backupCtx.erridx, err = btree.New(&errstore, strings.Compare, 50)
-	if err != nil {
-		return err
-	}
-
-	xattrstore := caching.DBStore[string, []byte]{
-		Prefix: "__xattr__",
-		Cache:  snap.scanCache,
-	}
-	backupCtx.xattridx, err = btree.New(&xattrstore, vfs.PathCmp, 50)
-	if err != nil {
-		return err
-	}
-
-	ctstore := caching.DBStore[string, objects.MAC]{
-		Prefix: "__contenttype__",
-		Cache:  snap.scanCache,
-	}
-	backupCtx.ctidx, err = btree.New(&ctstore, strings.Compare, 50)
-	if err != nil {
-		return err
-	}
-
-	/* backup starts now */
-	beginTime := time.Now()
 
 	/* importer */
 	filesChannel, err := snap.importerJob(backupCtx, options)
@@ -352,210 +300,19 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	snap.processFiles(backupCtx, filesChannel)
 
 	/* tree builders */
-
-	errcsum, err := persistMACIndex(snap, backupCtx.erridx,
-		resources.RT_ERROR_BTREE, resources.RT_ERROR_NODE, resources.RT_ERROR_ENTRY)
+	vfsHeader, rootSummary, indexes, err := snap.persistTrees(backupCtx)
 	if err != nil {
-		return err
+		return nil
 	}
-
-	filestore := caching.DBStore[string, []byte]{
-		Prefix: "__path__",
-		Cache:  snap.scanCache,
-	}
-	fileidx, err := btree.New(&filestore, vfs.PathCmp, 50)
-	if err != nil {
-		return err
-	}
-
-	var rootSummary *vfs.Summary
-
-	diriter := backupCtx.scanCache.EnumerateKeysWithPrefix("__directory__:", true)
-	for dirPath, bytes := range diriter {
-		select {
-		case <-snap.AppContext().GetContext().Done():
-			return snap.AppContext().GetContext().Err()
-		default:
-		}
-
-		dirEntry, err := vfs.EntryFromBytes(bytes)
-		if err != nil {
-			return err
-		}
-
-		prefix := dirPath
-		if prefix != "/" {
-			prefix += "/"
-		}
-
-		childiter := backupCtx.scanCache.EnumerateKeysWithPrefix("__file__:"+prefix, false)
-
-		for relpath, bytes := range childiter {
-			if strings.Contains(relpath, "/") {
-				continue
-			}
-
-			// bytes is a slice that will be reused in the next iteration,
-			// swapping below our feet, so make a copy out of it
-			dupBytes := make([]byte, len(bytes))
-			copy(dupBytes, bytes)
-
-			childPath := prefix + relpath
-
-			if err := fileidx.Insert(childPath, dupBytes); err != nil && err != btree.ErrExists {
-				return err
-			}
-
-			data, err := vfsCache.GetFileSummary(childPath)
-			if err != nil {
-				continue
-			}
-
-			fileSummary, err := vfs.FileSummaryFromBytes(data)
-			if err != nil {
-				continue
-			}
-
-			dirEntry.Summary.Directory.Children++
-			dirEntry.Summary.UpdateWithFileSummary(fileSummary)
-		}
-
-		subDirIter := backupCtx.scanCache.EnumerateKeysWithPrefix("__directory__:"+prefix, false)
-		for relpath := range subDirIter {
-			if relpath == "" || strings.Contains(relpath, "/") {
-				continue
-			}
-
-			childPath := prefix + relpath
-			data, err := snap.scanCache.GetSummary(childPath)
-			if err != nil {
-				continue
-			}
-
-			childSummary, err := vfs.SummaryFromBytes(data)
-			if err != nil {
-				continue
-			}
-			dirEntry.Summary.Directory.Children++
-			dirEntry.Summary.Directory.Directories++
-			dirEntry.Summary.UpdateBelow(childSummary)
-		}
-
-		erriter, err := backupCtx.erridx.ScanFrom(prefix)
-		if err != nil {
-			return err
-		}
-		for erriter.Next() {
-			path, _ := erriter.Current()
-			if !strings.HasPrefix(path, prefix) {
-				break
-			}
-			if strings.Contains(path[len(prefix):], "/") {
-				break
-			}
-			dirEntry.Summary.Below.Errors++
-		}
-		if err := erriter.Err(); err != nil {
-			return err
-		}
-
-		dirEntry.Summary.UpdateAverages()
-
-		classifications := cf.Processor(dirPath).Directory(dirEntry)
-		for _, result := range classifications {
-			dirEntry.AddClassification(result.Analyzer, result.Classes)
-		}
-
-		serializedSummary, err := dirEntry.Summary.ToBytes()
-		if err != nil {
-			backupCtx.recordError(dirPath, err)
-			return err
-		}
-
-		err = snap.scanCache.PutSummary(dirPath, serializedSummary)
-		if err != nil {
-			backupCtx.recordError(dirPath, err)
-			return err
-		}
-
-		snap.Event(events.DirectoryOKEvent(snap.Header.Identifier, dirPath))
-		if dirPath == "/" {
-			if rootSummary != nil {
-				panic("double /!")
-			}
-			rootSummary = dirEntry.Summary
-		}
-
-		serialized, err := dirEntry.ToBytes()
-		if err != nil {
-			return err
-		}
-
-		mac := snap.repository.ComputeMAC(serialized)
-		if err := snap.repository.PutBlobIfNotExists(resources.RT_VFS_ENTRY, mac, serialized); err != nil {
-			return err
-		}
-
-		if err := fileidx.Insert(dirPath, serialized); err != nil && err != btree.ErrExists {
-			return err
-		}
-
-		if err := backupCtx.recordEntry(dirEntry); err != nil {
-			return err
-		}
-	}
-
-	// hits, miss, cachesize := fileidx.Stats()
-	// log.Printf("before persist: fileidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
-
-	rootcsum, err := persistIndex(snap, fileidx, resources.RT_VFS_BTREE,
-		resources.RT_VFS_NODE, func(data []byte) (objects.MAC, error) {
-			return snap.repository.ComputeMAC(data), nil
-		})
-	if err != nil {
-		return err
-	}
-
-	// hits, miss, cachesize = fileidx.Stats()
-	// log.Printf("after persist: fileidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
-
-	xattrcsum, err := persistMACIndex(snap, backupCtx.xattridx,
-		resources.RT_XATTR_BTREE, resources.RT_XATTR_NODE, resources.RT_XATTR_ENTRY)
-	if err != nil {
-		return err
-	}
-
-	// hits, miss, cachesize = ctidx.Stats()
-	// log.Printf("before persist: ctidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
-
-	ctmac, err := persistIndex(snap, backupCtx.ctidx, resources.RT_BTREE_ROOT, resources.RT_BTREE_NODE, func(mac objects.MAC) (objects.MAC, error) {
-		return mac, nil
-	})
-	if err != nil {
-		return err
-	}
-
-	// hits, miss, cachesize = ctidx.Stats()
-	// log.Printf("after persist: ctidx: hits/miss/size: %d/%d/%d", hits, miss, cachesize)
 
 	if backupCtx.aborted.Load() {
 		return backupCtx.abortedReason
 	}
 
-	snap.Header.GetSource(0).VFS = header.VFS{
-		Root:   rootcsum,
-		Xattrs: xattrcsum,
-		Errors: errcsum,
-	}
 	snap.Header.Duration = time.Since(beginTime)
+	snap.Header.GetSource(0).VFS = *vfsHeader
 	snap.Header.GetSource(0).Summary = *rootSummary
-	snap.Header.GetSource(0).Indexes = []header.Index{
-		{
-			Name:  "content-type",
-			Type:  "btree",
-			Value: ctmac,
-		},
-	}
+	snap.Header.GetSource(0).Indexes = indexes
 
 	return snap.Commit(backupCtx)
 }
@@ -601,7 +358,8 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 	object := objects.NewObject()
 	object.ContentType = mime.TypeByExtension(path.Ext(record.Pathname))
 
-	objectHasher := snap.repository.GetMACHasher()
+	objectHasher, releaseGlobalHasher := snap.repository.GetPooledMACHasher()
+	defer releaseGlobalHasher()
 
 	var firstChunk = true
 	var cdcOffset uint64
@@ -614,19 +372,18 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 	// Helper function to process a chunk
 	processChunk := func(data []byte) error {
 		var chunk_t32 objects.MAC
-		chunkHasher := snap.repository.GetMACHasher()
 
+		chunkHasher, releaseChunkHasher := snap.repository.GetPooledMACHasher()
 		if firstChunk {
 			if object.ContentType == "" {
 				object.ContentType = mimetype.Detect(data).String()
 			}
 			firstChunk = false
 		}
-		objectHasher.Write(data)
 
-		chunkHasher.Reset()
 		chunkHasher.Write(data)
 		copy(chunk_t32[:], chunkHasher.Sum(nil))
+		releaseChunkHasher()
 
 		entropyScore, freq := entropy(data)
 		if len(data) > 0 {
@@ -649,17 +406,20 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 	}
 
 	if record.FileInfo.Size() == 0 {
+		empty := []byte{}
 		// Produce an empty chunk for empty file
-		if err := processChunk([]byte{}); err != nil {
+		objectHasher.Write(empty)
+		if err := processChunk(empty); err != nil {
 			return nil, err
 		}
 	} else if record.FileInfo.Size() < int64(snap.repository.Configuration().Chunking.MinSize) {
 		// Small file case: read entire file into memory
-		buf, err := io.ReadAll(rd)
+		cdcChunk, err := io.ReadAll(rd)
 		if err != nil {
 			return nil, err
 		}
-		if err := processChunk(buf); err != nil {
+		objectHasher.Write(cdcChunk)
+		if err := processChunk(cdcChunk); err != nil {
 			return nil, err
 		}
 	} else {
@@ -676,7 +436,13 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 			if cdcChunk == nil {
 				break
 			}
-			if err := processChunk(cdcChunk); err != nil {
+
+			chunkCopy := make([]byte, len(cdcChunk))
+			copy(chunkCopy, cdcChunk)
+
+			objectHasher.Write(chunkCopy)
+
+			if err := processChunk(chunkCopy); err != nil {
 				return nil, err
 			}
 			if err == io.EOF {
@@ -759,6 +525,65 @@ func buildSerializedDeltaState(deltaState *state.LocalState) io.Reader {
 	}()
 
 	return pr
+}
+
+func (snap *Builder) prepareBackup(imp importer.Importer, backupOpts *BackupOptions) (*BackupContext, error) {
+
+	maxConcurrency := backupOpts.MaxConcurrency
+	if maxConcurrency == 0 {
+		maxConcurrency = uint64(snap.AppContext().MaxConcurrency)
+	}
+
+	vfsCache, err := snap.AppContext().GetCache().VFS(snap.repository.Configuration().RepositoryID, imp.Type(), imp.Origin())
+	if err != nil {
+		return nil, err
+	}
+
+	backupCtx := &BackupContext{
+		imp:            imp,
+		maxConcurrency: maxConcurrency,
+		scanCache:      snap.scanCache,
+		vfsCache:       vfsCache,
+		flushTick:      time.NewTicker(1 * time.Hour),
+		flushEnd:       make(chan bool),
+		flushEnded:     make(chan bool),
+		stateId:        snap.Header.Identifier,
+	}
+
+	errstore := caching.DBStore[string, []byte]{
+		Prefix: "__error__",
+		Cache:  snap.scanCache,
+	}
+
+	xattrstore := caching.DBStore[string, []byte]{
+		Prefix: "__xattr__",
+		Cache:  snap.scanCache,
+	}
+
+	ctstore := caching.DBStore[string, objects.MAC]{
+		Prefix: "__contenttype__",
+		Cache:  snap.scanCache,
+	}
+
+	if erridx, err := btree.New(&errstore, strings.Compare, 50); err != nil {
+		return nil, err
+	} else {
+		backupCtx.erridx = erridx
+	}
+
+	if xattridx, err := btree.New(&xattrstore, vfs.PathCmp, 50); err != nil {
+		return nil, err
+	} else {
+		backupCtx.xattridx = xattridx
+	}
+
+	if ctidx, err := btree.New(&ctstore, strings.Compare, 50); err != nil {
+		return nil, err
+	} else {
+		backupCtx.ctidx = ctidx
+	}
+
+	return backupCtx, nil
 }
 
 func (snap *Builder) processFiles(backupCtx *BackupContext, filesChannel <-chan *importer.ScanRecord) error {
@@ -962,4 +787,208 @@ func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importe
 
 	snap.Event(events.FileOKEvent(snap.Header.Identifier, record.Pathname, record.FileInfo.Size()))
 	return nil
+}
+
+func (snap *Builder) persistTrees(backupCtx *BackupContext) (*header.VFS, *vfs.Summary, []header.Index, error) {
+	vfsHeader, summary, err := snap.persistVFS(backupCtx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	indexes, err := snap.persistIndexes(backupCtx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return vfsHeader, summary, indexes, nil
+}
+
+func (snap *Builder) persistVFS(backupCtx *BackupContext) (*header.VFS, *vfs.Summary, error) {
+	errcsum, err := persistMACIndex(snap, backupCtx.erridx,
+		resources.RT_ERROR_BTREE, resources.RT_ERROR_NODE, resources.RT_ERROR_ENTRY)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	filestore := caching.DBStore[string, []byte]{
+		Prefix: "__path__",
+		Cache:  snap.scanCache,
+	}
+	fileidx, err := btree.New(&filestore, vfs.PathCmp, 50)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var rootSummary *vfs.Summary
+
+	diriter := backupCtx.scanCache.EnumerateKeysWithPrefix("__directory__:", true)
+	for dirPath, bytes := range diriter {
+		select {
+		case <-snap.AppContext().GetContext().Done():
+			return nil, nil, snap.AppContext().GetContext().Err()
+		default:
+		}
+
+		dirEntry, err := vfs.EntryFromBytes(bytes)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		prefix := dirPath
+		if prefix != "/" {
+			prefix += "/"
+		}
+
+		childiter := backupCtx.scanCache.EnumerateKeysWithPrefix("__file__:"+prefix, false)
+
+		for relpath, bytes := range childiter {
+			if strings.Contains(relpath, "/") {
+				continue
+			}
+
+			// bytes is a slice that will be reused in the next iteration,
+			// swapping below our feet, so make a copy out of it
+			dupBytes := make([]byte, len(bytes))
+			copy(dupBytes, bytes)
+
+			childPath := prefix + relpath
+
+			if err := fileidx.Insert(childPath, dupBytes); err != nil && err != btree.ErrExists {
+				return nil, nil, err
+			}
+
+			data, err := backupCtx.vfsCache.GetFileSummary(childPath)
+			if err != nil {
+				continue
+			}
+
+			fileSummary, err := vfs.FileSummaryFromBytes(data)
+			if err != nil {
+				continue
+			}
+
+			dirEntry.Summary.Directory.Children++
+			dirEntry.Summary.UpdateWithFileSummary(fileSummary)
+		}
+
+		subDirIter := backupCtx.scanCache.EnumerateKeysWithPrefix("__directory__:"+prefix, false)
+		for relpath := range subDirIter {
+			if relpath == "" || strings.Contains(relpath, "/") {
+				continue
+			}
+
+			childPath := prefix + relpath
+			data, err := snap.scanCache.GetSummary(childPath)
+			if err != nil {
+				continue
+			}
+
+			childSummary, err := vfs.SummaryFromBytes(data)
+			if err != nil {
+				continue
+			}
+			dirEntry.Summary.Directory.Children++
+			dirEntry.Summary.Directory.Directories++
+			dirEntry.Summary.UpdateBelow(childSummary)
+		}
+
+		erriter, err := backupCtx.erridx.ScanFrom(prefix)
+		if err != nil {
+			return nil, nil, err
+		}
+		for erriter.Next() {
+			path, _ := erriter.Current()
+			if !strings.HasPrefix(path, prefix) {
+				break
+			}
+			if strings.Contains(path[len(prefix):], "/") {
+				break
+			}
+			dirEntry.Summary.Below.Errors++
+		}
+		if err := erriter.Err(); err != nil {
+			return nil, nil, err
+		}
+
+		dirEntry.Summary.UpdateAverages()
+
+		serializedSummary, err := dirEntry.Summary.ToBytes()
+		if err != nil {
+			backupCtx.recordError(dirPath, err)
+			return nil, nil, err
+		}
+
+		err = snap.scanCache.PutSummary(dirPath, serializedSummary)
+		if err != nil {
+			backupCtx.recordError(dirPath, err)
+			return nil, nil, err
+		}
+
+		snap.Event(events.DirectoryOKEvent(snap.Header.Identifier, dirPath))
+		if dirPath == "/" {
+			if rootSummary != nil {
+				panic("double /!")
+			}
+			rootSummary = dirEntry.Summary
+		}
+
+		serialized, err := dirEntry.ToBytes()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		mac := snap.repository.ComputeMAC(serialized)
+		if err := snap.repository.PutBlobIfNotExists(resources.RT_VFS_ENTRY, mac, serialized); err != nil {
+			return nil, nil, err
+		}
+
+		if err := fileidx.Insert(dirPath, serialized); err != nil && err != btree.ErrExists {
+			return nil, nil, err
+		}
+
+		if err := backupCtx.recordEntry(dirEntry); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	rootcsum, err := persistIndex(snap, fileidx, resources.RT_VFS_BTREE,
+		resources.RT_VFS_NODE, func(data []byte) (objects.MAC, error) {
+			return snap.repository.ComputeMAC(data), nil
+		})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	xattrcsum, err := persistMACIndex(snap, backupCtx.xattridx,
+		resources.RT_XATTR_BTREE, resources.RT_XATTR_NODE, resources.RT_XATTR_ENTRY)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	vfsHeader := &header.VFS{
+		Root:   rootcsum,
+		Xattrs: xattrcsum,
+		Errors: errcsum,
+	}
+
+	return vfsHeader, rootSummary, nil
+
+}
+
+func (snap *Builder) persistIndexes(backupCtx *BackupContext) ([]header.Index, error) {
+	ctmac, err := persistIndex(snap, backupCtx.ctidx,
+		resources.RT_BTREE_ROOT, resources.RT_BTREE_NODE, func(mac objects.MAC) (objects.MAC, error) {
+			return mac, nil
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	return []header.Index{
+		{
+			Name:  "content-type",
+			Type:  "btree",
+			Value: ctmac,
+		},
+	}, nil
 }
