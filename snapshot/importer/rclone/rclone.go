@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path"
@@ -36,6 +35,22 @@ func init() {
 	importer.Register("rclone", NewRcloneImporter)
 }
 
+func startRcloneServer() chan *rcserver.Server {
+	_ = operations.List
+	rc.Opt.Enabled = true
+	rc.Opt.NoAuth = true
+	serverChan := make(chan *rcserver.Server, 1)
+	go func() {
+		s, err := rcserver.Start(context.Background(), &rc.Opt)
+		if err != nil {
+			serverChan <- nil
+		} else {
+			serverChan <- s
+		}
+	}()
+	return serverChan
+}
+
 // NewRcloneImporter creates a new RcloneImporter instance. It expects the location
 // to be in the format "remote:path/to/dir". The path is optional, but the remote
 // storage location is required, so the colon separator is always expected.
@@ -47,19 +62,11 @@ func NewRcloneImporter(config map[string]string) (importer.Importer, error) {
 		return nil, fmt.Errorf("invalid location: %s. Expected format: remote:path/to/dir", location)
 	}
 
-	rc.Opt.Enabled = true
-	rc.Opt.NoAuth = true
-	tmp := operations.CheckOpt{}
-	log.Printf("CheckOpt: %+v", tmp)
-	serverChan := make(chan *rcserver.Server, 1)
-	go func() {
-		s, err := rcserver.Start(context.Background(), &rc.Opt)
-		if err != nil {
-			serverChan <- nil
-		} else {
-			serverChan <- s
-		}
-	}()
+	serverChan := startRcloneServer()
+	time.Sleep(2 * time.Second)
+	if serverChan == nil {
+		return nil, fmt.Errorf("failed to start rclone server")
+	}
 	return &RcloneImporter{
 		apiUrl:       "http://127.0.0.1:5572",
 		remote:       remote,
@@ -172,6 +179,11 @@ func (p *RcloneImporter) scanRecursive(results chan *importer.ScanResult, path s
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
+	// print the request
+	print(string(req.Method), "\n")
+	print(string(req.URL.String()), "\n")
+	// print the body of the request
+	print(string(jsonPayload), "\n")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
