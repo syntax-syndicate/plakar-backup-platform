@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"math/bits"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -39,6 +40,36 @@ var (
 	ErrNotReadable      = errors.New("repository is not readable")
 )
 
+// HasherPool pools hash.Hash instances
+type HasherPool struct {
+	pool sync.Pool
+}
+
+var macHasherPool *HasherPool = nil
+
+// NewHasherPool creates a new hasher pool
+func NewHasherPool(newHasher func() hash.Hash) *HasherPool {
+	return &HasherPool{
+		pool: sync.Pool{
+			New: func() interface{} {
+				return newHasher()
+			},
+		},
+	}
+}
+
+// Get retrieves a hasher from the pool
+func (hp *HasherPool) Get() hash.Hash {
+	hasher := hp.pool.Get().(hash.Hash)
+	hasher.Reset()
+	return hasher
+}
+
+// Put returns a hasher to the pool
+func (hp *HasherPool) Put(hasher hash.Hash) {
+	hp.pool.Put(hasher)
+}
+
 type Repository struct {
 	store         storage.Store
 	state         *state.LocalState
@@ -50,6 +81,8 @@ type Repository struct {
 
 	storageSize      int64
 	storageSizeDirty bool
+
+	macHasherPool *HasherPool
 }
 
 func Inexistent(ctx *appcontext.AppContext, storeConfig map[string]string) (*Repository, error) {
@@ -103,6 +136,12 @@ func New(ctx *appcontext.AppContext, store storage.Store, config []byte) (*Repos
 		storageSize:      -1,
 		storageSizeDirty: true,
 	}
+
+	r.macHasherPool = NewHasherPool(func() hash.Hash {
+		hasher := r.getMACHasher()
+		hasher.Reset()
+		return hasher
+	})
 
 	if err := r.RebuildState(); err != nil {
 		return nil, err
@@ -158,6 +197,11 @@ func NewNoRebuild(ctx *appcontext.AppContext, store storage.Store, config []byte
 		storageSize:      -1,
 		storageSizeDirty: true,
 	}
+	r.macHasherPool = NewHasherPool(func() hash.Hash {
+		hasher := r.getMACHasher()
+		hasher.Reset()
+		return hasher
+	})
 
 	return r, nil
 }
@@ -355,6 +399,18 @@ func (r *Repository) EncodeBuffer(buffer []byte) ([]byte, error) {
 	return io.ReadAll(rd)
 }
 
+func (r *Repository) getMACHasher() hash.Hash {
+	secret := r.AppContext().GetSecret()
+	if secret == nil {
+		// unencrypted repo, derive 32-bytes "secret" from RepositoryID
+		// so ComputeMAC can be used similarly to encrypted repos
+		hasher := hashing.GetHasher(r.Configuration().Hashing.Algorithm)
+		hasher.Write(r.configuration.RepositoryID[:])
+		secret = hasher.Sum(nil)
+	}
+	return hashing.GetMACHasher(r.Configuration().Hashing.Algorithm, secret)
+}
+
 func (r *Repository) GetMACHasher() hash.Hash {
 	secret := r.AppContext().GetSecret()
 	if secret == nil {
@@ -367,10 +423,18 @@ func (r *Repository) GetMACHasher() hash.Hash {
 	return hashing.GetMACHasher(r.Configuration().Hashing.Algorithm, secret)
 }
 
+func (r *Repository) GetPooledMACHasher() (hash.Hash, func()) {
+	hasher := r.macHasherPool.Get()
+	return hasher, func() {
+		r.macHasherPool.Put(hasher)
+	}
+}
+
 func (r *Repository) ComputeMAC(data []byte) objects.MAC {
-	hasher := r.GetMACHasher()
+	hasher, release := r.GetPooledMACHasher()
 	hasher.Write(data)
 	result := hasher.Sum(nil)
+	release()
 
 	if len(result) != 32 {
 		panic("hasher returned invalid length")
