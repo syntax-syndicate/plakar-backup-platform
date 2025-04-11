@@ -151,17 +151,15 @@ func (e *Entry) AddClassification(analyzer string, classes []string) {
 	})
 }
 
-func (e *Entry) Open(fs *Filesystem, path string) fs.File {
+func (e *Entry) Open(fs *Filesystem) fs.File {
 	if e.FileInfo.IsDir() {
 		return &vdir{
-			path:  path,
 			entry: e,
 			fs:    fs,
 		}
 	}
 
 	return &vfile{
-		path:  path,
 		entry: e,
 		repo:  fs.repo,
 		rd:    NewObjectReader(fs.repo, e.ResolvedObject, e.Size()),
@@ -251,7 +249,6 @@ func (e *Entry) Xattr(fsc *Filesystem, xattrName string) (io.ReadSeeker, error) 
 
 // FileEntry implements fs.File, FSEntry and ReadSeeker
 type vfile struct {
-	path   string
 	entry  *Entry
 	repo   *repository.Repository
 	closed bool
@@ -274,7 +271,7 @@ func (vf *vfile) Size() int64 {
 }
 
 func (vf *vfile) Path() string {
-	return vf.path
+	return vf.entry.Path()
 }
 
 func (vf *vfile) Read(p []byte) (int, error) {
@@ -310,7 +307,6 @@ func (vf *vfile) Close() error {
 }
 
 type vdir struct {
-	path   string
 	entry  *Entry
 	fs     *Filesystem
 	iter   iterator.Iterator[string, objects.MAC]
@@ -351,7 +347,7 @@ func (vf *vdir) ReadDir(n int) (entries []fs.DirEntry, err error) {
 		return entries, fs.ErrClosed
 	}
 
-	prefix := vf.path
+	prefix := vf.entry.Path()
 	if prefix != "/" {
 		prefix += "/"
 	}
