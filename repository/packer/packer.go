@@ -47,7 +47,7 @@ func NewPackerManager(ctx *appcontext.AppContext, storageConfiguration *storage.
 	}
 	return &PackerManager{
 		InflightMACs:   inflightsMACs,
-		packerChan:     make(chan interface{}, 1000),
+		packerChan:     make(chan interface{}, runtime.NumCPU()*2+1),
 		packerChanDone: make(chan struct{}),
 		storageConf:    storageConfiguration,
 		hashFactory:    hashFactory,
