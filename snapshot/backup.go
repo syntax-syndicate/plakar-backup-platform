@@ -16,7 +16,6 @@ import (
 	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/repository/state"
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/snapshot/header"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
@@ -287,7 +286,6 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	if err != nil {
 		return err
 	}
-
 	go snap.flushDeltaState(backupCtx)
 
 	/* importer */
@@ -537,20 +535,6 @@ func (snap *Builder) Commit(bc *BackupContext) error {
 	return nil
 }
 
-func buildSerializedDeltaState(deltaState *state.LocalState) io.Reader {
-	pr, pw := io.Pipe()
-
-	/* By using a pipe and a goroutine we bound the max size in memory. */
-	go func() {
-		defer pw.Close()
-		if err := deltaState.SerializeToStream(pw); err != nil {
-			pw.CloseWithError(err)
-		}
-	}()
-
-	return pr
-}
-
 func (snap *Builder) prepareBackup(imp importer.Importer, backupOpts *BackupOptions) (*BackupContext, error) {
 
 	maxConcurrency := backupOpts.MaxConcurrency
@@ -635,9 +619,12 @@ func (snap *Builder) processFiles(backupCtx *BackupContext, filesChannel <-chan 
 				defer wg.Done()
 				defer func() { <-semaphore }()
 
+				snap.Event(events.FileEvent(snap.Header.Identifier, record.Pathname))
 				if err := snap.processFileRecord(backupCtx, record); err != nil {
 					snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
 					backupCtx.recordError(record.Pathname, err)
+				} else {
+					snap.Event(events.FileOKEvent(snap.Header.Identifier, record.Pathname, record.FileInfo.Size()))
 				}
 			}(record)
 		}
@@ -645,8 +632,6 @@ func (snap *Builder) processFiles(backupCtx *BackupContext, filesChannel <-chan 
 }
 
 func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importer.ScanRecord) error {
-	snap.Event(events.FileEvent(snap.Header.Identifier, record.Pathname))
-
 	vfsCache := backupCtx.vfsCache
 
 	var err error
@@ -690,8 +675,6 @@ func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importe
 
 	if object != nil {
 		if err := snap.repository.PutBlobIfNotExists(resources.RT_OBJECT, objectMAC, objectSerialized); err != nil {
-			snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-			backupCtx.recordError(record.Pathname, err)
 			return err
 		}
 	}
@@ -701,26 +684,18 @@ func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importe
 		if object == nil || !snap.repository.BlobExists(resources.RT_OBJECT, objectMAC) {
 			object, err = snap.chunkify(backupCtx, record)
 			if err != nil {
-				snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-				backupCtx.recordError(record.Pathname, err)
 				return err
 			}
 			objectSerialized, err = object.Serialize()
 			if err != nil {
-				snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-				backupCtx.recordError(record.Pathname, err)
 				return err
 			}
 			objectMAC = snap.repository.ComputeMAC(objectSerialized)
 			if err := vfsCache.PutObject(objectMAC, objectSerialized); err != nil {
-				snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-				backupCtx.recordError(record.Pathname, err)
 				return err
 			}
 
 			if err := snap.repository.PutBlob(resources.RT_OBJECT, objectMAC, objectSerialized); err != nil {
-				snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-				backupCtx.recordError(record.Pathname, err)
 				return err
 			}
 		}
@@ -729,7 +704,7 @@ func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importe
 	// xattrs are a special case
 	if record.IsXattr {
 		backupCtx.recordXattr(record, objectMAC, object.Size())
-		return err
+		return nil
 	}
 
 	if fileEntry == nil || !snap.repository.BlobExists(resources.RT_VFS_ENTRY, cachedFileEntryMAC) {
@@ -740,22 +715,16 @@ func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importe
 
 		serialized, err := fileEntry.ToBytes()
 		if err != nil {
-			snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-			backupCtx.recordError(record.Pathname, err)
 			return err
 		}
 
 		fileEntryMAC := snap.repository.ComputeMAC(serialized)
 		if err := snap.repository.PutBlob(resources.RT_VFS_ENTRY, fileEntryMAC, serialized); err != nil {
-			snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-			backupCtx.recordError(record.Pathname, err)
 			return err
 		}
 
 		// Store the newly generated FileEntry in the cache for future runs
 		if err := vfsCache.PutFilename(record.Pathname, serialized); err != nil {
-			snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-			backupCtx.recordError(record.Pathname, err)
 			return err
 		}
 
@@ -773,14 +742,10 @@ func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importe
 
 		seralizedFileSummary, err := fileSummary.Serialize()
 		if err != nil {
-			snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-			backupCtx.recordError(record.Pathname, err)
 			return err
 		}
 
 		if err := vfsCache.PutFileSummary(record.Pathname, seralizedFileSummary); err != nil {
-			snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-			backupCtx.recordError(record.Pathname, err)
 			return err
 		}
 	}
@@ -792,25 +757,14 @@ func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importe
 		k := fmt.Sprintf("/%s%s", mime, fileEntry.Path())
 		bytes, err := fileEntry.ToBytes()
 		if err != nil {
-			snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-			backupCtx.recordError(record.Pathname, err)
 			return err
 		}
 		if err := backupCtx.ctidx.Insert(k, snap.repository.ComputeMAC(bytes)); err != nil {
-			snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-			backupCtx.recordError(record.Pathname, err)
 			return err
 		}
 	}
 
-	if err := backupCtx.recordEntry(fileEntry); err != nil {
-		snap.Event(events.FileErrorEvent(snap.Header.Identifier, record.Pathname, err.Error()))
-		backupCtx.recordError(record.Pathname, err)
-		return err
-	}
-
-	snap.Event(events.FileOKEvent(snap.Header.Identifier, record.Pathname, record.FileInfo.Size()))
-	return nil
+	return backupCtx.recordEntry(fileEntry)
 }
 
 func (snap *Builder) persistTrees(backupCtx *BackupContext) (*header.VFS, *vfs.Summary, []header.Index, error) {
