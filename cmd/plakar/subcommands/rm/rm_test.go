@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
 	ptesting "github.com/PlakarKorp/plakar/testing"
@@ -17,8 +18,9 @@ func init() {
 	os.Setenv("TZ", "UTC")
 }
 
-func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) *snapshot.Snapshot {
-	return ptesting.GenerateSnapshot(t, bufOut, bufErr, nil, []ptesting.MockFile{
+func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) (*repository.Repository, *snapshot.Snapshot) {
+	repo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockDir("another_subdir"),
 		ptesting.NewMockFile("subdir/dummy.txt", 0644, "hello dummy"),
@@ -26,29 +28,24 @@ func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 		ptesting.NewMockFile("subdir/to_exclude", 0644, "*/subdir/to_exclude\n"),
 		ptesting.NewMockFile("another_subdir/bar.txt", 0644, "hello bar"),
 	})
+	return repo, snap
 }
 
 func TestExecuteCmdRmDefault(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	snap := generateSnapshot(t, bufOut, bufErr)
+	repo, snap := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-
-	repo := snap.Repository()
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
 	args := []string{"-latest"}
 
-	subcommand, err := parse_cmd_rm(ctx, args)
+	subcommand, err := parse_cmd_rm(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 	require.Equal(t, "rm", subcommand.(*Rm).Name())
 
-	status, err := subcommand.Execute(ctx, repo)
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -60,23 +57,17 @@ func TestExecuteCmdRmWithSnapshot(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	snap := generateSnapshot(t, bufOut, bufErr)
+	repo, snap := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-
-	repo := snap.Repository()
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
 	args := []string{hex.EncodeToString(snap.Header.GetIndexShortID())}
 
-	subcommand, err := parse_cmd_rm(ctx, args)
+	subcommand, err := parse_cmd_rm(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 	require.Equal(t, "rm", subcommand.(*Rm).Name())
 
-	status, err := subcommand.Execute(ctx, repo)
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
