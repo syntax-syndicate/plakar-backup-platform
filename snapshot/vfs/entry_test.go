@@ -11,11 +11,8 @@ import (
 )
 
 func TestVfile(t *testing.T) {
-	snap := generateSnapshot(t)
+	_, snap := generateSnapshot(t)
 	defer snap.Close()
-
-	err := snap.Repository().RebuildState()
-	require.NoError(t, err)
 
 	fs, err := snap.Filesystem()
 	require.NoError(t, err)
@@ -54,7 +51,7 @@ func TestVfile(t *testing.T) {
 	// can't test the whole json content as there are some random part included
 	require.Contains(t, string(entryJson), `"file_info":{"name":"dummy.txt","size":5,"mode":420`)
 
-	vFile := entry.Open(fs, filepath)
+	vFile := entry.Open(fs)
 
 	seeked, err := vFile.(io.ReadSeeker).Seek(2, io.SeekCurrent)
 	require.NoError(t, err)
@@ -85,11 +82,8 @@ func TestVfile(t *testing.T) {
 }
 
 func TestVdir(t *testing.T) {
-	snap := generateSnapshot(t)
+	_, snap := generateSnapshot(t)
 	defer snap.Close()
-
-	err := snap.Repository().RebuildState()
-	require.NoError(t, err)
 
 	fs, err := snap.Filesystem()
 	require.NoError(t, err)
@@ -118,7 +112,7 @@ func TestVdir(t *testing.T) {
 	}
 
 	dst := make([]byte, 100)
-	dirFile := entry.Open(fs, filepath)
+	dirFile := entry.Open(fs)
 	_, err = dirFile.Read(dst)
 	require.Error(t, iofs.ErrInvalid, err)
 

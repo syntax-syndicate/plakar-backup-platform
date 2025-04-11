@@ -105,7 +105,7 @@ func snapshotReader(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	file := entry.Open(fs, path)
+	file := entry.Open(fs)
 	defer file.Close()
 
 	if !entry.Stat().Mode().IsRegular() {

@@ -111,7 +111,7 @@ func (snap *Snapshot) Archive(w io.Writer, format ArchiveFormat, paths []string,
 				return nil
 			}
 
-			fp := e.Open(fsc, e.Path())
+			fp := e.Open(fsc)
 			_, err = io.Copy(writer, fp)
 			fp.Close()
 			return err

@@ -11,8 +11,9 @@ import (
 func _TestVerify(t *testing.T) {
 	defaultKeyPair, err := keypair.Generate()
 	require.NoError(t, err)
+	require.NotNil(t, defaultKeyPair)
 
-	snap := generateSnapshot(t, defaultKeyPair)
+	_, snap := generateSnapshot(t) // TODO: sign with defaultKeyPair
 	defer snap.Close()
 
 	verified, err := snap.Verify()

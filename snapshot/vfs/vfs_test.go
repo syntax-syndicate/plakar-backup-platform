@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	ptesting "github.com/PlakarKorp/plakar/testing"
@@ -130,19 +131,18 @@ func TestPathCmp(t *testing.T) {
 	}
 }
 
-func generateSnapshot(t *testing.T) *snapshot.Snapshot {
-	return ptesting.GenerateSnapshot(t, nil, nil, nil, []ptesting.MockFile{
+func generateSnapshot(t *testing.T) (*repository.Repository, *snapshot.Snapshot) {
+	repo := ptesting.GenerateRepository(t, nil, nil, nil)
+	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockFile("subdir/dummy.txt", 0644, "hello"),
 	})
+	return repo, snap
 }
 
 func TestFiles(t *testing.T) {
-	snap := generateSnapshot(t)
+	_, snap := generateSnapshot(t)
 	defer snap.Close()
-
-	err := snap.Repository().RebuildState()
-	require.NoError(t, err)
 
 	fs, err := snap.Filesystem()
 	require.NoError(t, err)
@@ -157,11 +157,8 @@ func TestFiles(t *testing.T) {
 }
 
 func TestPathnames(t *testing.T) {
-	snap := generateSnapshot(t)
+	_, snap := generateSnapshot(t)
 	defer snap.Close()
-
-	err := snap.Repository().RebuildState()
-	require.NoError(t, err)
 
 	// search for the correct filepath as the path was mkdir temp we cannot hardcode it
 	var filepath string
@@ -177,11 +174,8 @@ func TestPathnames(t *testing.T) {
 }
 
 func TestOpen(t *testing.T) {
-	snap := generateSnapshot(t)
+	_, snap := generateSnapshot(t)
 	defer snap.Close()
-
-	err := snap.Repository().RebuildState()
-	require.NoError(t, err)
 
 	fs, err := snap.Filesystem()
 	require.NoError(t, err)
@@ -206,11 +200,8 @@ func TestOpen(t *testing.T) {
 }
 
 func TestGetEntry(t *testing.T) {
-	snap := generateSnapshot(t)
+	_, snap := generateSnapshot(t)
 	defer snap.Close()
-
-	err := snap.Repository().RebuildState()
-	require.NoError(t, err)
 
 	fs, err := snap.Filesystem()
 	require.NoError(t, err)
@@ -232,11 +223,8 @@ func TestGetEntry(t *testing.T) {
 }
 
 func _TestReadDir(t *testing.T) {
-	snap := generateSnapshot(t)
+	_, snap := generateSnapshot(t)
 	defer snap.Close()
-
-	err := snap.Repository().RebuildState()
-	require.NoError(t, err)
 
 	fs, err := snap.Filesystem()
 	require.NoError(t, err)
@@ -256,11 +244,8 @@ func _TestReadDir(t *testing.T) {
 }
 
 func TestGetdents(t *testing.T) {
-	snap := generateSnapshot(t)
+	_, snap := generateSnapshot(t)
 	defer snap.Close()
-
-	err := snap.Repository().RebuildState()
-	require.NoError(t, err)
 
 	fs, err := snap.Filesystem()
 	require.NoError(t, err)
@@ -290,11 +275,8 @@ func TestGetdents(t *testing.T) {
 }
 
 func TestChildren(t *testing.T) {
-	snap := generateSnapshot(t)
+	_, snap := generateSnapshot(t)
 	defer snap.Close()
-
-	err := snap.Repository().RebuildState()
-	require.NoError(t, err)
 
 	fs, err := snap.Filesystem()
 	require.NoError(t, err)
@@ -325,11 +307,8 @@ func TestChildren(t *testing.T) {
 }
 
 func _TestFileMacs(t *testing.T) {
-	snap := generateSnapshot(t)
+	_, snap := generateSnapshot(t)
 	defer snap.Close()
-
-	err := snap.Repository().RebuildState()
-	require.NoError(t, err)
 
 	fs, err := snap.Filesystem()
 	require.NoError(t, err)
