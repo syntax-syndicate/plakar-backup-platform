@@ -185,7 +185,7 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		panic(err)
 	}
 
-	snap, err := snapshot.Create(repo)
+	snap, err := snapshot.Create(repo, repository.PtarType)
 	if err != nil {
 		panic(err)
 	}
