@@ -162,7 +162,7 @@ func (fsc *Filesystem) lookup(entrypath string) (*Entry, error) {
 	return fsc.ResolveEntry(csum)
 }
 
-func (fsc *Filesystem) markChroot(entry *Entry) *Entry {
+func (fsc *Filesystem) patch(entry *Entry) *Entry {
 	// if no chroot is set, return the entry as is
 	if fsc.chroot == "" {
 		return entry
@@ -215,7 +215,7 @@ func (fsc *Filesystem) ResolveEntry(csum objects.MAC) (*Entry, error) {
 		entry.ResolvedObject = obj
 	}
 
-	return fsc.markChroot(entry), nil
+	return fsc.patch(entry), nil
 }
 
 func (fsc *Filesystem) ResolveXattr(mac objects.MAC) (*Xattr, error) {
@@ -404,7 +404,7 @@ func (fsc *Filesystem) GetEntry(entrypath string) (*Entry, error) {
 	}
 
 	if entry.FileInfo.Lmode&os.ModeSymlink == 0 {
-		return fsc.markChroot(entry), nil
+		return fsc.patch(entry), nil
 	}
 
 	if path.IsAbs(entry.SymlinkTarget) {
@@ -412,14 +412,14 @@ func (fsc *Filesystem) GetEntry(entrypath string) (*Entry, error) {
 		if err != nil {
 			return nil, err
 		}
-		return fsc.markChroot(entry), nil
+		return fsc.patch(entry), nil
 	}
 
 	entry, err = fsc.lookup(path.Join(path.Dir(entry.Path()), entry.SymlinkTarget))
 	if err != nil {
 		return nil, err
 	}
-	return fsc.markChroot(entry), nil
+	return fsc.patch(entry), nil
 }
 
 func (fsc *Filesystem) Children(path string) (iter.Seq2[*Entry, error], error) {
