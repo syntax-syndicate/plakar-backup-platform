@@ -10,11 +10,8 @@ import (
 )
 
 func TestNewReader(t *testing.T) {
-	snap := generateSnapshot(t, nil)
+	_, snap := generateSnapshot(t)
 	defer snap.Close()
-
-	err := snap.Repository().RebuildState()
-	require.NoError(t, err)
 
 	// search for the correct filepath as the path was mkdir temp we cannot hardcode it
 	var filepath string

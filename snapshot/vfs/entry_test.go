@@ -11,11 +11,8 @@ import (
 )
 
 func TestVfile(t *testing.T) {
-	snap := generateSnapshot(t)
+	_, snap := generateSnapshot(t)
 	defer snap.Close()
-
-	err := snap.Repository().RebuildState()
-	require.NoError(t, err)
 
 	fs, err := snap.Filesystem()
 	require.NoError(t, err)
@@ -85,11 +82,8 @@ func TestVfile(t *testing.T) {
 }
 
 func TestVdir(t *testing.T) {
-	snap := generateSnapshot(t)
+	_, snap := generateSnapshot(t)
 	defer snap.Close()
-
-	err := snap.Repository().RebuildState()
-	require.NoError(t, err)
 
 	fs, err := snap.Filesystem()
 	require.NoError(t, err)

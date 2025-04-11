@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
 	ptesting "github.com/PlakarKorp/plakar/testing"
@@ -18,8 +19,9 @@ func init() {
 	os.Setenv("TZ", "UTC")
 }
 
-func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) *snapshot.Snapshot {
-	return ptesting.GenerateSnapshot(t, bufOut, bufErr, nil, []ptesting.MockFile{
+func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) (*repository.Repository, *snapshot.Snapshot) {
+	repo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockDir("another_subdir"),
 		ptesting.NewMockFile("subdir/dummy.txt", 0644, "hello dummy"),
@@ -27,20 +29,17 @@ func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 		ptesting.NewMockFile("subdir/to_exclude", 0644, "*/subdir/to_exclude\n"),
 		ptesting.NewMockFile("another_subdir/bar.txt", 0644, "hello bar"),
 	})
+	return repo, snap
 }
 
 func TestExecuteCmdRestoreDefault(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	snap := generateSnapshot(t, bufOut, bufErr)
+	repo, snap := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-	repo := snap.Repository()
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
+	ctx := repo.AppContext()
 
 	tmpToRestoreDir, err := os.MkdirTemp("", "tmp_to_restore")
 	require.NoError(t, err)
@@ -52,12 +51,12 @@ func TestExecuteCmdRestoreDefault(t *testing.T) {
 	args := []string{}
 	// args := []string{tmpBackupDir + "/subdir/dummy.txt"}
 
-	subcommand, err := parse_cmd_restore(ctx, args)
+	subcommand, err := parse_cmd_restore(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 	require.Equal(t, "restore", subcommand.(*Restore).Name())
 
-	status, err := subcommand.Execute(ctx, repo)
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -84,14 +83,10 @@ func TestExecuteCmdRestoreSpecificSnapshot(t *testing.T) {
 	bufErr := bytes.NewBuffer(nil)
 
 	// create one snapshot
-	snap := generateSnapshot(t, bufOut, bufErr)
+	repo, snap := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-	repo := snap.Repository()
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
+	ctx := repo.AppContext()
 
 	tmpToRestoreDir, err := os.MkdirTemp("", "tmp_to_restore")
 	require.NoError(t, err)
@@ -102,12 +97,12 @@ func TestExecuteCmdRestoreSpecificSnapshot(t *testing.T) {
 	ctx.CWD = tmpToRestoreDir
 	indexId := snap.Header.GetIndexID()
 	args := []string{fmt.Sprintf("%s", hex.EncodeToString(indexId[:]))}
-	subcommand, err := parse_cmd_restore(ctx, args)
+	subcommand, err := parse_cmd_restore(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 	require.Equal(t, "restore", subcommand.(*Restore).Name())
 
-	status, err := subcommand.Execute(ctx, repo)
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -123,6 +118,9 @@ func TestExecuteCmdRestoreSpecificSnapshot(t *testing.T) {
 
 	output := bufOut.String()
 	lines := strings.Split(strings.Trim(output, "\n"), "\n")
+	if len(lines) != 8 {
+		t.Fatalf("Expected 8 lines; got %d; the content is:\n%s\n", len(lines), output)
+	}
 	require.Equal(t, 8, len(lines))
 	// last line should have the summary
 	lastline := lines[len(lines)-1]

@@ -20,7 +20,8 @@ func TestExecuteCmdArchiveDefault(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	snap := ptesting.GenerateSnapshot(t, bufOut, bufErr, nil, []ptesting.MockFile{
+	repo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockDir("another_subdir"),
 		ptesting.NewMockFile("subdir/dummy.txt", 0644, "hello dummy"),
@@ -30,28 +31,22 @@ func TestExecuteCmdArchiveDefault(t *testing.T) {
 	})
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-
 	tmpDestinationDir, err := os.MkdirTemp("", "archive_destination")
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		os.RemoveAll(tmpDestinationDir)
 	})
 
-	repo := snap.Repository()
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
 	indexId := snap.Header.GetIndexID()
 	outputDir := fmt.Sprintf("%s/archive_test", tmpDestinationDir)
 	args := []string{"-output", outputDir, fmt.Sprintf("%s", hex.EncodeToString(indexId[:]))}
 
-	subcommand, err := parse_cmd_archive(ctx, args)
+	subcommand, err := parse_cmd_archive(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 	require.Equal(t, "archive", subcommand.(*Archive).Name())
 
-	status, err := subcommand.Execute(ctx, repo)
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
