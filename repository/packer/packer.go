@@ -36,10 +36,10 @@ type PackerManager struct {
 
 	// XXX: Temporary hack callback-based to ease the transition diff.
 	// To be revisited with either an interface or moving this file inside repository/
-	flush func(*Packer) error
+	flush func(*packfile.PackFile) error
 }
 
-func NewPackerManager(ctx *appcontext.AppContext, storageConfiguration *storage.Configuration, hashFactory func() hash.Hash, flusher func(*Packer) error) *PackerManager {
+func NewPackerManager(ctx *appcontext.AppContext, storageConfiguration *storage.Configuration, hashFactory func() hash.Hash, flusher func(*packfile.PackFile) error) *PackerManager {
 	inflightsMACs := make(map[resources.Type]*sync.Map)
 	for _, Type := range resources.Types() {
 		inflightsMACs[Type] = &sync.Map{}
@@ -59,22 +59,22 @@ func (mgr *PackerManager) Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	packerResultChan := make(chan *Packer, runtime.NumCPU())
+	packerResultChan := make(chan *packfile.PackFile, runtime.NumCPU())
 
 	flusherGroup, _ := errgroup.WithContext(ctx)
 	flusherGroup.Go(func() error {
-		for packer := range packerResultChan {
-			if packer == nil || packer.Size() == 0 {
+		for pfile := range packerResultChan {
+			if pfile == nil || pfile.Size() == 0 {
 				continue
 			}
 
-			packer.AddPadding(int(mgr.storageConf.Chunking.MinSize))
+			mgr.AddPadding(pfile, int(mgr.storageConf.Chunking.MinSize))
 
-			if err := mgr.flush(packer); err != nil {
+			if err := mgr.flush(pfile); err != nil {
 				return fmt.Errorf("failed to flush packer: %w", err)
 			}
 
-			for _, record := range packer.Packfile.Index {
+			for _, record := range pfile.Index {
 				mgr.InflightMACs[record.Type].Delete(record.MAC)
 			}
 		}
@@ -84,7 +84,7 @@ func (mgr *PackerManager) Run() {
 	workerGroup, workerCtx := errgroup.WithContext(ctx)
 	for i := 0; i < runtime.NumCPU(); i++ {
 		workerGroup.Go(func() error {
-			var packer *Packer
+			var pfile *packfile.PackFile
 
 			for {
 				select {
@@ -92,8 +92,8 @@ func (mgr *PackerManager) Run() {
 					return workerCtx.Err()
 				case msg, ok := <-mgr.packerChan:
 					if !ok {
-						if packer != nil && packer.Size() > 0 {
-							packerResultChan <- packer
+						if pfile != nil && pfile.Size() > 0 {
+							packerResultChan <- pfile
 						}
 						return nil
 					}
@@ -103,18 +103,16 @@ func (mgr *PackerManager) Run() {
 						return fmt.Errorf("unexpected message type")
 					}
 
-					if packer == nil {
-						packer = NewPacker(mgr.hashFactory())
-						packer.AddPadding(int(mgr.storageConf.Chunking.MinSize))
+					if pfile == nil {
+						pfile = packfile.New(mgr.hashFactory())
+						mgr.AddPadding(pfile, int(mgr.storageConf.Chunking.MinSize))
 					}
 
-					if !packer.AddBlobIfNotExists(pm.Type, pm.Version, pm.MAC, pm.Data, pm.Flags) {
-						continue
-					}
+					pfile.AddBlob(pm.Type, pm.Version, pm.MAC, pm.Data, pm.Flags)
 
-					if packer.Size() > uint32(mgr.storageConf.Packfile.MaxSize) {
-						packerResultChan <- packer
-						packer = nil
+					if pfile.Size() > uint32(mgr.storageConf.Packfile.MaxSize) {
+						packerResultChan <- pfile
+						pfile = nil
 					}
 				}
 			}
@@ -173,7 +171,7 @@ func NewPacker(hasher hash.Hash) *Packer {
 	}
 }
 
-func (packer *Packer) AddPadding(maxSize int) error {
+func (mgr *PackerManager) AddPadding(packfile *packfile.PackFile, maxSize int) error {
 	if maxSize < 0 {
 		return fmt.Errorf("invalid padding size")
 	}
@@ -199,8 +197,7 @@ func (packer *Packer) AddPadding(maxSize int) error {
 		return fmt.Errorf("failed to generate random padding MAC: %w", err)
 	}
 
-	packer.AddBlobIfNotExists(resources.RT_RANDOM, versioning.GetCurrentVersion(resources.RT_RANDOM), mac, buffer, 0)
-
+	packfile.AddBlob(resources.RT_RANDOM, versioning.GetCurrentVersion(resources.RT_RANDOM), mac, buffer, 0)
 	return nil
 }
 
