@@ -36,6 +36,7 @@ type PackerManager struct {
 
 	// XXX: Temporary hack callback-based to ease the transition diff.
 	// To be revisited with either an interface or moving this file inside repository/
+
 	flush func(*Packer) error
 }
 
@@ -46,7 +47,7 @@ func NewPackerManager(ctx *appcontext.AppContext, storageConfiguration *storage.
 	}
 	return &PackerManager{
 		InflightMACs:   inflightsMACs,
-		packerChan:     make(chan interface{}, runtime.NumCPU()*2+1),
+		packerChan:     make(chan interface{}, 1000),
 		packerChanDone: make(chan struct{}),
 		storageConf:    storageConfiguration,
 		hashFactory:    hashFactory,
