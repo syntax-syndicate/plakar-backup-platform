@@ -150,7 +150,7 @@ func (p *RcloneImporter) scanRecursive(results chan *importer.ScanResult, path s
 
 	output, status := librclone.RPC("operations/list", string(jsonPayload))
 	if status != http.StatusOK {
-		results <- importer.NewScanError(p.getPathInBackup(path), fmt.Errorf("failed to list directory: %s", status))
+		results <- importer.NewScanError(p.getPathInBackup(path), fmt.Errorf("failed to list directory: %s", output))
 		return
 	}
 
@@ -275,14 +275,14 @@ func (p *RcloneImporter) NewReader(pathname string) (io.ReadCloser, error) {
 		"dstRemote": tmpFile.Name(),
 	}
 
-	payloadBytes, err := json.Marshal(payload)
+	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
 	}
 
-	_, status := librclone.RPC("operations/copyfile", string(payloadBytes))
+	body, status := librclone.RPC("operations/copyfile", string(jsonPayload))
 	if status != http.StatusOK {
-		return nil, fmt.Errorf("failed to copy file: %s", status)
+		return nil, fmt.Errorf("failed to copy file: %s", body)
 	}
 
 	tmpFile, err = os.Open(tmpFile.Name())
