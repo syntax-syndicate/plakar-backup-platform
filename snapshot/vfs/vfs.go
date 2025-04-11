@@ -125,17 +125,9 @@ func NewFilesystem(repo *repository.Repository, root, xattrs, errors objects.MAC
 }
 
 func (fsc *Filesystem) Chroot(pathname string) (*Filesystem, error) {
-	if pathname == "" {
-		return nil, fs.ErrInvalid
-	}
-
-	if !strings.HasPrefix(pathname, "/") {
-		pathname = "/" + pathname
-	}
 	pathname = path.Clean(pathname)
-
-	if pathname == "" {
-		return fsc, nil
+	if !path.IsAbs(pathname) {
+		return nil, fs.ErrInvalid
 	}
 
 	entry, err := fsc.GetEntry(pathname)
@@ -154,13 +146,9 @@ func (fsc *Filesystem) Chroot(pathname string) (*Filesystem, error) {
 }
 
 func (fsc *Filesystem) lookup(entrypath string) (*Entry, error) {
-	if !strings.HasPrefix(entrypath, "/") {
-		entrypath = "/" + entrypath
-	}
 	entrypath = path.Clean(entrypath)
-
-	if entrypath == "" {
-		entrypath = "/"
+	if !path.IsAbs(entrypath) {
+		return nil, fs.ErrInvalid
 	}
 
 	csum, found, err := fsc.tree.Find(entrypath)
@@ -361,16 +349,12 @@ func (fsc *Filesystem) Pathnames() iter.Seq2[string, error] {
 
 func (fsc *Filesystem) GetEntry(entrypath string) (*Entry, error) {
 	if fsc.chroot != "" {
-		entrypath = path.Clean(entrypath)
 		entrypath = path.Join(fsc.chroot, entrypath)
+	} else {
+		entrypath = path.Clean(entrypath)
 	}
-
-	if !strings.HasPrefix(entrypath, "/") {
-		entrypath = "/" + entrypath
-	}
-	entrypath = path.Clean(entrypath)
-	if entrypath == "" {
-		entrypath = "/"
+	if !path.IsAbs(entrypath) {
+		return nil, fs.ErrInvalid
 	}
 
 	csum, found, err := fsc.tree.Find(entrypath)
