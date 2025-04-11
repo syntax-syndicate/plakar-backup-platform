@@ -27,12 +27,9 @@ func GenerateRepository(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer
 	tmpRepoDir := filepath.Join(tmpRepoDirRoot, "repo")
 	tmpCacheDir, err := os.MkdirTemp("", "tmp_cache")
 	require.NoError(t, err)
-	tmpBackupDir, err := os.MkdirTemp("", "tmp_to_backup")
-	require.NoError(t, err)
 	t.Cleanup(func() {
 		os.RemoveAll(tmpRepoDir)
 		os.RemoveAll(tmpCacheDir)
-		os.RemoveAll(tmpBackupDir)
 		os.RemoveAll(tmpRepoDirRoot)
 	})
 
@@ -74,6 +71,7 @@ func GenerateRepository(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer
 
 	// create a repository
 	ctx := appcontext.NewAppContext()
+	ctx.MaxConcurrency = 1
 	if bufout != nil && buferr != nil {
 		ctx.Stdout = bufout
 		ctx.Stderr = buferr
@@ -93,10 +91,13 @@ func GenerateRepository(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer
 		logger = logging.NewLogger(bufout, buferr)
 	}
 	logger.EnableInfo()
-	logger.EnableTrace("all")
+	// logger.EnableTrace("all")
 	ctx.SetLogger(logger)
 	repo, err := repository.New(ctx, r, serializedConfig)
 	require.NoError(t, err, "creating repository")
+
+	// override the homedir to avoid having test overwriting existing home configuration
+	ctx.HomeDir = repo.Location()
 
 	return repo
 }
