@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/PlakarKorp/plakar/encryption/keypair"
+	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	ptesting "github.com/PlakarKorp/plakar/testing"
 	"github.com/stretchr/testify/require"
@@ -20,11 +20,13 @@ func init() {
 	os.Setenv("TZ", "UTC")
 }
 
-func generateSnapshot(t *testing.T, keyPair *keypair.KeyPair) *snapshot.Snapshot {
-	return ptesting.GenerateSnapshot(t, nil, nil, keyPair, []ptesting.MockFile{
+func generateSnapshot(t *testing.T) (*repository.Repository, *snapshot.Snapshot) {
+	repo := ptesting.GenerateRepository(t, nil, nil, nil)
+	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockFile("subdir/dummy.txt", 0644, "hello dummy"),
 	})
+	return repo, snap
 }
 
 func TestExecuteCmdLsDefault(t *testing.T) {
@@ -34,20 +36,17 @@ func TestExecuteCmdLsDefault(t *testing.T) {
 	require.NoError(t, err)
 	os.Stdout = w
 
-	snap := generateSnapshot(t, nil)
+	repo, snap := generateSnapshot(t)
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-	repo := snap.Repository()
 	args := []string{}
 
-	subcommand, err := parse_cmd_ls(ctx, args)
+	subcommand, err := parse_cmd_ls(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 	require.Equal(t, "ls", subcommand.(*Ls).Name())
 
-	status, err := subcommand.Execute(ctx, repo)
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -75,19 +74,16 @@ func TestExecuteCmdLsFilterByIDAndRecursive(t *testing.T) {
 	require.NoError(t, err)
 	os.Stdout = w
 
-	snap := generateSnapshot(t, nil)
+	repo, snap := generateSnapshot(t)
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-	repo := snap.Repository()
 	args := []string{"-recursive", hex.EncodeToString(snap.Header.GetIndexShortID())}
 
-	subcommand, err := parse_cmd_ls(ctx, args)
+	subcommand, err := parse_cmd_ls(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(ctx, repo)
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -117,19 +113,16 @@ func TestExecuteCmdLsFilterUuid(t *testing.T) {
 	require.NoError(t, err)
 	os.Stdout = w
 
-	snap := generateSnapshot(t, nil)
+	repo, snap := generateSnapshot(t)
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-	repo := snap.Repository()
 	args := []string{"-uuid"}
 
-	subcommand, err := parse_cmd_ls(ctx, args)
+	subcommand, err := parse_cmd_ls(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(ctx, repo)
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
