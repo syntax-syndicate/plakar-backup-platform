@@ -116,7 +116,7 @@ func (cmd *Cat) Execute(ctx *appcontext.AppContext, repo *repository.Repository)
 			continue
 		}
 
-		file := entry.Open(fs, pathname)
+		file := entry.Open(fs)
 		var rd io.ReadCloser = file
 
 		if !cmd.NoDecompress {
