@@ -118,6 +118,9 @@ func TestExecuteCmdRestoreSpecificSnapshot(t *testing.T) {
 
 	output := bufOut.String()
 	lines := strings.Split(strings.Trim(output, "\n"), "\n")
+	if len(lines) != 8 {
+		t.Fatalf("Expected 8 lines; got %d; the content is:\n%s\n", len(lines), output)
+	}
 	require.Equal(t, 8, len(lines))
 	// last line should have the summary
 	lastline := lines[len(lines)-1]
