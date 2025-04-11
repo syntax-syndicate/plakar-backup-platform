@@ -13,6 +13,7 @@ import (
 	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ls"
 	"github.com/PlakarKorp/plakar/logging"
+	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	ptesting "github.com/PlakarKorp/plakar/testing"
 	"github.com/stretchr/testify/require"
@@ -22,8 +23,9 @@ func init() {
 	os.Setenv("TZ", "UTC")
 }
 
-func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) *snapshot.Snapshot {
-	return ptesting.GenerateSnapshot(t, bufOut, bufErr, nil, []ptesting.MockFile{
+func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) (*repository.Repository, *snapshot.Snapshot) {
+	repo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockDir("another_subdir"),
 		ptesting.NewMockFile("subdir/dummy.txt", 0644, "hello dummy"),
@@ -31,6 +33,7 @@ func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 		ptesting.NewMockFile("subdir/to_exclude", 0644, "*/subdir/to_exclude\n"),
 		ptesting.NewMockFile("another_subdir/bar.txt", 0644, "hello bar"),
 	})
+	return repo, snap
 }
 
 func initContext(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer) (*appcontext.AppContext, string) {
@@ -112,13 +115,12 @@ func TestCmdAgentForegroundInit(t *testing.T) {
 	require.NoError(t, err)
 	defer client.Close()
 
-	snap := generateSnapshot(t, bufOut, bufErr)
+	repo, snap := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
 	ctx2 := snap.AppContext()
 	ctx2.MaxConcurrency = 1
 
-	repo := snap.Repository()
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx2.HomeDir = repo.Location()
 
