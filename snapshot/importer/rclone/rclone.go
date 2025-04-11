@@ -1,8 +1,6 @@
 package rclone
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,19 +15,15 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 
-	_ "github.com/rclone/rclone/backend/all" // import all backends
-	"github.com/rclone/rclone/fs/config/configfile"
+	"github.com/rclone/rclone/librclone/librclone"
 
-	"github.com/rclone/rclone/fs/operations"
-	"github.com/rclone/rclone/fs/rc"
-	"github.com/rclone/rclone/fs/rc/rcserver"
+	_ "github.com/rclone/rclone/backend/all" // import all backends
 )
 
 type RcloneImporter struct {
-	apiUrl       string
-	remote       string
-	base         string
-	RCloneServer chan *rcserver.Server
+	apiUrl string
+	remote string
+	base   string
 
 	ino uint64
 }
@@ -38,44 +32,21 @@ func init() {
 	importer.Register("rclone", NewRcloneImporter)
 }
 
-func startRcloneServer() chan *rcserver.Server {
-	configfile.Install()
-
-	_ = operations.List
-	rc.Opt.Enabled = true
-	rc.Opt.NoAuth = true
-	serverChan := make(chan *rcserver.Server, 1)
-	go func() {
-		s, err := rcserver.Start(context.Background(), &rc.Opt)
-		if err != nil {
-			serverChan <- nil
-		} else {
-			serverChan <- s
-		}
-	}()
-	return serverChan
-}
-
 // NewRcloneImporter creates a new RcloneImporter instance. It expects the location
 // to be in the format "remote:path/to/dir". The path is optional, but the remote
 // storage location is required, so the colon separator is always expected.
 func NewRcloneImporter(config map[string]string) (importer.Importer, error) {
 	location := strings.TrimPrefix(config["location"], "rclone://")
 	remote, base, found := strings.Cut(location, ":")
-
 	if !found {
 		return nil, fmt.Errorf("invalid location: %s. Expected format: remote:path/to/dir", location)
 	}
+	librclone.Initialize()
 
-	serverChan := startRcloneServer()
-	if serverChan == nil {
-		return nil, fmt.Errorf("failed to start rclone server")
-	}
 	return &RcloneImporter{
-		apiUrl:       "http://127.0.0.1:5572",
-		remote:       remote,
-		base:         base,
-		RCloneServer: serverChan,
+		apiUrl: "http://127.0.0.1:5572",
+		remote: remote,
+		base:   base,
 	}, nil
 }
 
@@ -177,24 +148,9 @@ func (p *RcloneImporter) scanRecursive(results chan *importer.ScanResult, path s
 		return
 	}
 
-	req, err := http.NewRequest("POST", p.apiUrl+"/operations/list", bytes.NewBuffer(jsonPayload))
-	if err != nil {
-		results <- importer.NewScanError(p.getPathInBackup(path), err)
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		results <- importer.NewScanError(p.getPathInBackup(path), err)
-		return
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		results <- importer.NewScanError(p.getPathInBackup(path), err)
+	output, status := librclone.RPC("operations/list", string(jsonPayload))
+	if status != http.StatusOK {
+		results <- importer.NewScanError(p.getPathInBackup(path), fmt.Errorf("failed to list directory: %s", status))
 		return
 	}
 
@@ -210,7 +166,7 @@ func (p *RcloneImporter) scanRecursive(results chan *importer.ScanResult, path s
 		} `json:"list"`
 	}
 
-	err = json.Unmarshal(body, &response)
+	err = json.Unmarshal([]byte(output), &response)
 	if err != nil {
 		results <- importer.NewScanError(p.getPathInBackup(path), err)
 		return
@@ -324,26 +280,9 @@ func (p *RcloneImporter) NewReader(pathname string) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", p.apiUrl+"/operations/copyfile", bytes.NewBuffer(payloadBytes))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	_, err = io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, err
+	_, status := librclone.RPC("operations/copyfile", string(payloadBytes))
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("failed to copy file: %s", status)
 	}
 
 	tmpFile, err = os.Open(tmpFile.Name())
@@ -355,12 +294,6 @@ func (p *RcloneImporter) NewReader(pathname string) (io.ReadCloser, error) {
 }
 
 func (p *RcloneImporter) Close() error {
-	if p.RCloneServer != nil {
-		s := <-p.RCloneServer
-		if s != nil {
-			s.Shutdown()
-		}
-	}
 	return nil
 }
 
