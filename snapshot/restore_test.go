@@ -13,11 +13,8 @@ import (
 )
 
 func TestRestore(t *testing.T) {
-	snap := generateSnapshot(t, nil)
+	_, snap := generateSnapshot(t)
 	defer snap.Close()
-
-	err := snap.Repository().RebuildState()
-	require.NoError(t, err)
 
 	tmpRestoreDir, err := os.MkdirTemp("", "tmp_to_restore")
 	require.NoError(t, err)
