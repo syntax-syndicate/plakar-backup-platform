@@ -18,7 +18,6 @@ import (
 )
 
 type RcloneExporter struct {
-	apiUrl string
 	remote string
 	base   string
 }
@@ -40,7 +39,6 @@ func NewRcloneExporter(config map[string]string) (exporter.Exporter, error) {
 	log.Printf("rclone %s %s", remote, base)
 
 	return &RcloneExporter{
-		apiUrl: "http://127.0.0.1:5572",
 		remote: remote,
 		base:   base,
 	}, nil
