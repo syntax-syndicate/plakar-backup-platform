@@ -15,13 +15,11 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 
-	"github.com/rclone/rclone/librclone/librclone"
-
 	_ "github.com/rclone/rclone/backend/all" // import all backends
+	"github.com/rclone/rclone/librclone/librclone"
 )
 
 type RcloneImporter struct {
-	apiUrl string
 	remote string
 	base   string
 
@@ -41,10 +39,10 @@ func NewRcloneImporter(config map[string]string) (importer.Importer, error) {
 	if !found {
 		return nil, fmt.Errorf("invalid location: %s. Expected format: remote:path/to/dir", location)
 	}
+
 	librclone.Initialize()
 
 	return &RcloneImporter{
-		apiUrl: "http://127.0.0.1:5572",
 		remote: remote,
 		base:   base,
 	}, nil
@@ -253,6 +251,7 @@ type AutoremoveTmpFile struct {
 }
 
 func (file *AutoremoveTmpFile) Close() error {
+	librclone.Finalize()
 	defer os.Remove(file.Name())
 	return file.File.Close()
 }
@@ -260,7 +259,7 @@ func (file *AutoremoveTmpFile) Close() error {
 func (p *RcloneImporter) NewReader(pathname string) (io.ReadCloser, error) {
 	// pathname is an absolute path within the backup. Let's convert it to a
 	// relative path to the base path.
-	pathname, id, _ := strings.Cut(pathname, "|||")
+	pathname, _, _ = strings.Cut(pathname, "|||")
 	relativePath := strings.TrimPrefix(pathname, p.getPathInBackup(""))
 
 	tmpFile, err := os.CreateTemp("", fmt.Sprintf("plakar_temp_*%s", path.Ext(relativePath)))
@@ -271,7 +270,7 @@ func (p *RcloneImporter) NewReader(pathname string) (io.ReadCloser, error) {
 
 	payload := map[string]string{
 		"srcFs":     fmt.Sprintf("%s:%s", p.remote, p.base),
-		"srcRemote": "id:" + id,
+		"srcRemote": relativePath,
 
 		"dstFs":     strings.TrimSuffix(tmpFile.Name(), path.Base(tmpFile.Name())),
 		"dstRemote": path.Base(tmpFile.Name()),

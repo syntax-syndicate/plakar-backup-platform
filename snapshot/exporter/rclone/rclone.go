@@ -1,10 +1,10 @@
 package rclone
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	stdpath "path"
@@ -12,6 +12,9 @@ import (
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/exporter"
+
+	_ "github.com/rclone/rclone/backend/all"
+	"github.com/rclone/rclone/librclone/librclone"
 )
 
 type RcloneExporter struct {
@@ -32,6 +35,9 @@ func NewRcloneExporter(config map[string]string) (exporter.Exporter, error) {
 	if !found {
 		return nil, fmt.Errorf("invalid location: %s. Expected format: remote:path/to/dir", location)
 	}
+
+	librclone.Initialize()
+	log.Printf("rclone %s %s", remote, base)
 
 	return &RcloneExporter{
 		apiUrl: "http://127.0.0.1:5572",
@@ -67,31 +73,37 @@ func (p *RcloneExporter) CreateDirectory(pathname string) error {
 		"remote": relativePath,
 	}
 
-	payloadBytes, err := json.Marshal(payload)
+	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequest("POST", p.apiUrl+"/operations/mkdir", bytes.NewBuffer(payloadBytes))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
+	body, resp := librclone.RPC("operations/mkdir", string(jsonPayload))
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
+	//req, err := http.NewRequest("POST", p.apiUrl+"/operations/mkdir", bytes.NewBuffer(payloadBytes))
+	//if err != nil {
+	//	return err
+	//}
+	//req.Header.Set("Content-Type", "application/json")
+	//
+	//client := &http.Client{}
+	//resp, err := client.Do(req)
+	//if err != nil {
+	//	return err
+	//}
+	//defer resp.Body.Close()
+	//
+	//_, err = io.ReadAll(resp.Body)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//if resp.StatusCode != http.StatusOK {
+	//	return err
+	//}
 
-	_, err = io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return err
+	if resp != http.StatusOK {
+		return fmt.Errorf("failed to create directory: %s", body)
 	}
 
 	return nil
@@ -124,32 +136,39 @@ func (p *RcloneExporter) StoreFile(pathname string, fp io.Reader) error {
 		"dstRemote": relativePath,
 	}
 
-	payloadBytes, err := json.Marshal(payload)
+	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequest("POST", p.apiUrl+"/operations/copyfile", bytes.NewBuffer(payloadBytes))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
+	body, resp := librclone.RPC("operations/copyfile", string(jsonPayload))
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
+	//req, err := http.NewRequest("POST", p.apiUrl+"/operations/copyfile", bytes.NewBuffer(payloadBytes))
+	//if err != nil {
+	//	return err
+	//}
+	//req.Header.Set("Content-Type", "application/json")
+	//
+	//client := &http.Client{}
+	//resp, err := client.Do(req)
+	//if err != nil {
+	//	return err
+	//}
+	//defer resp.Body.Close()
+	//
+	//_, err = io.ReadAll(resp.Body)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//if resp.StatusCode != http.StatusOK {
+	//	return err
+	//}
 
-	_, err = io.ReadAll(resp.Body)
-	if err != nil {
-		return err
+	if resp != http.StatusOK {
+		return fmt.Errorf("failed to copy file: %s", body)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return err
-	}
 	return nil
 }
 
