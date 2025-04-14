@@ -354,7 +354,6 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 	defer rd.Close()
 
 	object := objects.NewObject()
-	object.ContentType = mime.TypeByExtension(path.Ext(record.Pathname))
 
 	objectHasher, releaseGlobalHasher := snap.repository.GetPooledMACHasher()
 	defer releaseGlobalHasher()
@@ -453,6 +452,10 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 		object.Entropy = totalEntropy / float64(totalDataSize)
 	} else {
 		object.Entropy = 0.0
+	}
+
+	if object.ContentType == "" {
+		object.ContentType = mime.TypeByExtension(path.Ext(record.Pathname))
 	}
 
 	copy(object_t32[:], objectHasher.Sum(nil))
