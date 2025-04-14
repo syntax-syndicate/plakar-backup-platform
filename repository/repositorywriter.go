@@ -151,7 +151,11 @@ func (r *RepositoryWriter) DeleteStateResource(Type resources.Type, mac objects.
 
 	r.transactionMtx.RLock()
 	defer r.transactionMtx.RUnlock()
-	return r.deltaState.DeleteResource(Type, mac)
+	if err := r.deltaState.DeleteResource(Type, mac); err != nil {
+		return err
+	}
+
+	return r.state.DeleteResource(Type, mac)
 }
 
 func (r *RepositoryWriter) PutPackfile(pfile *packfile.PackFile) error {
