@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
 	ptesting "github.com/PlakarKorp/plakar/testing"
@@ -17,8 +18,9 @@ func init() {
 	os.Setenv("TZ", "UTC")
 }
 
-func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) *snapshot.Snapshot {
-	return ptesting.GenerateSnapshot(t, bufOut, bufErr, nil, []ptesting.MockFile{
+func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) (*repository.Repository, *snapshot.Snapshot) {
+	repo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockDir("another_subdir"),
 		ptesting.NewMockFile("subdir/dummy.txt", 0644, "hello dummy"),
@@ -26,28 +28,24 @@ func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 		ptesting.NewMockFile("subdir/to_exclude", 0644, "*/subdir/to_exclude\n"),
 		ptesting.NewMockFile("another_subdir/bar.txt", 0644, "hello bar"),
 	})
+	return repo, snap
 }
 
 func TestExecuteCmdLocateDefault(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	snap := generateSnapshot(t, bufOut, bufErr)
+	repo, snap := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = snap.Repository().Location()
 	args := []string{"dummy.txt"}
 
-	subcommand, err := parse_cmd_locate(ctx, args)
+	subcommand, err := parse_cmd_locate(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 	require.Equal(t, "locate", subcommand.(*Locate).Name())
 
-	status, err := subcommand.Execute(ctx, snap.Repository())
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.NotNil(t, status)
 
@@ -63,22 +61,17 @@ func TestExecuteCmdLocateWithSnapshotId(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	snap := generateSnapshot(t, bufOut, bufErr)
+	repo, snap := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = snap.Repository().Location()
 	args := []string{"-snapshot", hex.EncodeToString(snap.Header.GetIndexShortID()), "dummy.txt"}
 
-	subcommand, err := parse_cmd_locate(ctx, args)
+	subcommand, err := parse_cmd_locate(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 	require.Equal(t, "locate", subcommand.(*Locate).Name())
 
-	status, err := subcommand.Execute(ctx, snap.Repository())
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.NotNil(t, status)
 

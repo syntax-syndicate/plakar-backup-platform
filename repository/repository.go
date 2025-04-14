@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"math/bits"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -39,18 +40,49 @@ var (
 	ErrNotReadable      = errors.New("repository is not readable")
 )
 
+// HasherPool pools hash.Hash instances
+type HasherPool struct {
+	pool sync.Pool
+}
+
+var macHasherPool *HasherPool = nil
+
+// NewHasherPool creates a new hasher pool
+func NewHasherPool(newHasher func() hash.Hash) *HasherPool {
+	return &HasherPool{
+		pool: sync.Pool{
+			New: func() interface{} {
+				return newHasher()
+			},
+		},
+	}
+}
+
+// Get retrieves a hasher from the pool
+func (hp *HasherPool) Get() hash.Hash {
+	hasher := hp.pool.Get().(hash.Hash)
+	hasher.Reset()
+	return hasher
+}
+
+// Put returns a hasher to the pool
+func (hp *HasherPool) Put(hasher hash.Hash) {
+	hp.pool.Put(hasher)
+}
+
 type Repository struct {
 	store         storage.Store
 	state         *state.LocalState
 	configuration storage.Configuration
-
-	appContext *appcontext.AppContext
+	appContext    *appcontext.AppContext
 
 	wBytes atomic.Int64
 	rBytes atomic.Int64
 
 	storageSize      int64
 	storageSizeDirty bool
+
+	macHasherPool *HasherPool
 }
 
 func Inexistent(ctx *appcontext.AppContext, storeConfig map[string]string) (*Repository, error) {
@@ -104,6 +136,12 @@ func New(ctx *appcontext.AppContext, store storage.Store, config []byte) (*Repos
 		storageSize:      -1,
 		storageSizeDirty: true,
 	}
+
+	r.macHasherPool = NewHasherPool(func() hash.Hash {
+		hasher := r.getMACHasher()
+		hasher.Reset()
+		return hasher
+	})
 
 	if err := r.RebuildState(); err != nil {
 		return nil, err
@@ -159,6 +197,11 @@ func NewNoRebuild(ctx *appcontext.AppContext, store storage.Store, config []byte
 		storageSize:      -1,
 		storageSizeDirty: true,
 	}
+	r.macHasherPool = NewHasherPool(func() hash.Hash {
+		hasher := r.getMACHasher()
+		hasher.Reset()
+		return hasher
+	})
 
 	return r, nil
 }
@@ -356,6 +399,18 @@ func (r *Repository) EncodeBuffer(buffer []byte) ([]byte, error) {
 	return io.ReadAll(rd)
 }
 
+func (r *Repository) getMACHasher() hash.Hash {
+	secret := r.AppContext().GetSecret()
+	if secret == nil {
+		// unencrypted repo, derive 32-bytes "secret" from RepositoryID
+		// so ComputeMAC can be used similarly to encrypted repos
+		hasher := hashing.GetHasher(r.Configuration().Hashing.Algorithm)
+		hasher.Write(r.configuration.RepositoryID[:])
+		secret = hasher.Sum(nil)
+	}
+	return hashing.GetMACHasher(r.Configuration().Hashing.Algorithm, secret)
+}
+
 func (r *Repository) GetMACHasher() hash.Hash {
 	secret := r.AppContext().GetSecret()
 	if secret == nil {
@@ -368,10 +423,18 @@ func (r *Repository) GetMACHasher() hash.Hash {
 	return hashing.GetMACHasher(r.Configuration().Hashing.Algorithm, secret)
 }
 
+func (r *Repository) GetPooledMACHasher() (hash.Hash, func()) {
+	hasher := r.macHasherPool.Get()
+	return hasher, func() {
+		r.macHasherPool.Put(hasher)
+	}
+}
+
 func (r *Repository) ComputeMAC(data []byte) objects.MAC {
-	hasher := r.GetMACHasher()
+	hasher, release := r.GetPooledMACHasher()
 	hasher.Write(data)
 	result := hasher.Sum(nil)
+	release()
 
 	if len(result) != 32 {
 		panic("hasher returned invalid length")
@@ -396,8 +459,13 @@ func (r *Repository) Chunker(rd io.ReadCloser) (*chunkers.Chunker, error) {
 	})
 }
 
-func (r *Repository) NewStateDelta(cache *caching.ScanCache) *state.LocalState {
-	return r.state.Derive(cache)
+func (r *Repository) NewRepositoryWriter(cache *caching.ScanCache, id objects.MAC) *RepositoryWriter {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "NewRepositoryWriter(): %s", time.Since(t0))
+	}()
+
+	return r.newRepositoryWriter(cache, id)
 }
 
 func (r *Repository) Location() string {
@@ -671,22 +739,6 @@ func (r *Repository) GetPackfileBlob(loc state.Location) (io.ReadSeeker, error) 
 	return bytes.NewReader(decoded), nil
 }
 
-func (r *Repository) PutPackfile(mac objects.MAC, rd io.Reader) error {
-	t0 := time.Now()
-	defer func() {
-		r.Logger().Trace("repository", "PutPackfile(%x, ...): %s", mac, time.Since(t0))
-	}()
-
-	rd, err := storage.Serialize(r.GetMACHasher(), resources.RT_PACKFILE, versioning.GetCurrentVersion(resources.RT_PACKFILE), rd)
-	if err != nil {
-		return err
-	}
-
-	nbytes, err := r.store.PutPackfile(mac, rd)
-	r.wBytes.Add(nbytes)
-	return err
-}
-
 // Deletes a packfile from the store. Warning this is a true delete and is unrecoverable.
 func (r *Repository) DeletePackfile(mac objects.MAC) error {
 	t0 := time.Now()
@@ -801,11 +853,26 @@ func (r *Repository) GetBlob(Type resources.Type, mac objects.MAC) (io.ReadSeeke
 	return rd, nil
 }
 
+func (r *Repository) GetBlobBytes(Type resources.Type, mac objects.MAC) ([]byte, error) {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "GetBlobByte(%s, %x): %s", Type, mac, time.Since(t0))
+	}()
+
+	rd, err := r.GetBlob(Type, mac)
+	if err != nil {
+		return nil, err
+	}
+
+	return io.ReadAll(rd)
+}
+
 func (r *Repository) BlobExists(Type resources.Type, mac objects.MAC) bool {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "BlobExists(%s, %x): %s", Type, mac, time.Since(t0))
 	}()
+
 	return r.state.BlobExists(Type, mac)
 }
 
@@ -816,31 +883,6 @@ func (r *Repository) RemoveBlob(Type resources.Type, mac, packfileMAC objects.MA
 		r.Logger().Trace("repository", "DeleteBlob(%s, %x, %x): %s", Type, mac, packfileMAC, time.Since(t0))
 	}()
 	return r.state.DelDelta(Type, mac, packfileMAC)
-}
-
-func (r *Repository) PutStateDelta(de *state.DeltaEntry) error {
-	t0 := time.Now()
-	defer func() {
-		r.Logger().Trace("repository", "PutStateDelta(%x): %s", de.Blob, time.Since(t0))
-	}()
-	return r.state.PutDelta(de)
-}
-
-func (r *Repository) PutStatePackfile(stateId, packfile objects.MAC) error {
-	t0 := time.Now()
-	defer func() {
-		r.Logger().Trace("repository", "PutStatePackfile(%x, %x): %s", stateId, packfile, time.Since(t0))
-	}()
-	return r.state.PutPackfile(stateId, packfile)
-}
-
-/* Publishes the current state to our local aggregated state */
-func (r *Repository) PutStateState(stateId objects.MAC) error {
-	t0 := time.Now()
-	defer func() {
-		r.Logger().Trace("repository", "PutStateState(%x): %s", stateId, time.Since(t0))
-	}()
-	return r.state.PutState(stateId)
 }
 
 func (r *Repository) ListOrphanBlobs() iter.Seq2[state.DeltaEntry, error] {
