@@ -10,6 +10,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/repository/packer"
 	"github.com/PlakarKorp/plakar/repository/state"
 	"github.com/PlakarKorp/plakar/resources"
@@ -153,21 +154,21 @@ func (r *RepositoryWriter) DeleteStateResource(Type resources.Type, mac objects.
 	return r.deltaState.DeleteResource(Type, mac)
 }
 
-func (r *RepositoryWriter) PutPackfile(packer *packer.Packer) error {
+func (r *RepositoryWriter) PutPackfile(pfile *packfile.PackFile) error {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "PutPackfile(%x): %s", r.currentStateID, time.Since(t0))
 	}()
 
-	serializedData, err := packer.Packfile.SerializeData()
+	serializedData, err := pfile.SerializeData()
 	if err != nil {
 		return fmt.Errorf("could not serialize pack file data %s", err.Error())
 	}
-	serializedIndex, err := packer.Packfile.SerializeIndex()
+	serializedIndex, err := pfile.SerializeIndex()
 	if err != nil {
 		return fmt.Errorf("could not serialize pack file index %s", err.Error())
 	}
-	serializedFooter, err := packer.Packfile.SerializeFooter()
+	serializedFooter, err := pfile.SerializeFooter()
 	if err != nil {
 		return fmt.Errorf("could not serialize pack file footer %s", err.Error())
 	}
@@ -209,30 +210,24 @@ func (r *RepositoryWriter) PutPackfile(packer *packer.Packer) error {
 
 	r.transactionMtx.RLock()
 	defer r.transactionMtx.RUnlock()
-	for _, Type := range packer.Types() {
-		for blobMAC := range packer.Blobs[Type] {
-			for idx, blob := range packer.Packfile.Index {
-				if blob.MAC == blobMAC && blob.Type == Type {
-					delta := &state.DeltaEntry{
-						Type:    blob.Type,
-						Version: packer.Packfile.Index[idx].Version,
-						Blob:    blobMAC,
-						Location: state.Location{
-							Packfile: mac,
-							Offset:   packer.Packfile.Index[idx].Offset,
-							Length:   packer.Packfile.Index[idx].Length,
-						},
-					}
+	for idx, blob := range pfile.Index {
+		delta := &state.DeltaEntry{
+			Type:    blob.Type,
+			Version: pfile.Index[idx].Version,
+			Blob:    blob.MAC,
+			Location: state.Location{
+				Packfile: mac,
+				Offset:   pfile.Index[idx].Offset,
+				Length:   pfile.Index[idx].Length,
+			},
+		}
 
-					if err := r.deltaState.PutDelta(delta); err != nil {
-						return err
-					}
+		if err := r.deltaState.PutDelta(delta); err != nil {
+			return err
+		}
 
-					if err := r.state.PutDelta(delta); err != nil {
-						return err
-					}
-				}
-			}
+		if err := r.state.PutDelta(delta); err != nil {
+			return err
 		}
 	}
 
