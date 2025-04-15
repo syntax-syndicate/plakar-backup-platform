@@ -19,6 +19,18 @@ import (
 	"github.com/rclone/rclone/librclone/librclone"
 )
 
+type Response struct {
+	List []struct {
+		Path     string `json:"Path"`
+		Name     string `json:"Name"`
+		Size     int64  `json:"Size"`
+		MimeType string `json:"MimeType"`
+		ModTime  string `json:"ModTime"`
+		IsDir    bool   `json:"isDir"`
+		ID       string `json:"ID"`
+	} `json:"list"`
+}
+
 type RcloneImporter struct {
 	remote   string
 	base     string
@@ -37,21 +49,9 @@ func init() {
 // to be in the format "remote:path/to/dir". The path is optional, but the remote
 // storage location is required, so the colon separator is always expected.
 func NewRcloneImporter(config map[string]string) (importer.Importer, error) {
-	var location string
-	var provider string
-	if strings.Contains(config["location"], "onedrive") {
-		location = strings.TrimPrefix(config["location"], "onedrive://")
-		provider = "onedrive"
-	} else if strings.Contains(config["location"], "googledrive") {
-		location = strings.TrimPrefix(config["location"], "onedrive://")
-		provider = "googledrive"
-	} else if strings.Contains(config["location"], "googlephoto") {
-		location = strings.TrimPrefix(config["location"], "googlephoto://")
-		provider = "googlephoto"
-	}
+	provider, location, _ := strings.Cut(config["location"], "://")
 	remote, base, found := strings.Cut(location, ":")
 
-	fmt.Printf("remote, base, found, location: %s, %s, %t, %s\n", remote, base, found, location)
 	if !found {
 		return nil, fmt.Errorf("invalid location: %s. Expected format: remote:path/to/dir", location)
 	}
@@ -169,17 +169,7 @@ func (p *RcloneImporter) scanRecursive(results chan *importer.ScanResult, path s
 		return
 	}
 
-	var response struct {
-		List []struct {
-			Path     string `json:"Path"`
-			Name     string `json:"Name"`
-			Size     int64  `json:"Size"`
-			MimeType string `json:"MimeType"`
-			ModTime  string `json:"ModTime"`
-			IsDir    bool   `json:"isDir"`
-			ID       string `json:"ID"`
-		} `json:"list"`
-	}
+	var response Response
 
 	err = json.Unmarshal([]byte(output), &response)
 	if err != nil {
@@ -187,6 +177,10 @@ func (p *RcloneImporter) scanRecursive(results chan *importer.ScanResult, path s
 		return
 	}
 
+	p.scanFolder(results, path, response)
+}
+
+func (p *RcloneImporter) scanFolder(results chan *importer.ScanResult, path string, response Response) {
 	for _, file := range response.List {
 		if p.provider == "googlephoto" && (file.Name == "media" || file.Name == "upload") {
 			continue
@@ -299,8 +293,6 @@ func (p *RcloneImporter) NewReader(pathname string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Printf("Structure: %v\n", payload)
 
 	body, status := librclone.RPC("operations/copyfile", string(jsonPayload))
 	if status != http.StatusOK {
