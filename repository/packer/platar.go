@@ -56,7 +56,7 @@ func (mgr *platarPackerManager) Run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	pfile := NewPackWriter(mgr.flush, mgr.encodingFunc, mgr.hashFactory)
+	pfile := NewPackWriter(mgr.flush, mgr.encodingFunc, mgr.hashFactory, mgr.packingCache)
 	workerGroup, workerCtx := errgroup.WithContext(ctx)
 	for i := 0; i < 1; i++ {
 		workerGroup.Go(func() error {

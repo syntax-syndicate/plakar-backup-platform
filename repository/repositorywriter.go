@@ -264,15 +264,20 @@ func (r *RepositoryWriter) PutPtarPackfile(packfile *packer.PackWriter) error {
 
 	r.transactionMtx.RLock()
 	defer r.transactionMtx.RUnlock()
-	for idx, blob := range packfile.Index {
+	for blobData := range packfile.Index.GetIndexesBlob() {
+		blob, err := packer.NewBlobFromBytes(blobData)
+		if err != nil {
+			return err
+		}
+
 		delta := &state.DeltaEntry{
 			Type:    blob.Type,
-			Version: packfile.Index[idx].Version,
+			Version: blob.Version,
 			Blob:    blob.MAC,
 			Location: state.Location{
 				Packfile: mac,
-				Offset:   packfile.Index[idx].Offset,
-				Length:   packfile.Index[idx].Length,
+				Offset:   blob.Offset,
+				Length:   blob.Length,
 			},
 		}
 

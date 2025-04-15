@@ -2,6 +2,7 @@ package caching
 
 import (
 	"fmt"
+	"iter"
 	"os"
 	"path/filepath"
 
@@ -43,4 +44,12 @@ func (c *PackingCache) PutBlob(Type resources.Type, mac objects.MAC) error {
 
 func (c *PackingCache) HasBlob(Type resources.Type, mac objects.MAC) (bool, error) {
 	return c.has("__blob__", fmt.Sprintf("%d:%x", Type, mac))
+}
+
+func (c *PackingCache) PutIndexBlob(Type resources.Type, mac objects.MAC, data []byte) error {
+	return c.put("__index__", fmt.Sprintf("%d:%x", Type, mac), data)
+}
+
+func (c *PackingCache) GetIndexesBlob() iter.Seq[[]byte] {
+	return c.getObjects("__index__")
 }

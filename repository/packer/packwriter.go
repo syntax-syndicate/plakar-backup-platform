@@ -6,9 +6,12 @@ import (
 	"hash"
 	"io"
 
+	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/versioning"
+
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 const VERSION = "1.0.0"
@@ -32,7 +35,7 @@ type PackWriter struct {
 	encoder func(io.Reader) (io.Reader, error)
 	hasher  hash.Hash
 
-	Index         []Blob
+	Index         *caching.PackingCache
 	Reader        io.Reader
 	writer        io.WriteCloser
 	currentOffset uint64
@@ -59,20 +62,32 @@ type Configuration struct {
 	MaxSize uint64
 }
 
+func NewBlobFromBytes(serialized []byte) (*Blob, error) {
+	var o Blob
+	if err := msgpack.Unmarshal(serialized, &o); err != nil {
+		return nil, err
+	}
+	return &o, nil
+}
+
+func (o *Blob) Serialize() ([]byte, error) {
+	return msgpack.Marshal(o)
+}
+
 func NewDefaultConfiguration() *Configuration {
 	return &Configuration{
 		MaxSize: (20 << 10) << 10,
 	}
 }
 
-func NewPackWriter(putter func(*PackWriter) error, encoder func(io.Reader) (io.Reader, error), hasher func() hash.Hash) *PackWriter {
+func NewPackWriter(putter func(*PackWriter) error, encoder func(io.Reader) (io.Reader, error), hasher func() hash.Hash, cache *caching.PackingCache) *PackWriter {
 	pipesync := make(chan struct{}, 1)
 	pr, pw := io.Pipe()
 
 	p := &PackWriter{
 		encoder:  encoder,
 		hasher:   hasher(),
-		Index:    make([]Blob, 0), // temporary
+		Index:    cache,
 		writer:   pw,
 		Reader:   pr,
 		pipesync: pipesync,
@@ -100,14 +115,20 @@ func (pwr *PackWriter) WriteBlob(resourceType resources.Type, version versioning
 		return err
 	}
 
-	pwr.Index = append(pwr.Index, Blob{
+	blobIdx := Blob{
 		Type:    resourceType,
 		Version: version,
 		MAC:     mac,
 		Offset:  uint64(pwr.currentOffset),
 		Length:  uint32(nbytes),
 		Flags:   flags,
-	})
+	}
+
+	if serializedBlob, err := blobIdx.Serialize(); err != nil {
+		return err
+	} else {
+		pwr.Index.PutIndexBlob(resourceType, mac, serializedBlob)
+	}
 
 	pwr.currentOffset += uint64(nbytes)
 	pwr.Footer.Count++
@@ -143,7 +164,13 @@ func (pwr *PackWriter) serializeIndex() error {
 		}
 	}()
 
-	for _, record := range pwr.Index {
+	for blobData := range pwr.Index.GetIndexesBlob() {
+		record, err := NewBlobFromBytes(blobData)
+		if err != nil {
+			pw.CloseWithError(err)
+			return err
+		}
+
 		if err := pwr.writeAndSum(pw, record.Type); err != nil {
 			pw.CloseWithError(err)
 			return err
