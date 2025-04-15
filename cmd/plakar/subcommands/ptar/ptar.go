@@ -32,6 +32,7 @@ import (
 	"github.com/PlakarKorp/plakar/compression"
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/hashing"
+	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/snapshot"
@@ -64,8 +65,8 @@ func parse_cmd_ptar(ctx *appcontext.AppContext, args []string) (subcommands.Subc
 	flags.BoolVar(&opt_nocompression, "no-compression", false, "disable transparent compression")
 	flags.Parse(args)
 
-	if flags.NArg() != 1 {
-		return nil, fmt.Errorf("%s: too many parameters", flag.CommandLine.Name())
+	if flags.NArg() < 1 {
+		return nil, fmt.Errorf("%s: at least one source is needed", flag.CommandLine.Name())
 	}
 
 	if hashing.GetHasher(strings.ToUpper(opt_hashing)) == nil {
@@ -77,7 +78,7 @@ func parse_cmd_ptar(ctx *appcontext.AppContext, args []string) (subcommands.Subc
 		Hashing:       opt_hashing,
 		NoEncryption:  opt_noencryption,
 		NoCompression: opt_nocompression,
-		Location:      flags.Arg(0),
+		Location:      flags.Args(),
 	}, nil
 }
 
@@ -86,7 +87,7 @@ type Ptar struct {
 	Hashing       string
 	NoEncryption  bool
 	NoCompression bool
-	Location      string
+	Location      []string
 }
 
 func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
@@ -180,24 +181,41 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		panic(err)
 	}
 
-	imp, err := importer.NewImporter(map[string]string{"location": cmd.Location})
+	identifier := objects.RandomMAC()
+	scanCache, err := repo.AppContext().GetCache().Scan(identifier)
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 
-	snap, err := snapshot.Create(repo, repository.PtarType)
-	if err != nil {
-		panic(err)
+	repoWriter := repo.NewRepositoryWriter(scanCache, identifier, repository.PtarType)
+	for _, loc := range cmd.Location {
+		imp, err := importer.NewImporter(map[string]string{"location": loc})
+		if err != nil {
+			panic(err)
+		}
+
+		snap, err := snapshot.CreateWithRepositoryWriter(repoWriter)
+		if err != nil {
+			panic(err)
+		}
+
+		backupOptions := &snapshot.BackupOptions{
+			MaxConcurrency: 4,
+			NoCheckpoint:   true,
+			NoCommit:       true,
+		}
+
+		err = snap.Backup(imp, backupOptions)
+		if err != nil {
+			panic(err)
+		}
 	}
 
-	backupOptions := &snapshot.BackupOptions{
-		MaxConcurrency: 4,
-		NoCheckpoint:   true,
-	}
-
-	err = snap.Backup(imp, backupOptions)
+	// We are done with everything we can now stop the backup routines.
+	repoWriter.PackerManager.Wait()
+	err = repoWriter.CommitTransaction(identifier)
 	if err != nil {
-		panic(err)
+		return 1, err
 	}
 
 	if err := st.Close(); err != nil {

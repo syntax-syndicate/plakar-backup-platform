@@ -50,6 +50,7 @@ type BackupOptions struct {
 	Tags           []string
 	Excludes       []glob.Glob
 	NoCheckpoint   bool
+	NoCommit       bool
 }
 
 func (bc *BackupContext) recordEntry(entry *vfs.Entry) error {
@@ -318,7 +319,7 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	snap.Header.GetSource(0).Summary = *rootSummary
 	snap.Header.GetSource(0).Indexes = indexes
 
-	return snap.Commit(backupCtx)
+	return snap.Commit(backupCtx, !options.NoCommit)
 }
 
 func entropy(data []byte) (float64, [256]float64) {
@@ -469,7 +470,7 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 	return object, nil
 }
 
-func (snap *Builder) Commit(bc *BackupContext) error {
+func (snap *Builder) Commit(bc *BackupContext, commit bool) error {
 	// First thing is to stop the ticker, as we don't want any concurrent flushes to run.
 	// Maybe this could be stopped earlier.
 
@@ -495,6 +496,11 @@ func (snap *Builder) Commit(bc *BackupContext) error {
 	if err := snap.repository.PutBlob(resources.RT_SNAPSHOT, snap.Header.Identifier, serializedHdr); err != nil {
 		return err
 	}
+
+	if !commit {
+		return nil
+	}
+
 	snap.repository.PackerManager.Wait()
 
 	// We are done with packfiles we can flush the last state, either through
