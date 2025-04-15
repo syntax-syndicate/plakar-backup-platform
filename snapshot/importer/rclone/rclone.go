@@ -20,22 +20,38 @@ import (
 )
 
 type RcloneImporter struct {
-	remote string
-	base   string
+	remote   string
+	base     string
+	provider string
 
 	ino uint64
 }
 
 func init() {
-	importer.Register("rclone", NewRcloneImporter)
+	importer.Register("onedrive", NewRcloneImporter)
+	importer.Register("googledrive", NewRcloneImporter)
+	importer.Register("googlephoto", NewRcloneImporter)
 }
 
 // NewRcloneImporter creates a new RcloneImporter instance. It expects the location
 // to be in the format "remote:path/to/dir". The path is optional, but the remote
 // storage location is required, so the colon separator is always expected.
 func NewRcloneImporter(config map[string]string) (importer.Importer, error) {
-	location := strings.TrimPrefix(config["location"], "rclone://")
+	var location string
+	var provider string
+	if strings.Contains(config["location"], "onedrive") {
+		location = strings.TrimPrefix(config["location"], "onedrive://")
+		provider = "onedrive"
+	} else if strings.Contains(config["location"], "googledrive") {
+		location = strings.TrimPrefix(config["location"], "onedrive://")
+		provider = "googledrive"
+	} else if strings.Contains(config["location"], "googlephoto") {
+		location = strings.TrimPrefix(config["location"], "googlephoto://")
+		provider = "googlephoto"
+	}
 	remote, base, found := strings.Cut(location, ":")
+
+	fmt.Printf("remote, base, found, location: %s, %s, %t, %s\n", remote, base, found, location)
 	if !found {
 		return nil, fmt.Errorf("invalid location: %s. Expected format: remote:path/to/dir", location)
 	}
@@ -43,8 +59,9 @@ func NewRcloneImporter(config map[string]string) (importer.Importer, error) {
 	librclone.Initialize()
 
 	return &RcloneImporter{
-		remote: remote,
-		base:   base,
+		remote:   remote,
+		base:     base,
+		provider: provider,
 	}, nil
 }
 
@@ -171,6 +188,9 @@ func (p *RcloneImporter) scanRecursive(results chan *importer.ScanResult, path s
 	}
 
 	for _, file := range response.List {
+		if p.provider == "googlephoto" && (file.Name == "media" || file.Name == "upload") {
+			continue
+		}
 		// Should never happen, but just in case let's fallback to the Unix epoch
 		parsedTime, err := time.Parse(time.RFC3339, file.ModTime)
 		if err != nil {
@@ -279,6 +299,8 @@ func (p *RcloneImporter) NewReader(pathname string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Printf("Structure: %v\n", payload)
 
 	body, status := librclone.RPC("operations/copyfile", string(jsonPayload))
 	if status != http.StatusOK {

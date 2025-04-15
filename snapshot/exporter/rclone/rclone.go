@@ -22,12 +22,20 @@ type RcloneExporter struct {
 }
 
 func init() {
-	exporter.Register("rclone", NewRcloneExporter)
+	exporter.Register("onedrive", NewRcloneExporter)
+	exporter.Register("googledrive", NewRcloneExporter)
+	exporter.Register("googlephoto", NewRcloneExporter)
 }
 
 func NewRcloneExporter(config map[string]string) (exporter.Exporter, error) {
-	location := strings.TrimPrefix(config["location"], "rclone://")
-
+	var location string
+	if strings.Contains(config["location"], "onedrive") {
+		location = strings.TrimPrefix(config["location"], "onedrive://")
+	} else if strings.Contains(config["location"], "googledrive") {
+		location = strings.TrimPrefix(config["location"], "googledrive://")
+	} else if strings.Contains(config["location"], "googlephoto") {
+		location = strings.TrimPrefix(config["location"], "googlephoto://")
+	}
 	remote, base, found := strings.Cut(location, ":")
 
 	if !found {

@@ -66,8 +66,12 @@ func NewExporter(config map[string]string) (Exporter, error) {
 			backendName = "ftp"
 		} else if strings.HasPrefix(location, "sftp://") {
 			backendName = "sftp"
-		} else if strings.HasPrefix(location, "rclone://") {
-			backendName = "rclone"
+		} else if strings.HasPrefix(location, "onedrive://") {
+			backendName = "onedrive"
+		} else if strings.HasPrefix(location, "googledrive://") {
+			backendName = "googledrive"
+		} else if strings.HasPrefix(location, "googlephoto://") {
+			backendName = "googlephoto"
 		} else {
 			if strings.Contains(location, "://") {
 				return nil, fmt.Errorf("unsupported exporter protocol")
