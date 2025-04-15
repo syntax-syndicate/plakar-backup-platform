@@ -181,7 +181,7 @@ func (p *RcloneImporter) scanRecursive(results chan *importer.ScanResult, path s
 			p.scanRecursive(results, file.Path)
 
 			results <- importer.NewScanRecord(
-				p.getPathInBackup(file.Path+"|||"+file.ID),
+				p.getPathInBackup(file.Path),
 				"",
 				objects.NewFileInfo(
 					stdpath.Base(file.Name),
@@ -236,7 +236,7 @@ func (p *RcloneImporter) scanRecursive(results chan *importer.ScanResult, path s
 			)
 
 			results <- importer.NewScanRecord(
-				p.getPathInBackup(file.Path+"|||"+file.ID),
+				p.getPathInBackup(file.Path),
 				"",
 				fi,
 				nil,
@@ -259,7 +259,6 @@ func (file *AutoremoveTmpFile) Close() error {
 func (p *RcloneImporter) NewReader(pathname string) (io.ReadCloser, error) {
 	// pathname is an absolute path within the backup. Let's convert it to a
 	// relative path to the base path.
-	pathname, _, _ = strings.Cut(pathname, "|||")
 	relativePath := strings.TrimPrefix(pathname, p.getPathInBackup(""))
 
 	tmpFile, err := os.CreateTemp("", fmt.Sprintf("plakar_temp_*%s", path.Ext(relativePath)))
