@@ -1,6 +1,7 @@
 package packer
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"fmt"
@@ -163,8 +164,17 @@ func (mgr *packerManager) InsertIfNotPresent(Type resources.Type, mac objects.MA
 }
 
 func (mgr *packerManager) Put(Type resources.Type, mac objects.MAC, data []byte) error {
-	mgr.packerChan <- &PackerMsg{Type: Type, Version: versioning.GetCurrentVersion(Type), Timestamp: time.Now(), MAC: mac, Data: data}
-	return nil
+	if encodedReader, err := mgr.encodingFunc(bytes.NewReader(data)); err != nil {
+		return err
+	} else {
+		encoded, err := io.ReadAll(encodedReader)
+		if err != nil {
+			return err
+		}
+
+		mgr.packerChan <- &PackerMsg{Type: Type, Version: versioning.GetCurrentVersion(Type), Timestamp: time.Now(), MAC: mac, Data: encoded}
+		return nil
+	}
 }
 
 func (mgr *packerManager) Exists(Type resources.Type, mac objects.MAC) (bool, error) {
