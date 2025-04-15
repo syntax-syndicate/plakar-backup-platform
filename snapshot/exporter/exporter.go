@@ -11,6 +11,16 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 )
 
+var protocols = map[string]string{
+	"s3://":          "s3",
+	"fs://":          "fs",
+	"ftp://":         "ftp",
+	"sftp://":        "sftp",
+	"onedrive://":    "onedrive",
+	"googledrive://": "googledrive",
+	"googlephoto://": "googlephoto",
+}
+
 type Exporter interface {
 	Root() string
 	CreateDirectory(pathname string) error
@@ -56,31 +66,18 @@ func NewExporter(config map[string]string) (Exporter, error) {
 	muBackends.Lock()
 	defer muBackends.Unlock()
 
-	var backendName string
+	var backendName = "fs"
 	if !strings.HasPrefix(location, "/") {
-		if strings.HasPrefix(location, "s3://") {
-			backendName = "s3"
-		} else if strings.HasPrefix(location, "fs://") {
-			backendName = "fs"
-		} else if strings.HasPrefix(location, "ftp://") {
-			backendName = "ftp"
-		} else if strings.HasPrefix(location, "sftp://") {
-			backendName = "sftp"
-		} else if strings.HasPrefix(location, "onedrive://") {
-			backendName = "onedrive"
-		} else if strings.HasPrefix(location, "googledrive://") {
-			backendName = "googledrive"
-		} else if strings.HasPrefix(location, "googlephoto://") {
-			backendName = "googlephoto"
-		} else {
-			if strings.Contains(location, "://") {
-				return nil, fmt.Errorf("unsupported exporter protocol")
-			} else {
-				backendName = "fs"
+		for prefix, backend := range protocols {
+			if strings.HasPrefix(location, prefix) {
+				backendName = backend
+				break
 			}
 		}
-	} else {
-		backendName = "fs"
+
+		if backendName == "fs" && strings.Contains(location, "://") {
+			return nil, fmt.Errorf("unsupported importer protocol")
+		}
 	}
 
 	if backend, exists := backends[backendName]; !exists {
