@@ -39,8 +39,20 @@ type RcloneImporter struct {
 	ino uint64
 }
 
+var specialSkipCase = map[string]func(filename string) (err error){
+	"onedrive":    func(filename string) error { return nil },
+	"googledrive": func(filename string) error { return nil },
+	"googlephoto": ggdPhotoSpeCase,
+}
+
+func ggdPhotoSpeCase(filename string) error {
+	if filename == "media" || filename == "upload" {
+		return fmt.Errorf("skipping %s", filename)
+	}
+	return nil
+}
+
 func init() {
-	importer.Register("rclone", NewRcloneImporter)
 	importer.Register("onedrive", NewRcloneImporter)
 	importer.Register("googledrive", NewRcloneImporter)
 	importer.Register("googlephoto", NewRcloneImporter)
@@ -183,7 +195,7 @@ func (p *RcloneImporter) scanRecursive(results chan *importer.ScanResult, path s
 
 func (p *RcloneImporter) scanFolder(results chan *importer.ScanResult, path string, response Response) {
 	for _, file := range response.List {
-		if p.provider == "googlephoto" && (file.Name == "media" || file.Name == "upload") {
+		if specialSkipCase[p.provider](file.Name) != nil {
 			continue
 		}
 		// Should never happen, but just in case let's fallback to the Unix epoch
