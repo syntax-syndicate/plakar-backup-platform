@@ -55,6 +55,7 @@ func ggdPhotoSpeCase(filename string) error {
 
 func init() {
 	importer.Register("onedrive", NewRcloneImporter)
+	importer.Register("opendrive", NewRcloneImporter)
 	importer.Register("googledrive", NewRcloneImporter)
 	importer.Register("googlephoto", NewRcloneImporter)
 }

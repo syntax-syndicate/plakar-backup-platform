@@ -17,6 +17,7 @@ var protocols = []string{
 	"ftp",
 	"sftp",
 	"onedrive",
+	"opendrive",
 	"googledrive",
 	"googlephoto",
 }

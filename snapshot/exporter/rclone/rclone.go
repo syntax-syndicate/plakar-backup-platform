@@ -23,6 +23,7 @@ type RcloneExporter struct {
 
 func init() {
 	exporter.Register("onedrive", NewRcloneExporter)
+	exporter.Register("opendrive", NewRcloneExporter)
 	exporter.Register("googledrive", NewRcloneExporter)
 	exporter.Register("googlephoto", NewRcloneExporter)
 }
