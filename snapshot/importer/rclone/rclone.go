@@ -1,6 +1,7 @@
 package rclone
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -272,12 +273,40 @@ func (p *RcloneImporter) scanFolder(results chan *importer.ScanResult, path stri
 	}
 }
 
+func nextRandom() string {
+	b := make([]byte, 8)
+	_, err := rand.Read(b)
+	if err != nil {
+		panic(err)
+	}
+	return fmt.Sprintf("%x", b)
+}
+
+func createTempPath(originalPath string) (path string, err error) {
+	tmpPath := os.TempDir() + "/" + originalPath
+	prefix, suffix := "", ""
+	if i := strings.LastIndex(tmpPath, "*"); i >= 0 {
+		prefix, suffix = tmpPath[:i], tmpPath[i+1:]
+	} else {
+		prefix = tmpPath
+	}
+
+	for i := 0; i < 10000; i++ {
+		name := prefix + nextRandom() + suffix
+		if _, err := os.Stat(name); os.IsNotExist(err) {
+			return name, nil
+		}
+	}
+	return "", fmt.Errorf("failed to find a folder to create the temporary file")
+}
+
 // AutoremoveTmpFile is a wrapper around an os.File that removes the file when it's closed.
 type AutoremoveTmpFile struct {
 	*os.File
 }
 
 func (file *AutoremoveTmpFile) Close() error {
+	defer os.Remove(file.Name())
 	return file.File.Close()
 }
 
@@ -285,23 +314,15 @@ func (p *RcloneImporter) NewReader(pathname string) (io.ReadCloser, error) {
 	// pathname is an absolute path within the backup. Let's convert it to a
 	// relative path to the base path.
 	relativePath := strings.TrimPrefix(pathname, p.getPathInBackup(""))
-
-	tmpFile, err := os.CreateTemp("", fmt.Sprintf("plakar_temp_*%s", path.Ext(relativePath)))
+	name, err := createTempPath("plakar_temp_*")
 	if err != nil {
 		return nil, err
 	}
-	tmpFile.Close()
-	name := tmpFile.Name()
-	os.Remove(name)
 
 	payload := map[string]string{
 		"srcFs":     fmt.Sprintf("%s:%s", p.remote, p.base),
 		"srcRemote": strings.TrimPrefix(relativePath, "/"),
 
-		//"dstFs":     strings.TrimSuffix(tmpFile.Name(), "/"+path.Base(tmpFile.Name())),
-		//"dstRemote": path.Base(tmpFile.Name()),
-		//"dstFs":     "/tmp",
-		//"dstRemote": "photo",
 		"dstFs":     strings.TrimSuffix(name, "/"+path.Base(name)),
 		"dstRemote": path.Base(name),
 	}
@@ -317,7 +338,7 @@ func (p *RcloneImporter) NewReader(pathname string) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("failed to copy file: %s", body)
 	}
 
-	tmpFile, err = os.Open(name)
+	tmpFile, err := os.Open(name)
 	if err != nil {
 		return nil, err
 	}
