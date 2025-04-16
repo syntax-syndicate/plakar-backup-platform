@@ -239,12 +239,12 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 
 	st, err := storage.Create(map[string]string{"location": repo.Location()}, wrappedConfig)
 	if err != nil {
-		panic(err)
+		return 1, err
 	}
 
 	repo, err = repository.New(ctx, st, wrappedConfig)
 	if err != nil {
-		panic(err)
+		return 1, err
 	}
 
 	identifier := objects.RandomMAC()
