@@ -17,8 +17,13 @@ import (
 )
 
 type RcloneExporter struct {
-	remote string
-	base   string
+	remote   string
+	base     string
+	provider string
+}
+
+var specialCases = []string{
+	"googlephoto",
 }
 
 func init() {
@@ -29,7 +34,7 @@ func init() {
 }
 
 func NewRcloneExporter(config map[string]string) (exporter.Exporter, error) {
-	_, location, _ := strings.Cut(config["location"], "://")
+	provider, location, _ := strings.Cut(config["location"], "://")
 	remote, base, found := strings.Cut(location, ":")
 
 	if !found {
@@ -39,8 +44,9 @@ func NewRcloneExporter(config map[string]string) (exporter.Exporter, error) {
 	librclone.Initialize()
 
 	return &RcloneExporter{
-		remote: remote,
-		base:   base,
+		remote:   remote,
+		base:     base,
+		provider: provider,
 	}, nil
 }
 
@@ -63,7 +69,19 @@ func (p *RcloneExporter) Root() string {
 	return p.getPathInBackup("")
 }
 
+func contains(slice []string, item string) bool {
+	for _, v := range slice {
+		if v == item {
+			return true
+		}
+	}
+	return false
+}
+
 func (p *RcloneExporter) CreateDirectory(pathname string) error {
+	if contains(specialCases, p.provider) {
+		return nil
+	}
 	relativePath := strings.TrimPrefix(pathname, p.getPathInBackup(""))
 
 	payload := map[string]string{
@@ -77,7 +95,6 @@ func (p *RcloneExporter) CreateDirectory(pathname string) error {
 	}
 
 	body, resp := librclone.RPC("operations/mkdir", string(jsonPayload))
-
 	if resp != http.StatusOK {
 		return fmt.Errorf("failed to create directory: %s", body)
 	}
