@@ -280,13 +280,19 @@ func (p *RcloneImporter) NewReader(pathname string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	tmpFile.Close()
+	name := tmpFile.Name()
+	os.Remove(name)
 
 	payload := map[string]string{
 		"srcFs":     fmt.Sprintf("%s:%s", p.remote, p.base),
-		"srcRemote": relativePath,
+		"srcRemote": strings.TrimPrefix(relativePath, "/"),
 
-		"dstFs":     strings.TrimSuffix(tmpFile.Name(), path.Base(tmpFile.Name())),
-		"dstRemote": path.Base(tmpFile.Name()),
+		//"dstFs":     strings.TrimSuffix(tmpFile.Name(), "/"+path.Base(tmpFile.Name())),
+		//"dstRemote": path.Base(tmpFile.Name()),
+		//"dstFs":     "/tmp",
+		//"dstRemote": "photo",
+		"dstFs":     strings.TrimSuffix(name, "/"+path.Base(name)),
+		"dstRemote": path.Base(name),
 	}
 
 	jsonPayload, err := json.Marshal(payload)
@@ -295,11 +301,12 @@ func (p *RcloneImporter) NewReader(pathname string) (io.ReadCloser, error) {
 	}
 
 	body, status := librclone.RPC("operations/copyfile", string(jsonPayload))
+
 	if status != http.StatusOK {
 		return nil, fmt.Errorf("failed to copy file: %s", body)
 	}
 
-	tmpFile, err = os.Open(tmpFile.Name())
+	tmpFile, err = os.Open(name)
 	if err != nil {
 		return nil, err
 	}
