@@ -11,14 +11,14 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 )
 
-var protocols = map[string]string{
-	"s3://":          "s3",
-	"fs://":          "fs",
-	"ftp://":         "ftp",
-	"sftp://":        "sftp",
-	"onedrive://":    "onedrive",
-	"googledrive://": "googledrive",
-	"googlephoto://": "googlephoto",
+var protocols = []string{
+	"s3",
+	"fs",
+	"ftp",
+	"sftp",
+	"onedrive",
+	"googledrive",
+	"googlephoto",
 }
 
 type Exporter interface {
@@ -68,9 +68,9 @@ func NewExporter(config map[string]string) (Exporter, error) {
 
 	var backendName = "fs"
 	if !strings.HasPrefix(location, "/") {
-		for prefix, backend := range protocols {
-			if strings.HasPrefix(location, prefix) {
-				backendName = backend
+		for _, link := range protocols {
+			if strings.HasPrefix(location, link+"://") {
+				backendName = link
 				break
 			}
 		}
