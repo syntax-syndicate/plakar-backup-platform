@@ -9,9 +9,9 @@
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
+ * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+ * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 package ptar
@@ -50,6 +50,7 @@ func parse_cmd_ptar(ctx *appcontext.AppContext, args []string) (subcommands.Subc
 	var opt_noencryption bool
 	var opt_nocompression bool
 	var opt_allowweak bool
+	var opt_sync string
 
 	flags := flag.NewFlagSet("ptar", flag.ExitOnError)
 	flags.Usage = func() {
@@ -63,9 +64,70 @@ func parse_cmd_ptar(ctx *appcontext.AppContext, args []string) (subcommands.Subc
 	flags.StringVar(&opt_hashing, "hashing", hashing.DEFAULT_HASHING_ALGORITHM, "hashing algorithm to use for digests")
 	flags.BoolVar(&opt_noencryption, "no-encryption", false, "disable transparent encryption")
 	flags.BoolVar(&opt_nocompression, "no-compression", false, "disable transparent compression")
+	flags.StringVar(&opt_sync, "sync-from", "", "create a ptar archive from an existing repository")
 	flags.Parse(args)
 
-	if flags.NArg() < 1 {
+	if len(opt_sync) > 0 && flags.NArg() > 0 {
+		return nil, fmt.Errorf("%s: can't specify source directories in sync mode.", flag.CommandLine.Name())
+	}
+
+	var peerSecret []byte
+	if len(opt_sync) > 0 {
+		storeConfig, err := ctx.Config.GetRepository(opt_sync)
+		if err != nil {
+			return nil, fmt.Errorf("peer repository: %w", err)
+		}
+
+		peerStore, peerStoreSerializedConfig, err := storage.Open(storeConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		peerStoreConfig, err := storage.NewConfigurationFromWrappedBytes(peerStoreSerializedConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		if peerStoreConfig.Encryption != nil {
+			if pass, ok := storeConfig["passphrase"]; ok {
+				key, err := encryption.DeriveKey(peerStoreConfig.Encryption.KDFParams, []byte(pass))
+				if err != nil {
+					return nil, err
+				}
+				if !encryption.VerifyCanary(peerStoreConfig.Encryption, key) {
+					return nil, fmt.Errorf("invalid passphrase")
+				}
+				peerSecret = key
+			} else {
+				for {
+					passphrase, err := utils.GetPassphrase("source repository")
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "%s\n", err)
+						continue
+					}
+
+					key, err := encryption.DeriveKey(peerStoreConfig.Encryption.KDFParams, passphrase)
+					if err != nil {
+						return nil, err
+					}
+					if !encryption.VerifyCanary(peerStoreConfig.Encryption, key) {
+						return nil, fmt.Errorf("invalid passphrase")
+					}
+					peerSecret = key
+					break
+				}
+			}
+		}
+
+		peerCtx := appcontext.NewAppContextFrom(ctx)
+		peerCtx.SetSecret(peerSecret)
+		_, err = repository.New(peerCtx, peerStore, peerStoreSerializedConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(opt_sync) == 0 && flags.NArg() < 1 {
 		return nil, fmt.Errorf("%s: at least one source is needed", flag.CommandLine.Name())
 	}
 
@@ -78,6 +140,8 @@ func parse_cmd_ptar(ctx *appcontext.AppContext, args []string) (subcommands.Subc
 		Hashing:       opt_hashing,
 		NoEncryption:  opt_noencryption,
 		NoCompression: opt_nocompression,
+		SyncFrom:      opt_sync,
+		SyncSrcSecret: peerSecret,
 		Location:      flags.Args(),
 	}, nil
 }
@@ -87,6 +151,8 @@ type Ptar struct {
 	Hashing       string
 	NoEncryption  bool
 	NoCompression bool
+	SyncFrom      string
+	SyncSrcSecret []byte
 	Location      []string
 }
 
@@ -184,30 +250,34 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	identifier := objects.RandomMAC()
 	scanCache, err := repo.AppContext().GetCache().Scan(identifier)
 	if err != nil {
-		return 0, err
+		return 1, err
 	}
 
 	repoWriter := repo.NewRepositoryWriter(scanCache, identifier, repository.PtarType)
-	for _, loc := range cmd.Location {
-		imp, err := importer.NewImporter(map[string]string{"location": loc})
+	if len(cmd.SyncFrom) > 0 {
+		storeConfig, err := ctx.Config.GetRepository(cmd.SyncFrom)
 		if err != nil {
-			panic(err)
+			return 1, fmt.Errorf("source repository: %w", err)
 		}
 
-		snap, err := snapshot.CreateWithRepositoryWriter(repoWriter)
+		peerStore, peerStoreSerializedConfig, err := storage.Open(storeConfig)
 		if err != nil {
-			panic(err)
+			return 1, fmt.Errorf("could not open source store %s: %s", cmd.SyncFrom, err)
 		}
 
-		backupOptions := &snapshot.BackupOptions{
-			MaxConcurrency: 4,
-			NoCheckpoint:   true,
-			NoCommit:       true,
+		srcCtx := appcontext.NewAppContextFrom(ctx)
+		srcCtx.SetSecret(cmd.SyncSrcSecret)
+		srcRepository, err := repository.New(srcCtx, peerStore, peerStoreSerializedConfig)
+		if err != nil {
+			return 1, fmt.Errorf("could not open source repository %s: %s", cmd.SyncFrom, err)
 		}
 
-		err = snap.Backup(imp, backupOptions)
-		if err != nil {
-			panic(err)
+		if err := cmd.synchronize(srcRepository, repoWriter); err != nil {
+			return 1, err
+		}
+	} else {
+		if err := cmd.backup(repoWriter); err != nil {
+			return 1, err
 		}
 	}
 
@@ -223,4 +293,66 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	}
 
 	return 0, nil
+}
+
+func (cmd *Ptar) backup(repo *repository.RepositoryWriter) error {
+	for _, loc := range cmd.Location {
+		imp, err := importer.NewImporter(map[string]string{"location": loc})
+		if err != nil {
+			return err
+		}
+
+		snap, err := snapshot.CreateWithRepositoryWriter(repo)
+		if err != nil {
+			return err
+		}
+
+		backupOptions := &snapshot.BackupOptions{
+			MaxConcurrency: 4,
+			NoCheckpoint:   true,
+			NoCommit:       true,
+		}
+
+		err = snap.Backup(imp, backupOptions)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (cmd *Ptar) synchronize(srcRepository *repository.Repository, dstRepository *repository.RepositoryWriter) error {
+	srcLocateOptions := utils.NewDefaultLocateOptions()
+	srcSnapshotIDs, err := utils.LocateSnapshotIDs(srcRepository, srcLocateOptions)
+	if err != nil {
+		return err
+	}
+
+	for _, snapshotID := range srcSnapshotIDs {
+		srcSnapshot, err := snapshot.Load(srcRepository, snapshotID)
+		if err != nil {
+			return err
+		}
+		defer srcSnapshot.Close()
+
+		dstSnapshot, err := snapshot.CreateWithRepositoryWriter(dstRepository)
+		if err != nil {
+			return err
+		}
+		defer dstSnapshot.Close()
+
+		// overwrite the header, we want to keep the original snapshot info
+		dstSnapshot.Header = srcSnapshot.Header
+
+		if err := srcSnapshot.Synchronize(dstSnapshot); err != nil {
+			return err
+		}
+
+		if err := dstSnapshot.Commit(nil, false); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
