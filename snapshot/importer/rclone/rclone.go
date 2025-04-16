@@ -40,6 +40,7 @@ type RcloneImporter struct {
 }
 
 func init() {
+	importer.Register("rclone", NewRcloneImporter)
 	importer.Register("onedrive", NewRcloneImporter)
 	importer.Register("googledrive", NewRcloneImporter)
 	importer.Register("googlephoto", NewRcloneImporter)
@@ -265,8 +266,6 @@ type AutoremoveTmpFile struct {
 }
 
 func (file *AutoremoveTmpFile) Close() error {
-	librclone.Finalize()
-	defer os.Remove(file.Name())
 	return file.File.Close()
 }
 
@@ -315,6 +314,7 @@ func (p *RcloneImporter) NewReader(pathname string) (io.ReadCloser, error) {
 }
 
 func (p *RcloneImporter) Close() error {
+	librclone.Finalize()
 	return nil
 }
 
@@ -327,7 +327,7 @@ func (p *RcloneImporter) Origin() string {
 }
 
 func (p *RcloneImporter) Type() string {
-	return "rclone"
+	return p.provider
 }
 
 func (p *RcloneImporter) NewExtendedAttributeReader(pathname string, attribute string) (io.ReadCloser, error) {

@@ -32,6 +32,7 @@ var protocols = map[string]string{
 	"fs://":          "fs",
 	"ftp://":         "ftp",
 	"sftp://":        "sftp",
+	"rclone://":      "rclone",
 	"onedrive://":    "onedrive",
 	"googledrive://": "googledrive",
 	"googlephoto://": "googlephoto",
