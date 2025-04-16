@@ -10,6 +10,7 @@ import (
 	"path"
 	stdpath "path"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -40,9 +41,14 @@ type RcloneImporter struct {
 	ino uint64
 }
 
+func defaultSkipCase(filename string) error {
+	return nil
+}
+
 var specialSkipCase = map[string]func(filename string) (err error){
-	"onedrive":    func(filename string) error { return nil },
-	"googledrive": func(filename string) error { return nil },
+	"onedrive":    defaultSkipCase,
+	"opendrive":   defaultSkipCase,
+	"googledrive": defaultSkipCase,
 	"googlephoto": ggdPhotoSpeCase,
 }
 
@@ -81,13 +87,16 @@ func NewRcloneImporter(config map[string]string) (importer.Importer, error) {
 }
 
 func (p *RcloneImporter) Scan() (<-chan *importer.ScanResult, error) {
-	results := make(chan *importer.ScanResult)
+	results := make(chan *importer.ScanResult, 1000)
+	var wg sync.WaitGroup
+
 	go func() {
 		defer close(results)
-
 		p.generateBaseDirectories(results)
-		p.scanRecursive(results, "")
+		p.scanRecursive(results, "", &wg)
+		wg.Wait() // Wait for all goroutines to finish
 	}()
+
 	return results, nil
 }
 
@@ -166,7 +175,7 @@ func generatePathComponents(path string) []string {
 	return components
 }
 
-func (p *RcloneImporter) scanRecursive(results chan *importer.ScanResult, path string) {
+func (p *RcloneImporter) scanRecursive(results chan *importer.ScanResult, path string, wg *sync.WaitGroup) {
 	payload := map[string]interface{}{
 		"fs":     fmt.Sprintf("%s:%s", p.remote, p.base),
 		"remote": path,
@@ -185,92 +194,101 @@ func (p *RcloneImporter) scanRecursive(results chan *importer.ScanResult, path s
 	}
 
 	var response Response
-
 	err = json.Unmarshal([]byte(output), &response)
 	if err != nil {
 		results <- importer.NewScanError(p.getPathInBackup(path), err)
 		return
 	}
 
-	p.scanFolder(results, path, response)
+	p.scanFolder(results, path, response, wg)
 }
 
-func (p *RcloneImporter) scanFolder(results chan *importer.ScanResult, path string, response Response) {
+func (p *RcloneImporter) scanFolder(results chan *importer.ScanResult, path string, response Response, wg *sync.WaitGroup) {
 	for _, file := range response.List {
-		if specialSkipCase[p.provider](file.Name) != nil {
-			continue
-		}
-		// Should never happen, but just in case let's fallback to the Unix epoch
-		parsedTime, err := time.Parse(time.RFC3339, file.ModTime)
-		if err != nil {
-			parsedTime = time.Unix(0, 0).UTC()
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 
-		if file.IsDir {
-			p.scanRecursive(results, file.Path)
+			if specialSkipCase[p.provider](file.Name) != nil {
+				return
+			}
+			// Should never happen, but just in case let's fallback to the Unix epoch
+			parsedTime, err := time.Parse(time.RFC3339, file.ModTime)
+			if err != nil {
+				parsedTime = time.Unix(0, 0).UTC()
+			}
 
-			results <- importer.NewScanRecord(
-				p.getPathInBackup(file.Path),
-				"",
-				objects.NewFileInfo(
-					stdpath.Base(file.Name),
-					0,
-					0700|os.ModeDir,
+			if file.IsDir {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					p.scanRecursive(results, file.Path, wg)
+				}()
+
+				results <- importer.NewScanRecord(
+					p.getPathInBackup(file.Path),
+					"",
+					objects.NewFileInfo(
+						stdpath.Base(file.Name),
+						0,
+						0700|os.ModeDir,
+						parsedTime,
+						0,
+						atomic.AddUint64(&p.ino, 1),
+						0,
+						0,
+						0,
+					),
+					nil,
+				)
+			} else {
+				filesize := file.Size
+
+				// Hack: the importer is required to provide a size for the file. If
+				// the size is not available when listing the directory, let's
+				// attempt to download the file to retrieve it. This is a hack until
+				// it becomes possible to return -1 as the size in the importer. It
+				// has to be removed eventually, because it requires to download the
+				// file twice when performing the backup.
+				if file.Size < 0 {
+					handle, err := p.NewReader(p.getPathInBackup(file.Path))
+					if err != nil {
+						results <- importer.NewScanError(p.getPathInBackup(path), err)
+						return
+					}
+					name := handle.(*AutoremoveTmpFile).Name()
+					size, err := os.Stat(name)
+					if err != nil {
+						results <- importer.NewScanError(p.getPathInBackup(path), err)
+						return
+					}
+
+					handle.Close()
+
+					filesize = size.Size()
+				}
+
+				fi := objects.NewFileInfo(
+					stdpath.Base(file.Path),
+					filesize,
+					0600,
 					parsedTime,
-					0,
+					1,
 					atomic.AddUint64(&p.ino, 1),
 					0,
 					0,
 					0,
-				),
-				nil,
-			)
-		} else {
-			filesize := file.Size
+				)
 
-			// Hack: the importer is required to provide a size for the file. If
-			// the size is not available when listing the directory, let's
-			// attempt to download the file to retrieve it. This is a hack until
-			// it becomes possible to return -1 as the size in the importer. It
-			// has to be removed eventually, because it requires to download the
-			// file twice when performing the backup.
-			if file.Size < 0 {
-				handle, err := p.NewReader(p.getPathInBackup(file.Path))
-				if err != nil {
-					results <- importer.NewScanError(p.getPathInBackup(path), err)
-					continue
-				}
-				name := handle.(*AutoremoveTmpFile).Name()
-				size, err := os.Stat(name)
-				if err != nil {
-					results <- importer.NewScanError(p.getPathInBackup(path), err)
-					continue
-				}
-
-				handle.Close()
-
-				filesize = size.Size()
+				results <- importer.NewScanRecord(
+					p.getPathInBackup(file.Path),
+					"",
+					fi,
+					nil,
+				)
 			}
 
-			fi := objects.NewFileInfo(
-				stdpath.Base(file.Path),
-				filesize,
-				0600,
-				parsedTime,
-				1,
-				atomic.AddUint64(&p.ino, 1),
-				0,
-				0,
-				0,
-			)
-
-			results <- importer.NewScanRecord(
-				p.getPathInBackup(file.Path),
-				"",
-				fi,
-				nil,
-			)
-		}
+		}()
 	}
 }
 
