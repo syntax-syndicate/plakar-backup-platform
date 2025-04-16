@@ -600,15 +600,9 @@ func snapshotVFSErrors(w http.ResponseWriter, r *http.Request) error {
 		Items: []*vfs.ErrorItem{},
 	}
 	for errorEntry := range errorList {
-		if i < offset {
-			i++
-			continue
+		if i >= offset && i < offset+limit {
+			items.Items = append(items.Items, errorEntry)
 		}
-		if limit > 0 && i >= limit+offset {
-			i++
-			continue
-		}
-		items.Items = append(items.Items, errorEntry)
 		i++
 	}
 	items.Total = int(i)
