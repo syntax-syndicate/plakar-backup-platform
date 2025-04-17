@@ -263,21 +263,12 @@ func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 
-		if importerType != "" && strings.ToLower(snap.Header.GetSource(0).Importer.Type) != strings.ToLower(importerType) {
+		if importerType != "" && strings.EqualFold(snap.Header.GetSource(0).Importer.Type, importerType) {
 			snap.Close()
 			continue
 		}
 
-		if importerOrigin != "" && strings.ToLower(snap.Header.GetSource(0).Importer.Origin) != strings.ToLower(importerOrigin) {
-			snap.Close()
-			continue
-		}
-
-		path := snap.Header.GetSource(0).Importer.Directory
-		if path != "/" {
-			path = path + "/"
-		}
-		if !strings.HasPrefix(resource, path) {
+		if importerOrigin != "" && strings.EqualFold(snap.Header.GetSource(0).Importer.Origin, importerOrigin) {
 			snap.Close()
 			continue
 		}
