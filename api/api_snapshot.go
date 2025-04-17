@@ -355,6 +355,9 @@ func snapshotVFSChildren(w http.ResponseWriter, r *http.Request) error {
 	if entrypath == "" {
 		entrypath = "/"
 	}
+
+	entrypath = filepath.Clean(entrypath)
+
 	fsinfo, err := fs.GetEntry(entrypath)
 	if err != nil {
 		return err
@@ -382,6 +385,7 @@ func snapshotVFSChildren(w http.ResponseWriter, r *http.Request) error {
 				return err
 			}
 
+			parent.ParentPath = entrypath
 			parent.FileInfo.Lname = ".."
 
 			limit--
