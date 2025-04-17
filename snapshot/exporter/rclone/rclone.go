@@ -22,15 +22,11 @@ type RcloneExporter struct {
 	provider string
 }
 
-var specialCases = []string{
-	"googlephoto",
-}
-
 func init() {
 	exporter.Register("onedrive", NewRcloneExporter)
 	exporter.Register("opendrive", NewRcloneExporter)
 	exporter.Register("googledrive", NewRcloneExporter)
-	exporter.Register("googlephoto", NewRcloneExporter)
+	exporter.Register("googlephoto", NewGooglePhotoExporter)
 }
 
 func NewRcloneExporter(config map[string]string) (exporter.Exporter, error) {
@@ -69,19 +65,7 @@ func (p *RcloneExporter) Root() string {
 	return p.getPathInBackup("")
 }
 
-func contains(slice []string, item string) bool {
-	for _, v := range slice {
-		if v == item {
-			return true
-		}
-	}
-	return false
-}
-
 func (p *RcloneExporter) CreateDirectory(pathname string) error {
-	if contains(specialCases, p.provider) {
-		return nil
-	}
 	relativePath := strings.TrimPrefix(pathname, p.getPathInBackup(""))
 
 	payload := map[string]string{
