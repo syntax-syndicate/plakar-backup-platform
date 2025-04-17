@@ -293,7 +293,11 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	// objects in this backup
 	snap.repository.Tracker = func(res resources.Type, mac objects.MAC) error {
 		tuple := objects.MACTuple{Resource: res, MAC: mac}
-		return backupCtx.macidx.Insert(tuple, struct{}{})
+		err := backupCtx.macidx.Insert(tuple, struct{}{})
+		if err == btree.ErrExists {
+			err = nil
+		}
+		return err
 	}
 
 	/* importer */
