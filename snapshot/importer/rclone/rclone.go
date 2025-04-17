@@ -41,29 +41,11 @@ type RcloneImporter struct {
 	ino uint64
 }
 
-func defaultSkipCase(filename string) error {
-	return nil
-}
-
-var specialSkipCase = map[string]func(filename string) (err error){
-	"onedrive":    defaultSkipCase,
-	"opendrive":   defaultSkipCase,
-	"googledrive": defaultSkipCase,
-	"googlephoto": ggdPhotoSpeCase,
-}
-
-func ggdPhotoSpeCase(filename string) error {
-	if filename == "media" || filename == "upload" {
-		return fmt.Errorf("skipping %s", filename)
-	}
-	return nil
-}
-
 func init() {
 	importer.Register("onedrive", NewRcloneImporter)
 	importer.Register("opendrive", NewRcloneImporter)
 	importer.Register("googledrive", NewRcloneImporter)
-	importer.Register("googlephoto", NewRcloneImporter)
+	importer.Register("googlephoto", NewGooglePhotoImporter)
 }
 
 // NewRcloneImporter creates a new RcloneImporter instance. It expects the location
@@ -91,10 +73,10 @@ func (p *RcloneImporter) Scan() (<-chan *importer.ScanResult, error) {
 	var wg sync.WaitGroup
 
 	go func() {
-		defer close(results)
 		p.generateBaseDirectories(results)
 		p.scanRecursive(results, "", &wg)
-		wg.Wait() // Wait for all goroutines to finish
+		wg.Wait()
+		close(results)
 	}()
 
 	return results, nil
@@ -176,6 +158,14 @@ func generatePathComponents(path string) []string {
 }
 
 func (p *RcloneImporter) scanRecursive(results chan *importer.ScanResult, path string, wg *sync.WaitGroup) {
+	results, response, err := p.listFolder(results, path)
+	if err {
+		return
+	}
+	p.scanFolder(results, path, response, wg)
+}
+
+func (p *RcloneImporter) listFolder(results chan *importer.ScanResult, path string) (chan *importer.ScanResult, Response, bool) {
 	payload := map[string]interface{}{
 		"fs":     fmt.Sprintf("%s:%s", p.remote, p.base),
 		"remote": path,
@@ -184,23 +174,22 @@ func (p *RcloneImporter) scanRecursive(results chan *importer.ScanResult, path s
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
 		results <- importer.NewScanError(p.getPathInBackup(path), err)
-		return
+		return nil, Response{}, true
 	}
 
 	output, status := librclone.RPC("operations/list", string(jsonPayload))
 	if status != http.StatusOK {
 		results <- importer.NewScanError(p.getPathInBackup(path), fmt.Errorf("failed to list directory: %s", output))
-		return
+		return nil, Response{}, true
 	}
 
 	var response Response
 	err = json.Unmarshal([]byte(output), &response)
 	if err != nil {
 		results <- importer.NewScanError(p.getPathInBackup(path), err)
-		return
+		return nil, Response{}, true
 	}
-
-	p.scanFolder(results, path, response, wg)
+	return results, response, false
 }
 
 func (p *RcloneImporter) scanFolder(results chan *importer.ScanResult, path string, response Response, wg *sync.WaitGroup) {
@@ -209,9 +198,6 @@ func (p *RcloneImporter) scanFolder(results chan *importer.ScanResult, path stri
 		go func() {
 			defer wg.Done()
 
-			if specialSkipCase[p.provider](file.Name) != nil {
-				return
-			}
 			// Should never happen, but just in case let's fallback to the Unix epoch
 			parsedTime, err := time.Parse(time.RFC3339, file.ModTime)
 			if err != nil {
