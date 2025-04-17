@@ -264,6 +264,10 @@ func entryPoint() int {
 		}
 		repositoryPath = flag.Arg(1)
 		command, args = flag.Arg(2), flag.Args()[3:]
+
+		if command == "agent" {
+			log.Fatalf("%s: agent command can not be used with 'at' parameter.", flag.CommandLine.Name())
+		}
 	} else {
 		repositoryPath = os.Getenv("PLAKAR_REPOSITORY")
 		if repositoryPath == "" {
