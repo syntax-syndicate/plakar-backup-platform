@@ -9,8 +9,7 @@ It doesn't even manage a cache of blocks or a freelist, these issues
 are relegated to the storage layer.
 
 A peculiar thing is that even the "pointer" type is parametrized,
-since it could be a disk sector, a mac, or a key in a leveldb
-cache.
+since it could be a disk sector, a mac, or a key in a db.
 
 There is a way to "convert" one tree from one storage to another via
 the `Persist` function that works in a way that's suitable for

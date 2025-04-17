@@ -355,6 +355,9 @@ func snapshotVFSChildren(w http.ResponseWriter, r *http.Request) error {
 	if entrypath == "" {
 		entrypath = "/"
 	}
+
+	entrypath = filepath.Clean(entrypath)
+
 	fsinfo, err := fs.GetEntry(entrypath)
 	if err != nil {
 		return err
@@ -382,6 +385,7 @@ func snapshotVFSChildren(w http.ResponseWriter, r *http.Request) error {
 				return err
 			}
 
+			parent.ParentPath = entrypath
 			parent.FileInfo.Lname = ".."
 
 			limit--
@@ -461,7 +465,7 @@ func snapshotVFSChunks(w http.ResponseWriter, r *http.Request) error {
 		Total: tot,
 	}
 
-	for i := offset; i < min(offset + limit, int64(tot)); i++ {
+	for i := offset; i < min(offset+limit, int64(tot)); i++ {
 		items.Items = append(items.Items, entry.ResolvedObject.Chunks[i])
 	}
 	return json.NewEncoder(w).Encode(items)
