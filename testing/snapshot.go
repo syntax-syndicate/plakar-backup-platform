@@ -34,7 +34,30 @@ func NewMockFile(path string, mode os.FileMode, content string) MockFile {
 	}
 }
 
-func GenerateSnapshot(t *testing.T, repo *repository.Repository, files []MockFile) *snapshot.Snapshot {
+type testingOptions struct {
+	name string
+}
+
+func newTestingOptions() *testingOptions {
+	return &testingOptions{
+		name: "test_backup",
+	}
+}
+
+type TestingOptions func(o *testingOptions)
+
+func WithName(name string) TestingOptions {
+	return func(o *testingOptions) {
+		o.name = name
+	}
+}
+
+func GenerateSnapshot(t *testing.T, repo *repository.Repository, files []MockFile, opts ...TestingOptions) *snapshot.Snapshot {
+	o := newTestingOptions()
+	for _, f := range opts {
+		f(o)
+	}
+
 	tmpBackupDir, err := os.MkdirTemp("", "tmp_to_backup")
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -59,7 +82,7 @@ func GenerateSnapshot(t *testing.T, repo *repository.Repository, files []MockFil
 
 	imp, err := fs.NewFSImporter(map[string]string{"location": tmpBackupDir})
 	require.NoError(t, err)
-	builder.Backup(imp, &snapshot.BackupOptions{Name: "test_backup", MaxConcurrency: 1})
+	builder.Backup(imp, &snapshot.BackupOptions{Name: o.name, MaxConcurrency: 1})
 
 	err = builder.Repository().RebuildState()
 	require.NoError(t, err)
