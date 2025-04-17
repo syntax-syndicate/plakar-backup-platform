@@ -465,7 +465,7 @@ func snapshotVFSChunks(w http.ResponseWriter, r *http.Request) error {
 		Total: tot,
 	}
 
-	for i := offset; i < min(offset + limit, int64(tot)); i++ {
+	for i := offset; i < min(offset+limit, int64(tot)); i++ {
 		items.Items = append(items.Items, entry.ResolvedObject.Chunks[i])
 	}
 	return json.NewEncoder(w).Encode(items)
