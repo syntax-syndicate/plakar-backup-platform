@@ -19,9 +19,9 @@ package config
 import (
 	"flag"
 	"fmt"
-
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/config/remoteProvider"
 	"github.com/PlakarKorp/plakar/repository"
 )
 
@@ -58,6 +58,8 @@ func (cmd *Config) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		err = cmd_remote(ctx, cmd.args[1:])
 	case "repository", "repo":
 		err = cmd_repository(ctx, cmd.args[1:])
+	case "remote2":
+		err = remoteProvider.RemoteHub(ctx)
 	default:
 		err = fmt.Errorf("unknown subcommand %s", cmd.args[0])
 	}
