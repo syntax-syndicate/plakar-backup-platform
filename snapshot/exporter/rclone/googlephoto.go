@@ -10,45 +10,19 @@ import (
 	stdpath "path"
 	"strings"
 
-	"github.com/PlakarKorp/plakar/objects"
 	"github.com/rclone/rclone/librclone/librclone"
 )
 
 type GooglePhotoExporter struct {
-	remote   string
-	base     string
-	provider string
+	*RcloneExporter
 }
 
 func NewGooglePhotoExporter(config map[string]string) (exporter.Exporter, error) {
-	provider, location, _ := strings.Cut(config["location"], "://")
-	remote, base, found := strings.Cut(location, ":")
-
-	if !found {
-		return nil, fmt.Errorf("invalid location: %s. Expected format: remote:path/to/dir", location)
+	exp, err := NewRcloneExporter(config)
+	if err != nil {
+		return nil, err
 	}
-
-	librclone.Initialize()
-
-	return &GooglePhotoExporter{
-		remote:   remote,
-		base:     base,
-		provider: provider,
-	}, nil
-}
-
-func (p *GooglePhotoExporter) getPathInBackup(path string) string {
-	path = stdpath.Join(p.base, path)
-
-	if !stdpath.IsAbs(p.base) {
-		path = "/" + path
-	}
-
-	return stdpath.Clean(path)
-}
-
-func (p *GooglePhotoExporter) Root() string {
-	return p.getPathInBackup("")
+	return &GooglePhotoExporter{RcloneExporter: exp.(*RcloneExporter)}, nil
 }
 
 // The operation mkdir is a no-op for Google Photos
@@ -100,13 +74,5 @@ func (p *GooglePhotoExporter) StoreFile(pathname string, fp io.Reader) error {
 		return fmt.Errorf("failed to copy file: %s", body)
 	}
 
-	return nil
-}
-
-func (p *GooglePhotoExporter) SetPermissions(pathname string, fileinfo *objects.FileInfo) error {
-	return nil
-}
-
-func (p *GooglePhotoExporter) Close() error {
 	return nil
 }
