@@ -273,15 +273,6 @@ func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 			continue
 		}
 
-		path := snap.Header.GetSource(0).Importer.Directory
-		if path != "/" {
-			path = path + "/"
-		}
-		if !strings.HasPrefix(resource, path) {
-			snap.Close()
-			continue
-		}
-
 		pvfs, err := snap.Filesystem()
 		if err != nil {
 			snap.Close()
