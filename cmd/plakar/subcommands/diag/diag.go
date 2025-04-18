@@ -134,6 +134,12 @@ func parse_cmd_diag(ctx *appcontext.AppContext, args []string) (subcommands.Subc
 			SnapshotPath:     path,
 			Mimes:            mimes,
 		}, nil
+	case "blobs":
+		return &DiagBlob{
+			RepositorySecret: ctx.GetSecret(),
+			SnapshotPath:     flag.Arg(2),
+			Slow:             flag.Arg(3) == "slow",
+		}, nil
 	}
 	return nil, fmt.Errorf("Invalid parameter. usage: diag [contenttype|snapshot|object|state|packfile|vfs|xattr|errors|search]")
 }
