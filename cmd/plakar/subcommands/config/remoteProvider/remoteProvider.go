@@ -17,7 +17,7 @@ import (
 
 var handleProviders = map[string]string{
 	"google photos": "rclone",
-	"google drive":  "rclone",
+	"drive":         "rclone",
 	"onedrive":      "rclone",
 	"opendrive":     "rclone",
 	"s3":            "plakar",
