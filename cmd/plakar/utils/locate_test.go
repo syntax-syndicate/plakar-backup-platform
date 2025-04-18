@@ -75,7 +75,7 @@ func TestLookupSnapshotByPrefix(t *testing.T) {
 	require.Equal(t, results[0], snap.Header.Identifier)
 
 	// Test case: Prefix that matches no snapshots
-	results = LookupSnapshotByPrefix(repo, hex.EncodeToString([]byte{0x00}))
+	results = LookupSnapshotByPrefix(repo, hex.EncodeToString([]byte{snap.Header.Identifier[0] + 1}))
 	require.Len(t, results, 0)
 }
 
@@ -90,8 +90,8 @@ func TestLocateSnapshotByPrefix(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, found, snap.Header.Identifier)
 
-	_, err = LocateSnapshotByPrefix(repo, hex.EncodeToString([]byte{0x00}))
-	require.EqualError(t, err, "no snapshot has prefix: 00")
+	_, err = LocateSnapshotByPrefix(repo, hex.EncodeToString([]byte{snap.Header.Identifier[0] + 1}))
+	require.ErrorContains(t, err, "no snapshot has prefix")
 }
 
 func TestOpenSnapshotByPath(t *testing.T) {
