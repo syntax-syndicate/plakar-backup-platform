@@ -16,14 +16,21 @@ import (
 )
 
 var handleProviders = map[string]string{
-	"google photos": "rclone",
-	"drive":         "rclone",
-	"onedrive":      "rclone",
-	"opendrive":     "rclone",
-	"s3":            "plakar",
-	"ftp":           "plakar",
-	"sftp":          "plakar",
-	"fs":            "plakar",
+	"googlephotos": "rclone",
+	"googledrive":  "rclone",
+	"onedrive":     "rclone",
+	"opendrive":    "rclone",
+	"s3":           "plakar",
+	"ftp":          "plakar",
+	"sftp":         "plakar",
+	"fs":           "plakar",
+}
+
+var rcloneProviderName = map[string]string{
+	"googlephotos": "google photos",
+	"googledrive":  "drive",
+	"onedrive":     "onedrive",
+	"opendrive":    "opendrive",
 }
 
 var providerConf = map[string][]string{
@@ -105,7 +112,7 @@ func newRcloneProvider(ctx *appcontext.AppContext, provider string) error {
 	opts := config.UpdateRemoteOpt{All: true}
 	generateName := generateConfigName(provider)
 
-	if _, err := config.CreateRemote(context.Background(), generateName, provider, nil, opts); err != nil {
+	if _, err := config.CreateRemote(context.Background(), generateName, rcloneProviderName[provider], nil, opts); err != nil {
 		return fmt.Errorf("failed to create remote: %w", err)
 	}
 
@@ -151,7 +158,8 @@ func EditRemoteProvider(ctx *appcontext.AppContext) error {
 	if err != nil {
 		return fmt.Errorf("failed to select profile: %w", err)
 	}
-	if ctx.Config.Remotes[configName]["service"] == "rclone" {
+	provider, _, _ := strings.Cut(ctx.Config.Remotes[configName]["location"], "://")
+	if contains(getMapKeys(rcloneProviderName), provider) {
 		rcloneProfile, err := getRcloneProfileByPlakarName(ctx, configName)
 		if err != nil {
 			return fmt.Errorf("failed to get rclone profile: %w", err)
