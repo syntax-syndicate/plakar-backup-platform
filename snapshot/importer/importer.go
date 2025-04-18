@@ -111,7 +111,7 @@ func NewImporter(config map[string]string) (Importer, error) {
 	muBackends.Lock()
 	defer muBackends.Unlock()
 
-	var backendName = "fs"
+	var backendName = "_"
 	if !strings.HasPrefix(location, "/") {
 		for _, link := range protocols {
 			if strings.HasPrefix(location, link+"://") {
@@ -120,7 +120,7 @@ func NewImporter(config map[string]string) (Importer, error) {
 			}
 		}
 
-		if backendName == "fs" && strings.Contains(location, "://") {
+		if backendName == "_" && strings.Contains(location, "://") {
 			return nil, fmt.Errorf("unsupported importer protocol")
 		}
 	}
