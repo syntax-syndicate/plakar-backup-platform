@@ -51,7 +51,7 @@ type Node[K any, P comparable, V any] struct {
 
 // BTree implements a B+tree.  K is the type for the key, V for the
 // value stored, and P is a pointer type: it could be a disk sector,
-// a MAC in a packfile, or a key in a leveldb cache.  or more.
+// a MAC in a packfile, or a key in a db.  or more.
 type BTree[K any, P comparable, V any] struct {
 	Version versioning.Version
 	Order   int

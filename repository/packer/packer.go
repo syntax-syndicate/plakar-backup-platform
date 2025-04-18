@@ -1,10 +1,12 @@
 package packer
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"fmt"
 	"hash"
+	"io"
 	"math/big"
 	"runtime"
 	"sync"
@@ -21,41 +23,51 @@ import (
 )
 
 func init() {
-	// used for paddinng random bytes
+	// used for padding random bytes
 	versioning.Register(resources.RT_RANDOM, versioning.FromString("1.0.0"))
 }
 
-type PackerManager struct {
-	InflightMACs   map[resources.Type]*sync.Map
+type PackerManagerInt interface {
+	Run() error
+	Wait()
+	InsertIfNotPresent(Type resources.Type, mac objects.MAC) (bool, error)
+	Put(Type resources.Type, mac objects.MAC, data []byte) error
+	Exists(Type resources.Type, mac objects.MAC) (bool, error)
+}
+
+type packerManager struct {
+	inflightMACs   map[resources.Type]*sync.Map
 	packerChan     chan interface{}
 	packerChanDone chan struct{}
 
-	storageConf *storage.Configuration
-	hashFactory func() hash.Hash
-	appCtx      *appcontext.AppContext
+	storageConf  *storage.Configuration
+	encodingFunc func(io.Reader) (io.Reader, error)
+	hashFactory  func() hash.Hash
+	appCtx       *appcontext.AppContext
 
 	// XXX: Temporary hack callback-based to ease the transition diff.
 	// To be revisited with either an interface or moving this file inside repository/
 	flush func(*packfile.PackFile) error
 }
 
-func NewPackerManager(ctx *appcontext.AppContext, storageConfiguration *storage.Configuration, hashFactory func() hash.Hash, flusher func(*packfile.PackFile) error) *PackerManager {
+func NewPackerManager(ctx *appcontext.AppContext, storageConfiguration *storage.Configuration, encodingFunc func(io.Reader) (io.Reader, error), hashFactory func() hash.Hash, flusher func(*packfile.PackFile) error) PackerManagerInt {
 	inflightsMACs := make(map[resources.Type]*sync.Map)
 	for _, Type := range resources.Types() {
 		inflightsMACs[Type] = &sync.Map{}
 	}
-	return &PackerManager{
-		InflightMACs:   inflightsMACs,
+	return &packerManager{
+		inflightMACs:   inflightsMACs,
 		packerChan:     make(chan interface{}, runtime.NumCPU()*2+1),
 		packerChanDone: make(chan struct{}),
 		storageConf:    storageConfiguration,
+		encodingFunc:   encodingFunc,
 		hashFactory:    hashFactory,
 		appCtx:         ctx,
 		flush:          flusher,
 	}
 }
 
-func (mgr *PackerManager) Run() {
+func (mgr *packerManager) Run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -75,7 +87,7 @@ func (mgr *PackerManager) Run() {
 			}
 
 			for _, record := range pfile.Index {
-				mgr.InflightMACs[record.Type].Delete(record.MAC)
+				mgr.inflightMACs[record.Type].Delete(record.MAC)
 			}
 		}
 		return nil
@@ -134,16 +146,43 @@ func (mgr *PackerManager) Run() {
 	// Signal completion.
 	mgr.packerChanDone <- struct{}{}
 	close(mgr.packerChanDone)
+	return nil
 }
 
-func (mgr *PackerManager) Wait() {
+func (mgr *packerManager) Wait() {
 	close(mgr.packerChan)
 	<-mgr.packerChanDone
 }
 
-func (mgr *PackerManager) PutBlob(Type resources.Type, mac objects.MAC, data []byte) error {
-	mgr.packerChan <- &PackerMsg{Type: Type, Version: versioning.GetCurrentVersion(Type), Timestamp: time.Now(), MAC: mac, Data: data}
-	return nil
+func (mgr *packerManager) InsertIfNotPresent(Type resources.Type, mac objects.MAC) (bool, error) {
+	if _, exists := mgr.inflightMACs[Type].LoadOrStore(mac, struct{}{}); exists {
+		// tell prom exporter that we collided a blob
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (mgr *packerManager) Put(Type resources.Type, mac objects.MAC, data []byte) error {
+	if encodedReader, err := mgr.encodingFunc(bytes.NewReader(data)); err != nil {
+		return err
+	} else {
+		encoded, err := io.ReadAll(encodedReader)
+		if err != nil {
+			return err
+		}
+
+		mgr.packerChan <- &PackerMsg{Type: Type, Version: versioning.GetCurrentVersion(Type), Timestamp: time.Now(), MAC: mac, Data: encoded}
+		return nil
+	}
+}
+
+func (mgr *packerManager) Exists(Type resources.Type, mac objects.MAC) (bool, error) {
+	if _, exists := mgr.inflightMACs[Type].Load(mac); exists {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 type PackerMsg struct {
@@ -171,7 +210,7 @@ func NewPacker(hasher hash.Hash) *Packer {
 	}
 }
 
-func (mgr *PackerManager) AddPadding(packfile *packfile.PackFile, maxSize int) error {
+func (mgr *packerManager) AddPadding(packfile *packfile.PackFile, maxSize int) error {
 	if maxSize < 0 {
 		return fmt.Errorf("invalid padding size")
 	}
@@ -201,7 +240,7 @@ func (mgr *PackerManager) AddPadding(packfile *packfile.PackFile, maxSize int) e
 	return nil
 }
 
-func (packer *Packer) AddBlobIfNotExists(Type resources.Type, version versioning.Version, mac [32]byte, data []byte, flags uint32) bool {
+func (packer *Packer) addBlobIfNotExists(Type resources.Type, version versioning.Version, mac [32]byte, data []byte, flags uint32) bool {
 	if _, ok := packer.Blobs[Type]; !ok {
 		packer.Blobs[Type] = make(map[[32]byte][]byte)
 	}
@@ -213,7 +252,7 @@ func (packer *Packer) AddBlobIfNotExists(Type resources.Type, version versioning
 	return true
 }
 
-func (packer *Packer) Size() uint32 {
+func (packer *Packer) size() uint32 {
 	return packer.Packfile.Size()
 }
 
