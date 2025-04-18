@@ -263,12 +263,12 @@ func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 
-		if importerType != "" && strings.EqualFold(snap.Header.GetSource(0).Importer.Type, importerType) {
+		if importerType != "" && !strings.EqualFold(snap.Header.GetSource(0).Importer.Type, importerType) {
 			snap.Close()
 			continue
 		}
 
-		if importerOrigin != "" && strings.EqualFold(snap.Header.GetSource(0).Importer.Origin, importerOrigin) {
+		if importerOrigin != "" && !strings.EqualFold(snap.Header.GetSource(0).Importer.Origin, importerOrigin) {
 			snap.Close()
 			continue
 		}
