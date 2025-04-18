@@ -700,6 +700,12 @@ func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importe
 			if err := snap.repository.PutBlob(resources.RT_OBJECT, objectMAC, objectSerialized); err != nil {
 				return err
 			}
+
+			for _, chunk := range object.Chunks {
+				if err := snap.repository.Tracker(resources.RT_OBJECT, chunk.ContentMAC); err != nil {
+					return err
+				}
+			}
 		}
 	}
 
