@@ -15,29 +15,85 @@ import (
 	"strings"
 )
 
-var handleProviders = map[string]string{
-	"googlephotos": "rclone",
-	"googledrive":  "rclone",
-	"onedrive":     "rclone",
-	"opendrive":    "rclone",
-	"s3":           "plakar",
-	"ftp":          "plakar",
-	"sftp":         "plakar",
-	"fs":           "plakar",
+type providerData interface{}
+
+type plakarData struct {
+	fields []string
 }
 
-var rcloneProviderName = map[string]string{
-	"googlephotos": "google photos",
-	"googledrive":  "drive",
-	"onedrive":     "onedrive",
-	"opendrive":    "opendrive",
+type rcloneData struct {
+	rcloneName string
 }
 
-var providerConf = map[string][]string{
-	"s3":   {"location", "access_key", "secret_access_key", "use_tls"},
-	"ftp":  {"location", "username", "password"},
-	"sftp": {"location"},
-	"fs":   {"location"},
+type providerInfo struct {
+	initFunc func(*appcontext.AppContext, string) error
+	data     providerData
+}
+
+var providerList = map[string]providerInfo{}
+
+func init() {
+	providerList["googlephotos"] = providerInfo{
+		initFunc: newRcloneProvider,
+		data: rcloneData{
+			rcloneName: "google photos",
+		},
+	}
+	providerList["googledrive"] = providerInfo{
+		initFunc: newRcloneProvider,
+		data: rcloneData{
+			rcloneName: "drive",
+		},
+	}
+	providerList["onedrive"] = providerInfo{
+		initFunc: newRcloneProvider,
+		data: rcloneData{
+			rcloneName: "onedrive",
+		},
+	}
+	providerList["opendrive"] = providerInfo{
+		initFunc: newRcloneProvider,
+		data: rcloneData{
+			rcloneName: "opendrive",
+		},
+	}
+	providerList["s3"] = providerInfo{
+		initFunc: newPlakarProvider,
+		data: plakarData{
+			fields: []string{
+				"location",
+				"access_key",
+				"secret_access_key",
+				"use_tls",
+			},
+		},
+	}
+	providerList["ftp"] = providerInfo{
+		initFunc: newPlakarProvider,
+		data: plakarData{
+			fields: []string{
+				"location",
+				"username",
+				"password",
+			},
+		},
+	}
+	providerList["sftp"] = providerInfo{
+		initFunc: newPlakarProvider,
+		data: plakarData{
+			fields: []string{
+				"location",
+			},
+		},
+	}
+	providerList["fs"] = providerInfo{
+		initFunc: newPlakarProvider,
+		data: plakarData{
+			fields: []string{
+				"location",
+			},
+		},
+	}
 }
 
 var hubResponse = map[string]func(*appcontext.AppContext) error{
@@ -46,11 +102,6 @@ var hubResponse = map[string]func(*appcontext.AppContext) error{
 	"d": DeleteRemoteProvider,
 	"q": func(_ *appcontext.AppContext) error { os.Exit(0); return nil },
 	"s": ShowOneConfig,
-}
-
-var providerCreate = map[string]func(*appcontext.AppContext, string) error{
-	"rclone": newRcloneProvider,
-	"plakar": newPlakarProvider,
 }
 
 var hubMessage = map[int]string{
@@ -92,13 +143,13 @@ func RemoteHub(ctx *appcontext.AppContext) error {
 }
 
 func NewRemoteProvider(ctx *appcontext.AppContext) error {
-	providerMap := getMapKeys(handleProviders)
+	providerMap := getMapKeys(providerList)
 	provider, err := listSelection(providerMap)
 
 	if err != nil {
 		return fmt.Errorf("failed to select provider: %w", err)
 	}
-	return providerCreate[handleProviders[provider]](ctx, provider)
+	return providerList[provider].initFunc(ctx, provider)
 }
 
 func newRcloneProvider(ctx *appcontext.AppContext, provider string) error {
@@ -112,7 +163,7 @@ func newRcloneProvider(ctx *appcontext.AppContext, provider string) error {
 	opts := config.UpdateRemoteOpt{All: true}
 	generateName := generateConfigName(provider)
 
-	if _, err := config.CreateRemote(context.Background(), generateName, rcloneProviderName[provider], nil, opts); err != nil {
+	if _, err := config.CreateRemote(context.Background(), generateName, providerList[provider].data.(rcloneData).rcloneName, nil, opts); err != nil {
 		return fmt.Errorf("failed to create remote: %w", err)
 	}
 
@@ -135,15 +186,16 @@ func newPlakarProvider(ctx *appcontext.AppContext, provider string) error {
 		return fmt.Errorf("failed to save configuration: %w", err)
 	}
 
-	for i := 0; i < len(providerConf[provider]); i++ {
-		fmt.Printf("Enter value for %s: ", providerConf[provider][i])
+	for i := 0; i < len(providerList[provider].data.(plakarData).fields); i++ {
+		var key = providerList[provider].data.(plakarData).fields[i]
+		fmt.Printf("Enter value for %s: ", key)
 		value := strings.TrimSpace(readInput())
 		if value == "" {
 			fmt.Println("Value cannot be empty. Please try again.")
 			i--
 			continue
 		}
-		ctx.Config.Remotes[name][providerConf[provider][i]] = value
+		ctx.Config.Remotes[name][key] = value
 	}
 	if err := ctx.Config.Save(); err != nil {
 		return fmt.Errorf("failed to save configuration: %w", err)
@@ -158,7 +210,7 @@ func EditRemoteProvider(ctx *appcontext.AppContext) error {
 		return fmt.Errorf("failed to select profile: %w", err)
 	}
 	provider, _, _ := strings.Cut(ctx.Config.Remotes[configName]["location"], "://")
-	if contains(getMapKeys(rcloneProviderName), provider) {
+	if _, ok := providerList[provider].data.(rcloneData); ok {
 		rcloneProfile, err := getRcloneProfileByPlakarName(ctx, configName)
 		if err != nil {
 			return fmt.Errorf("failed to get rclone profile: %w", err)
@@ -195,7 +247,7 @@ func DeleteRemoteProvider(ctx *appcontext.AppContext) error {
 		return fmt.Errorf("failed to select profile: %w", err)
 	}
 	provider, _, _ := strings.Cut(ctx.Config.Remotes[configName]["location"], "://")
-	if contains(getMapKeys(rcloneProviderName), provider) {
+	if _, ok := providerList[provider].data.(rcloneData); ok {
 		rcloneProfile, err := getRcloneProfileByPlakarName(ctx, configName)
 		if err != nil {
 			return fmt.Errorf("failed to get rclone profile: %w", err)
