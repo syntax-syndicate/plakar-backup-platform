@@ -20,7 +20,7 @@ var protocols = []string{
 	"opendrive",
 	"googledrive",
 	"googlephotos",
-	"icloud",
+	"iclouddrive",
 }
 
 type Exporter interface {

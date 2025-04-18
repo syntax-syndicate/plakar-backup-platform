@@ -27,7 +27,7 @@ func init() {
 	exporter.Register("opendrive", NewRcloneExporter)
 	exporter.Register("googledrive", NewRcloneExporter)
 	exporter.Register("googlephotos", NewGooglePhotoExporter)
-	exporter.Register("icloud", NewRcloneExporter)
+	exporter.Register("iclouddrive", NewRcloneExporter)
 }
 
 func NewRcloneExporter(config map[string]string) (exporter.Exporter, error) {
