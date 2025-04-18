@@ -84,12 +84,7 @@ func (cmd *Maintenance) updateCache(ctx *appcontext.AppContext, cache *caching.M
 				return nil
 			}
 
-			iter, err := snapshot.ListPackfiles()
-			if err != nil {
-				return err
-			}
-
-			for packfile, err := range iter {
+			for packfile, err := range snapshot.ListPackfiles() {
 				if err != nil {
 					return err
 				}
