@@ -36,6 +36,7 @@ var protocols = []string{
 	"opendrive",
 	"googledrive",
 	"googlephotos",
+	"icloud",
 }
 
 type ScanResult struct {

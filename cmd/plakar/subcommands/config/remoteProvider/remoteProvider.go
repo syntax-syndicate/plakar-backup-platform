@@ -57,6 +57,12 @@ func init() {
 			rcloneName: "opendrive",
 		},
 	}
+	providerList["icloud"] = providerInfo{
+		initFunc: newRcloneProvider,
+		data: rcloneData{
+			rcloneName: "iclouddrive",
+		},
+	}
 	providerList["s3"] = providerInfo{
 		initFunc: newPlakarProvider,
 		data: plakarData{
