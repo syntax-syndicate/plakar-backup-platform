@@ -323,6 +323,6 @@ func promptForRemoteName(ctx *appcontext.AppContext) (string, error) {
 func readInput() string {
 	reader := bufio.NewReader(os.Stdin)
 	input, _ := reader.ReadString('\n')
-	print("\n") // print a new line to more visibility
+	print("\n") // print a new line to gain more visibility
 	return strings.TrimSpace(input)
 }
