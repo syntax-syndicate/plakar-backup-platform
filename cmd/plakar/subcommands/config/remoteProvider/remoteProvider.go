@@ -26,11 +26,19 @@ var handleProviders = map[string]string{
 	"fs":            "plakar",
 }
 
+var providerConf = map[string][]string{
+	"s3":   {"location", "access_key", "secret_access_key", "use_tls"},
+	"ftp":  {"location", "username", "password"},
+	"sftp": {"location"},
+	"fs":   {"location"},
+}
+
 var hubResponse = map[string]func(*appcontext.AppContext) error{
 	"n": NewRemoteProvider,
 	"e": EditRemoteProvider,
 	"d": DeleteRemoteProvider,
 	"q": func(_ *appcontext.AppContext) error { os.Exit(0); return nil },
+	"s": ShowOneConfig,
 }
 
 var providerCreate = map[string]func(*appcontext.AppContext, string) error{
@@ -58,7 +66,7 @@ func RemoteHub(ctx *appcontext.AppContext) error {
 		fmt.Printf("%s\n", remote)
 	}
 	for {
-		print("\n\ne) Edit existing remote\nn) New remote\nd) Delete remote\nq) Quit config\n" + possibleInputCursor)
+		print("\n\ne) Edit existing remote\nn) New remote\nd) Delete remote\ns) Show one\nq) Quit config\n" + possibleInputCursor)
 		input := strings.TrimSpace(readInput())
 		if input == "" {
 			fmt.Println("Remote name cannot be empty. Please try again.")
@@ -112,6 +120,28 @@ func newRcloneProvider(ctx *appcontext.AppContext, provider string) error {
 }
 
 func newPlakarProvider(ctx *appcontext.AppContext, provider string) error {
+	name, err := promptForRemoteName(ctx)
+	if err != nil {
+		return err
+	}
+	ctx.Config.Remotes[name] = map[string]string{}
+	if err := ctx.Config.Save(); err != nil {
+		return fmt.Errorf("failed to save configuration: %w", err)
+	}
+
+	for i := 0; i < len(providerConf[provider]); i++ {
+		fmt.Printf("Enter value for %s: ", providerConf[provider][i])
+		value := strings.TrimSpace(readInput())
+		if value == "" {
+			fmt.Println("Value cannot be empty. Please try again.")
+			i--
+			continue
+		}
+		ctx.Config.Remotes[name][providerConf[provider][i]] = value
+	}
+	if err := ctx.Config.Save(); err != nil {
+		return fmt.Errorf("failed to save configuration: %w", err)
+	}
 	return nil
 }
 
@@ -151,14 +181,6 @@ func EditRemoteProvider(ctx *appcontext.AppContext) error {
 	return nil
 }
 
-func printRemoteConf(configName string, ctx *appcontext.AppContext) {
-	print("\n" + configName + " data in (Key: Value)\n")
-	for key, value := range ctx.Config.Remotes[configName] {
-		fmt.Printf("    %s:\t%s\n", key, value)
-	}
-	print("\n")
-}
-
 func DeleteRemoteProvider(ctx *appcontext.AppContext) error {
 	configName, err := listSelection(getMapKeys(ctx.Config.Remotes))
 
@@ -178,6 +200,23 @@ func DeleteRemoteProvider(ctx *appcontext.AppContext) error {
 		return fmt.Errorf("failed to save configuration: %w", err)
 	}
 
+	return nil
+}
+
+func printRemoteConf(configName string, ctx *appcontext.AppContext) {
+	print("\n" + configName + " data in (Key: Value)\n")
+	for key, value := range ctx.Config.Remotes[configName] {
+		fmt.Printf("    %s:\t%s\n", key, value)
+	}
+	print("\n")
+}
+
+func ShowOneConfig(ctx *appcontext.AppContext) error {
+	configName, err := listSelection(getMapKeys(ctx.Config.Remotes))
+	if err != nil {
+		return fmt.Errorf("failed to select profile: %w", err)
+	}
+	printRemoteConf(configName, ctx)
 	return nil
 }
 
@@ -204,13 +243,14 @@ func getMapKeys[T any](remotes map[string]T) []string {
 
 func listSelection(list []string) (string, error) {
 	if len(list) == 0 {
-		return "", fmt.Errorf("No profiles found")
+		return "", fmt.Errorf("no profiles found")
 	}
+	fmt.Println("Enter the number that corresponds to your choice.")
 	for i := 0; i < len(list); i++ {
 		fmt.Printf("%d: %s\n", i+1, list[i])
 	}
 	for {
-		fmt.Print("Enter the number of the profile you want to select: ")
+		fmt.Print("\n> ")
 		choice, err := strconv.Atoi(strings.TrimSpace(readInput()))
 		if err == nil && choice > 0 && choice <= len(list) {
 			return list[choice-1], nil
