@@ -24,11 +24,18 @@ type RepositoryWriter struct {
 	transactionMtx sync.RWMutex
 	deltaState     *state.LocalState
 
-	PackerManager  *packer.PackerManager
+	PackerManager  packer.PackerManagerInt
 	currentStateID objects.MAC
 }
 
-func (r *Repository) newRepositoryWriter(cache *caching.ScanCache, id objects.MAC) *RepositoryWriter {
+type RepositoryType int
+
+const (
+	DefaultType RepositoryType = iota
+	PtarType                   = iota
+)
+
+func (r *Repository) newRepositoryWriter(cache *caching.ScanCache, id objects.MAC, typ RepositoryType) *RepositoryWriter {
 	t0 := time.Now()
 	defer func() {
 		r.Logger().Trace("repository", "NewRepositoryWriter(): %s", time.Since(t0))
@@ -40,7 +47,12 @@ func (r *Repository) newRepositoryWriter(cache *caching.ScanCache, id objects.MA
 		currentStateID: id,
 	}
 
-	rw.PackerManager = packer.NewPackerManager(rw.AppContext(), &rw.configuration, rw.GetMACHasher, rw.PutPackfile)
+	switch typ {
+	case PtarType:
+		rw.PackerManager, _ = packer.NewPlatarPackerManager(rw.AppContext(), &rw.configuration, rw.Encode, rw.GetMACHasher, rw.PutPtarPackfile)
+	default:
+		rw.PackerManager = packer.NewPackerManager(rw.AppContext(), &rw.configuration, rw.Encode, rw.GetMACHasher, rw.PutPackfile)
+	}
 
 	// XXX: Better placement for this
 	go rw.PackerManager.Run()
@@ -103,7 +115,8 @@ func (r *RepositoryWriter) BlobExists(Type resources.Type, mac objects.MAC) bool
 		r.Logger().Trace("repositorywriter", "BlobExists(%s, %x): %s", Type, mac, time.Since(t0))
 	}()
 
-	if _, exists := r.PackerManager.InflightMACs[Type].Load(mac); exists {
+	ok, _ := r.PackerManager.Exists(Type, mac)
+	if ok {
 		return true
 	}
 
@@ -123,24 +136,13 @@ func (r *RepositoryWriter) PutBlob(Type resources.Type, mac objects.MAC, data []
 		r.Logger().Trace("repositorywriter", "PutBlob(%s, %x): %s", Type, mac, time.Since(t0))
 	}()
 
-	if _, exists := r.PackerManager.InflightMACs[Type].LoadOrStore(mac, struct{}{}); exists {
-		// tell prom exporter that we collided a blob
+	if ok, err := r.PackerManager.InsertIfNotPresent(Type, mac); err != nil {
+		return err
+	} else if ok {
 		return nil
 	}
 
-	encodedReader, err := r.Encode(bytes.NewReader(data))
-	if err != nil {
-		return err
-	}
-
-	encoded, err := io.ReadAll(encodedReader)
-	if err != nil {
-		return err
-	}
-
-	r.PackerManager.PutBlob(Type, mac, encoded)
-
-	return nil
+	return r.PackerManager.Put(Type, mac, data)
 }
 
 func (r *RepositoryWriter) DeleteStateResource(Type resources.Type, mac objects.MAC) error {
@@ -208,10 +210,6 @@ func (r *RepositoryWriter) PutPackfile(pfile *packfile.PackFile) error {
 		return err
 	}
 
-	if r.deltaState == nil {
-		panic("Put outside of transaction")
-	}
-
 	r.transactionMtx.RLock()
 	defer r.transactionMtx.RUnlock()
 	for idx, blob := range pfile.Index {
@@ -223,6 +221,63 @@ func (r *RepositoryWriter) PutPackfile(pfile *packfile.PackFile) error {
 				Packfile: mac,
 				Offset:   pfile.Index[idx].Offset,
 				Length:   pfile.Index[idx].Length,
+			},
+		}
+
+		if err := r.deltaState.PutDelta(delta); err != nil {
+			return err
+		}
+
+		if err := r.state.PutDelta(delta); err != nil {
+			return err
+		}
+	}
+
+	if err := r.deltaState.PutPackfile(r.currentStateID, mac); err != nil {
+		return err
+	}
+
+	return r.state.PutPackfile(r.currentStateID, mac)
+}
+
+func (r *RepositoryWriter) PutPtarPackfile(packfile *packer.PackWriter) error {
+	t0 := time.Now()
+	defer func() {
+		r.Logger().Trace("repository", "PutPtarPackfile(%x): %s", r.currentStateID, time.Since(t0))
+	}()
+
+	mac := objects.RandomMAC()
+
+	// This is impossible with this format, the mac of the packfile has to be random. Shouldn't be a problem.
+	//	mac := r.ComputeMAC(serializedPackfile)
+
+	rd, err := storage.Serialize(r.GetMACHasher(), resources.RT_PACKFILE, versioning.GetCurrentVersion(resources.RT_PACKFILE), packfile.Reader)
+	if err != nil {
+		return err
+	}
+
+	nbytes, err := r.store.PutPackfile(mac, rd)
+	r.wBytes.Add(nbytes)
+	if err != nil {
+		return err
+	}
+
+	r.transactionMtx.RLock()
+	defer r.transactionMtx.RUnlock()
+	for blobData := range packfile.Index.GetIndexesBlob() {
+		blob, err := packer.NewBlobFromBytes(blobData)
+		if err != nil {
+			return err
+		}
+
+		delta := &state.DeltaEntry{
+			Type:    blob.Type,
+			Version: blob.Version,
+			Blob:    blob.MAC,
+			Location: state.Location{
+				Packfile: mac,
+				Offset:   blob.Offset,
+				Length:   blob.Length,
 			},
 		}
 

@@ -49,6 +49,8 @@ type BackupOptions struct {
 	Name           string
 	Tags           []string
 	Excludes       []glob.Glob
+	NoCheckpoint   bool
+	NoCommit       bool
 }
 
 func (bc *BackupContext) recordEntry(entry *vfs.Entry) error {
@@ -286,7 +288,12 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	if err != nil {
 		return err
 	}
-	go snap.flushDeltaState(backupCtx)
+
+	/* checkpoint handling */
+	if !options.NoCheckpoint {
+		backupCtx.flushTick = time.NewTicker(1 * time.Hour)
+		go snap.flushDeltaState(backupCtx)
+	}
 
 	/* importer */
 	filesChannel, err := snap.importerJob(backupCtx, options)
@@ -312,7 +319,7 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	snap.Header.GetSource(0).Summary = *rootSummary
 	snap.Header.GetSource(0).Indexes = indexes
 
-	return snap.Commit(backupCtx)
+	return snap.Commit(backupCtx, !options.NoCommit)
 }
 
 func entropy(data []byte) (float64, [256]float64) {
@@ -463,13 +470,13 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 	return object, nil
 }
 
-func (snap *Builder) Commit(bc *BackupContext) error {
+func (snap *Builder) Commit(bc *BackupContext, commit bool) error {
 	// First thing is to stop the ticker, as we don't want any concurrent flushes to run.
 	// Maybe this could be stopped earlier.
 
 	// If we end up in here without a BackupContext we come from Sync and we
 	// can't rely on the flusher
-	if bc != nil {
+	if bc != nil && bc.flushTick != nil {
 		bc.flushTick.Stop()
 	}
 
@@ -489,11 +496,16 @@ func (snap *Builder) Commit(bc *BackupContext) error {
 	if err := snap.repository.PutBlob(resources.RT_SNAPSHOT, snap.Header.Identifier, serializedHdr); err != nil {
 		return err
 	}
+
+	if !commit {
+		return nil
+	}
+
 	snap.repository.PackerManager.Wait()
 
 	// We are done with packfiles we can flush the last state, either through
 	// the flusher, or manually here.
-	if bc != nil {
+	if bc != nil && bc.flushTick != nil {
 		bc.flushEnd <- true
 		close(bc.flushEnd)
 		<-bc.flushEnded
@@ -531,7 +543,6 @@ func (snap *Builder) prepareBackup(imp importer.Importer, backupOpts *BackupOpti
 		maxConcurrency: maxConcurrency,
 		scanCache:      snap.scanCache,
 		vfsCache:       vfsCache,
-		flushTick:      time.NewTicker(1 * time.Hour),
 		flushEnd:       make(chan bool),
 		flushEnded:     make(chan bool),
 		stateId:        snap.Header.Identifier,
