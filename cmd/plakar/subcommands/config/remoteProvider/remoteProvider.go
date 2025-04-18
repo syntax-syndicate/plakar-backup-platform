@@ -118,7 +118,6 @@ func newRcloneProvider(ctx *appcontext.AppContext, provider string) error {
 
 	ctx.Config.Remotes[name] = map[string]string{
 		"location": provider + "://" + generateName + ":",
-		"service":  "rclone",
 	}
 	if err := ctx.Config.Save(); err != nil {
 		return fmt.Errorf("failed to save configuration: %w", err)
@@ -195,7 +194,8 @@ func DeleteRemoteProvider(ctx *appcontext.AppContext) error {
 	if err != nil {
 		return fmt.Errorf("failed to select profile: %w", err)
 	}
-	if ctx.Config.Remotes[configName]["service"] == "rclone" {
+	provider, _, _ := strings.Cut(ctx.Config.Remotes[configName]["location"], "://")
+	if contains(getMapKeys(rcloneProviderName), provider) {
 		rcloneProfile, err := getRcloneProfileByPlakarName(ctx, configName)
 		if err != nil {
 			return fmt.Errorf("failed to get rclone profile: %w", err)

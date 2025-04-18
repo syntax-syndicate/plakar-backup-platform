@@ -45,7 +45,7 @@ func init() {
 	importer.Register("onedrive", NewRcloneImporter)
 	importer.Register("opendrive", NewRcloneImporter)
 	importer.Register("googledrive", NewRcloneImporter)
-	importer.Register("googlephoto", NewGooglePhotoImporter)
+	importer.Register("googlephotos", NewGooglePhotoImporter)
 }
 
 // NewRcloneImporter creates a new RcloneImporter instance. It expects the location
