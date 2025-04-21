@@ -76,22 +76,20 @@ func snapshotReader(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	do_highlight := false
 	do_download := false
-	do_raw := false
-
 	download := r.URL.Query().Get("download")
 	if download == "true" {
 		do_download = true
 	}
 
 	render := r.URL.Query().Get("render")
-	if render == "highlight" {
-		do_highlight = true
-	}
-
-	if r.URL.Query().Get("raw") == "true" {
-		do_raw = true
+	switch render {
+	case "code", "text", "auto":
+		// valid values
+	case "":
+		render = "auto"
+	default:
+		return parameterError("render", InvalidArgument, errors.New("valid values are code, text, auto"))
 	}
 
 	snap, err := loadsnap(lrepository, snapshotID32)
@@ -120,11 +118,10 @@ func snapshotReader(w http.ResponseWriter, r *http.Request) error {
 		w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(filepath.Base(path)))
 	}
 
-	if !do_highlight {
-
-		if do_raw {
+	if render != "code" {
+		if render == "text" {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		} else {
+		} else if render == "auto" {
 			ctype := mime.TypeByExtension(filepath.Ext(path))
 			if ctype == "" {
 				content := file.(io.ReadSeeker)
@@ -140,7 +137,6 @@ func snapshotReader(w http.ResponseWriter, r *http.Request) error {
 			}
 			w.Header().Set("Content-Type", ctype)
 		}
-
 		http.ServeContent(w, r, filepath.Base(path), entry.Stat().ModTime(), file.(io.ReadSeeker))
 		return nil
 	}
