@@ -135,7 +135,7 @@ func (cmd *Backup) Name() string {
 }
 
 func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	snap, err := snapshot.New(repo)
+	snap, err := snapshot.Create(repo, repository.DefaultType)
 	if err != nil {
 		ctx.GetLogger().Error("%s", err)
 		return 1, err
@@ -227,6 +227,14 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 			return 1, fmt.Errorf("failed to load snapshot: %w", err)
 		}
 		defer checkSnap.Close()
+
+		checkCache, err := ctx.GetCache().Check()
+		if err != nil {
+			return 1, err
+		}
+		defer checkCache.Close()
+
+		checkSnap.SetCheckCache(checkCache)
 
 		ok, err := checkSnap.Check("/", checkOptions)
 		if err != nil {

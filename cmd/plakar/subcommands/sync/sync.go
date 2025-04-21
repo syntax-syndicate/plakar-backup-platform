@@ -271,7 +271,7 @@ func synchronize(srcRepository, dstRepository *repository.Repository, snapshotID
 	}
 	defer srcSnapshot.Close()
 
-	dstSnapshot, err := snapshot.New(dstRepository)
+	dstSnapshot, err := snapshot.Create(dstRepository, repository.DefaultType)
 	if err != nil {
 		return err
 	}
@@ -284,5 +284,5 @@ func synchronize(srcRepository, dstRepository *repository.Repository, snapshotID
 		return err
 	}
 
-	return dstSnapshot.Commit(nil)
+	return dstSnapshot.Commit(nil, true)
 }

@@ -21,7 +21,7 @@ jobs:
     steps:
       # Step 1: Checkout the repository
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # Step 2: Build binaries using Docker with dependency installation
       - name: Build binary in Docker for ${{ matrix.arch }}
