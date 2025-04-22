@@ -791,6 +791,18 @@ func entropy(data []byte) (float64, [256]float64) {
 	return entropy, freq
 }
 
+func getReaderLength(r io.ReadCloser) (int64, error) {
+	var buf bytes.Buffer
+	tee := io.TeeReader(r, &buf)
+
+	_, err := io.ReadAll(tee)
+	if err != nil {
+		return 0, err
+	}
+
+	return int64(buf.Len()), nil
+}
+
 func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier, record *importer.ScanRecord) (*objects.Object, error) {
 	var rd io.ReadCloser
 	var err error
@@ -856,6 +868,14 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 		return snap.PutBlobIfNotExists(resources.RT_CHUNK, chunk.ContentMAC, data)
 	}
 
+	var le int64
+	if record.FileInfo.Size() < 0 {
+		le, err = getReaderLength(rd)
+		if err != nil {
+			return nil, err
+		}
+		record.FileInfo.Lsize = le
+	}
 	if record.FileInfo.Size() == 0 {
 		// Produce an empty chunk for empty file
 		if err := processChunk([]byte{}); err != nil {

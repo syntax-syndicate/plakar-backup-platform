@@ -231,30 +231,6 @@ func (p *RcloneImporter) scanFolder(results chan *importer.ScanResult, path stri
 			} else {
 				filesize := file.Size
 
-				// Hack: the importer is required to provide a size for the file. If
-				// the size is not available when listing the directory, let's
-				// attempt to download the file to retrieve it. This is a hack until
-				// it becomes possible to return -1 as the size in the importer. It
-				// has to be removed eventually, because it requires to download the
-				// file twice when performing the backup.
-				if file.Size < 0 {
-					handle, err := p.NewReader(p.getPathInBackup(file.Path))
-					if err != nil {
-						results <- importer.NewScanError(p.getPathInBackup(path), err)
-						return
-					}
-					name := handle.(*AutoremoveTmpFile).Name()
-					size, err := os.Stat(name)
-					if err != nil {
-						results <- importer.NewScanError(p.getPathInBackup(path), err)
-						return
-					}
-
-					handle.Close()
-
-					filesize = size.Size()
-				}
-
 				fi := objects.NewFileInfo(
 					stdpath.Base(file.Path),
 					filesize,
