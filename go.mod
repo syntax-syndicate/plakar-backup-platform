@@ -5,7 +5,7 @@ go 1.23.3
 require (
 	github.com/PlakarKorp/go-cdc-chunkers v0.0.10
 	github.com/alecthomas/chroma v0.10.0
-	github.com/anacrolix/fuse v0.4.0
+	github.com/anacrolix/fuse v0.3.1
 	github.com/charmbracelet/bubbletea v1.3.4
 	github.com/charmbracelet/glamour v0.9.1
 	github.com/charmbracelet/lipgloss v1.1.0
@@ -33,7 +33,6 @@ require (
 	github.com/secsy/goftp v0.0.0-20200609142545-aa2de14babf4
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
-	github.com/syndtr/goleveldb v1.0.0
 	github.com/tink-crypto/tink-go/v2 v2.3.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	github.com/wagslane/go-password-validator v0.3.0

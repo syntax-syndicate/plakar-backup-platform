@@ -57,7 +57,7 @@ func RandomMAC() (MAC) {
 type Object struct {
 	Version     versioning.Version `msgpack:"version" json:"version"`
 	ContentMAC  MAC                `msgpack:"contentMAC" json:"contentMAC"`
-	Chunks      []Chunk            `msgpack:"chunks" json:"chunks"`
+	Chunks      []Chunk            `msgpack:"chunks" json:"-"`
 	ContentType string             `msgpack:"content_type,omitempty" json:"content_type"`
 	Entropy     float64            `msgpack:"entropy,omitempty" json:"entropy"`
 	Flags       uint32             `msgpack:"flags" json:"flags"`
@@ -69,19 +69,6 @@ func (o *Object) Size() int64 {
 		size += int64(chunk.Length)
 	}
 	return size
-}
-
-// Return empty lists for nil slices.
-func (o *Object) MarshalJSON() ([]byte, error) {
-	// Create an alias to avoid recursive MarshalJSON calls
-	type Alias Object
-
-	ret := (*Alias)(o)
-
-	if ret.Chunks == nil {
-		ret.Chunks = []Chunk{}
-	}
-	return json.Marshal(ret)
 }
 
 func NewObject() *Object {

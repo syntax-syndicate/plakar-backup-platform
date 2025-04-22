@@ -12,7 +12,6 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/PlakarKorp/plakar/caching/lru"
@@ -77,17 +76,20 @@ func snapshotReader(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	do_highlight := false
 	do_download := false
-
 	download := r.URL.Query().Get("download")
 	if download == "true" {
 		do_download = true
 	}
 
 	render := r.URL.Query().Get("render")
-	if render == "highlight" {
-		do_highlight = true
+	switch render {
+	case "code", "text", "auto":
+		// valid values
+	case "":
+		render = "auto"
+	default:
+		return parameterError("render", InvalidArgument, errors.New("valid values are code, text, auto"))
 	}
 
 	snap, err := loadsnap(lrepository, snapshotID32)
@@ -116,30 +118,25 @@ func snapshotReader(w http.ResponseWriter, r *http.Request) error {
 		w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(filepath.Base(path)))
 	}
 
-	if !do_highlight {
-		ctype := mime.TypeByExtension(filepath.Ext(path))
-		if ctype == "" {
-			content := file.(io.ReadSeeker)
-			// read a chunk to decide between utf-8 text and binary
-			var buf [512]byte
-			n, _ := io.ReadFull(content, buf[:])
-			ctype = http.DetectContentType(buf[:n])
-			_, err := content.Seek(0, io.SeekStart) // rewind to output whole file
-			if err != nil {
-				http.Error(w, "seeker can't seek", http.StatusInternalServerError)
-				return nil
+	if render != "code" {
+		if render == "text" {
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		} else if render == "auto" {
+			ctype := mime.TypeByExtension(filepath.Ext(path))
+			if ctype == "" {
+				content := file.(io.ReadSeeker)
+				// read a chunk to decide between utf-8 text and binary
+				var buf [512]byte
+				n, _ := io.ReadFull(content, buf[:])
+				ctype = http.DetectContentType(buf[:n])
+				_, err := content.Seek(0, io.SeekStart) // rewind to output whole file
+				if err != nil {
+					http.Error(w, "seeker can't seek", http.StatusInternalServerError)
+					return nil
+				}
 			}
+			w.Header().Set("Content-Type", ctype)
 		}
-
-		// best-effort to serve HTML as-is.  golang http
-		// sniffer actually alway uses "text/html;
-		// charset=utf-8".
-		if strings.HasPrefix(ctype, "text/html") {
-			ctype = "text/plain; charset=utf-8"
-		}
-
-		w.Header().Set("Content-Type", ctype)
-
 		http.ServeContent(w, r, filepath.Base(path), entry.Stat().ModTime(), file.(io.ReadSeeker))
 		return nil
 	}
@@ -355,6 +352,9 @@ func snapshotVFSChildren(w http.ResponseWriter, r *http.Request) error {
 	if entrypath == "" {
 		entrypath = "/"
 	}
+
+	entrypath = filepath.Clean(entrypath)
+
 	fsinfo, err := fs.GetEntry(entrypath)
 	if err != nil {
 		return err
@@ -382,6 +382,7 @@ func snapshotVFSChildren(w http.ResponseWriter, r *http.Request) error {
 				return err
 			}
 
+			parent.ParentPath = entrypath
 			parent.FileInfo.Lname = ".."
 
 			limit--
@@ -461,7 +462,7 @@ func snapshotVFSChunks(w http.ResponseWriter, r *http.Request) error {
 		Total: tot,
 	}
 
-	for i := offset; i < min(offset + limit, int64(tot)); i++ {
+	for i := offset; i < min(offset+limit, int64(tot)); i++ {
 		items.Items = append(items.Items, entry.ResolvedObject.Chunks[i])
 	}
 	return json.NewEncoder(w).Encode(items)
@@ -600,15 +601,9 @@ func snapshotVFSErrors(w http.ResponseWriter, r *http.Request) error {
 		Items: []*vfs.ErrorItem{},
 	}
 	for errorEntry := range errorList {
-		if i < offset {
-			i++
-			continue
+		if i >= offset && i < offset+limit {
+			items.Items = append(items.Items, errorEntry)
 		}
-		if limit > 0 && i >= limit+offset {
-			i++
-			continue
-		}
-		items.Items = append(items.Items, errorEntry)
 		i++
 	}
 	items.Total = int(i)
