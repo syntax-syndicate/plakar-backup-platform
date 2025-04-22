@@ -36,7 +36,6 @@ var protocols = []string{
 	"opendrive",
 	"googledrive",
 	"googlephotos",
-	"iclouddrive",
 }
 
 type ScanResult struct {
@@ -124,6 +123,8 @@ func NewImporter(config map[string]string) (Importer, error) {
 		if backendName == "_" && strings.Contains(location, "://") {
 			return nil, fmt.Errorf("unsupported importer protocol")
 		}
+	} else {
+		backendName = "fs"
 	}
 
 	if backend, exists := backends[backendName]; !exists {

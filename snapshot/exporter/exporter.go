@@ -20,7 +20,6 @@ var protocols = []string{
 	"opendrive",
 	"googledrive",
 	"googlephotos",
-	"iclouddrive",
 }
 
 type Exporter interface {
@@ -80,6 +79,8 @@ func NewExporter(config map[string]string) (Exporter, error) {
 		if backendName == "_" && strings.Contains(location, "://") {
 			return nil, fmt.Errorf("unsupported importer protocol")
 		}
+	} else {
+		backendName = "fs"
 	}
 
 	if backend, exists := backends[backendName]; !exists {
