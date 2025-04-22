@@ -1,20 +1,36 @@
 package info
 
 import (
+	"flag"
 	"fmt"
 	"path"
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/dustin/go-humanize"
 )
 
 type InfoVFS struct {
-	RepositorySecret []byte
+	subcommands.SubcommandBase
 
 	SnapshotPath string
+}
+
+func (cmd *InfoVFS) Parse(ctx *appcontext.AppContext, args []string) error {
+	flags := flag.NewFlagSet("info vfs", flag.ExitOnError)
+	flags.Parse(args)
+
+	if len(flags.Args()) < 1 {
+		return fmt.Errorf("usage: %s vfs SNAPSHOT[:PATH]", flags.Name())
+	}
+
+	cmd.RepositorySecret = ctx.GetSecret()
+	cmd.SnapshotPath = flags.Args()[0]
+
+	return nil
 }
 
 func (cmd *InfoVFS) Name() string {

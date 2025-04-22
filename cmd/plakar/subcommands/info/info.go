@@ -17,48 +17,11 @@
 package info
 
 import (
-	"flag"
-	"fmt"
-
-	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 )
 
 func init() {
-	subcommands.Register("info", parse_cmd_info)
-}
-
-func parse_cmd_info(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
-	if len(args) == 0 {
-		return &InfoRepository{
-			RepositorySecret: ctx.GetSecret(),
-		}, nil
-	}
-
-	flags := flag.NewFlagSet("info", flag.ExitOnError)
-	flags.Usage = func() {
-		fmt.Fprintf(flags.Output(), "Usage: %s [SNAPSHOT]\n", flags.Name())
-	}
-	flags.Parse(args)
-
-	if len(flags.Args()) > 1 {
-		return nil, fmt.Errorf("invalid parameter. usage: info [snapshot]")
-	}
-
-	snapshotID, path := utils.ParseSnapshotID(flags.Arg(0))
-	if snapshotID == "" {
-		return nil, fmt.Errorf("invalid snapshot ID")
-	}
-	if path != "" {
-		return &InfoVFS{
-			RepositorySecret: ctx.GetSecret(),
-			SnapshotPath:     flags.Arg(0),
-		}, nil
-	}
-
-	return &InfoSnapshot{
-		RepositorySecret: ctx.GetSecret(),
-		SnapshotID:       flags.Args()[0],
-	}, nil
+	subcommands.Register(func() subcommands.Subcommand { return &InfoSnapshot{} }, "info", "snapshot")
+	subcommands.Register(func() subcommands.Subcommand { return &InfoVFS{} }, "info", "vfs")
+	subcommands.Register(func() subcommands.Subcommand { return &InfoRepository{} }, "info")
 }
