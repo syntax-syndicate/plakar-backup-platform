@@ -52,7 +52,7 @@ func TestExecuteCmdLocateDefault(t *testing.T) {
 	require.NotNil(t, status)
 
 	// output should look like this
-	// d92a4c73:/tmp/tmp_to_backup1424943315/subdir/dummy.txt
+	// d92a4c73:/subdir/dummy.txt
 
 	output := bufOut.String()
 	lines := strings.Split(strings.Trim(output, "\n"), "\n")

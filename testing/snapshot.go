@@ -1,13 +1,15 @@
 package testing
 
 import (
+	"io"
 	"os"
-	"path/filepath"
+	"path"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
-	"github.com/PlakarKorp/plakar/snapshot/importer/fs"
+	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,8 +36,43 @@ func NewMockFile(path string, mode os.FileMode, content string) MockFile {
 	}
 }
 
+func (m *MockFile) ScanResult() *importer.ScanResult {
+	switch {
+	case m.IsDir:
+		return &importer.ScanResult{
+			Record: &importer.ScanRecord{
+				Pathname: m.Path,
+				FileInfo: objects.FileInfo{
+					Lname:      path.Base(m.Path),
+					Lmode:      os.ModeDir | 0755,
+					Lnlink:     1,
+					Lusername:  "flan",
+					Lgroupname: "hacker",
+				},
+			},
+		}
+	default:
+		return &importer.ScanResult{
+			Record: &importer.ScanRecord{
+				Pathname: m.Path,
+				FileInfo: objects.FileInfo{
+					Lname:      path.Base(m.Path),
+					Lsize:      int64(len(m.Content)),
+					Lmode:      m.Mode,
+					Lnlink:     1,
+					Lusername:  "flan",
+					Lgroupname: "hacker",
+				},
+			},
+		}
+	}
+}
+
 type testingOptions struct {
 	name string
+
+	gen  func(chan<- *importer.ScanResult)
+	open func(string) (io.ReadCloser, error)
 }
 
 func newTestingOptions() *testingOptions {
@@ -52,27 +89,17 @@ func WithName(name string) TestingOptions {
 	}
 }
 
+func WithGenerator(gen func(chan<- *importer.ScanResult), open func(string) (io.ReadCloser, error)) TestingOptions {
+	return func(o *testingOptions) {
+		o.gen = gen
+		o.open = open
+	}
+}
+
 func GenerateSnapshot(t *testing.T, repo *repository.Repository, files []MockFile, opts ...TestingOptions) *snapshot.Snapshot {
 	o := newTestingOptions()
 	for _, f := range opts {
 		f(o)
-	}
-
-	tmpBackupDir, err := os.MkdirTemp("", "tmp_to_backup")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		os.RemoveAll(tmpBackupDir)
-	})
-
-	repo.AppContext().CWD = tmpBackupDir
-
-	for _, file := range files {
-		dest := filepath.Join(tmpBackupDir, filepath.FromSlash(file.Path))
-		if file.IsDir {
-			err = os.MkdirAll(dest, file.Mode)
-		} else {
-			err = os.WriteFile(dest, file.Content, file.Mode)
-		}
 	}
 
 	// create a snapshot
@@ -80,8 +107,16 @@ func GenerateSnapshot(t *testing.T, repo *repository.Repository, files []MockFil
 	require.NoError(t, err)
 	require.NotNil(t, builder)
 
-	imp, err := fs.NewFSImporter(map[string]string{"location": tmpBackupDir})
+	imp, err := NewMockImporter(map[string]string{"location": "mock://place"})
 	require.NoError(t, err)
+	require.NotNil(t, imp)
+
+	if o.gen != nil {
+		imp.(*MockImporter).SetGenerator(o.gen, o.open)
+	} else {
+		imp.(*MockImporter).SetFiles(files)
+	}
+
 	builder.Backup(imp, &snapshot.BackupOptions{Name: o.name, MaxConcurrency: 1})
 
 	err = builder.Repository().RebuildState()
