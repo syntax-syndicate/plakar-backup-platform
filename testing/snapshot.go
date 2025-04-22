@@ -52,19 +52,12 @@ func WithName(name string) TestingOptions {
 	}
 }
 
-func GenerateSnapshot(t *testing.T, repo *repository.Repository, files []MockFile, opts ...TestingOptions) *snapshot.Snapshot {
-	o := newTestingOptions()
-	for _, f := range opts {
-		f(o)
-	}
-
+func GenerateFiles(t *testing.T, files []MockFile) string {
 	tmpBackupDir, err := os.MkdirTemp("", "tmp_to_backup")
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		os.RemoveAll(tmpBackupDir)
 	})
-
-	repo.AppContext().CWD = tmpBackupDir
 
 	for _, file := range files {
 		dest := filepath.Join(tmpBackupDir, filepath.FromSlash(file.Path))
@@ -74,6 +67,18 @@ func GenerateSnapshot(t *testing.T, repo *repository.Repository, files []MockFil
 			err = os.WriteFile(dest, file.Content, file.Mode)
 		}
 	}
+
+	return tmpBackupDir
+}
+
+func GenerateSnapshot(t *testing.T, repo *repository.Repository, files []MockFile, opts ...TestingOptions) *snapshot.Snapshot {
+	o := newTestingOptions()
+	for _, f := range opts {
+		f(o)
+	}
+
+	tmpBackupDir := GenerateFiles(t, files)
+	repo.AppContext().CWD = tmpBackupDir
 
 	// create a snapshot
 	builder, err := snapshot.Create(repo, repository.DefaultType)
