@@ -397,6 +397,7 @@ func (snap *Builder) chunkify(backupCtx *BackupContext, record *importer.ScanRec
 		object.Chunks[idx].Entropy = entropyScore
 
 		totalEntropy += object.Chunks[idx].Entropy * float64(len(data))
+		totalDataSize += int64(len(data))
 
 		return snap.repository.PutBlobIfNotExists(resources.RT_CHUNK, object.Chunks[idx].ContentMAC, data)
 	}
@@ -464,8 +465,6 @@ func (snap *Builder) chunkify(backupCtx *BackupContext, record *importer.ScanRec
 			}
 			cdcCopy := make([]byte, len(cdcChunk))
 			copy(cdcCopy, cdcChunk)
-
-			totalDataSize += int64(len(cdcCopy))
 
 			objectHasher.Write(cdcChunk)
 
