@@ -10,9 +10,9 @@ import (
 	"slices"
 
 	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/events"
+	"github.com/PlakarKorp/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/utils"
 	"github.com/vmihailenco/msgpack/v5"
 )
 

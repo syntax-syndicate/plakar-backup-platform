@@ -5,16 +5,16 @@ import (
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/backup"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/maintenance"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/plakar/subcommands/backup"
+	"github.com/PlakarKorp/plakar/subcommands/check"
+	"github.com/PlakarKorp/plakar/subcommands/maintenance"
+	"github.com/PlakarKorp/plakar/subcommands/restore"
+	"github.com/PlakarKorp/plakar/subcommands/rm"
+	"github.com/PlakarKorp/plakar/subcommands/sync"
+	"github.com/PlakarKorp/plakar/utils"
 	"github.com/PlakarKorp/plakar/versioning"
 )
 

@@ -12,13 +12,13 @@ INSTALL_MAN =	${INSTALL} -m 0444
 all: plakar
 
 plakar:
-	${GO} build -v ./cmd/plakar
+	${GO} build -v
 
 install:
 	mkdir -p ${DESTDIR}${BINDIR}
 	mkdir -p ${DESTDIR}${MANDIR}/man1
 	${INSTALL_PROGRAM} plakar ${DESTDIR}${BINDIR}
-	find cmd/plakar -iname \*.1 -exec \
+	find . -iname \*.1 -exec \
 		${INSTALL_MAN} {} ${DESTDIR}${MANDIR}/man1 \;
 
 check: test
