@@ -281,32 +281,21 @@ func TestChildren(t *testing.T) {
 	fs, err := snap.Filesystem()
 	require.NoError(t, err)
 
-	// search for the correct directory path
-	var dirpath string
-	for pathname := range fs.Pathnames() {
-		if strings.Contains(pathname, "tmp") {
-			dirpath = pathname
-			break
-		}
-	}
-	require.NotEmpty(t, dirpath)
-
-	iter, err := fs.Children(dirpath)
+	iter, err := fs.Children("/subdir/")
 	require.NoError(t, err)
 	require.NotNil(t, iter)
 
-	// this is commented as it seems broken at the moment
-	// expectedChildren := []string{"dummy.txt"}
-	// var childNames []string
-	// for childName, err := range iter {
-	// 	require.NoError(t, err)
-	// 	require.NotNil(t, childName)
-	// 	childNames = append(childNames, childName)
-	// }
-	// require.ElementsMatch(t, expectedChildren, childNames)
+	expectedChildren := []string{"/subdir/dummy.txt"}
+	var childNames []string
+	for child, err := range iter {
+		require.NoError(t, err)
+		require.NotNil(t, child)
+		childNames = append(childNames, child.Path())
+	}
+	require.ElementsMatch(t, expectedChildren, childNames)
 }
 
-func _TestFileMacs(t *testing.T) {
+func TestFileMacs(t *testing.T) {
 	_, snap := generateSnapshot(t)
 	defer snap.Close()
 
@@ -324,5 +313,5 @@ func _TestFileMacs(t *testing.T) {
 		macs[m] = struct{}{}
 	}
 
-	require.Equal(t, 5, len(macs))
+	require.Equal(t, 3, len(macs))
 }

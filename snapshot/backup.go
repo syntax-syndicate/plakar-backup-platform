@@ -49,6 +49,8 @@ type BackupOptions struct {
 	Name           string
 	Tags           []string
 	Excludes       []glob.Glob
+	NoCheckpoint   bool
+	NoCommit       bool
 }
 
 func (bc *BackupContext) recordEntry(entry *vfs.Entry) error {
@@ -286,7 +288,12 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	if err != nil {
 		return err
 	}
-	go snap.flushDeltaState(backupCtx)
+
+	/* checkpoint handling */
+	if !options.NoCheckpoint {
+		backupCtx.flushTick = time.NewTicker(1 * time.Hour)
+		go snap.flushDeltaState(backupCtx)
+	}
 
 	/* importer */
 	filesChannel, err := snap.importerJob(backupCtx, options)
@@ -312,7 +319,7 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	snap.Header.GetSource(0).Summary = *rootSummary
 	snap.Header.GetSource(0).Indexes = indexes
 
-	return snap.Commit(backupCtx)
+	return snap.Commit(backupCtx, !options.NoCommit)
 }
 
 func entropy(data []byte) (float64, [256]float64) {
@@ -338,7 +345,7 @@ func entropy(data []byte) (float64, [256]float64) {
 	return entropy, freq
 }
 
-func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord) (*objects.Object, error) {
+func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord) (*objects.Object, int64, error) {
 	var rd io.ReadCloser
 	var err error
 
@@ -349,7 +356,7 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 	defer rd.Close()
 
@@ -364,7 +371,7 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 
 	var totalEntropy float64
 	var totalFreq [256]float64
-	var totalDataSize uint64
+	var totalDataSize int64
 
 	// Helper function to process a chunk
 	processChunk := func(data []byte) error {
@@ -397,7 +404,7 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 		cdcOffset += uint64(len(data))
 
 		totalEntropy += chunk.Entropy * float64(len(data))
-		totalDataSize += uint64(len(data))
+		totalDataSize += int64(len(data))
 
 		return snap.repository.PutBlobIfNotExists(resources.RT_CHUNK, chunk.ContentMAC, data)
 	}
@@ -407,32 +414,44 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 		// Produce an empty chunk for empty file
 		objectHasher.Write(empty)
 		if err := processChunk(empty); err != nil {
-			return nil, err
+			return nil, -1, err
 		}
-	} else if record.FileInfo.Size() < int64(snap.repository.Configuration().Chunking.MinSize) {
+	} else if record.FileInfo.Size() != -1 && record.FileInfo.Size() < int64(snap.repository.Configuration().Chunking.MinSize) {
 		// Small file case: read entire file into memory
-		cdcChunk, err := io.ReadAll(rd)
+		cdcChunk := make([]byte, record.FileInfo.Size())
+		_, err := io.ReadFull(rd, cdcChunk)
 		if err != nil {
-			return nil, err
+			return nil, -1, err
 		}
 		objectHasher.Write(cdcChunk)
 		if err := processChunk(cdcChunk); err != nil {
-			return nil, err
+			return nil, -1, err
 		}
 	} else {
 		// Large file case: chunk file with chunker
 		chk, err := snap.repository.Chunker(rd)
 		if err != nil {
-			return nil, err
+			return nil, -1, err
 		}
+
+		firstChunk := true
 		for {
 			cdcChunk, err := chk.Next()
 			if err != nil && err != io.EOF {
-				return nil, err
+				return nil, -1, err
 			}
 			if cdcChunk == nil {
+				if firstChunk {
+					empty := []byte{}
+					// Produce an empty chunk for empty file
+					objectHasher.Write(empty)
+					if err := processChunk(empty); err != nil {
+						return nil, -1, err
+					}
+				}
 				break
 			}
+			firstChunk = false
 
 			chunkCopy := make([]byte, len(cdcChunk))
 			copy(chunkCopy, cdcChunk)
@@ -440,7 +459,7 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 			objectHasher.Write(chunkCopy)
 
 			if err := processChunk(chunkCopy); err != nil {
-				return nil, err
+				return nil, -1, err
 			}
 			if err == io.EOF {
 				break
@@ -460,16 +479,16 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 
 	copy(object_t32[:], objectHasher.Sum(nil))
 	object.ContentMAC = object_t32
-	return object, nil
+	return object, totalDataSize, nil
 }
 
-func (snap *Builder) Commit(bc *BackupContext) error {
+func (snap *Builder) Commit(bc *BackupContext, commit bool) error {
 	// First thing is to stop the ticker, as we don't want any concurrent flushes to run.
 	// Maybe this could be stopped earlier.
 
 	// If we end up in here without a BackupContext we come from Sync and we
 	// can't rely on the flusher
-	if bc != nil {
+	if bc != nil && bc.flushTick != nil {
 		bc.flushTick.Stop()
 	}
 
@@ -489,11 +508,16 @@ func (snap *Builder) Commit(bc *BackupContext) error {
 	if err := snap.repository.PutBlob(resources.RT_SNAPSHOT, snap.Header.Identifier, serializedHdr); err != nil {
 		return err
 	}
+
+	if !commit {
+		return nil
+	}
+
 	snap.repository.PackerManager.Wait()
 
 	// We are done with packfiles we can flush the last state, either through
 	// the flusher, or manually here.
-	if bc != nil {
+	if bc != nil && bc.flushTick != nil {
 		bc.flushEnd <- true
 		close(bc.flushEnd)
 		<-bc.flushEnded
@@ -531,7 +555,6 @@ func (snap *Builder) prepareBackup(imp importer.Importer, backupOpts *BackupOpti
 		maxConcurrency: maxConcurrency,
 		scanCache:      snap.scanCache,
 		vfsCache:       vfsCache,
-		flushTick:      time.NewTicker(1 * time.Hour),
 		flushEnd:       make(chan bool),
 		flushEnded:     make(chan bool),
 		stateId:        snap.Header.Identifier,
@@ -631,7 +654,7 @@ func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importe
 			snap.Logger().Warn("VFS CACHE: Error unmarshaling filename: %v", err)
 		} else {
 			cachedFileEntryMAC = snap.repository.ComputeMAC(data)
-			if cachedFileEntry.Stat().Equal(&record.FileInfo) {
+			if (record.FileInfo.Size() == -1 && cachedFileEntry.Stat().EqualIgnoreSize(&record.FileInfo)) || cachedFileEntry.Stat().Equal(&record.FileInfo) {
 				fileEntry = cachedFileEntry
 				if fileEntry.FileInfo.Mode().IsRegular() {
 					data, err := vfsCache.GetObject(cachedFileEntry.Object)
@@ -661,10 +684,15 @@ func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importe
 	// Chunkify the file if it is a regular file and we don't have a cached object
 	if record.FileInfo.Mode().IsRegular() {
 		if object == nil || !snap.repository.BlobExists(resources.RT_OBJECT, objectMAC) {
-			object, err = snap.chunkify(backupCtx.imp, record)
+			var dataSize int64
+			object, dataSize, err = snap.chunkify(backupCtx.imp, record)
 			if err != nil {
 				return err
 			}
+
+			// file size may have changed between the scan and chunkify
+			record.FileInfo.Lsize = dataSize
+
 			objectSerialized, err = object.Serialize()
 			if err != nil {
 				return err

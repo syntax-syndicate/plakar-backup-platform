@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
@@ -37,9 +38,11 @@ func TestExecuteCmdInfoDefault(t *testing.T) {
 
 	repo, snap := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
-	args := []string{}
+	args := []string{"info"}
 
-	subcommand, err := parse_cmd_info(repo.AppContext(), args)
+	subcommandf, _, args := subcommands.Lookup(args)
+	subcommand := subcommandf()
+	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -91,9 +94,11 @@ func TestExecuteCmdInfoSnapshot(t *testing.T) {
 	defer snap.Close()
 
 	indexId := snap.Header.GetIndexID()
-	args := []string{hex.EncodeToString(indexId[:])}
+	args := []string{"info", "snapshot", hex.EncodeToString(indexId[:])}
 
-	subcommand, err := parse_cmd_info(repo.AppContext(), args)
+	subcommandf, _, args := subcommands.Lookup(args)
+	subcommand := subcommandf()
+	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -170,9 +175,11 @@ func TestExecuteCmdInfoSnapshotPath(t *testing.T) {
 	defer snap.Close()
 
 	indexId := snap.Header.GetIndexID()
-	args := []string{fmt.Sprintf("%s:subdir/dummy.txt", hex.EncodeToString(indexId[:]))}
+	args := []string{"info", "vfs", fmt.Sprintf("%s:subdir/dummy.txt", hex.EncodeToString(indexId[:]))}
 
-	subcommand, err := parse_cmd_info(repo.AppContext(), args)
+	subcommandf, _, args := subcommands.Lookup(args)
+	subcommand := subcommandf()
+	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 

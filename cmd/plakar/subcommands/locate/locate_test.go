@@ -40,17 +40,19 @@ func TestExecuteCmdLocateDefault(t *testing.T) {
 
 	args := []string{"dummy.txt"}
 
-	subcommand, err := parse_cmd_locate(repo.AppContext(), args)
+	subcommand := &Locate{}
+	err := subcommand.Parse(repo.AppContext(), args)
+
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
-	require.Equal(t, "locate", subcommand.(*Locate).Name())
+	require.Equal(t, "locate", subcommand.Name())
 
 	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.NotNil(t, status)
 
 	// output should look like this
-	// d92a4c73:/tmp/tmp_to_backup1424943315/subdir/dummy.txt
+	// d92a4c73:/subdir/dummy.txt
 
 	output := bufOut.String()
 	lines := strings.Split(strings.Trim(output, "\n"), "\n")
@@ -66,10 +68,11 @@ func TestExecuteCmdLocateWithSnapshotId(t *testing.T) {
 
 	args := []string{"-snapshot", hex.EncodeToString(snap.Header.GetIndexShortID()), "dummy.txt"}
 
-	subcommand, err := parse_cmd_locate(repo.AppContext(), args)
+	subcommand := &Locate{}
+	err := subcommand.Parse(repo.AppContext(), args)
+
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
-	require.Equal(t, "locate", subcommand.(*Locate).Name())
 
 	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
