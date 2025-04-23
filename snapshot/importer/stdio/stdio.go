@@ -34,13 +34,13 @@ type StdioImporter struct {
 }
 
 func init() {
-	importer.Register("stdio", NewStdioImporter)
+	importer.Register("stdin", NewStdioImporter)
 }
 
 func NewStdioImporter(config map[string]string) (importer.Importer, error) {
 
 	location := config["location"]
-	location = strings.TrimPrefix(location, "stdio://")
+	location = strings.TrimPrefix(location, "stdin://")
 
 	return &StdioImporter{
 		fileDir: location,

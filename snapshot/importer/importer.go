@@ -110,8 +110,8 @@ func NewImporter(config map[string]string) (Importer, error) {
 			backendName = "ftp"
 		} else if strings.HasPrefix(location, "sftp://") {
 			backendName = "sftp"
-		} else if strings.HasPrefix(location, "stdio://") {
-			backendName = "stdio"
+		} else if strings.HasPrefix(location, "stdin://") {
+			backendName = "stdin"
 		} else {
 			if strings.Contains(location, "://") {
 				return nil, fmt.Errorf("unsupported importer protocol")
