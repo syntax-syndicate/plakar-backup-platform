@@ -21,7 +21,7 @@ func TestFSImporter(t *testing.T) {
 
 	appCtx := appcontext.NewAppContext()
 
-	importer, err := NewFSImporter(appCtx, map[string]string{"location": tmpImportDir})
+	importer, err := NewFSImporter(appCtx, "fs", map[string]string{"location": tmpImportDir})
 	require.NoError(t, err)
 	require.NotNil(t, importer)
 

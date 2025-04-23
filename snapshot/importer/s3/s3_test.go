@@ -40,7 +40,7 @@ func TestS3Importer(t *testing.T) {
 
 	appCtx := appcontext.NewAppContext()
 
-	importer, err := NewS3Importer(appCtx, map[string]string{"location": tmpImportBucket, "access_key": "", "secret_access_key": "", "use_tls": "false"})
+	importer, err := NewS3Importer(appCtx, "s3", map[string]string{"location": tmpImportBucket, "access_key": "", "secret_access_key": "", "use_tls": "false"})
 	require.NoError(t, err)
 	require.NotNil(t, importer)
 
