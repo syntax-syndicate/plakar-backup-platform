@@ -20,7 +20,6 @@ import (
 	"flag"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
@@ -34,8 +33,7 @@ func init() {
 }
 
 func (cmd *Rm) Parse(ctx *appcontext.AppContext, args []string) error {
-	var opt_before string
-	var opt_since string
+	cmd.LocateOptions = utils.NewDefaultLocateOptions()
 
 	flags := flag.NewFlagSet("rm", flag.ExitOnError)
 	flags.Usage = func() {
@@ -44,47 +42,13 @@ func (cmd *Rm) Parse(ctx *appcontext.AppContext, args []string) error {
 		flags.PrintDefaults()
 	}
 
-	flags.StringVar(&cmd.OptName, "name", "", "filter by name")
-	flags.StringVar(&cmd.OptCategory, "category", "", "filter by category")
-	flags.StringVar(&cmd.OptEnvironment, "environment", "", "filter by environment")
-	flags.StringVar(&cmd.OptPerimeter, "perimeter", "", "filter by perimeter")
-	flags.StringVar(&cmd.OptJob, "job", "", "filter by job")
-	flags.StringVar(&cmd.OptTag, "tag", "", "filter by tag")
-	flags.StringVar(&opt_before, "before", "", "filter by date")
-	flags.StringVar(&opt_since, "since", "", "filter by date")
-	flags.BoolVar(&cmd.OptLatest, "latest", false, "use latest snapshot")
+	cmd.LocateOptions.InstallFlags(flags)
 	flags.Parse(args)
 
-	var err error
-
-	var beforeDate time.Time
-	if opt_before != "" {
-		beforeDate, err = utils.ParseTimeFlag(opt_before)
-		if err != nil {
-			return fmt.Errorf("invalid date format: %s", opt_before)
-		}
-
-		cmd.OptBefore = beforeDate
-	}
-
-	var sinceDate time.Time
-	if opt_since != "" {
-		sinceDate, err = utils.ParseTimeFlag(opt_since)
-		if err != nil {
-			return fmt.Errorf("invalid date format: %s", opt_since)
-		}
-
-		cmd.OptSince = sinceDate
-	}
-
-	if flags.NArg() != 0 {
-		if cmd.OptName != "" || cmd.OptCategory != "" || cmd.OptEnvironment != "" || cmd.OptPerimeter != "" || cmd.OptJob != "" || cmd.OptTag != "" || !beforeDate.IsZero() || !sinceDate.IsZero() || cmd.OptLatest {
-			ctx.GetLogger().Warn("snapshot specified, filters will be ignored")
-		}
-	} else {
-		if cmd.OptName == "" && cmd.OptCategory == "" && cmd.OptEnvironment == "" && cmd.OptPerimeter == "" && cmd.OptJob == "" && cmd.OptTag == "" && beforeDate.IsZero() && sinceDate.IsZero() && !cmd.OptLatest {
-			return fmt.Errorf("no filter specified, not going to remove everything")
-		}
+	if flags.NArg() != 0 && !cmd.LocateOptions.Empty() {
+		ctx.GetLogger().Warn("snapshot specified, filters will be ignored")
+	} else if flags.NArg() == 0 && cmd.LocateOptions.Empty() {
+		return fmt.Errorf("no filter specified, not going to remove everything")
 	}
 
 	cmd.RepositorySecret = ctx.GetSecret()
@@ -96,18 +60,8 @@ func (cmd *Rm) Parse(ctx *appcontext.AppContext, args []string) error {
 type Rm struct {
 	subcommands.SubcommandBase
 
-	OptBefore time.Time
-	OptSince  time.Time
-	OptLatest bool
-
-	OptName        string
-	OptCategory    string
-	OptEnvironment string
-	OptPerimeter   string
-	OptJob         string
-	OptTag         string
-
-	Snapshots []string
+	LocateOptions *utils.LocateOptions
+	Snapshots     []string
 }
 
 func (cmd *Rm) Name() string {
@@ -117,22 +71,7 @@ func (cmd *Rm) Name() string {
 func (cmd *Rm) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	var snapshots []objects.MAC
 	if len(cmd.Snapshots) == 0 {
-		locateOptions := utils.NewDefaultLocateOptions()
-		locateOptions.MaxConcurrency = ctx.MaxConcurrency
-		locateOptions.SortOrder = utils.LocateSortOrderAscending
-
-		locateOptions.Before = cmd.OptBefore
-		locateOptions.Since = cmd.OptSince
-		locateOptions.Latest = cmd.OptLatest
-
-		locateOptions.Name = cmd.OptName
-		locateOptions.Category = cmd.OptCategory
-		locateOptions.Environment = cmd.OptEnvironment
-		locateOptions.Perimeter = cmd.OptPerimeter
-		locateOptions.Job = cmd.OptJob
-		locateOptions.Tag = cmd.OptTag
-
-		snapshotIDs, err := utils.LocateSnapshotIDs(repo, locateOptions)
+		snapshotIDs, err := utils.LocateSnapshotIDs(repo, cmd.LocateOptions)
 		if err != nil {
 			return 1, err
 		}
