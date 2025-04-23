@@ -418,7 +418,8 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 		}
 	} else if record.FileInfo.Size() != -1 && record.FileInfo.Size() < int64(snap.repository.Configuration().Chunking.MinSize) {
 		// Small file case: read entire file into memory
-		cdcChunk, err := io.ReadAll(rd)
+		cdcChunk := make([]byte, record.FileInfo.Size())
+		_, err := io.ReadFull(rd, cdcChunk)
 		if err != nil {
 			return nil, -1, err
 		}
@@ -432,14 +433,25 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 		if err != nil {
 			return nil, -1, err
 		}
+
+		firstChunk := true
 		for {
 			cdcChunk, err := chk.Next()
 			if err != nil && err != io.EOF {
 				return nil, -1, err
 			}
 			if cdcChunk == nil {
+				if firstChunk {
+					empty := []byte{}
+					// Produce an empty chunk for empty file
+					objectHasher.Write(empty)
+					if err := processChunk(empty); err != nil {
+						return nil, -1, err
+					}
+				}
 				break
 			}
+			firstChunk = false
 
 			chunkCopy := make([]byte, len(cdcChunk))
 			copy(chunkCopy, cdcChunk)
