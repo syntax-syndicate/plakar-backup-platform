@@ -126,7 +126,7 @@ func main() {
 		log.Fatal("Failed to create the btree:", err)
 	}
 
-	imp, err := fs.NewFSImporter(appcontext.NewAppContext(), map[string]string{"location": flag.Arg(0)})
+	imp, err := fs.NewFSImporter(appcontext.NewAppContext(), "fs", map[string]string{"location": flag.Arg(0)})
 	if err != nil {
 		log.Fatal("new fs importer failed:", err)
 	}
