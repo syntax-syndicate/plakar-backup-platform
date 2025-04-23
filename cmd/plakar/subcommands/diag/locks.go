@@ -1,19 +1,30 @@
 package diag
 
 import (
+	"flag"
 	"fmt"
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
 )
 
 type DiagLocks struct {
-	RepositorySecret []byte
+	subcommands.SubcommandBase
+}
+
+func (cmd *DiagLocks) Parse(ctx *appcontext.AppContext, args []string) error {
+	flags := flag.NewFlagSet("diag locks", flag.ExitOnError)
+	flags.Parse(args)
+
+	cmd.RepositorySecret = ctx.GetSecret()
+
+	return nil
 }
 
 func (cmd *DiagLocks) Name() string {
-	return "diag_locks"
+	return "diag locks"
 }
 
 func (cmd *DiagLocks) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {

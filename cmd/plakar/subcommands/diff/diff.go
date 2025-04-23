@@ -33,11 +33,10 @@ import (
 )
 
 func init() {
-	subcommands.Register("diff", parse_cmd_diff)
+	subcommands.Register(func() subcommands.Subcommand { return &Diff{} }, "diff")
 }
 
-func parse_cmd_diff(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
-	var opt_highlight bool
+func (cmd *Diff) Parse(ctx *appcontext.AppContext, args []string) error {
 	flags := flag.NewFlagSet("diff", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] SNAPSHOT:PATH SNAPSHOT[:PATH]\n", flags.Name())
@@ -45,23 +44,22 @@ func parse_cmd_diff(ctx *appcontext.AppContext, args []string) (subcommands.Subc
 		flags.PrintDefaults()
 	}
 
-	flags.BoolVar(&opt_highlight, "highlight", false, "highlight output")
+	flags.BoolVar(&cmd.Highlight, "highlight", false, "highlight output")
 	flags.Parse(args)
 
 	if flags.NArg() != 2 {
-		return nil, fmt.Errorf("needs two snapshot ID and/or snapshot files to diff")
+		return fmt.Errorf("needs two snapshot ID and/or snapshot files to diff")
 	}
 
-	return &Diff{
-		RepositorySecret: ctx.GetSecret(),
-		Highlight:        opt_highlight,
-		SnapshotPath1:    flags.Arg(0),
-		SnapshotPath2:    flags.Arg(1),
-	}, nil
+	cmd.RepositorySecret = ctx.GetSecret()
+	cmd.SnapshotPath1 = flags.Arg(0)
+	cmd.SnapshotPath2 = flags.Arg(1)
+
+	return nil
 }
 
 type Diff struct {
-	RepositorySecret []byte
+	subcommands.SubcommandBase
 
 	Highlight     bool
 	SnapshotPath1 string
@@ -167,7 +165,7 @@ func diff_pathnames(ctx *appcontext.AppContext, snap1 *snapshot.Snapshot, pathna
 	return diff_files(ctx, snap1, f1, snap2, f2)
 }
 
-func diff_directories(ctx *appcontext.AppContext, dirEntry1 *vfs.Entry, dirEntry2 *vfs.Entry) (string, error) {
+func diff_directories(_ *appcontext.AppContext, _ *vfs.Entry, _ *vfs.Entry) (string, error) {
 	return "", fmt.Errorf("not implemented yet")
 }
 
