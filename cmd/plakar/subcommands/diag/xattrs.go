@@ -1,11 +1,13 @@
 package diag
 
 import (
+	"flag"
 	"fmt"
 	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/btree"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
@@ -14,9 +16,22 @@ import (
 )
 
 type DiagXattr struct {
-	RepositorySecret []byte
+	subcommands.SubcommandBase
 
 	SnapshotPath string
+}
+
+func (cmd *DiagXattr) Parse(ctx *appcontext.AppContext, args []string) error {
+	flags := flag.NewFlagSet("diag xattr", flag.ExitOnError)
+	flags.Parse(args)
+
+	if len(flags.Args()) < 1 {
+		return fmt.Errorf("usage: %s xattr SNAPSHOT[:PATH]", flags.Name())
+	}
+
+	cmd.RepositorySecret = ctx.GetSecret()
+	cmd.SnapshotPath = flags.Args()[0]
+	return nil
 }
 
 func (cmd *DiagXattr) Name() string {

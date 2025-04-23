@@ -1,9 +1,11 @@
 package diag
 
 import (
+	"flag"
 	"fmt"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
@@ -11,8 +13,32 @@ import (
 )
 
 type DiagRepository struct {
+	subcommands.SubcommandBase
+
 	RepositoryLocation string
-	RepositorySecret   []byte
+}
+
+func (cmd *DiagRepository) Parse(ctx *appcontext.AppContext, args []string) error {
+	// Since this is the default action, we plug the general USAGE here.
+	flags := flag.NewFlagSet("diag", flag.ExitOnError)
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: %s\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s snapshot SNAPSHOT\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s errors SNAPSHOT\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s state [STATE]...\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s search snapshot[:path] mime\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s packfile [PACKFILE]...\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s object [OBJECT]\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s vfs SNAPSHOT[:PATH]\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s xattr SNAPSHOT[:PATH]\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s contenttype SNAPSHOT[:PATH]\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "       %s locks\n", flags.Name())
+	}
+	flags.Parse(args)
+
+	cmd.RepositorySecret = ctx.GetSecret()
+
+	return nil
 }
 
 func (cmd *DiagRepository) Name() string {
