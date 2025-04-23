@@ -2,19 +2,35 @@ package diag
 
 import (
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"io"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/resources"
 )
 
 type DiagObject struct {
-	RepositorySecret []byte
+	subcommands.SubcommandBase
 
 	ObjectID string
+}
+
+func (cmd *DiagObject) Parse(ctx *appcontext.AppContext, args []string) error {
+	flags := flag.NewFlagSet("diag objects", flag.ExitOnError)
+	flags.Parse(args)
+
+	if len(flags.Args()) < 1 {
+		return fmt.Errorf("usage: %s object OBJECT", flags.Name())
+	}
+
+	cmd.RepositorySecret = ctx.GetSecret()
+	cmd.ObjectID = flags.Args()[0]
+
+	return nil
 }
 
 func (cmd *DiagObject) Name() string {

@@ -1,18 +1,34 @@
 package diag
 
 import (
+	"flag"
 	"fmt"
 	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
 )
 
 type DiagContentType struct {
-	RepositorySecret []byte
+	subcommands.SubcommandBase
 
 	SnapshotPath string
+}
+
+func (cmd *DiagContentType) Parse(ctx *appcontext.AppContext, args []string) error {
+	flags := flag.NewFlagSet("diag contenttype", flag.ExitOnError)
+	flags.Parse(args)
+
+	if len(flags.Args()) < 1 {
+		return fmt.Errorf("usage: %s contenttype SNAPSHOT[:PATH]", flags.Name())
+	}
+
+	cmd.RepositorySecret = ctx.GetSecret()
+	cmd.SnapshotPath = flags.Args()[0]
+
+	return nil
 }
 
 func (cmd *DiagContentType) Name() string {
