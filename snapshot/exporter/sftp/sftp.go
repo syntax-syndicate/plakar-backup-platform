@@ -17,7 +17,6 @@
 package sftp
 
 import (
-	"fmt"
 	"io"
 	"net/url"
 	"os"
@@ -38,15 +37,12 @@ func init() {
 	exporter.Register("sftp", NewSFTPExporter)
 }
 
-func NewSFTPExporter(appCtx *appcontext.AppContext, config map[string]string) (exporter.Exporter, error) {
+func NewSFTPExporter(appCtx *appcontext.AppContext, name string, config map[string]string) (exporter.Exporter, error) {
 	var err error
 
-	location := config["location"]
-	if location == "" {
-		return nil, fmt.Errorf("missing location")
-	}
+	target := name + "://" + config["location"]
 
-	parsed, err := url.Parse(location)
+	parsed, err := url.Parse(target)
 	if err != nil {
 		return nil, err
 	}

@@ -33,10 +33,10 @@ func (m MockedExporter) Close() error {
 
 func TestBackends(t *testing.T) {
 	// Setup: Register some backends
-	Register("fs1", func(appCtx *appcontext.AppContext, config map[string]string) (Exporter, error) {
+	Register("fs1", func(appCtx *appcontext.AppContext, name string, config map[string]string) (Exporter, error) {
 		return nil, nil
 	})
-	Register("s33", func(appCtx *appcontext.AppContext, config map[string]string) (Exporter, error) {
+	Register("s33", func(appCtx *appcontext.AppContext, name string, config map[string]string) (Exporter, error) {
 		return nil, nil
 	})
 
@@ -50,22 +50,23 @@ func TestBackends(t *testing.T) {
 
 func TestNewExporter(t *testing.T) {
 	// Setup: Register some backends
-	Register("fs", func(appCtx *appcontext.AppContext, config map[string]string) (Exporter, error) {
+	Register("fs", func(appCtx *appcontext.AppContext, name string, config map[string]string) (Exporter, error) {
 		return MockedExporter{}, nil
 	})
-	Register("s3", func(appCtx *appcontext.AppContext, config map[string]string) (Exporter, error) {
+	Register("s3", func(appCtx *appcontext.AppContext, name string, config map[string]string) (Exporter, error) {
 		return MockedExporter{}, nil
 	})
 
 	tests := []struct {
 		location        string
+		scheme          string
 		expectedError   string
 		expectedBackend string
 	}{
-		{location: "/", expectedError: "", expectedBackend: "fs"},
-		{location: "fs://some/path", expectedError: "", expectedBackend: "fs"},
-		{location: "s3://bucket/path", expectedError: "", expectedBackend: "s3"},
-		{location: "http://unsupported", expectedError: "unsupported exporter protocol", expectedBackend: ""},
+		{location: "/", scheme: "fs", expectedError: "", expectedBackend: "fs"},
+		{location: "fs://some/path", scheme: "fs", expectedError: "", expectedBackend: "fs"},
+		{location: "s3://bucket/path", scheme: "s3", expectedError: "", expectedBackend: "s3"},
+		{location: "http://unsupported", scheme: "http", expectedError: "unsupported exporter protocol", expectedBackend: ""},
 	}
 
 	for _, test := range tests {
