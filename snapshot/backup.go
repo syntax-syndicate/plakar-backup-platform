@@ -432,14 +432,25 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 		if err != nil {
 			return nil, -1, err
 		}
+
+		firstChunk := true
 		for {
 			cdcChunk, err := chk.Next()
 			if err != nil && err != io.EOF {
 				return nil, -1, err
 			}
 			if cdcChunk == nil {
+				if firstChunk {
+					empty := []byte{}
+					// Produce an empty chunk for empty file
+					objectHasher.Write(empty)
+					if err := processChunk(empty); err != nil {
+						return nil, -1, err
+					}
+				}
 				break
 			}
+			firstChunk = false
 
 			chunkCopy := make([]byte, len(cdcChunk))
 			copy(chunkCopy, cdcChunk)
