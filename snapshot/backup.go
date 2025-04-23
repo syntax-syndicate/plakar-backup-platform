@@ -868,13 +868,11 @@ func (snap *Snapshot) chunkify(imp importer.Importer, cf *classifier.Classifier,
 		return snap.PutBlobIfNotExists(resources.RT_CHUNK, chunk.ContentMAC, data)
 	}
 
-	var le int64
 	if record.FileInfo.Size() < 0 {
-		le, err = getReaderLength(rd)
+		record.FileInfo.Lsize, err = getReaderLength(rd)
 		if err != nil {
 			return nil, err
 		}
-		record.FileInfo.Lsize = le
 	}
 	if record.FileInfo.Size() == 0 {
 		// Produce an empty chunk for empty file
