@@ -81,5 +81,5 @@ func NewExporter(ctx *appcontext.AppContext, config map[string]string) (Exporter
 			return backendInstance, nil
 		}
 	}
-	return nil, fmt.Errorf("unsupported importer protocol")
+	return nil, fmt.Errorf("unsupported exporter protocol")
 }
