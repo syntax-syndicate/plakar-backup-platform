@@ -345,7 +345,7 @@ func entropy(data []byte) (float64, [256]float64) {
 	return entropy, freq
 }
 
-func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord) (*objects.Object, error) {
+func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord) (*objects.Object, int64, error) {
 	var rd io.ReadCloser
 	var err error
 
@@ -356,7 +356,7 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 	defer rd.Close()
 
@@ -371,7 +371,7 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 
 	var totalEntropy float64
 	var totalFreq [256]float64
-	var totalDataSize uint64
+	var totalDataSize int64
 
 	// Helper function to process a chunk
 	processChunk := func(data []byte) error {
@@ -404,7 +404,7 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 		cdcOffset += uint64(len(data))
 
 		totalEntropy += chunk.Entropy * float64(len(data))
-		totalDataSize += uint64(len(data))
+		totalDataSize += int64(len(data))
 
 		return snap.repository.PutBlobIfNotExists(resources.RT_CHUNK, chunk.ContentMAC, data)
 	}
@@ -414,28 +414,28 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 		// Produce an empty chunk for empty file
 		objectHasher.Write(empty)
 		if err := processChunk(empty); err != nil {
-			return nil, err
+			return nil, -1, err
 		}
-	} else if record.FileInfo.Size() < int64(snap.repository.Configuration().Chunking.MinSize) {
+	} else if record.FileInfo.Size() != -1 && record.FileInfo.Size() < int64(snap.repository.Configuration().Chunking.MinSize) {
 		// Small file case: read entire file into memory
 		cdcChunk, err := io.ReadAll(rd)
 		if err != nil {
-			return nil, err
+			return nil, -1, err
 		}
 		objectHasher.Write(cdcChunk)
 		if err := processChunk(cdcChunk); err != nil {
-			return nil, err
+			return nil, -1, err
 		}
 	} else {
 		// Large file case: chunk file with chunker
 		chk, err := snap.repository.Chunker(rd)
 		if err != nil {
-			return nil, err
+			return nil, -1, err
 		}
 		for {
 			cdcChunk, err := chk.Next()
 			if err != nil && err != io.EOF {
-				return nil, err
+				return nil, -1, err
 			}
 			if cdcChunk == nil {
 				break
@@ -447,7 +447,7 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 			objectHasher.Write(chunkCopy)
 
 			if err := processChunk(chunkCopy); err != nil {
-				return nil, err
+				return nil, -1, err
 			}
 			if err == io.EOF {
 				break
@@ -467,7 +467,7 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 
 	copy(object_t32[:], objectHasher.Sum(nil))
 	object.ContentMAC = object_t32
-	return object, nil
+	return object, totalDataSize, nil
 }
 
 func (snap *Builder) Commit(bc *BackupContext, commit bool) error {
@@ -642,7 +642,7 @@ func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importe
 			snap.Logger().Warn("VFS CACHE: Error unmarshaling filename: %v", err)
 		} else {
 			cachedFileEntryMAC = snap.repository.ComputeMAC(data)
-			if cachedFileEntry.Stat().Equal(&record.FileInfo) {
+			if (record.FileInfo.Size() == -1 && cachedFileEntry.Stat().EqualIgnoreSize(&record.FileInfo)) || cachedFileEntry.Stat().Equal(&record.FileInfo) {
 				fileEntry = cachedFileEntry
 				if fileEntry.FileInfo.Mode().IsRegular() {
 					data, err := vfsCache.GetObject(cachedFileEntry.Object)
@@ -672,10 +672,15 @@ func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importe
 	// Chunkify the file if it is a regular file and we don't have a cached object
 	if record.FileInfo.Mode().IsRegular() {
 		if object == nil || !snap.repository.BlobExists(resources.RT_OBJECT, objectMAC) {
-			object, err = snap.chunkify(backupCtx.imp, record)
+			var dataSize int64
+			object, dataSize, err = snap.chunkify(backupCtx.imp, record)
 			if err != nil {
 				return err
 			}
+
+			// file size may have changed between the scan and chunkify
+			record.FileInfo.Lsize = dataSize
+
 			objectSerialized, err = object.Serialize()
 			if err != nil {
 				return err
