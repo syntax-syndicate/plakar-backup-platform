@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/exporter"
 	"github.com/minio/minio-go/v7"
@@ -49,7 +50,7 @@ func connect(location *url.URL, useSsl bool, accessKeyID, secretAccessKey string
 	})
 }
 
-func NewS3Exporter(config map[string]string) (exporter.Exporter, error) {
+func NewS3Exporter(appCtx *appcontext.AppContext, config map[string]string) (exporter.Exporter, error) {
 	location := config["location"]
 	var accessKey string
 	if tmp, ok := config["access_key"]; !ok {

@@ -21,6 +21,7 @@ import (
 	"io"
 	"net/url"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	plakarsftp "github.com/PlakarKorp/plakar/sftp"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/pkg/sftp"
@@ -36,7 +37,7 @@ func init() {
 	importer.Register("sftp", NewSFTPImporter)
 }
 
-func NewSFTPImporter(config map[string]string) (importer.Importer, error) {
+func NewSFTPImporter(appCtx *appcontext.AppContext, config map[string]string) (importer.Importer, error) {
 	var err error
 
 	location := config["location"]

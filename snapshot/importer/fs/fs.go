@@ -25,6 +25,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/pkg/xattr"
 )
@@ -37,7 +38,7 @@ func init() {
 	importer.Register("fs", NewFSImporter)
 }
 
-func NewFSImporter(config map[string]string) (importer.Importer, error) {
+func NewFSImporter(appCtx *appcontext.AppContext, config map[string]string) (importer.Importer, error) {
 	location := config["location"]
 
 	if strings.HasPrefix(location, "fs://") {

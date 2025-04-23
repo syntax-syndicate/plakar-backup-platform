@@ -67,9 +67,9 @@ type Importer interface {
 }
 
 var muBackends sync.Mutex
-var backends map[string]func(config map[string]string) (Importer, error) = make(map[string]func(config map[string]string) (Importer, error))
+var backends map[string]func(appCtx *appcontext.AppContext, config map[string]string) (Importer, error) = make(map[string]func(appCtx *appcontext.AppContext, config map[string]string) (Importer, error))
 
-func Register(name string, backend func(map[string]string) (Importer, error)) {
+func Register(name string, backend func(*appcontext.AppContext, map[string]string) (Importer, error)) {
 	muBackends.Lock()
 	defer muBackends.Unlock()
 
@@ -126,7 +126,7 @@ func NewImporter(ctx *appcontext.AppContext, config map[string]string) (Importer
 	if backend, exists := backends[backendName]; !exists {
 		return nil, fmt.Errorf("backend '%s' does not exist", backendName)
 	} else {
-		backendInstance, err := backend(config)
+		backendInstance, err := backend(ctx, config)
 		if err != nil && backendName != "fs" {
 			return nil, err
 		} else if err != nil {
@@ -134,7 +134,7 @@ func NewImporter(ctx *appcontext.AppContext, config map[string]string) (Importer
 			if !filepath.IsAbs(location) {
 				location = filepath.Join(ctx.CWD, location)
 				config["location"] = location
-				if backendInstance, err = backend(config); err == nil {
+				if backendInstance, err = backend(ctx, config); err == nil {
 					return backendInstance, nil
 				}
 			}

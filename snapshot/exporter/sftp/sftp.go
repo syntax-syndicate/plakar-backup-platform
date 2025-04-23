@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	plakarsftp "github.com/PlakarKorp/plakar/sftp"
 	"github.com/PlakarKorp/plakar/snapshot/exporter"
@@ -37,7 +38,7 @@ func init() {
 	exporter.Register("sftp", NewSFTPExporter)
 }
 
-func NewSFTPExporter(config map[string]string) (exporter.Exporter, error) {
+func NewSFTPExporter(appCtx *appcontext.AppContext, config map[string]string) (exporter.Exporter, error) {
 	var err error
 
 	location := config["location"]
