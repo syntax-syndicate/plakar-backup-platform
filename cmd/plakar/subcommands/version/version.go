@@ -19,18 +19,22 @@ package version
 import (
 	"flag"
 	"fmt"
+	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/snapshot/exporter"
+	"github.com/PlakarKorp/plakar/snapshot/importer"
+	"github.com/PlakarKorp/plakar/storage"
 )
 
 func init() {
-	subcommands.Register("version", parse_cmd_version)
+	subcommands.Register(func() subcommands.Subcommand { return &Version{} }, "version")
 }
 
-func parse_cmd_version(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
+func (_ *Version) Parse(ctx *appcontext.AppContext, args []string) error {
 	flags := flag.NewFlagSet("version", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s\n", flags.Name())
@@ -38,12 +42,21 @@ func parse_cmd_version(ctx *appcontext.AppContext, args []string) (subcommands.S
 	}
 
 	flags.Parse(args)
-	return &Version{}, nil
+
+	return nil
 }
 
-type Version struct{}
+type Version struct {
+	subcommands.SubcommandBase
+}
 
 func (cmd *Version) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	fmt.Println(utils.GetVersion())
+	fmt.Printf("plakar/%s\n", utils.GetVersion())
+
+	fmt.Println()
+	fmt.Println("importers:", strings.Join(importer.Backends(), ", "))
+	fmt.Println("exporters:", strings.Join(exporter.Backends(), ", "))
+	fmt.Println("klosets:", strings.Join(storage.Backends(), ", "))
+
 	return 0, nil
 }

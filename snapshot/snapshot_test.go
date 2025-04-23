@@ -4,20 +4,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/PlakarKorp/plakar/encryption/keypair"
+	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	ptesting "github.com/PlakarKorp/plakar/testing"
 	"github.com/stretchr/testify/require"
 )
 
-func generateSnapshot(t *testing.T, keyPair *keypair.KeyPair) *snapshot.Snapshot {
-	return ptesting.GenerateSnapshot(t, nil, nil, keyPair, []ptesting.MockFile{
+func generateSnapshot(t *testing.T) (*repository.Repository, *snapshot.Snapshot) {
+	repo := ptesting.GenerateRepository(t, nil, nil, nil)
+	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
 		ptesting.NewMockFile("dummy.txt", 0644, "hello"),
 	})
+	return repo, snap
 }
 
 func TestSnapshot(t *testing.T) {
-	snap := generateSnapshot(t, nil)
+	repo, snap := generateSnapshot(t)
 	defer snap.Close()
 
 	appCtx := snap.AppContext()
@@ -28,29 +30,14 @@ func TestSnapshot(t *testing.T) {
 	events := appCtx.Events()
 	require.NotNil(t, events)
 
-	err := snap.Repository().RebuildState()
-	require.NoError(t, err)
-
 	snapFs, err := snap.Filesystem()
 	require.NoError(t, err)
 	require.NotNil(t, snapFs)
 
-	snap2, err := snapshot.Load(snap.Repository(), snap.Header.Identifier)
+	snap2, err := snapshot.Load(repo, snap.Header.Identifier)
 	require.NoError(t, err)
 	require.NotNil(t, snap2)
 
 	require.Equal(t, snap.Header.Identifier, snap2.Header.Identifier)
 	require.Equal(t, snap.Header.Timestamp.Truncate(time.Nanosecond), snap2.Header.Timestamp.Truncate(time.Nanosecond))
-
-	snap3, err := snapshot.Clone(snap.Repository(), snap.Header.Identifier)
-	require.NoError(t, err)
-	require.NotNil(t, snap3)
-
-	require.NotEqual(t, snap.Header.Identifier, snap3.Header.Identifier)
-
-	snap4, err := snapshot.Fork(snap.Repository(), snap.Header.Identifier)
-	require.NoError(t, err)
-	require.NotNil(t, snap4)
-
-	require.NotEqual(t, snap.Header.Identifier, snap4.Header.Identifier)
 }

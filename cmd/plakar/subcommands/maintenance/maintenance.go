@@ -35,23 +35,23 @@ import (
 )
 
 func init() {
-	subcommands.Register("maintenance", parse_cmd_maintenance)
+	subcommands.Register(func() subcommands.Subcommand { return &Maintenance{} }, "maintenance")
 }
 
-func parse_cmd_maintenance(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
+func (cmd *Maintenance) Parse(ctx *appcontext.AppContext, args []string) error {
 	flags := flag.NewFlagSet("maintenance", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s\n", flags.Name())
 	}
 	flags.Parse(args)
 
-	return &Maintenance{
-		RepositorySecret: ctx.GetSecret(),
-	}, nil
+	cmd.RepositorySecret = ctx.GetSecret()
+
+	return nil
 }
 
 type Maintenance struct {
-	RepositorySecret []byte
+	subcommands.SubcommandBase
 
 	repository    *repository.Repository
 	maintenanceID objects.MAC
@@ -186,7 +186,7 @@ func (cmd *Maintenance) colourPass(ctx *appcontext.AppContext, cache *caching.Ma
 	// For now we keep the same serial so that those delete gets merged in.
 	// Once we do the real deletion we will rebuild the aggregated view
 	// excluding those resources alltogether.
-	deltaState := cmd.repository.NewStateDelta(sc)
+	repoWriter := cmd.repository.NewRepositoryWriter(sc, cmd.maintenanceID, repository.DefaultType)
 
 	coloredPackfiles := 0
 	for packfile := range packfiles {
@@ -201,7 +201,7 @@ func (cmd *Maintenance) colourPass(ctx *appcontext.AppContext, cache *caching.Ma
 
 		if !has {
 			coloredPackfiles++
-			if err := deltaState.DeleteResource(resources.RT_PACKFILE, packfile); err != nil {
+			if err := repoWriter.DeleteStateResource(resources.RT_PACKFILE, packfile); err != nil {
 				return err
 			}
 		}
@@ -210,13 +210,7 @@ func (cmd *Maintenance) colourPass(ctx *appcontext.AppContext, cache *caching.Ma
 	fmt.Fprintf(ctx.Stdout, "maintenance: Coloured %d packfiles (%d orphaned) for deletion\n", coloredPackfiles, orphanedPackfiles)
 
 	if coloredPackfiles > 0 {
-		buf := &bytes.Buffer{}
-
-		if err := deltaState.SerializeToStream(buf); err != nil {
-			return err
-		}
-
-		if err := cmd.repository.PutState(cmd.maintenanceID, buf); err != nil {
+		if err := repoWriter.CommitTransaction(cmd.maintenanceID); err != nil {
 			return err
 		}
 	}

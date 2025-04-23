@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -17,7 +18,8 @@ func TestParseCmdVersion(t *testing.T) {
 	ctx := &appcontext.AppContext{}
 	args := []string{}
 
-	subcommand, err := parse_cmd_version(ctx, args)
+	subcommand := &Version{}
+	err := subcommand.Parse(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 }
@@ -32,7 +34,8 @@ func TestExecuteCmdVersion(t *testing.T) {
 	ctx := &appcontext.AppContext{}
 	repo := &repository.Repository{}
 
-	subcommand, err := parse_cmd_version(ctx, []string{})
+	subcommand := &Version{}
+	err = subcommand.Parse(ctx, []string{})
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -48,6 +51,7 @@ func TestExecuteCmdVersion(t *testing.T) {
 	io.Copy(&buf, r)
 
 	output := buf.String()
-	require.Equal(t, fmt.Sprintf("%s\n", utils.GetVersion()), output)
+	version := strings.Split(output, "\n")[0]
+	require.Equal(t, fmt.Sprintf("plakar/%s", utils.GetVersion()), version)
 
 }

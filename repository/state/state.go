@@ -29,7 +29,6 @@ import (
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/google/uuid"
-	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -816,23 +815,21 @@ func (ls *LocalState) SetConfiguration(key string, value []byte) error {
 // disk state if the provided configuration is more recent than the stored one
 func (ls *LocalState) insertOrUpdateConfiguration(ce ConfigurationEntry) error {
 	value, err := ls.cache.GetConfiguration(ce.Key)
-
-	if err != nil && err != leveldb.ErrNotFound {
+	if err != nil {
 		return err
 	}
 
-	if err != nil && err == leveldb.ErrNotFound {
-		oldCe, err := ConfigurationEntryFromBytes(value)
-		if err != nil {
-			return err
-		}
+	if value == nil {
+		// not found, just insert it
+		return ls.cache.PutConfiguration(ce.Key, ce.ToBytes())
+	}
 
-		if oldCe.CreatedAt.Before(ce.CreatedAt) {
-			if err := ls.cache.PutConfiguration(ce.Key, ce.ToBytes()); err != nil {
-				return err
-			}
-		}
-	} else {
+	oldCe, err := ConfigurationEntryFromBytes(value)
+	if err != nil {
+		return err
+	}
+
+	if oldCe.CreatedAt.Before(ce.CreatedAt) {
 		if err := ls.cache.PutConfiguration(ce.Key, ce.ToBytes()); err != nil {
 			return err
 		}
