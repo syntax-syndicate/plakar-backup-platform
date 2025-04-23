@@ -24,8 +24,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/kloset/repository"
 	"github.com/PlakarKorp/plakar/subcommands"
 	v2 "github.com/PlakarKorp/plakar/ui/v2"
 	"github.com/google/uuid"

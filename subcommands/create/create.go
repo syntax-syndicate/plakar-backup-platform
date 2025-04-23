@@ -25,16 +25,16 @@ import (
 	"os"
 	"strings"
 
-	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/compression"
-	"github.com/PlakarKorp/plakar/encryption"
-	"github.com/PlakarKorp/plakar/hashing"
-	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/resources"
-	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/plakar/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/kloset/compression"
+	"github.com/PlakarKorp/plakar/kloset/encryption"
+	"github.com/PlakarKorp/plakar/kloset/hashing"
+	"github.com/PlakarKorp/plakar/kloset/repository"
+	"github.com/PlakarKorp/plakar/kloset/resources"
+	"github.com/PlakarKorp/plakar/kloset/storage"
+	"github.com/PlakarKorp/plakar/kloset/versioning"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/utils"
-	"github.com/PlakarKorp/plakar/versioning"
 )
 
 func init() {

@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/PlakarKorp/plakar/hashing"
-	"github.com/PlakarKorp/plakar/network"
-	"github.com/PlakarKorp/plakar/resources"
-	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
-	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/plakar/kloset/hashing"
+	"github.com/PlakarKorp/plakar/kloset/network"
+	"github.com/PlakarKorp/plakar/kloset/resources"
+	_ "github.com/PlakarKorp/plakar/kloset/snapshot/exporter/fs"
+	"github.com/PlakarKorp/plakar/kloset/storage"
+	"github.com/PlakarKorp/plakar/kloset/versioning"
 	ptesting "github.com/PlakarKorp/plakar/testing"
-	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/stretchr/testify/require"
 )
 

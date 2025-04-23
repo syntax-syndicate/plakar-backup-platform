@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/snapshot/header"
-	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/plakar/kloset/objects"
+	"github.com/PlakarKorp/plakar/kloset/snapshot/header"
+	"github.com/PlakarKorp/plakar/kloset/storage"
 	"github.com/vmihailenco/msgpack/v5"
 )
 

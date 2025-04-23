@@ -1,8 +1,8 @@
 package backup
 
 import (
-	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/events"
+	"github.com/PlakarKorp/plakar/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/kloset/events"
 )
 
 type eventsProcessorStdio struct {

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/snapshot"
+	"github.com/PlakarKorp/plakar/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/kloset/repository"
+	"github.com/PlakarKorp/plakar/kloset/snapshot"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/utils"
 )

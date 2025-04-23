@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/kloset/objects"
+	"github.com/PlakarKorp/plakar/kloset/repository"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/utils"
 )

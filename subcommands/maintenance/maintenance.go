@@ -24,12 +24,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/caching"
-	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/resources"
-	"github.com/PlakarKorp/plakar/snapshot"
+	"github.com/PlakarKorp/plakar/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/kloset/caching"
+	"github.com/PlakarKorp/plakar/kloset/objects"
+	"github.com/PlakarKorp/plakar/kloset/repository"
+	"github.com/PlakarKorp/plakar/kloset/resources"
+	"github.com/PlakarKorp/plakar/kloset/snapshot"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"golang.org/x/sync/errgroup"
 )

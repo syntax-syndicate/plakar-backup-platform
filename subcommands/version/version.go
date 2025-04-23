@@ -21,11 +21,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/snapshot/exporter"
-	"github.com/PlakarKorp/plakar/snapshot/importer"
-	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/plakar/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/kloset/repository"
+	"github.com/PlakarKorp/plakar/kloset/snapshot/exporter"
+	"github.com/PlakarKorp/plakar/kloset/snapshot/importer"
+	"github.com/PlakarKorp/plakar/kloset/storage"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/utils"
 )

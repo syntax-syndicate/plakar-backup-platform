@@ -20,9 +20,9 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/server/httpd"
+	"github.com/PlakarKorp/plakar/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/kloset/repository"
+	"github.com/PlakarKorp/plakar/kloset/server/httpd"
 	"github.com/PlakarKorp/plakar/subcommands"
 )
 

@@ -28,8 +28,8 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/PlakarKorp/plakar/api"
-	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/kloset/api"
+	"github.com/PlakarKorp/plakar/kloset/repository"
 )
 
 type UiOptions struct {

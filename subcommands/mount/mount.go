@@ -20,7 +20,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/kloset/appcontext"
 	"github.com/PlakarKorp/plakar/subcommands"
 )
 

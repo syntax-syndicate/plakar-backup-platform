@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/snapshot"
-	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
+	"github.com/PlakarKorp/plakar/kloset/repository"
+	"github.com/PlakarKorp/plakar/kloset/snapshot"
+	_ "github.com/PlakarKorp/plakar/kloset/snapshot/exporter/fs"
 	"github.com/PlakarKorp/plakar/subcommands"
 	ptesting "github.com/PlakarKorp/plakar/testing"
 	"github.com/stretchr/testify/require"

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/events"
+	"github.com/PlakarKorp/plakar/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/kloset/events"
 	tea "github.com/charmbracelet/bubbletea"
 )
 

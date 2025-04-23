@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/PlakarKorp/plakar/snapshot/importer"
+	"github.com/PlakarKorp/plakar/kloset/snapshot/importer"
 )
 
 type MockImporter struct {
