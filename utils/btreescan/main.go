@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/btree"
 	"github.com/PlakarKorp/plakar/snapshot/importer/fs"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
@@ -125,7 +126,7 @@ func main() {
 		log.Fatal("Failed to create the btree:", err)
 	}
 
-	imp, err := fs.NewFSImporter(map[string]string{"location": flag.Arg(0)})
+	imp, err := fs.NewFSImporter(appcontext.NewAppContext(), map[string]string{"location": flag.Arg(0)})
 	if err != nil {
 		log.Fatal("new fs importer failed:", err)
 	}
