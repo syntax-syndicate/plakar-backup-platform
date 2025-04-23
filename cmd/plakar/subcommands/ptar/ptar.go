@@ -270,7 +270,7 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 			return 1, err
 		}
 	} else {
-		if err := cmd.backup(repoWriter); err != nil {
+		if err := cmd.backup(ctx, repoWriter); err != nil {
 			return 1, err
 		}
 	}
@@ -289,9 +289,9 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	return 0, nil
 }
 
-func (cmd *Ptar) backup(repo *repository.RepositoryWriter) error {
+func (cmd *Ptar) backup(ctx *appcontext.AppContext, repo *repository.RepositoryWriter) error {
 	for _, loc := range cmd.Location {
-		imp, err := importer.NewImporter(map[string]string{"location": loc})
+		imp, err := importer.NewImporter(ctx, map[string]string{"location": loc})
 		if err != nil {
 			return err
 		}
