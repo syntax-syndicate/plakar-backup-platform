@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"mime"
 	"net/http"
 	"path"
 	"path/filepath"
@@ -121,21 +120,6 @@ func snapshotReader(w http.ResponseWriter, r *http.Request) error {
 	if render != "code" {
 		if render == "text" {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		} else if render == "auto" {
-			ctype := mime.TypeByExtension(filepath.Ext(path))
-			if ctype == "" {
-				content := file.(io.ReadSeeker)
-				// read a chunk to decide between utf-8 text and binary
-				var buf [512]byte
-				n, _ := io.ReadFull(content, buf[:])
-				ctype = http.DetectContentType(buf[:n])
-				_, err := content.Seek(0, io.SeekStart) // rewind to output whole file
-				if err != nil {
-					http.Error(w, "seeker can't seek", http.StatusInternalServerError)
-					return nil
-				}
-			}
-			w.Header().Set("Content-Type", ctype)
 		}
 		http.ServeContent(w, r, filepath.Base(path), entry.Stat().ModTime(), file.(io.ReadSeeker))
 		return nil
