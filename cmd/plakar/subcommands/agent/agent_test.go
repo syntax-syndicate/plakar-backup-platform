@@ -12,6 +12,7 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ls"
+	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
@@ -74,15 +75,13 @@ func TestCmdAgentForegroundInit(t *testing.T) {
 	defer os.Remove(logFile)
 
 	args := []string{"-foreground", "-log", logFile}
-	subcommand, err := parse_cmd_agent(ctx, args)
-
+	subcommand := &Agent{}
+	err := subcommand.Parse(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	agentCmd, ok := subcommand.(*Agent)
-	require.True(t, ok)
-	require.Equal(t, filepath.Join(ctx.CacheDir, "agent.sock"), agentCmd.socketPath)
-	defer agentCmd.Close()
+	require.Equal(t, filepath.Join(ctx.CacheDir, "agent.sock"), subcommand.socketPath)
+	defer subcommand.Close()
 
 	_, err = os.Stat(logFile)
 	require.NoError(t, err)
@@ -124,7 +123,7 @@ func TestCmdAgentForegroundInit(t *testing.T) {
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx2.HomeDir = repo.Location()
 
-	retval, err := client.SendCommand(ctx2, &ls.Ls{}, map[string]string{"location": repo.Location()})
+	retval, err := client.SendCommand(ctx2, []string{"ls"}, &ls.Ls{LocateOptions: utils.NewDefaultLocateOptions()}, map[string]string{"location": repo.Location()})
 	require.NoError(t, err)
 	require.Equal(t, 0, retval)
 
