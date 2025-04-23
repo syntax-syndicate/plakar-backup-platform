@@ -31,7 +31,8 @@ func TestExecuteCmdPtarDefault(t *testing.T) {
 
 	args := []string{"--no-encryption", "--no-compression", filepath.Join(tmpSourceDir, "subdir")}
 
-	subcommand, err := parse_cmd_ptar(repo.AppContext(), args)
+	subcommand := &Ptar{}
+	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -61,7 +62,8 @@ func TestExecuteCmdPtarWithSync(t *testing.T) {
 
 	args := []string{"--no-encryption", "--no-compression", "--sync-from", srcRepo.Location()}
 
-	subcommand, err := parse_cmd_ptar(dstRepo.AppContext(), args)
+	subcommand := &Ptar{}
+	err := subcommand.Parse(dstRepo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
