@@ -412,7 +412,6 @@ func TestExecuteCmdDiagVFS(t *testing.T) {
 	defer snap.Close()
 
 	indexId := snap.Header.GetIndexID()
-	backupDir := snap.Header.GetSource(0).Importer.Directory
 	args := []string{"diag", "vfs", fmt.Sprintf("%s:subdir/dummy.txt", hex.EncodeToString(indexId[:]))}
 
 	subcommandf, _, args := subcommands.Lookup(args)
@@ -449,16 +448,14 @@ func TestExecuteCmdDiagVFS(t *testing.T) {
 
 	output := bufOut.String()
 	require.Contains(t, output, "[FileEntry]")
-	require.Contains(t, output, fmt.Sprintf("ParentPath: %s/subdir", backupDir))
+	require.Contains(t, output, "ParentPath: /subdir")
 	require.Contains(t, output, "Name: dummy.txt")
 
 	bufOut.Reset()
-	args = []string{"diag", "vfs", fmt.Sprintf("%s:%s/subdir", hex.EncodeToString(indexId[:]), backupDir)}
+	args = []string{"diag", "vfs", fmt.Sprintf("%s:/subdir", hex.EncodeToString(indexId[:]))}
 
 	subcommandf, _, args = subcommands.Lookup(args)
 	subcommand = subcommandf()
-	err = subcommand.Parse(repo.AppContext(), args)
-	subcommand = &DiagVFS{}
 	err = subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
@@ -580,7 +577,7 @@ func TestExecuteCmdDiagVFS(t *testing.T) {
 
 	output = bufOut.String()
 	require.Contains(t, output, "[DirEntry]")
-	require.Contains(t, output, fmt.Sprintf("ParentPath: %s", backupDir))
+	require.Contains(t, output, "ParentPath: /")
 	require.Contains(t, output, "Name: subdir")
 	require.Contains(t, output, "Directory.Files: 3")
 }
