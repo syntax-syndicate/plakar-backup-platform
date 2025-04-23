@@ -17,27 +17,29 @@
 package webdav
 
 import (
-	"context"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"golang.org/x/net/webdav"
 )
 
 func init() {
-	subcommands.Register("webdav", parse_cmd_webdav)
+	subcommands.Register(func() subcommands.Subcommand { return &Webdav{} }, "webdav")
 }
 
-func parse_cmd_webdav(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
+type Webdav struct {
+	subcommands.SubcommandBase
+
+	SnapshotPath string
+}
+
+func (cmd *Webdav) Parse(ctx *appcontext.AppContext, args []string) error {
 	flags := flag.NewFlagSet("webdav", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s\n", flags.Name())
@@ -45,132 +47,12 @@ func parse_cmd_webdav(ctx *appcontext.AppContext, args []string) (subcommands.Su
 	}
 	flags.Parse(args)
 
-	snapshotID := flags.Arg(0)
-
-	return &Webdav{
-		SnapshotPath: snapshotID,
-	}, nil
-}
-
-type Webdav struct {
-	SnapshotPath string
-}
-
-type PlakarFS struct {
-	vfsRoot *vfs.Filesystem
-}
-
-func (fs *PlakarFS) resolve(name string) (*vfs.Entry, error) {
-	return fs.vfsRoot.GetEntry(name)
-}
-
-func (fs *PlakarFS) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
-	return os.ErrPermission // read-only for now
-}
-
-func (fs *PlakarFS) RemoveAll(ctx context.Context, name string) error {
-	return os.ErrPermission
-}
-
-func (fs *PlakarFS) Rename(ctx context.Context, oldName, newName string) error {
-	return os.ErrPermission
-}
-
-func (fs *PlakarFS) Stat(ctx context.Context, name string) (os.FileInfo, error) {
-	entry, err := fs.resolve(name)
-	if err != nil {
-		return nil, err
+	if flags.NArg() < 1 {
+		return fmt.Errorf("webdav: missing snapshot path")
 	}
-	return entry.Stat(), nil
-}
 
-func (fs *PlakarFS) OpenFile(ctx context.Context, name string, flag int, perm os.FileMode) (webdav.File, error) {
-	entry, err := fs.resolve(name)
-	if err != nil {
-		return nil, err
-	}
-	if entry.Stat().IsDir() {
-		return &PlakarDir{vfsRoot: fs.vfsRoot, entry: entry}, nil
-	}
-	reader, err := fs.vfsRoot.Open(name)
-	if err != nil {
-		return nil, err
-	}
-	return &PlakarFile{vfsRoot: fs.vfsRoot, reader: reader, info: entry.Stat()}, nil
-}
-
-type PlakarFile struct {
-	vfsRoot *vfs.Filesystem
-	reader  io.ReadCloser
-	info    os.FileInfo
-}
-
-func (f *PlakarFile) Write([]byte) (int, error) {
-	return 0, fmt.Errorf("cannot write to directory")
-}
-
-func (f *PlakarFile) Read(p []byte) (int, error) {
-	return f.reader.Read(p)
-}
-
-func (f *PlakarFile) Close() error {
-	return f.reader.Close()
-}
-
-func (f *PlakarFile) Seek(offset int64, whence int) (int64, error) {
-	return 0, fmt.Errorf("seek not supported") // you could buffer if needed
-}
-
-func (f *PlakarFile) Readdir(count int) ([]os.FileInfo, error) {
-	return nil, fmt.Errorf("not a directory")
-}
-
-func (f *PlakarFile) Stat() (os.FileInfo, error) {
-	return f.info, nil
-}
-
-type PlakarDir struct {
-	vfsRoot *vfs.Filesystem
-	entry   *vfs.Entry
-}
-
-func (d *PlakarDir) Close() error {
+	cmd.SnapshotPath = flags.Arg(0)
 	return nil
-}
-
-func (d *PlakarDir) Write([]byte) (int, error) {
-	return 0, fmt.Errorf("cannot write to directory")
-}
-
-func (d *PlakarDir) Read(p []byte) (int, error) {
-	return 0, fmt.Errorf("cannot read directory")
-}
-
-func (d *PlakarDir) Seek(offset int64, whence int) (int64, error) {
-	return 0, fmt.Errorf("seek not supported")
-}
-
-func (d *PlakarDir) Readdir(count int) ([]os.FileInfo, error) {
-	iter, err := d.entry.Getdents(d.vfsRoot)
-	if err != nil {
-		return nil, err
-	}
-
-	ret := make([]os.FileInfo, 0)
-	for childEntry, err := range iter {
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return nil, err
-		}
-		ret = append(ret, childEntry.Stat())
-	}
-	return ret, nil
-}
-
-func (d *PlakarDir) Stat() (os.FileInfo, error) {
-	return d.entry.Stat(), nil
 }
 
 func (cmd *Webdav) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
