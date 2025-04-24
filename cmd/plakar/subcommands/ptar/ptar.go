@@ -133,7 +133,7 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 
 	cmd.SyncSrcSecret = peerSecret
 	cmd.SyncFrom = opt_sync
-	cmd.Location = flag.Args()
+	cmd.Location = flags.Args()
 
 	return nil
 }
