@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type providerData interface{}
@@ -160,6 +161,11 @@ func NewRemoteProvider(ctx *appcontext.AppContext) error {
 
 func newRcloneProvider(ctx *appcontext.AppContext, provider string) error {
 	configfile.Install()
+	tempFile, err := createTempConf()
+	if err != nil {
+		return err
+	}
+	defer DeleteTempConf(tempFile.Name())
 
 	name, err := promptForRemoteName(ctx)
 	if err != nil {
@@ -167,15 +173,18 @@ func newRcloneProvider(ctx *appcontext.AppContext, provider string) error {
 	}
 
 	opts := config.UpdateRemoteOpt{All: true}
-	generateName := generateConfigName(provider)
 
-	if _, err := config.CreateRemote(context.Background(), generateName, providerList[provider].data.(rcloneData).rcloneName, nil, opts); err != nil {
+	if _, err := config.CreateRemote(context.Background(), name, providerList[provider].data.(rcloneData).rcloneName, nil, opts); err != nil {
 		return fmt.Errorf("failed to create remote: %w", err)
 	}
 
-	ctx.Config.Remotes[name] = map[string]string{
-		"location": provider + "://" + generateName + ":",
+	configMap := getConfFileMap()
+	ctx.Config.Remotes[name] = map[string]string{}
+	for key, value := range configMap[name] {
+		ctx.Config.Remotes[name][key] = value
 	}
+	ctx.Config.Remotes[name]["location"] = provider + "://" + name + ":"
+
 	if err := ctx.Config.Save(); err != nil {
 		return fmt.Errorf("failed to save configuration: %w", err)
 	}
@@ -217,12 +226,27 @@ func EditRemoteProvider(ctx *appcontext.AppContext) error {
 	}
 	provider, _, _ := strings.Cut(ctx.Config.Remotes[configName]["location"], "://")
 	if _, ok := providerList[provider].data.(rcloneData); ok {
-		rcloneProfile, err := getRcloneProfileByPlakarName(ctx, configName)
-		if err != nil {
-			return fmt.Errorf("failed to get rclone profile: %w", err)
-		}
 		configfile.Install()
-		return config.EditRemote(context.Background(), nil, rcloneProfile)
+
+		tempFile, err := WriteRcloneConfigFile(configName, ctx.Config.Remotes[configName])
+		if err != nil {
+			return err
+		}
+		defer DeleteTempConf(tempFile.Name())
+		err = config.EditRemote(context.Background(), nil, configName)
+		if err != nil {
+			return err
+		}
+		newDataMap := getConfFileMap()
+		ctx.Config.Remotes[configName] = map[string]string{}
+		err = ctx.Config.Save()
+		if err != nil {
+			return err
+		}
+		for key, value := range newDataMap[configName] {
+			ctx.Config.Remotes[configName][key] = value
+		}
+		return ctx.Config.Save()
 	}
 	printRemoteConf(configName, ctx)
 	print("Write <key value> to create a new field or modify it if its from an existing one. \"q\" to leave\n")
@@ -252,21 +276,8 @@ func DeleteRemoteProvider(ctx *appcontext.AppContext) error {
 	if err != nil {
 		return fmt.Errorf("failed to select profile: %w", err)
 	}
-	provider, _, _ := strings.Cut(ctx.Config.Remotes[configName]["location"], "://")
-	if _, ok := providerList[provider].data.(rcloneData); ok {
-		rcloneProfile, err := getRcloneProfileByPlakarName(ctx, configName)
-		if err != nil {
-			return fmt.Errorf("failed to get rclone profile: %w", err)
-		}
-		configfile.Install()
-		config.DeleteRemote(rcloneProfile)
-	}
 	delete(ctx.Config.Remotes, configName)
-	if err := ctx.Config.Save(); err != nil {
-		return fmt.Errorf("failed to save configuration: %w", err)
-	}
-
-	return nil
+	return ctx.Config.Save()
 }
 
 func printRemoteConf(configName string, ctx *appcontext.AppContext) {
@@ -325,19 +336,6 @@ func listSelection(list []string) (string, error) {
 	}
 }
 
-func getRcloneProfileByPlakarName(ctx *appcontext.AppContext, plakarName string) (string, error) {
-	if !ctx.Config.HasRemote(plakarName) {
-		return "", fmt.Errorf("remote %s not found", plakarName)
-	}
-	rcloneName := ctx.Config.Remotes[plakarName]["location"]
-	_, profileName, _ := strings.Cut(rcloneName, "://")
-	profileName = strings.TrimSuffix(profileName, ":")
-	if profileName == "" {
-		return "", fmt.Errorf("failed to get profile name for %s", plakarName)
-	}
-	return profileName, nil
-}
-
 func contains(slice []string, item string) bool {
 	for _, v := range slice {
 		if v == item {
@@ -354,20 +352,6 @@ func nextRandom() string {
 		panic(err)
 	}
 	return fmt.Sprintf("%x", b)
-}
-
-func generateConfigName(provider string) string {
-	name := fmt.Sprintf("plakar-%s-%d", provider, os.Getpid())
-	for {
-		if !config.LoadedData().HasSection(name) {
-			return name
-		}
-		if len(name) > 30 {
-			name, _, _ = strings.Cut(name, provider)
-			name += provider + "-"
-		}
-		name = fmt.Sprintf("%s%s", name, nextRandom())
-	}
 }
 
 func promptForRemoteName(ctx *appcontext.AppContext) (string, error) {
@@ -391,4 +375,88 @@ func readInput() string {
 	input, _ := reader.ReadString('\n')
 	print("\n") // print a new line to gain more visibility
 	return strings.TrimSpace(input)
+}
+
+func getConfFileMap() map[string]map[string]string {
+	inputFile := config.GetConfigPath()
+	file, err := os.Open(inputFile)
+	if err != nil {
+		fmt.Printf("Error opening file: %v\n", err)
+		return nil
+	}
+	defer file.Close()
+
+	data := make(map[string]map[string]string)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	scanner := bufio.NewScanner(file)
+
+	var currentSection string
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
+			continue
+		}
+
+		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
+			currentSection = line[1 : len(line)-1]
+			mu.Lock()
+			data[currentSection] = make(map[string]string)
+			mu.Unlock()
+		} else if currentSection != "" {
+			wg.Add(1)
+			go func(line, section string) {
+				defer wg.Done()
+				parts := strings.SplitN(line, "=", 2)
+				if len(parts) == 2 {
+					key := strings.TrimSpace(parts[0])
+					value := strings.TrimSpace(parts[1])
+					mu.Lock()
+					data[section][key] = value
+					mu.Unlock()
+				}
+			}(line, currentSection)
+		}
+	}
+
+	wg.Wait()
+
+	if err := scanner.Err(); err != nil {
+		fmt.Printf("Error reading file: %v\n", err)
+		return nil
+	}
+	return data
+}
+
+func WriteRcloneConfigFile(name string, remoteMap map[string]string) (*os.File, error) {
+	file, err := createTempConf()
+	_, err = fmt.Fprintf(file, "[%s]\n", name)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range remoteMap {
+		_, err = fmt.Fprintf(file, "%s = %s\n", k, v)
+	}
+	return file, nil
+}
+
+func createTempConf() (*os.File, error) {
+	tempFile, err := os.CreateTemp("", "rclone-*.conf")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temporary config file: %w", err)
+	}
+	err = config.SetConfigPath(tempFile.Name())
+	if err != nil {
+		return nil, err
+	}
+	return tempFile, nil
+}
+
+func DeleteTempConf(name string) {
+	err := os.Remove(name)
+	if err != nil {
+		fmt.Printf("Error removing temporary file: %v\n", err)
+	}
 }

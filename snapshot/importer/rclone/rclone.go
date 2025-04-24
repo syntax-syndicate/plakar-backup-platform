@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/config/remoteProvider"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 
@@ -37,6 +38,7 @@ type RcloneImporter struct {
 	remote   string
 	base     string
 	provider string
+	confFile *os.File
 
 	ino uint64
 }
@@ -55,6 +57,10 @@ func init() {
 func NewRcloneImporter(config map[string]string) (importer.Importer, error) {
 	provider, location, _ := strings.Cut(config["location"], "://")
 	remote, base, found := strings.Cut(location, ":")
+	file, err := remoteProvider.WriteRcloneConfigFile(remote, config)
+	if err != nil {
+		return nil, err
+	}
 
 	if !found {
 		return nil, fmt.Errorf("invalid location: %s. Expected format: remote:path/to/dir", location)
@@ -66,6 +72,7 @@ func NewRcloneImporter(config map[string]string) (importer.Importer, error) {
 		remote:   remote,
 		base:     base,
 		provider: provider,
+		confFile: file,
 	}, nil
 }
 
@@ -329,6 +336,7 @@ func (p *RcloneImporter) NewReader(pathname string) (io.ReadCloser, error) {
 }
 
 func (p *RcloneImporter) Close() error {
+	remoteProvider.DeleteTempConf(p.confFile.Name())
 	librclone.Finalize()
 	return nil
 }
