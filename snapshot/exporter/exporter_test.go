@@ -33,10 +33,10 @@ func (m MockedExporter) Close() error {
 
 func TestBackends(t *testing.T) {
 	// Setup: Register some backends
-	Register("fs1", func(config map[string]string) (Exporter, error) {
+	Register("fs1", func(appCtx *appcontext.AppContext, name string, config map[string]string) (Exporter, error) {
 		return nil, nil
 	})
-	Register("s33", func(config map[string]string) (Exporter, error) {
+	Register("s33", func(appCtx *appcontext.AppContext, name string, config map[string]string) (Exporter, error) {
 		return nil, nil
 	})
 
@@ -50,10 +50,10 @@ func TestBackends(t *testing.T) {
 
 func TestNewExporter(t *testing.T) {
 	// Setup: Register some backends
-	Register("fs", func(config map[string]string) (Exporter, error) {
+	Register("fs", func(appCtx *appcontext.AppContext, name string, config map[string]string) (Exporter, error) {
 		return MockedExporter{}, nil
 	})
-	Register("s3", func(config map[string]string) (Exporter, error) {
+	Register("s3", func(appCtx *appcontext.AppContext, name string, config map[string]string) (Exporter, error) {
 		return MockedExporter{}, nil
 	})
 
