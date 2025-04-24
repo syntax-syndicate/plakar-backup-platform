@@ -59,14 +59,13 @@ func TestNewExporter(t *testing.T) {
 
 	tests := []struct {
 		location        string
-		scheme          string
 		expectedError   string
 		expectedBackend string
 	}{
-		{location: "/", scheme: "fs", expectedError: "", expectedBackend: "fs"},
-		{location: "fs://some/path", scheme: "fs", expectedError: "", expectedBackend: "fs"},
-		{location: "s3://bucket/path", scheme: "s3", expectedError: "", expectedBackend: "s3"},
-		{location: "http://unsupported", scheme: "http", expectedError: "unsupported exporter protocol", expectedBackend: ""},
+		{location: "/", expectedError: "", expectedBackend: "fs"},
+		{location: "fs://some/path", expectedError: "", expectedBackend: "fs"},
+		{location: "s3://bucket/path", expectedError: "", expectedBackend: "s3"},
+		{location: "http://unsupported", expectedError: "unsupported exporter protocol", expectedBackend: ""},
 	}
 
 	for _, test := range tests {
