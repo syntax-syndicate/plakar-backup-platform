@@ -58,6 +58,7 @@ func (cmd *Check) Parse(ctx *appcontext.AppContext, args []string) error {
 	cmd.LocateOptions.MaxConcurrency = ctx.MaxConcurrency
 	cmd.LocateOptions.SortOrder = utils.LocateSortOrderAscending
 	cmd.RepositorySecret = ctx.GetSecret()
+	cmd.Snapshots = flags.Args()
 
 	return nil
 }
