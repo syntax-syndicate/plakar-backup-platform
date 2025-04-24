@@ -141,9 +141,11 @@ type Store interface {
 	Close() error
 }
 
-var backends = make(map[string]func(map[string]string) (Store, error))
+type StoreFn func(map[string]string) (Store, error)
 
-func Register(backend func(map[string]string) (Store, error), names ...string) {
+var backends = make(map[string]StoreFn)
+
+func Register(backend StoreFn, names ...string) {
 	for _, name := range names {
 		if _, ok := backends[name]; ok {
 			log.Fatalf("backend '%s' registered twice", name)
