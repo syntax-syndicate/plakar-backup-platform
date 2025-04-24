@@ -143,14 +143,6 @@ type Store interface {
 
 var backends = make(map[string]func(map[string]string) (Store, error))
 
-func NewStore(name string, storeConfig map[string]string) (Store, error) {
-	if backend, exists := backends[name]; !exists {
-		return nil, fmt.Errorf("backend '%s' does not exist", name)
-	} else {
-		return backend(storeConfig)
-	}
-}
-
 func Register(backend func(map[string]string) (Store, error), names ...string) {
 	for _, name := range names {
 		if _, ok := backends[name]; ok {
@@ -193,7 +185,10 @@ func New(storeConfig map[string]string) (Store, error) {
 		}
 	}
 
-	return NewStore(proto, storeConfig)
+	if backend, ok := backends[proto]; ok {
+		return backend(storeConfig)
+	}
+	return nil, fmt.Errorf("backend '%s' does not exist", proto)
 }
 
 func Open(storeConfig map[string]string) (Store, []byte, error) {
