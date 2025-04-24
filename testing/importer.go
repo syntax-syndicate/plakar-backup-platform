@@ -23,14 +23,8 @@ func init() {
 }
 
 func NewMockImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
-	location := config["location"]
-
-	if strings.HasPrefix(location, "mock://") {
-		location = location[7:]
-	}
-
 	return &MockImporter{
-		location: location,
+		location: config["location"],
 	}, nil
 
 }
