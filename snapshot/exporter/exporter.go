@@ -63,8 +63,12 @@ func NewExporter(ctx *appcontext.AppContext, config map[string]string) (Exporter
 	for name, backend := range backends {
 		if strings.HasPrefix(location, name+":") {
 
+			locationLen := len(location)
 			location = strings.TrimPrefix(location, name+"://")
-			location = strings.TrimPrefix(location, name+":")
+			if len(location) == locationLen {
+				location = strings.TrimPrefix(location, name+":")
+			}
+
 			config["location"] = location
 			backendInstance, err := backend(ctx, name, config)
 			if err != nil && name != "fs" {
