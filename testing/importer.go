@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 )
 
@@ -21,15 +22,9 @@ func init() {
 	importer.Register("mock", NewMockImporter)
 }
 
-func NewMockImporter(config map[string]string) (importer.Importer, error) {
-	location := config["location"]
-
-	if strings.HasPrefix(location, "mock://") {
-		location = location[7:]
-	}
-
+func NewMockImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
 	return &MockImporter{
-		location: location,
+		location: config["location"],
 	}, nil
 
 }
