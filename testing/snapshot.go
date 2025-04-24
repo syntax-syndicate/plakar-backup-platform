@@ -122,9 +122,6 @@ func GenerateSnapshot(t *testing.T, repo *repository.Repository, files []MockFil
 		f(o)
 	}
 
-	tmpBackupDir := GenerateFiles(t, files)
-	repo.AppContext().CWD = tmpBackupDir
-
 	// create a snapshot
 	builder, err := snapshot.Create(repo, repository.DefaultType)
 	require.NoError(t, err)
