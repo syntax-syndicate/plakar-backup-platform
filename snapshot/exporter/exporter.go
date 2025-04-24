@@ -54,7 +54,7 @@ func NewExporter(ctx *appcontext.AppContext, config map[string]string) (Exporter
 		return nil, fmt.Errorf("missing location")
 	}
 
-	if strings.HasPrefix(location, "/") {
+	if strings.HasPrefix(location, "/") || strings.HasPrefix(location, ".") {
 		location = "fs://" + location
 	}
 
