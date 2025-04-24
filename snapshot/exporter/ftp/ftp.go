@@ -50,10 +50,10 @@ func init() {
 	exporter.Register("ftp", NewFTPExporter)
 }
 
-func NewFTPExporter(appCtx *appcontext.AppContext, config map[string]string) (exporter.Exporter, error) {
-	location := config["location"]
+func NewFTPExporter(appCtx *appcontext.AppContext, name string, config map[string]string) (exporter.Exporter, error) {
+	target := name + "://" + config["location"]
 
-	parsed, err := url.Parse(location)
+	parsed, err := url.Parse(target)
 	if err != nil {
 		return nil, err
 	}

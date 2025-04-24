@@ -37,19 +37,15 @@ func init() {
 	importer.Register("sftp", NewSFTPImporter)
 }
 
-func NewSFTPImporter(appCtx *appcontext.AppContext, config map[string]string) (importer.Importer, error) {
+func NewSFTPImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
 	var err error
 
-	location := config["location"]
-	if location == "" {
-		return nil, fmt.Errorf("missing location")
-	}
+	target := name + "://" + config["location"]
 
-	parsed, err := url.Parse(location)
+	parsed, err := url.Parse(target)
 	if err != nil {
 		return nil, err
 	}
-	location = parsed.Path
 
 	client, err := plakarsftp.Connect(parsed, config)
 	if err != nil {
@@ -57,7 +53,7 @@ func NewSFTPImporter(appCtx *appcontext.AppContext, config map[string]string) (i
 	}
 
 	return &SFTPImporter{
-		rootDir:    location,
+		rootDir:    parsed.Path,
 		remoteHost: parsed.Host,
 		client:     client,
 	}, nil
