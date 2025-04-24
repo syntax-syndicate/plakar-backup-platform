@@ -41,8 +41,14 @@ func init() {
 }
 
 func NewStdioImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
+	location := config["location"]
+	if !strings.HasPrefix(location, "/") {
+		location = "/" + location
+	}
+	location = path.Clean(location)
+
 	return &StdioImporter{
-		fileDir: config["location"],
+		fileDir: location,
 		appCtx:  appCtx,
 		name:    name,
 	}, nil
