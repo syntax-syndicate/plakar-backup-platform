@@ -20,10 +20,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 )
 
@@ -65,9 +67,9 @@ type Importer interface {
 }
 
 var muBackends sync.Mutex
-var backends map[string]func(config map[string]string) (Importer, error) = make(map[string]func(config map[string]string) (Importer, error))
+var backends map[string]func(appCtx *appcontext.AppContext, name string, config map[string]string) (Importer, error) = make(map[string]func(appCtx *appcontext.AppContext, name string, config map[string]string) (Importer, error))
 
-func Register(name string, backend func(map[string]string) (Importer, error)) {
+func Register(name string, backend func(*appcontext.AppContext, string, map[string]string) (Importer, error)) {
 	muBackends.Lock()
 	defer muBackends.Unlock()
 
@@ -91,47 +93,44 @@ func Backends() []string {
 	return ret
 }
 
-func NewImporter(config map[string]string) (Importer, error) {
+func NewImporter(ctx *appcontext.AppContext, config map[string]string) (Importer, error) {
 	location, ok := config["location"]
 	if !ok {
 		return nil, fmt.Errorf("missing location")
 	}
 
+	if strings.HasPrefix(location, "/") {
+		location = "fs://" + location
+	}
+
 	muBackends.Lock()
 	defer muBackends.Unlock()
+	for name, backend := range backends {
+		if strings.HasPrefix(location, name+":") {
 
-	var backendName string
-	if !strings.HasPrefix(location, "/") {
-		if strings.HasPrefix(location, "s3://") {
-			backendName = "s3"
-		} else if strings.HasPrefix(location, "fs://") {
-			backendName = "fs"
-		} else if strings.HasPrefix(location, "ftp://") {
-			backendName = "ftp"
-		} else if strings.HasPrefix(location, "sftp://") {
-			backendName = "sftp"
-		} else if strings.HasPrefix(location, "stdin://") {
-			backendName = "stdin"
-		} else {
-			if strings.Contains(location, "://") {
-				return nil, fmt.Errorf("unsupported importer protocol")
-			} else {
-				backendName = "fs"
+			locationLen := len(location)
+			location = strings.TrimPrefix(location, name+"://")
+			if len(location) == locationLen {
+				location = strings.TrimPrefix(location, name+":")
 			}
-		}
-	} else {
-		backendName = "fs"
-	}
 
-	if backend, exists := backends[backendName]; !exists {
-		return nil, fmt.Errorf("backend '%s' does not exist", backendName)
-	} else {
-		backendInstance, err := backend(config)
-		if err != nil {
-			return nil, err
+			config["location"] = location
+			backendInstance, err := backend(ctx, name, config)
+			if err != nil && name != "fs" {
+				return nil, err
+			} else if err != nil {
+				if !filepath.IsAbs(location) {
+					config["location"] = filepath.Join(ctx.CWD, location)
+					if backendInstance, err = backend(ctx, name, config); err == nil {
+						return backendInstance, nil
+					}
+				}
+				return nil, err
+			}
+			return backendInstance, nil
 		}
-		return backendInstance, nil
 	}
+	return nil, fmt.Errorf("unsupported importer protocol")
 }
 
 func NewScanRecord(pathname, target string, fileinfo objects.FileInfo, xattr []string) *ScanResult {

@@ -25,25 +25,26 @@ import (
 	"strings"
 	"time"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 )
 
 type StdioImporter struct {
 	fileDir string
+	appCtx  *appcontext.AppContext
+	name    string
 }
 
 func init() {
 	importer.Register("stdin", NewStdioImporter)
 }
 
-func NewStdioImporter(config map[string]string) (importer.Importer, error) {
-
-	location := config["location"]
-	location = strings.TrimPrefix(location, "stdin://")
-
+func NewStdioImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
 	return &StdioImporter{
-		fileDir: location,
+		fileDir: config["location"],
+		appCtx:  appCtx,
+		name:    name,
 	}, nil
 }
 
@@ -105,11 +106,11 @@ func (p *StdioImporter) NewReader(pathname string) (io.ReadCloser, error) {
 }
 
 func (p *StdioImporter) NewExtendedAttributeReader(pathname string, attribute string) (io.ReadCloser, error) {
-	return nil, fmt.Errorf("extended attributes are not supported on FTP")
+	return nil, fmt.Errorf("extended attributes are not supported on stdio")
 }
 
 func (p *StdioImporter) GetExtendedAttributes(pathname string) ([]importer.ExtendedAttributes, error) {
-	return nil, fmt.Errorf("extended attributes are not supported on FTP")
+	return nil, fmt.Errorf("extended attributes are not supported on stdio")
 }
 
 func (p *StdioImporter) Close() error {
@@ -121,9 +122,9 @@ func (p *StdioImporter) Root() string {
 }
 
 func (p *StdioImporter) Origin() string {
-	return "localhost"
+	return p.appCtx.Hostname
 }
 
 func (p *StdioImporter) Type() string {
-	return "stdio"
+	return p.name
 }

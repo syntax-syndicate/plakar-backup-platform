@@ -17,28 +17,42 @@
 package stdio
 
 import (
+	"fmt"
 	"io"
 	"os"
-	"strings"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/exporter"
 )
 
 type StdioExporter struct {
 	filePath string
+	appCtx   *appcontext.AppContext
+	w        io.Writer
 }
 
 func init() {
 	exporter.Register("stdout", NewStdioExporter)
+	exporter.Register("stderr", NewStdioExporter)
 }
 
-func NewStdioExporter(config map[string]string) (exporter.Exporter, error) {
-	location := config["location"]
-	location = strings.TrimPrefix("stdout://", location)
+func NewStdioExporter(appCtx *appcontext.AppContext, name string, config map[string]string) (exporter.Exporter, error) {
+	var w io.Writer
+
+	switch name {
+	case "stdout":
+		w = os.Stdout
+	case "stderr":
+		w = os.Stderr
+	default:
+		return nil, fmt.Errorf("unknown stdio backend %s", name)
+	}
 
 	return &StdioExporter{
-		filePath: location,
+		filePath: config["location"],
+		appCtx:   appCtx,
+		w:        w,
 	}, nil
 }
 
@@ -52,7 +66,7 @@ func (p *StdioExporter) CreateDirectory(pathname string) error {
 }
 
 func (p *StdioExporter) StoreFile(pathname string, fp io.Reader) error {
-	_, err := io.Copy(os.Stdout, fp)
+	_, err := io.Copy(p.w, fp)
 	return err
 }
 

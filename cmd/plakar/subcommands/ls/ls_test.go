@@ -3,7 +3,6 @@ package ls
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -105,7 +104,7 @@ func TestExecuteCmdLsFilterByIDAndRecursive(t *testing.T) {
 	require.Equal(t, 7, len(fields))
 	// disable timestamp testing because it can make the test flaky if the test ran in the last second
 	// require.Equal(t, snap.Header.Timestamp.Local().Format(time.RFC3339), fields[0])
-	require.Equal(t, fmt.Sprintf("%s/subdir/dummy.txt", snap.Header.GetSource(0).Importer.Directory), fields[len(fields)-1])
+	require.Equal(t, "/subdir/dummy.txt", fields[len(fields)-1])
 }
 
 func TestExecuteCmdLsFilterUuid(t *testing.T) {

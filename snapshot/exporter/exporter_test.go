@@ -4,6 +4,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/stretchr/testify/require"
 )
@@ -32,10 +33,10 @@ func (m MockedExporter) Close() error {
 
 func TestBackends(t *testing.T) {
 	// Setup: Register some backends
-	Register("fs1", func(config map[string]string) (Exporter, error) {
+	Register("fs1", func(appCtx *appcontext.AppContext, name string, config map[string]string) (Exporter, error) {
 		return nil, nil
 	})
-	Register("s33", func(config map[string]string) (Exporter, error) {
+	Register("s33", func(appCtx *appcontext.AppContext, name string, config map[string]string) (Exporter, error) {
 		return nil, nil
 	})
 
@@ -49,10 +50,10 @@ func TestBackends(t *testing.T) {
 
 func TestNewExporter(t *testing.T) {
 	// Setup: Register some backends
-	Register("fs", func(config map[string]string) (Exporter, error) {
+	Register("fs", func(appCtx *appcontext.AppContext, name string, config map[string]string) (Exporter, error) {
 		return MockedExporter{}, nil
 	})
-	Register("s3", func(config map[string]string) (Exporter, error) {
+	Register("s3", func(appCtx *appcontext.AppContext, name string, config map[string]string) (Exporter, error) {
 		return MockedExporter{}, nil
 	})
 
@@ -69,7 +70,9 @@ func TestNewExporter(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.location, func(t *testing.T) {
-			exporter, err := NewExporter(map[string]string{"location": test.location})
+			appCtx := appcontext.NewAppContext()
+
+			exporter, err := NewExporter(appCtx, map[string]string{"location": test.location})
 
 			if test.expectedError != "" {
 				require.Error(t, err)

@@ -46,7 +46,6 @@ func init() {
 }
 
 func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
-	var opt_hashing string
 	var opt_sync string
 
 	flags := flag.NewFlagSet("ptar", flag.ExitOnError)
@@ -128,13 +127,13 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 		return fmt.Errorf("%s: at least one source is needed", flag.CommandLine.Name())
 	}
 
-	if hashing.GetHasher(strings.ToUpper(opt_hashing)) == nil {
+	if hashing.GetHasher(strings.ToUpper(cmd.Hashing)) == nil {
 		return fmt.Errorf("%s: unknown hashing algorithm", flag.CommandLine.Name())
 	}
 
 	cmd.SyncSrcSecret = peerSecret
 	cmd.SyncFrom = opt_sync
-	cmd.Location = flag.Args()
+	cmd.Location = flags.Args()
 
 	return nil
 }
@@ -271,7 +270,7 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 			return 1, err
 		}
 	} else {
-		if err := cmd.backup(repoWriter); err != nil {
+		if err := cmd.backup(ctx, repoWriter); err != nil {
 			return 1, err
 		}
 	}
@@ -290,9 +289,9 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	return 0, nil
 }
 
-func (cmd *Ptar) backup(repo *repository.RepositoryWriter) error {
+func (cmd *Ptar) backup(ctx *appcontext.AppContext, repo *repository.RepositoryWriter) error {
 	for _, loc := range cmd.Location {
-		imp, err := importer.NewImporter(map[string]string{"location": loc})
+		imp, err := importer.NewImporter(ctx, map[string]string{"location": loc})
 		if err != nil {
 			return err
 		}

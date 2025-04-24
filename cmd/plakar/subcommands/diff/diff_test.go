@@ -46,10 +46,8 @@ func TestExecuteCmdDiffIdentical(t *testing.T) {
 
 	indexId1 := snap.Header.GetIndexShortID()
 	indexId2 := snap2.Header.GetIndexShortID()
-	backupDir1 := snap.Header.GetSource(0).Importer.Directory
-	backupDir2 := snap2.Header.GetSource(0).Importer.Directory
-	snapPath1 := fmt.Sprintf("%s:%s/subdir/dummy.txt", hex.EncodeToString(indexId1[:]), backupDir1)
-	snapPath2 := fmt.Sprintf("%s:%s/subdir/dummy.txt", hex.EncodeToString(indexId2[:]), backupDir2)
+	snapPath1 := fmt.Sprintf("%s:/subdir/dummy.txt", hex.EncodeToString(indexId1[:]))
+	snapPath2 := fmt.Sprintf("%s:/subdir/dummy.txt", hex.EncodeToString(indexId2[:]))
 	args := []string{snapPath1, snapPath2}
 
 	subcommand := &Diff{}
@@ -81,23 +79,23 @@ func TestExecuteCmdDiffFiles(t *testing.T) {
 		ptesting.NewMockFile("subdir/to_exclude", 0644, "*/subdir/to_exclude\n"),
 		ptesting.NewMockFile("another_subdir/bar", 0644, "hello bar"),
 	})
-	snap.Close()
+	defer snap.Close()
 
 	// create second different snapshot
 	snap2 := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockDir("another_subdir"),
-		ptesting.NewMockFile("subdir/dummy.txt", 0644, "hello dumpy"), // <- dumpy!
+		ptesting.NewMockFile("subdir/dummy.txt", 0644, "hello dummy!!"), // <- changed
 		ptesting.NewMockFile("subdir/foo.txt", 0644, "hello foo"),
 		ptesting.NewMockFile("subdir/to_exclude", 0644, "*/subdir/to_exclude\n"),
 		ptesting.NewMockFile("another_subdir/bar", 0644, "hello bar"),
 	})
-	snap2.Close()
+	defer snap2.Close()
 
 	indexId1 := snap.Header.GetIndexShortID()
 	indexId2 := snap2.Header.GetIndexShortID()
-	snapPath1 := fmt.Sprintf("%s:subdir/dummy.txt", hex.EncodeToString(indexId1[:]))
-	snapPath2 := fmt.Sprintf("%s:subdir/dummy.txt", hex.EncodeToString(indexId2[:]))
+	snapPath1 := fmt.Sprintf("%s:/subdir/dummy.txt", hex.EncodeToString(indexId1[:]))
+	snapPath2 := fmt.Sprintf("%s:/subdir/dummy.txt", hex.EncodeToString(indexId2[:]))
 	args := []string{snapPath1, snapPath2}
 
 	subcommand := &Diff{}
@@ -113,5 +111,5 @@ func TestExecuteCmdDiffFiles(t *testing.T) {
 	require.Contains(t, output, `
 @@ -1 +1 @@
 -hello dummy
-+hello dumpy`)
++hello dummy!!`)
 }
