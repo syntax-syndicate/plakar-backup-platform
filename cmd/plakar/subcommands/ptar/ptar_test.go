@@ -1,7 +1,6 @@
 package ptar
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -16,10 +15,7 @@ func init() {
 }
 
 func TestExecuteCmdPtarDefault(t *testing.T) {
-	bufOut := bytes.NewBuffer(nil)
-	bufErr := bytes.NewBuffer(nil)
-
-	repo := ptesting.GenerateRepositoryWithoutConfig(t, bufOut, bufErr, nil)
+	repo := ptesting.GenerateRepositoryWithoutConfig(t, nil, nil, nil)
 	tmpSourceDir := ptesting.GenerateFiles(t, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockDir("another_subdir"),
@@ -42,11 +38,8 @@ func TestExecuteCmdPtarDefault(t *testing.T) {
 }
 
 func TestExecuteCmdPtarWithSync(t *testing.T) {
-	bufOut := bytes.NewBuffer(nil)
-	bufErr := bytes.NewBuffer(nil)
-
 	// Create source repository
-	srcRepo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+	srcRepo := ptesting.GenerateRepository(t, nil, nil, nil)
 	srcSnap := ptesting.GenerateSnapshot(t, srcRepo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockDir("another_subdir"),
@@ -58,7 +51,7 @@ func TestExecuteCmdPtarWithSync(t *testing.T) {
 	defer srcSnap.Close()
 
 	// Create destination repository
-	dstRepo := ptesting.GenerateRepositoryWithoutConfig(t, bufOut, bufErr, nil)
+	dstRepo := ptesting.GenerateRepositoryWithoutConfig(t, nil, nil, nil)
 
 	args := []string{"--no-encryption", "--no-compression", "--sync-from", srcRepo.Location()}
 
