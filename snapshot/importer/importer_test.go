@@ -46,11 +46,12 @@ func (m MockedImporter) Close() error {
 }
 
 func TestBackends(t *testing.T) {
+
 	// Setup: Register some backends
-	Register("local1", func(config map[string]string) (Importer, error) {
+	Register("local1", func(appCtx *appcontext.AppContext, name string, config map[string]string) (Importer, error) {
 		return nil, nil
 	})
-	Register("remote1", func(config map[string]string) (Importer, error) {
+	Register("remote1", func(appCtx *appcontext.AppContext, name string, config map[string]string) (Importer, error) {
 		return nil, nil
 	})
 
@@ -64,13 +65,13 @@ func TestBackends(t *testing.T) {
 
 func TestNewImporter(t *testing.T) {
 	// Setup: Register some backends
-	Register("fs", func(config map[string]string) (Importer, error) {
+	Register("fs", func(appCtx *appcontext.AppContext, name string, config map[string]string) (Importer, error) {
 		return MockedImporter{}, nil
 	})
-	Register("s3", func(config map[string]string) (Importer, error) {
+	Register("s3", func(appCtx *appcontext.AppContext, name string, config map[string]string) (Importer, error) {
 		return MockedImporter{}, nil
 	})
-	Register("ftp", func(config map[string]string) (Importer, error) {
+	Register("ftp", func(appCtx *appcontext.AppContext, name string, config map[string]string) (Importer, error) {
 		return MockedImporter{}, nil
 	})
 
