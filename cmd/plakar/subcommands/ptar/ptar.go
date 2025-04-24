@@ -46,7 +46,6 @@ func init() {
 }
 
 func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
-	var opt_hashing string
 	var opt_sync string
 
 	flags := flag.NewFlagSet("ptar", flag.ExitOnError)
@@ -128,7 +127,7 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 		return fmt.Errorf("%s: at least one source is needed", flag.CommandLine.Name())
 	}
 
-	if hashing.GetHasher(strings.ToUpper(opt_hashing)) == nil {
+	if hashing.GetHasher(strings.ToUpper(cmd.Hashing)) == nil {
 		return fmt.Errorf("%s: unknown hashing algorithm", flag.CommandLine.Name())
 	}
 
