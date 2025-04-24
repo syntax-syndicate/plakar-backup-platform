@@ -45,7 +45,6 @@ func TestExecuteCmdLocateDefault(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
-	require.Equal(t, "locate", subcommand.Name())
 
 	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)

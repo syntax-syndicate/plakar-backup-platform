@@ -56,7 +56,6 @@ func TestExecuteCmdSyncTo(t *testing.T) {
 	status, err := subcommand.Execute(ctx, localRepo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
-	require.Equal(t, "sync", subcommand.Name())
 
 	// output should look like this
 	// 2025-03-26T21:17:28Z info: sync: synchronization from /tmp/tmp_repo1957539148/repo to /tmp/tmp_repo2470692775/repo completed: 1 snapshots synchronized

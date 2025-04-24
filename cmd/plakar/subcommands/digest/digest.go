@@ -33,7 +33,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Digest{} }, "digest")
+	subcommands.Register(func() subcommands.Subcommand { return &Digest{} }, subcommands.AgentSupport, "digest")
 }
 
 func (cmd *Digest) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -70,10 +70,6 @@ type Digest struct {
 
 	HashingFunction string
 	Targets         []string
-}
-
-func (cmd *Digest) Name() string {
-	return "digest"
 }
 
 func (cmd *Digest) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {

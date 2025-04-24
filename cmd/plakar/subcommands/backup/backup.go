@@ -33,7 +33,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Backup{} }, "backup")
+	subcommands.Register(func() subcommands.Subcommand { return &Backup{} }, subcommands.AgentSupport, "backup")
 }
 
 type excludeFlags []string
@@ -117,10 +117,6 @@ type Backup struct {
 	Quiet       bool
 	Path        string
 	OptCheck    bool
-}
-
-func (cmd *Backup) Name() string {
-	return "backup"
 }
 
 func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
@@ -235,8 +231,7 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		savings = 0
 	}
 
-	ctx.GetLogger().Info("%s: created %s snapshot %x of size %s in %s (wrote %s, saved %0.2f%%)",
-		cmd.Name(),
+	ctx.GetLogger().Info("backup: created %s snapshot %x of size %s in %s (wrote %s, saved %0.2f%%)",
 		"unsigned",
 		snap.Header.GetIndexShortID(),
 		humanize.Bytes(totalSize),

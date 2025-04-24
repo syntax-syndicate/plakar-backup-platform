@@ -34,10 +34,6 @@ func (cmd *DiagXattr) Parse(ctx *appcontext.AppContext, args []string) error {
 	return nil
 }
 
-func (cmd *DiagXattr) Name() string {
-	return "diag_xattr"
-}
-
 func (cmd *DiagXattr) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	snap, pathname, err := utils.OpenSnapshotByPath(repo, cmd.SnapshotPath)
 	if err != nil {

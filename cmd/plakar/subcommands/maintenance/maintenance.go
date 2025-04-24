@@ -35,7 +35,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Maintenance{} }, "maintenance")
+	subcommands.Register(func() subcommands.Subcommand { return &Maintenance{} }, subcommands.AgentSupport, "maintenance")
 }
 
 func (cmd *Maintenance) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -56,10 +56,6 @@ type Maintenance struct {
 	repository    *repository.Repository
 	maintenanceID objects.MAC
 	cutoff        time.Time
-}
-
-func (cmd *Maintenance) Name() string {
-	return "maintenance"
 }
 
 // Builds the local cache of snapshot -> packfiles

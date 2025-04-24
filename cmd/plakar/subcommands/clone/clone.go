@@ -35,7 +35,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Clone{} }, "clone")
+	subcommands.Register(func() subcommands.Subcommand { return &Clone{} }, subcommands.AgentSupport, "clone")
 }
 
 func (cmd *Clone) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -62,10 +62,6 @@ type Clone struct {
 	subcommands.SubcommandBase
 
 	Dest string
-}
-
-func (cmd *Clone) Name() string {
-	return "clone"
 }
 
 func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {

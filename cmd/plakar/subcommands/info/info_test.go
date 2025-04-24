@@ -40,8 +40,7 @@ func TestExecuteCmdInfoDefault(t *testing.T) {
 	defer snap.Close()
 	args := []string{"info"}
 
-	subcommandf, _, args := subcommands.Lookup(args)
-	subcommand := subcommandf()
+	subcommand, _, args := subcommands.Lookup(args)
 	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
@@ -96,8 +95,7 @@ func TestExecuteCmdInfoSnapshot(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{"info", "snapshot", hex.EncodeToString(indexId[:])}
 
-	subcommandf, _, args := subcommands.Lookup(args)
-	subcommand := subcommandf()
+	subcommand, _, args := subcommands.Lookup(args)
 	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
@@ -177,8 +175,7 @@ func TestExecuteCmdInfoSnapshotPath(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{"info", "vfs", fmt.Sprintf("%s:subdir/dummy.txt", hex.EncodeToString(indexId[:]))}
 
-	subcommandf, _, args := subcommands.Lookup(args)
-	subcommand := subcommandf()
+	subcommand, _, args := subcommands.Lookup(args)
 	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
