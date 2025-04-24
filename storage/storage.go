@@ -23,14 +23,13 @@ import (
 	"io"
 	"log"
 	"os"
-	"sort"
-	"strings"
 	"time"
 
 	"github.com/PlakarKorp/plakar/chunking"
 	"github.com/PlakarKorp/plakar/compression"
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/hashing"
+	"github.com/PlakarKorp/plakar/location"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/resources"
@@ -143,31 +142,18 @@ type Store interface {
 
 type StoreFn func(map[string]string) (Store, error)
 
-var backends = make(map[string]StoreFn)
+var backends = location.New[StoreFn]("fs")
 
 func Register(backend StoreFn, names ...string) {
 	for _, name := range names {
-		if _, ok := backends[name]; ok {
+		if !backends.Register(name, backend) {
 			log.Fatalf("backend '%s' registered twice", name)
 		}
-		backends[name] = backend
 	}
 }
 
 func Backends() []string {
-	ret := make([]string, 0)
-	for backendName := range backends {
-		ret = append(ret, backendName)
-	}
-	sort.Slice(ret, func(i, j int) bool {
-		return ret[i] < ret[j]
-	})
-	return ret
-}
-
-func allowedInUri(c rune) bool {
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
-		c == '+' || c == '-' || c == '.'
+	return backends.Names()
 }
 
 func New(storeConfig map[string]string) (Store, error) {
@@ -176,18 +162,8 @@ func New(storeConfig map[string]string) (Store, error) {
 		return nil, fmt.Errorf("missing location")
 	}
 
-	// extract the protocol
-	proto := "fs"
-	for i, c := range location {
-		if !allowedInUri(c) {
-			if i != 0 && strings.HasPrefix(location[i:], "://") {
-				proto = location[:i]
-			}
-			break
-		}
-	}
-
-	if backend, ok := backends[proto]; ok {
+	proto, _, backend, ok := backends.Lookup(location)
+	if ok {
 		return backend(storeConfig)
 	}
 	return nil, fmt.Errorf("backend '%s' does not exist", proto)
