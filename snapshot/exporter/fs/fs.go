@@ -21,6 +21,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/exporter"
 )
@@ -33,7 +34,7 @@ func init() {
 	exporter.Register("fs", NewFSExporter)
 }
 
-func NewFSExporter(config map[string]string) (exporter.Exporter, error) {
+func NewFSExporter(appCtx *appcontext.AppContext, config map[string]string) (exporter.Exporter, error) {
 	location := config["location"]
 
 	if strings.HasPrefix(location, "fs://") {

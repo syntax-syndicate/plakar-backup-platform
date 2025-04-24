@@ -22,9 +22,9 @@ type Exporter interface {
 }
 
 var muBackends sync.Mutex
-var backends map[string]func(config map[string]string) (Exporter, error) = make(map[string]func(config map[string]string) (Exporter, error))
+var backends map[string]func(appCtx *appcontext.AppContext, config map[string]string) (Exporter, error) = make(map[string]func(appCtx *appcontext.AppContext, config map[string]string) (Exporter, error))
 
-func Register(name string, backend func(config map[string]string) (Exporter, error)) {
+func Register(name string, backend func(appCtx *appcontext.AppContext, config map[string]string) (Exporter, error)) {
 	muBackends.Lock()
 	defer muBackends.Unlock()
 
@@ -82,7 +82,7 @@ func NewExporter(ctx *appcontext.AppContext, config map[string]string) (Exporter
 	if backend, exists := backends[backendName]; !exists {
 		return nil, fmt.Errorf("backend '%s' does not exist", backendName)
 	} else {
-		backendInstance, err := backend(config)
+		backendInstance, err := backend(ctx, config)
 		if err != nil && backendName != "fs" {
 			return nil, err
 		} else if err != nil {
@@ -90,7 +90,7 @@ func NewExporter(ctx *appcontext.AppContext, config map[string]string) (Exporter
 			if !filepath.IsAbs(location) {
 				location = filepath.Join(ctx.CWD, location)
 				config["location"] = location
-				if backendInstance, err = backend(config); err == nil {
+				if backendInstance, err = backend(ctx, config); err == nil {
 					return backendInstance, nil
 				}
 			}

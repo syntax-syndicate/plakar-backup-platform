@@ -6,6 +6,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/johannesboyne/gofakes3"
 	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"github.com/stretchr/testify/require"
@@ -37,7 +38,9 @@ func TestS3Importer(t *testing.T) {
 	_, err = backend.PutObject("bucket", "dummy.txt", nil, fpOrigin, 16)
 	require.NoError(t, err)
 
-	importer, err := NewS3Importer(map[string]string{"location": tmpImportBucket, "access_key": "", "secret_access_key": "", "use_tls": "false"})
+	appCtx := appcontext.NewAppContext()
+
+	importer, err := NewS3Importer(appCtx, map[string]string{"location": tmpImportBucket, "access_key": "", "secret_access_key": "", "use_tls": "false"})
 	require.NoError(t, err)
 	require.NotNil(t, importer)
 
