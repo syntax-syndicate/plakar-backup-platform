@@ -31,6 +31,7 @@ import (
 	_ "github.com/PlakarKorp/plakar/storage/backends/fs"
 	_ "github.com/PlakarKorp/plakar/storage/backends/http"
 	_ "github.com/PlakarKorp/plakar/storage/backends/null"
+	_ "github.com/PlakarKorp/plakar/storage/backends/ptar"
 	_ "github.com/PlakarKorp/plakar/storage/backends/s3"
 	_ "github.com/PlakarKorp/plakar/storage/backends/sftp"
 
@@ -169,19 +170,22 @@ func entryPoint() int {
 	defer ctx.GetCache().Close()
 
 	// best effort check if security or reliability fix have been issued
-	if rus, err := utils.CheckUpdate(ctx.CacheDir); err == nil {
-		if rus.SecurityFix || rus.ReliabilityFix {
-			concerns := ""
-			if rus.SecurityFix {
-				concerns = "security"
-			}
-			if rus.ReliabilityFix {
-				if concerns != "" {
-					concerns += " and "
+	_, noCriticalChecks := os.LookupEnv("PLAKAR_NO_CRITICAL_CHECKS")
+	if noCriticalChecks {
+		if rus, err := utils.CheckUpdate(ctx.CacheDir); err == nil {
+			if rus.SecurityFix || rus.ReliabilityFix {
+				concerns := ""
+				if rus.SecurityFix {
+					concerns = "security"
 				}
-				concerns += "reliability"
+				if rus.ReliabilityFix {
+					if concerns != "" {
+						concerns += " and "
+					}
+					concerns += "reliability"
+				}
+				fmt.Fprintf(os.Stderr, "WARNING: %s concerns affect your current version, please upgrade to %s (+%d releases).\n", concerns, rus.Latest, rus.FoundCount)
 			}
-			fmt.Fprintf(os.Stderr, "WARNING: %s concerns affect your current version, please upgrade to %s (+%d releases).\n", concerns, rus.Latest, rus.FoundCount)
 		}
 	}
 
@@ -255,7 +259,7 @@ func entryPoint() int {
 
 	var repositoryPath string
 
-	command, args := flag.Args()[0], flag.Args()[1:]
+	var args []string
 	if flag.Arg(0) == "at" {
 		if len(flag.Args()) < 2 {
 			log.Fatalf("%s: missing plakar repository", flag.CommandLine.Name())
@@ -264,7 +268,11 @@ func entryPoint() int {
 			log.Fatalf("%s: missing command", flag.CommandLine.Name())
 		}
 		repositoryPath = flag.Arg(1)
-		command, args = flag.Arg(2), flag.Args()[3:]
+		args = flag.Args()[2:]
+
+		if flag.Args()[2] == "agent" {
+			log.Fatalf("%s: agent command can not be used with 'at' parameter.", flag.CommandLine.Name())
+		}
 	} else {
 		repositoryPath = os.Getenv("PLAKAR_REPOSITORY")
 		if repositoryPath == "" {
@@ -275,6 +283,8 @@ func entryPoint() int {
 				repositoryPath = filepath.Join(ctx.HomeDir, ".plakar")
 			}
 		}
+
+		args = flag.Args()
 	}
 
 	storeConfig, err := ctx.Config.GetRepository(repositoryPath)
@@ -283,9 +293,10 @@ func entryPoint() int {
 		return 1
 	}
 
+	command := args[0]
 	// create is a special case, it operates without a repository...
 	// but needs a repository location to store the new repository
-	if command == "create" || command == "server" {
+	if command == "create" || command == "ptar" || command == "server" {
 		repo, err := repository.Inexistent(ctx, storeConfig)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
@@ -293,11 +304,18 @@ func entryPoint() int {
 		}
 		defer repo.Close()
 
-		cmd, err := subcommands.Parse(ctx, command, args)
-		if err != nil {
+		cmdf, _, args := subcommands.Lookup(args)
+		if cmdf == nil {
+			fmt.Fprintf(os.Stderr, "command not found: %s\n", command)
+			return 1
+		}
+
+		cmd := cmdf()
+		if err := cmd.Parse(ctx, args); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
 		}
+
 		retval, err := cmd.Execute(ctx, repo)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
@@ -307,8 +325,14 @@ func entryPoint() int {
 
 	// these commands need to be ran before the repository is opened
 	if command == "agent" || command == "config" || command == "version" || command == "help" {
-		cmd, err := subcommands.Parse(ctx, command, args)
-		if err != nil {
+		cmdf, _, args := subcommands.Lookup(args)
+		if cmdf == nil {
+			fmt.Fprintf(os.Stderr, "command not found: %s\n", command)
+			return 1
+		}
+
+		cmd := cmdf()
+		if err := cmd.Parse(ctx, args); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
 		}
@@ -411,7 +435,18 @@ func entryPoint() int {
 
 	// commands below all operate on an open repository
 	t0 := time.Now()
-	cmd, err := subcommands.Parse(ctx, command, args)
+	cmdf, name, args := subcommands.Lookup(args)
+	if cmdf == nil {
+		fmt.Fprintf(os.Stderr, "command not found: %s\n", command)
+		return 1
+	}
+
+	cmd := cmdf()
+	if err := cmd.Parse(ctx, args); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+		return 1
+	}
+
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		return 1
@@ -421,7 +456,7 @@ func entryPoint() int {
 	if opt_agentless {
 		status, err = cmd.Execute(ctx, repo)
 	} else {
-		status, err = agent.ExecuteRPC(ctx, cmd, storeConfig)
+		status, err = agent.ExecuteRPC(ctx, name, cmd, storeConfig)
 		if err == agent.ErrRetryAgentless {
 			err = nil
 			// Reopen using the agentless cache, and rebuild a repository

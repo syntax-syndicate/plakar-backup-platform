@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/exporter"
 	"github.com/secsy/goftp"
@@ -49,10 +50,10 @@ func init() {
 	exporter.Register("ftp", NewFTPExporter)
 }
 
-func NewFTPExporter(config map[string]string) (exporter.Exporter, error) {
-	location := config["location"]
+func NewFTPExporter(appCtx *appcontext.AppContext, name string, config map[string]string) (exporter.Exporter, error) {
+	target := name + "://" + config["location"]
 
-	parsed, err := url.Parse(location)
+	parsed, err := url.Parse(target)
 	if err != nil {
 		return nil, err
 	}

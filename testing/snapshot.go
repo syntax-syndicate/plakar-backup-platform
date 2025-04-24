@@ -1,25 +1,15 @@
 package testing
 
 import (
-	"bytes"
 	"io"
 	"os"
-	"path/filepath"
+	"path"
 	"testing"
 
-	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/caching"
-	"github.com/PlakarKorp/plakar/encryption/keypair"
-	"github.com/PlakarKorp/plakar/hashing"
-	"github.com/PlakarKorp/plakar/logging"
+	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/snapshot"
-	"github.com/PlakarKorp/plakar/snapshot/importer/fs"
-	"github.com/PlakarKorp/plakar/storage"
-	bfs "github.com/PlakarKorp/plakar/storage/backends/fs"
-	"github.com/PlakarKorp/plakar/versioning"
-	"github.com/google/uuid"
+	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -46,94 +36,100 @@ func NewMockFile(path string, mode os.FileMode, content string) MockFile {
 	}
 }
 
-func GenerateSnapshot(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer, keyPair *keypair.KeyPair, files []MockFile) *snapshot.Snapshot {
-	// init temporary directories
-	tmpRepoDirRoot, err := os.MkdirTemp("", "tmp_repo")
-	require.NoError(t, err)
-	tmpRepoDir := filepath.Join(tmpRepoDirRoot, "repo")
-	tmpCacheDir, err := os.MkdirTemp("", "tmp_cache")
-	require.NoError(t, err)
-	tmpBackupDir, err := os.MkdirTemp("", "tmp_to_backup")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		os.RemoveAll(tmpRepoDir)
-		os.RemoveAll(tmpCacheDir)
-		os.RemoveAll(tmpBackupDir)
-		os.RemoveAll(tmpRepoDirRoot)
-	})
-
-	for _, file := range files {
-		dest := filepath.Join(tmpBackupDir, filepath.FromSlash(file.Path))
-		if file.IsDir {
-			err = os.MkdirAll(dest, file.Mode)
-		} else {
-			err = os.WriteFile(dest, file.Content, file.Mode)
+func (m *MockFile) ScanResult() *importer.ScanResult {
+	switch {
+	case m.IsDir:
+		return &importer.ScanResult{
+			Record: &importer.ScanRecord{
+				Pathname: m.Path,
+				FileInfo: objects.FileInfo{
+					Lname:      path.Base(m.Path),
+					Lmode:      os.ModeDir | 0755,
+					Lnlink:     1,
+					Lusername:  "flan",
+					Lgroupname: "hacker",
+				},
+			},
+		}
+	default:
+		return &importer.ScanResult{
+			Record: &importer.ScanRecord{
+				Pathname: m.Path,
+				FileInfo: objects.FileInfo{
+					Lname:      path.Base(m.Path),
+					Lsize:      int64(len(m.Content)),
+					Lmode:      m.Mode,
+					Lnlink:     1,
+					Lusername:  "flan",
+					Lgroupname: "hacker",
+				},
+			},
 		}
 	}
+}
 
-	// create a storage
-	r, err := bfs.NewStore(map[string]string{"location": "fs://" + tmpRepoDir})
-	require.NotNil(t, r)
-	require.NoError(t, err)
-	config := storage.NewConfiguration()
-	config.Encryption = nil
-	serialized, err := config.ToBytes()
-	require.NoError(t, err)
+type testingOptions struct {
+	name string
 
-	hasher := hashing.GetHasher(hashing.DEFAULT_HASHING_ALGORITHM)
-	wrappedConfigRd, err := storage.Serialize(hasher, resources.RT_CONFIG, versioning.GetCurrentVersion(resources.RT_CONFIG), bytes.NewReader(serialized))
-	require.NoError(t, err)
+	gen  func(chan<- *importer.ScanResult)
+	open func(string) (io.ReadCloser, error)
+}
 
-	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
-	require.NoError(t, err)
-
-	err = r.Create(wrappedConfig)
-	require.NoError(t, err)
-
-	// open the storage to load the configuration
-	r, serializedConfig, err := storage.Open(map[string]string{"location": tmpRepoDir})
-	require.NoError(t, err)
-
-	// create a repository
-	ctx := appcontext.NewAppContext()
-	if bufout != nil && buferr != nil {
-		ctx.Stdout = bufout
-		ctx.Stderr = buferr
+func newTestingOptions() *testingOptions {
+	return &testingOptions{
+		name: "test_backup",
 	}
-	cache := caching.NewManager(tmpCacheDir)
-	ctx.SetCache(cache)
-	if keyPair != nil {
-		ctx.Identity = uuid.New()
-		ctx.Keypair = keyPair
-	}
+}
 
-	// Create a new logger
-	var logger *logging.Logger
-	if bufout == nil || buferr == nil {
-		logger = logging.NewLogger(os.Stdout, os.Stderr)
-	} else {
-		logger = logging.NewLogger(bufout, buferr)
+type TestingOptions func(o *testingOptions)
+
+func WithName(name string) TestingOptions {
+	return func(o *testingOptions) {
+		o.name = name
 	}
-	logger.EnableInfo()
-	ctx.SetLogger(logger)
-	repo, err := repository.New(ctx, r, serializedConfig)
-	require.NoError(t, err, "creating repository")
+}
+
+func WithGenerator(gen func(chan<- *importer.ScanResult), open func(string) (io.ReadCloser, error)) TestingOptions {
+	return func(o *testingOptions) {
+		o.gen = gen
+		o.open = open
+	}
+}
+
+func GenerateSnapshot(t *testing.T, repo *repository.Repository, files []MockFile, opts ...TestingOptions) *snapshot.Snapshot {
+	o := newTestingOptions()
+	for _, f := range opts {
+		f(o)
+	}
 
 	// create a snapshot
-	snap, err := snapshot.New(repo)
+	builder, err := snapshot.Create(repo, repository.DefaultType)
+	require.NoError(t, err)
+	require.NotNil(t, builder)
+
+	imp, err := NewMockImporter(repo.AppContext(), "mock", map[string]string{"location": "mock://place"})
+	require.NoError(t, err)
+	require.NotNil(t, imp)
+
+	if o.gen != nil {
+		imp.(*MockImporter).SetGenerator(o.gen, o.open)
+	} else {
+		imp.(*MockImporter).SetFiles(files)
+	}
+
+	builder.Backup(imp, &snapshot.BackupOptions{Name: o.name, MaxConcurrency: 1})
+
+	err = builder.Repository().RebuildState()
+	require.NoError(t, err)
+
+	// reopen it
+	snap, err := snapshot.Load(repo, builder.Header.Identifier)
 	require.NoError(t, err)
 	require.NotNil(t, snap)
 
-	checkCache, err := cache.Check()
+	checkCache, err := repo.AppContext().GetCache().Check()
 	require.NoError(t, err)
 	snap.SetCheckCache(checkCache)
-
-	imp, err := fs.NewFSImporter(map[string]string{"location": tmpBackupDir})
-	require.NoError(t, err)
-	snap.Backup(imp, &snapshot.BackupOptions{Name: "test_backup", MaxConcurrency: 1})
-
-	err = snap.Repository().RebuildState()
-	require.NoError(t, err)
 
 	return snap
 }

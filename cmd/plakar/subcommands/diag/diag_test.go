@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
 	ptesting "github.com/PlakarKorp/plakar/testing"
@@ -18,8 +20,9 @@ func init() {
 	os.Setenv("TZ", "UTC")
 }
 
-func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) *snapshot.Snapshot {
-	return ptesting.GenerateSnapshot(t, bufOut, bufErr, nil, []ptesting.MockFile{
+func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) (*repository.Repository, *snapshot.Snapshot) {
+	repo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockDir("another_subdir"),
 		ptesting.NewMockFile("subdir/dummy.txt", 0644, "hello dummy"),
@@ -27,29 +30,26 @@ func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 		ptesting.NewMockFile("subdir/to_exclude", 0644, "*/subdir/to_exclude\n"),
 		ptesting.NewMockFile("another_subdir/bar.txt", 0644, "hello bar"),
 	})
+	return repo, snap
 }
 
 func TestExecuteCmdDiagSnapshot(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	snap := generateSnapshot(t, bufOut, bufErr)
+	repo, snap := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-
-	repo := snap.Repository()
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
 	indexId := snap.Header.GetIndexID()
-	args := []string{"snapshot", fmt.Sprintf("%s", hex.EncodeToString(indexId[:]))}
+	args := []string{"diag", "snapshot", fmt.Sprintf("%s", hex.EncodeToString(indexId[:]))}
 
-	subcommand, err := parse_cmd_diag(ctx, args)
+	subcommandf, _, args := subcommands.Lookup(args)
+	subcommand := subcommandf()
+	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(ctx, repo)
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -118,23 +118,20 @@ func TestExecuteCmdDiagErrors(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	snap := generateSnapshot(t, bufOut, bufErr)
+	repo, snap := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-
-	repo := snap.Repository()
 	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
 	indexId := snap.Header.GetIndexID()
-	args := []string{"errors", fmt.Sprintf("%s", hex.EncodeToString(indexId[:]))}
+	args := []string{"diag", "errors", fmt.Sprintf("%s", hex.EncodeToString(indexId[:]))}
 
-	subcommand, err := parse_cmd_diag(ctx, args)
+	subcommandf, _, args := subcommands.Lookup(args)
+	subcommand := subcommandf()
+	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(ctx, repo)
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -146,23 +143,19 @@ func TestExecuteCmdDiagState(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	snap := generateSnapshot(t, bufOut, bufErr)
+	repo, snap := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-
-	repo := snap.Repository()
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
 	indexId := snap.Header.GetIndexID()
-	args := []string{"state"}
+	args := []string{"diag", "state"}
 
-	subcommand, err := parse_cmd_diag(ctx, args)
+	subcommandf, _, args := subcommands.Lookup(args)
+	subcommand := subcommandf()
+	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(ctx, repo)
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -173,13 +166,16 @@ func TestExecuteCmdDiagState(t *testing.T) {
 	require.Equal(t, 1, len(lines))
 
 	bufOut.Reset()
-	args = []string{"state", strings.Trim(output, "\n")}
+	args = []string{"diag", "state", strings.Trim(output, "\n")}
 
-	subcommand, err = parse_cmd_diag(ctx, args)
+	subcommandf, _, args = subcommands.Lookup(args)
+	subcommand = subcommandf()
+	err = subcommand.Parse(repo.AppContext(), args)
+
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err = subcommand.Execute(ctx, repo)
+	status, err = subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -211,23 +207,19 @@ func TestExecuteCmdDiagPackfile(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	snap := generateSnapshot(t, bufOut, bufErr)
+	repo, snap := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-
-	repo := snap.Repository()
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
 	indexId := snap.Header.GetIndexID()
-	args := []string{"state"}
+	args := []string{"diag", "state"}
+	subcommandf, _, args := subcommands.Lookup(args)
+	subcommand := subcommandf()
+	err := subcommand.Parse(repo.AppContext(), args)
 
-	subcommand, err := parse_cmd_diag(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(ctx, repo)
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -238,13 +230,15 @@ func TestExecuteCmdDiagPackfile(t *testing.T) {
 	require.Equal(t, 1, len(lines))
 
 	bufOut.Reset()
-	args = []string{"state", strings.Trim(output, "\n")}
+	args = []string{"diag", "state", strings.Trim(output, "\n")}
 
-	subcommand, err = parse_cmd_diag(ctx, args)
+	subcommandf, _, args = subcommands.Lookup(args)
+	subcommand = subcommandf()
+	err = subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err = subcommand.Execute(ctx, repo)
+	status, err = subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -286,13 +280,15 @@ func TestExecuteCmdDiagPackfile(t *testing.T) {
 	fmt.Sscanf(fileline, "vfs btree %x : packfile %x, offset %d, length %d", &partFile, &partPackfile, &partOffset, &partLength)
 
 	bufOut.Reset()
-	args = []string{"packfile", hex.EncodeToString(partPackfile)}
+	args = []string{"diag", "packfile", hex.EncodeToString(partPackfile)}
 
-	subcommand, err = parse_cmd_diag(ctx, args)
+	subcommandf, _, args = subcommands.Lookup(args)
+	subcommand = subcommandf()
+	err = subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err = subcommand.Execute(ctx, repo)
+	status, err = subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -313,23 +309,19 @@ func TestExecuteCmdDiagObject(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	snap := generateSnapshot(t, bufOut, bufErr)
+	repo, snap := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-
-	repo := snap.Repository()
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
 	indexId := snap.Header.GetIndexID()
-	args := []string{"state"}
+	args := []string{"diag", "state"}
 
-	subcommand, err := parse_cmd_diag(ctx, args)
+	subcommandf, _, args := subcommands.Lookup(args)
+	subcommand := subcommandf()
+	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(ctx, repo)
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -340,13 +332,15 @@ func TestExecuteCmdDiagObject(t *testing.T) {
 	require.Equal(t, 1, len(lines))
 
 	bufOut.Reset()
-	args = []string{"state", strings.Trim(output, "\n")}
+	args = []string{"diag", "state", strings.Trim(output, "\n")}
 
-	subcommand, err = parse_cmd_diag(ctx, args)
+	subcommandf, _, args = subcommands.Lookup(args)
+	subcommand = subcommandf()
+	err = subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err = subcommand.Execute(ctx, repo)
+	status, err = subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -386,13 +380,15 @@ func TestExecuteCmdDiagObject(t *testing.T) {
 	fmt.Sscanf(objectLine, "object %x : packfile %x, offset %d, length %d", &partObject, &partPackfile, &partOffset, &partLength)
 
 	bufOut.Reset()
-	args = []string{"object", hex.EncodeToString(partObject)}
+	args = []string{"diag", "object", hex.EncodeToString(partObject)}
 
-	subcommand, err = parse_cmd_diag(ctx, args)
+	subcommandf, _, args = subcommands.Lookup(args)
+	subcommand = subcommandf()
+	err = subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err = subcommand.Execute(ctx, repo)
+	status, err = subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -412,24 +408,19 @@ func TestExecuteCmdDiagVFS(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	snap := generateSnapshot(t, bufOut, bufErr)
+	repo, snap := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-
-	repo := snap.Repository()
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
 	indexId := snap.Header.GetIndexID()
-	backupDir := snap.Header.GetSource(0).Importer.Directory
-	args := []string{"vfs", fmt.Sprintf("%s:%s/subdir/dummy.txt", hex.EncodeToString(indexId[:]), backupDir)}
+	args := []string{"diag", "vfs", fmt.Sprintf("%s:subdir/dummy.txt", hex.EncodeToString(indexId[:]))}
 
-	subcommand, err := parse_cmd_diag(ctx, args)
+	subcommandf, _, args := subcommands.Lookup(args)
+	subcommand := subcommandf()
+	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(ctx, repo)
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -457,17 +448,19 @@ func TestExecuteCmdDiagVFS(t *testing.T) {
 
 	output := bufOut.String()
 	require.Contains(t, output, "[FileEntry]")
-	require.Contains(t, output, fmt.Sprintf("ParentPath: %s/subdir", backupDir))
+	require.Contains(t, output, "ParentPath: /subdir")
 	require.Contains(t, output, "Name: dummy.txt")
 
 	bufOut.Reset()
-	args = []string{"vfs", fmt.Sprintf("%s:%s/subdir", hex.EncodeToString(indexId[:]), backupDir)}
+	args = []string{"diag", "vfs", fmt.Sprintf("%s:/subdir", hex.EncodeToString(indexId[:]))}
 
-	subcommand, err = parse_cmd_diag(ctx, args)
+	subcommandf, _, args = subcommands.Lookup(args)
+	subcommand = subcommandf()
+	err = subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err = subcommand.Execute(ctx, repo)
+	status, err = subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -584,7 +577,7 @@ func TestExecuteCmdDiagVFS(t *testing.T) {
 
 	output = bufOut.String()
 	require.Contains(t, output, "[DirEntry]")
-	require.Contains(t, output, fmt.Sprintf("ParentPath: %s", backupDir))
+	require.Contains(t, output, "ParentPath: /")
 	require.Contains(t, output, "Name: subdir")
 	require.Contains(t, output, "Directory.Files: 3")
 }
@@ -593,24 +586,19 @@ func TestExecuteCmdDiagXattr(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	snap := generateSnapshot(t, bufOut, bufErr)
+	repo, snap := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-
-	repo := snap.Repository()
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
 	indexId := snap.Header.GetIndexID()
-	backupDir := snap.Header.GetSource(0).Importer.Directory
-	args := []string{"xattr", fmt.Sprintf("%s:%s/subdir/dummy.txt", hex.EncodeToString(indexId[:]), backupDir)}
+	args := []string{"diag", "xattr", fmt.Sprintf("%s:subdir/dummy.txt", hex.EncodeToString(indexId[:]))}
 
-	subcommand, err := parse_cmd_diag(ctx, args)
+	subcommandf, _, args := subcommands.Lookup(args)
+	subcommand := subcommandf()
+	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(ctx, repo)
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -624,24 +612,19 @@ func TestExecuteCmdDiagContentType(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	snap := generateSnapshot(t, bufOut, bufErr)
+	repo, snap := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-
-	repo := snap.Repository()
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
 	indexId := snap.Header.GetIndexID()
-	backupDir := snap.Header.GetSource(0).Importer.Directory
-	args := []string{"contenttype", fmt.Sprintf("%s:%s/subdir/dummy.txt", hex.EncodeToString(indexId[:]), backupDir)}
+	args := []string{"diag", "contenttype", fmt.Sprintf("%s:subdir/dummy.txt", hex.EncodeToString(indexId[:]))}
 
-	subcommand, err := parse_cmd_diag(ctx, args)
+	subcommandf, _, args := subcommands.Lookup(args)
+	subcommand := subcommandf()
+	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(ctx, repo)
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -655,22 +638,18 @@ func TestExecuteCmdDiagLocks(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	snap := generateSnapshot(t, bufOut, bufErr)
+	repo, snap := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
+	args := []string{"diag", "locks"}
 
-	repo := snap.Repository()
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
-	args := []string{"locks"}
-
-	subcommand, err := parse_cmd_diag(ctx, args)
+	subcommandf, _, args := subcommands.Lookup(args)
+	subcommand := subcommandf()
+	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(ctx, repo)
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -684,24 +663,19 @@ func TestExecuteCmdDiagSearch(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	snap := generateSnapshot(t, bufOut, bufErr)
+	repo, snap := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-
-	repo := snap.Repository()
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
 	indexId := snap.Header.GetIndexID()
-	backupDir := snap.Header.GetSource(0).Importer.Directory
-	args := []string{"search", fmt.Sprintf("%s:%s/subdir/dummy.txt", hex.EncodeToString(indexId[:]), backupDir)}
+	args := []string{"diag", "search", fmt.Sprintf("%s:subdir/", hex.EncodeToString(indexId[:]))}
 
-	subcommand, err := parse_cmd_diag(ctx, args)
+	subcommandf, _, args := subcommands.Lookup(args)
+	subcommand := subcommandf()
+	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(ctx, repo)
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 

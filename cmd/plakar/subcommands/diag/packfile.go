@@ -2,17 +2,29 @@ package diag
 
 import (
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/repository"
 )
 
 type DiagPackfile struct {
-	RepositorySecret []byte
+	subcommands.SubcommandBase
 
 	Args []string
+}
+
+func (cmd *DiagPackfile) Parse(ctx *appcontext.AppContext, args []string) error {
+	flags := flag.NewFlagSet("diag packfile", flag.ExitOnError)
+	flags.Parse(args)
+
+	cmd.RepositorySecret = ctx.GetSecret()
+	cmd.Args = flags.Args()[0:]
+
+	return nil
 }
 
 func (cmd *DiagPackfile) Name() string {

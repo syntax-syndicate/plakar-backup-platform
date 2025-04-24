@@ -7,12 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"mime"
 	"net/http"
 	"path"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/PlakarKorp/plakar/caching/lru"
@@ -77,17 +75,20 @@ func snapshotReader(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	do_highlight := false
 	do_download := false
-
 	download := r.URL.Query().Get("download")
 	if download == "true" {
 		do_download = true
 	}
 
 	render := r.URL.Query().Get("render")
-	if render == "highlight" {
-		do_highlight = true
+	switch render {
+	case "code", "text", "auto":
+		// valid values
+	case "":
+		render = "auto"
+	default:
+		return parameterError("render", InvalidArgument, errors.New("valid values are code, text, auto"))
 	}
 
 	snap, err := loadsnap(lrepository, snapshotID32)
@@ -105,7 +106,7 @@ func snapshotReader(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	file := entry.Open(fs, path)
+	file := entry.Open(fs)
 	defer file.Close()
 
 	if !entry.Stat().Mode().IsRegular() {
@@ -116,30 +117,10 @@ func snapshotReader(w http.ResponseWriter, r *http.Request) error {
 		w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(filepath.Base(path)))
 	}
 
-	if !do_highlight {
-		ctype := mime.TypeByExtension(filepath.Ext(path))
-		if ctype == "" {
-			content := file.(io.ReadSeeker)
-			// read a chunk to decide between utf-8 text and binary
-			var buf [512]byte
-			n, _ := io.ReadFull(content, buf[:])
-			ctype = http.DetectContentType(buf[:n])
-			_, err := content.Seek(0, io.SeekStart) // rewind to output whole file
-			if err != nil {
-				http.Error(w, "seeker can't seek", http.StatusInternalServerError)
-				return nil
-			}
+	if render != "code" {
+		if render == "text" {
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		}
-
-		// best-effort to serve HTML as-is.  golang http
-		// sniffer actually alway uses "text/html;
-		// charset=utf-8".
-		if strings.HasPrefix(ctype, "text/html") {
-			ctype = "text/plain; charset=utf-8"
-		}
-
-		w.Header().Set("Content-Type", ctype)
-
 		http.ServeContent(w, r, filepath.Base(path), entry.Stat().ModTime(), file.(io.ReadSeeker))
 		return nil
 	}
@@ -355,6 +336,9 @@ func snapshotVFSChildren(w http.ResponseWriter, r *http.Request) error {
 	if entrypath == "" {
 		entrypath = "/"
 	}
+
+	entrypath = filepath.Clean(entrypath)
+
 	fsinfo, err := fs.GetEntry(entrypath)
 	if err != nil {
 		return err
@@ -382,6 +366,7 @@ func snapshotVFSChildren(w http.ResponseWriter, r *http.Request) error {
 				return err
 			}
 
+			parent.ParentPath = entrypath
 			parent.FileInfo.Lname = ".."
 
 			limit--
@@ -408,8 +393,61 @@ func snapshotVFSChildren(w http.ResponseWriter, r *http.Request) error {
 		if i >= limit+offset {
 			break
 		}
+
+		// These might be huge and we don't need them in this
+		// context in the UI.
+		if child.ResolvedObject != nil {
+			child.ResolvedObject.Chunks = nil
+		}
+
 		items.Items = append(items.Items, child)
 		i++
+	}
+	return json.NewEncoder(w).Encode(items)
+}
+
+func snapshotVFSChunks(w http.ResponseWriter, r *http.Request) error {
+	snapshotID32, entrypath, err := SnapshotPathParam(r, lrepository, "snapshot_path")
+	if err != nil {
+		return err
+	}
+
+	offset, err := QueryParamToInt64(r, "offset", 0, 0)
+	if err != nil {
+		return err
+	}
+
+	limit, err := QueryParamToInt64(r, "limit", 1, 50)
+	if err != nil {
+		return err
+	}
+
+	snap, err := loadsnap(lrepository, snapshotID32)
+	if err != nil {
+		return err
+	}
+
+	fs, err := snap.Filesystem()
+	if err != nil {
+		return err
+	}
+
+	entry, err := fs.GetEntry(entrypath)
+	if err != nil {
+		return nil
+	}
+
+	var tot int
+	if entry.ResolvedObject != nil {
+		tot = len(entry.ResolvedObject.Chunks)
+	}
+
+	items := Items[objects.Chunk]{
+		Total: tot,
+	}
+
+	for i := offset; i < min(offset+limit, int64(tot)); i++ {
+		items.Items = append(items.Items, entry.ResolvedObject.Chunks[i])
 	}
 	return json.NewEncoder(w).Encode(items)
 }
@@ -537,6 +575,11 @@ func snapshotVFSErrors(w http.ResponseWriter, r *http.Request) error {
 		path = "/"
 	}
 
+	dir, err := fs.GetEntry(path)
+	if err != nil {
+		return err
+	}
+
 	errorList, err := fs.Errors(path)
 	if err != nil {
 		return err
@@ -545,20 +588,17 @@ func snapshotVFSErrors(w http.ResponseWriter, r *http.Request) error {
 	var i int64
 	items := Items[*vfs.ErrorItem]{
 		Items: []*vfs.ErrorItem{},
+		Total: int(dir.Summary.Directory.Errors + dir.Summary.Below.Errors),
 	}
 	for errorEntry := range errorList {
-		if i < offset {
-			i++
-			continue
+		if i >= offset && i < offset+limit {
+			items.Items = append(items.Items, errorEntry)
 		}
-		if limit > 0 && i >= limit+offset {
-			i++
-			continue
-		}
-		items.Items = append(items.Items, errorEntry)
 		i++
+		if i >= offset+limit {
+			break
+		}
 	}
-	items.Total = int(i)
 	return json.NewEncoder(w).Encode(items)
 }
 

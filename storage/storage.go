@@ -45,6 +45,12 @@ func init() {
 	versioning.Register(resources.RT_CONFIG, versioning.FromString(VERSION))
 }
 
+var ErrNotWritable = fmt.Errorf("storage is not writable")
+var ErrNotReadable = fmt.Errorf("storage is not readable")
+var ErrInvalidLocation = fmt.Errorf("invalid location")
+var ErrInvalidMagic = fmt.Errorf("invalid magic")
+var ErrInvalidVersion = fmt.Errorf("invalid version")
+
 type Configuration struct {
 	Version      versioning.Version `msgpack:"-"`
 	Timestamp    time.Time
@@ -133,11 +139,6 @@ type Store interface {
 	DeleteLock(lockID objects.MAC) error
 
 	Close() error
-}
-
-type backend struct {
-	name string
-	fn   func(map[string]string) (Store, error)
 }
 
 var backends = make(map[string]func(map[string]string) (Store, error))

@@ -14,7 +14,6 @@ import (
 	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/network"
 	"github.com/PlakarKorp/plakar/resources"
-	"github.com/PlakarKorp/plakar/snapshot"
 	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
 	"github.com/PlakarKorp/plakar/storage"
 	ptesting "github.com/PlakarKorp/plakar/testing"
@@ -26,8 +25,12 @@ func init() {
 	os.Setenv("TZ", "UTC")
 }
 
-func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) *snapshot.Snapshot {
-	return ptesting.GenerateSnapshot(t, bufOut, bufErr, nil, []ptesting.MockFile{
+func TestExecuteCmdServerDefault(t *testing.T) {
+	bufOut := bytes.NewBuffer(nil)
+	bufErr := bytes.NewBuffer(nil)
+
+	repo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockDir("another_subdir"),
 		ptesting.NewMockFile("subdir/dummy.txt", 0644, "hello dummy"),
@@ -35,27 +38,17 @@ func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 		ptesting.NewMockFile("subdir/to_exclude", 0644, "*/subdir/to_exclude\n"),
 		ptesting.NewMockFile("another_subdir/bar.txt", 0644, "hello bar"),
 	})
-}
+	snap.Close()
 
-func TestExecuteCmdServerDefault(t *testing.T) {
-	bufOut := bytes.NewBuffer(nil)
-	bufErr := bytes.NewBuffer(nil)
-
-	snap := generateSnapshot(t, bufOut, bufErr)
-	defer snap.Close()
-
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-
-	repo := snap.Repository()
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
+	ctx := repo.AppContext()
 	args := []string{"-listen", "127.0.0.1:12345"}
 
-	subcommand, err := parse_cmd_server(ctx, args)
+	subcommand := &Server{}
+	err := subcommand.Parse(ctx, args)
+
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
-	require.Equal(t, "server", subcommand.(*Server).Name())
+	require.Equal(t, "server", subcommand.Name())
 
 	subCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()

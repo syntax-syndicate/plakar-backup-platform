@@ -7,7 +7,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/PlakarKorp/plakar/snapshot"
 	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
 	ptesting "github.com/PlakarKorp/plakar/testing"
 	"github.com/stretchr/testify/require"
@@ -17,8 +16,12 @@ func init() {
 	os.Setenv("TZ", "UTC")
 }
 
-func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) *snapshot.Snapshot {
-	return ptesting.GenerateSnapshot(t, bufOut, bufErr, nil, []ptesting.MockFile{
+func TestExecuteCmdMaintenanceDefault(t *testing.T) {
+	bufOut := bytes.NewBuffer(nil)
+	bufErr := bytes.NewBuffer(nil)
+
+	repo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockDir("another_subdir"),
 		ptesting.NewMockFile("subdir/dummy.txt", 0644, "hello dummy"),
@@ -26,30 +29,17 @@ func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 		ptesting.NewMockFile("subdir/to_exclude", 0644, "*/subdir/to_exclude\n"),
 		ptesting.NewMockFile("another_subdir/bar.txt", 0644, "hello bar"),
 	})
-}
 
-func TestExecuteCmdMaintenanceDefault(t *testing.T) {
-	bufOut := bytes.NewBuffer(nil)
-	bufErr := bytes.NewBuffer(nil)
-
-	snap := generateSnapshot(t, bufOut, bufErr)
-	defer snap.Close()
-
-	ctx := snap.AppContext()
-	ctx.MaxConcurrency = 1
-
-	repo := snap.Repository()
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
 	indexId := snap.Header.GetIndexID()
 	args := []string{fmt.Sprintf("%s", hex.EncodeToString(indexId[:]))}
 
-	subcommand, err := parse_cmd_maintenance(ctx, args)
+	subcommand := &Maintenance{}
+	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
-	require.Equal(t, "maintenance", subcommand.(*Maintenance).Name())
+	require.Equal(t, "maintenance", subcommand.Name())
 
-	status, err := subcommand.Execute(ctx, repo)
+	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 

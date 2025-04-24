@@ -2,6 +2,7 @@ package rclone
 
 import (
 	"fmt"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"os"
@@ -16,8 +17,8 @@ type GooglePhotoImporter struct {
 	*RcloneImporter
 }
 
-func NewGooglePhotoImporter(config map[string]string) (importer.Importer, error) {
-	imp, err := NewRcloneImporter(config)
+func NewGooglePhotoImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
+	imp, err := NewRcloneImporter(appCtx, name, config)
 	if err != nil {
 		return nil, err
 	}

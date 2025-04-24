@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"io"
 	"net/http"
 	"os"
@@ -54,16 +55,15 @@ func init() {
 // NewRcloneImporter creates a new RcloneImporter instance. It expects the location
 // to be in the format "remote:path/to/dir". The path is optional, but the remote
 // storage location is required, so the colon separator is always expected.
-func NewRcloneImporter(config map[string]string) (importer.Importer, error) {
-	provider, location, _ := strings.Cut(config["location"], "://")
-	remote, base, found := strings.Cut(location, ":")
+func NewRcloneImporter(appCtx *appcontext.AppContext, providerName string, config map[string]string) (importer.Importer, error) {
+	remote, base, found := strings.Cut(config["location"], ":")
 	file, err := remoteProvider.WriteRcloneConfigFile(remote, config)
 	if err != nil {
 		return nil, err
 	}
 
 	if !found {
-		return nil, fmt.Errorf("invalid location: %s. Expected format: remote:path/to/dir", location)
+		return nil, fmt.Errorf("invalid location: %s. Expected format: remote:path/to/dir", providerName+"://"+config["location"])
 	}
 
 	librclone.Initialize()
@@ -71,7 +71,7 @@ func NewRcloneImporter(config map[string]string) (importer.Importer, error) {
 	return &RcloneImporter{
 		remote:   remote,
 		base:     base,
-		provider: provider,
+		provider: providerName,
 		confFile: file,
 	}, nil
 }

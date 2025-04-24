@@ -8,10 +8,11 @@ import (
 	"runtime"
 	"runtime/pprof"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/btree"
 	"github.com/PlakarKorp/plakar/snapshot/importer/fs"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
-	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/cockroachdb/pebble/v2"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -19,32 +20,33 @@ type empty struct{}
 
 type Node = btree.Node[string, int, empty]
 
-type leveldbstore struct {
+type pebbleStore struct {
 	counter int
-	db      *leveldb.DB
+	db      *pebble.DB
 }
 
-func (l *leveldbstore) Get(i int) (*Node, error) {
+func (l *pebbleStore) Get(i int) (*Node, error) {
 	key := fmt.Sprintf("%d", i)
-	bytes, err := l.db.Get([]byte(key), nil)
+	bytes, closer, err := l.db.Get([]byte(key))
 	if err != nil {
 		return nil, err
 	}
 	node := &Node{}
 	err = msgpack.Unmarshal(bytes, node)
+	closer.Close()
 	return node, err
 }
 
-func (l *leveldbstore) Update(i int, node *Node) error {
+func (l *pebbleStore) Update(i int, node *Node) error {
 	key := fmt.Sprintf("%d", i)
 	bytes, err := msgpack.Marshal(node)
 	if err != nil {
 		return err
 	}
-	return l.db.Put([]byte(key), bytes, nil)
+	return l.db.Set([]byte(key), bytes, nil)
 }
 
-func (l *leveldbstore) Put(node *Node) (int, error) {
+func (l *pebbleStore) Put(node *Node) (int, error) {
 	n := l.counter
 	key := fmt.Sprintf("%d", n)
 	l.counter++
@@ -53,7 +55,7 @@ func (l *leveldbstore) Put(node *Node) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return n, l.db.Put([]byte(key), bytes, nil)
+	return n, l.db.Set([]byte(key), bytes, nil)
 }
 
 func main() {
@@ -68,7 +70,7 @@ func main() {
 	)
 	flag.BoolVar(&verify, "verify", false, `Whether to verify the tree at the end`)
 	flag.BoolVar(&xattr, "xattr", false, `get xattr for all the files as well`)
-	flag.StringVar(&dbpath, "dbpath", "/tmp/leveldb", `Path to the leveldb; use "memory" for an in-memory btree`)
+	flag.StringVar(&dbpath, "dbpath", "/tmp/pebble", `Path to the pebble db directory; use "memory" for an in-memory btree`)
 	flag.IntVar(&order, "order", 50, `Order of the btree`)
 	flag.StringVar(&dot, "dot", "", `where to put the generated dot; empty for none`)
 	flag.StringVar(&cpuprof, "profile-cpu", "", "profile CPU usage")
@@ -108,11 +110,14 @@ func main() {
 		store = &btree.InMemoryStore[string, empty]{}
 	} else {
 		os.Remove(dbpath)
-		db, err := leveldb.OpenFile(dbpath, nil)
-		if err != nil {
-			log.Fatal("failed to open the leveldb:", err)
+		if err := os.MkdirAll(dbpath, 0755); err != nil {
+			log.Fatalf("can't mkdirall %s: %s", dbpath, err)
 		}
-		store = &leveldbstore{db: db}
+		db, err := pebble.Open(dbpath, nil)
+		if err != nil {
+			log.Fatal("failed to open the pebble:", err)
+		}
+		store = &pebbleStore{db: db}
 		defer os.Remove(dbpath)
 	}
 
@@ -121,7 +126,7 @@ func main() {
 		log.Fatal("Failed to create the btree:", err)
 	}
 
-	imp, err := fs.NewFSImporter(map[string]string{"location": flag.Arg(0)})
+	imp, err := fs.NewFSImporter(appcontext.NewAppContext(), "fs", map[string]string{"location": flag.Arg(0)})
 	if err != nil {
 		log.Fatal("new fs importer failed:", err)
 	}

@@ -1,4 +1,4 @@
-package snapshot
+package packer
 
 import (
 	"bytes"
@@ -14,57 +14,79 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/resources"
+	"github.com/PlakarKorp/plakar/storage"
 	"github.com/PlakarKorp/plakar/versioning"
 )
 
 func init() {
-	// used for paddinng random bytes
+	// used for padding random bytes
 	versioning.Register(resources.RT_RANDOM, versioning.FromString("1.0.0"))
 }
 
-type PackerManager struct {
-	snapshot       *Snapshot
+type PackerManagerInt interface {
+	Run() error
+	Wait()
+	InsertIfNotPresent(Type resources.Type, mac objects.MAC) (bool, error)
+	Put(Type resources.Type, mac objects.MAC, data []byte) error
+	Exists(Type resources.Type, mac objects.MAC) (bool, error)
+}
+
+type packerManager struct {
 	inflightMACs   map[resources.Type]*sync.Map
 	packerChan     chan interface{}
 	packerChanDone chan struct{}
+
+	storageConf  *storage.Configuration
+	encodingFunc func(io.Reader) (io.Reader, error)
+	hashFactory  func() hash.Hash
+	appCtx       *appcontext.AppContext
+
+	// XXX: Temporary hack callback-based to ease the transition diff.
+	// To be revisited with either an interface or moving this file inside repository/
+	flush func(*packfile.PackFile) error
 }
 
-func NewPackerManager(snapshot *Snapshot) *PackerManager {
+func NewPackerManager(ctx *appcontext.AppContext, storageConfiguration *storage.Configuration, encodingFunc func(io.Reader) (io.Reader, error), hashFactory func() hash.Hash, flusher func(*packfile.PackFile) error) PackerManagerInt {
 	inflightsMACs := make(map[resources.Type]*sync.Map)
 	for _, Type := range resources.Types() {
 		inflightsMACs[Type] = &sync.Map{}
 	}
-	return &PackerManager{
-		snapshot:       snapshot,
+	return &packerManager{
 		inflightMACs:   inflightsMACs,
 		packerChan:     make(chan interface{}, runtime.NumCPU()*2+1),
 		packerChanDone: make(chan struct{}),
+		storageConf:    storageConfiguration,
+		encodingFunc:   encodingFunc,
+		hashFactory:    hashFactory,
+		appCtx:         ctx,
+		flush:          flusher,
 	}
 }
 
-func (mgr *PackerManager) Run() {
+func (mgr *packerManager) Run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	packerResultChan := make(chan *Packer, runtime.NumCPU())
+	packerResultChan := make(chan *packfile.PackFile, runtime.NumCPU())
 
 	flusherGroup, _ := errgroup.WithContext(ctx)
 	flusherGroup.Go(func() error {
-		for packer := range packerResultChan {
-			if packer == nil || packer.Size() == 0 {
+		for pfile := range packerResultChan {
+			if pfile == nil || pfile.Size() == 0 {
 				continue
 			}
 
-			packer.AddPadding(int(mgr.snapshot.repository.Configuration().Chunking.MinSize))
+			mgr.AddPadding(pfile, int(mgr.storageConf.Chunking.MinSize))
 
-			if err := mgr.snapshot.PutPackfile(packer); err != nil {
+			if err := mgr.flush(pfile); err != nil {
 				return fmt.Errorf("failed to flush packer: %w", err)
 			}
 
-			for _, record := range packer.Packfile.Index {
+			for _, record := range pfile.Index {
 				mgr.inflightMACs[record.Type].Delete(record.MAC)
 			}
 		}
@@ -74,7 +96,7 @@ func (mgr *PackerManager) Run() {
 	workerGroup, workerCtx := errgroup.WithContext(ctx)
 	for i := 0; i < runtime.NumCPU(); i++ {
 		workerGroup.Go(func() error {
-			var packer *Packer
+			var pfile *packfile.PackFile
 
 			for {
 				select {
@@ -82,8 +104,8 @@ func (mgr *PackerManager) Run() {
 					return workerCtx.Err()
 				case msg, ok := <-mgr.packerChan:
 					if !ok {
-						if packer != nil && packer.Size() > 0 {
-							packerResultChan <- packer
+						if pfile != nil && pfile.Size() > 0 {
+							packerResultChan <- pfile
 						}
 						return nil
 					}
@@ -93,18 +115,16 @@ func (mgr *PackerManager) Run() {
 						return fmt.Errorf("unexpected message type")
 					}
 
-					if packer == nil {
-						packer = NewPacker(mgr.snapshot.Repository().GetMACHasher())
-						packer.AddPadding(int(mgr.snapshot.repository.Configuration().Chunking.MinSize))
+					if pfile == nil {
+						pfile = packfile.New(mgr.hashFactory())
+						mgr.AddPadding(pfile, int(mgr.storageConf.Chunking.MinSize))
 					}
 
-					if !packer.AddBlobIfNotExists(pm.Type, pm.Version, pm.MAC, pm.Data, pm.Flags) {
-						continue
-					}
+					pfile.AddBlob(pm.Type, pm.Version, pm.MAC, pm.Data, pm.Flags)
 
-					if packer.Size() > uint32(mgr.snapshot.repository.Configuration().Packfile.MaxSize) {
-						packerResultChan <- packer
-						packer = nil
+					if pfile.Size() > uint32(mgr.storageConf.Packfile.MaxSize) {
+						packerResultChan <- pfile
+						pfile = nil
 					}
 				}
 			}
@@ -113,24 +133,56 @@ func (mgr *PackerManager) Run() {
 
 	// Wait for workers to finish.
 	if err := workerGroup.Wait(); err != nil {
-		mgr.snapshot.Logger().Error("Worker group error: %s", err)
+		mgr.appCtx.GetLogger().Error("Worker group error: %s", err)
 		cancel() // Propagate cancellation.
 	}
 
 	// Close the result channel and wait for the flusher to finish.
 	close(packerResultChan)
 	if err := flusherGroup.Wait(); err != nil {
-		mgr.snapshot.Logger().Error("Flusher group error: %s", err)
+		mgr.appCtx.GetLogger().Error("Flusher group error: %s", err)
 	}
 
 	// Signal completion.
 	mgr.packerChanDone <- struct{}{}
 	close(mgr.packerChanDone)
+	return nil
 }
 
-func (mgr *PackerManager) Wait() {
+func (mgr *packerManager) Wait() {
 	close(mgr.packerChan)
 	<-mgr.packerChanDone
+}
+
+func (mgr *packerManager) InsertIfNotPresent(Type resources.Type, mac objects.MAC) (bool, error) {
+	if _, exists := mgr.inflightMACs[Type].LoadOrStore(mac, struct{}{}); exists {
+		// tell prom exporter that we collided a blob
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (mgr *packerManager) Put(Type resources.Type, mac objects.MAC, data []byte) error {
+	if encodedReader, err := mgr.encodingFunc(bytes.NewReader(data)); err != nil {
+		return err
+	} else {
+		encoded, err := io.ReadAll(encodedReader)
+		if err != nil {
+			return err
+		}
+
+		mgr.packerChan <- &PackerMsg{Type: Type, Version: versioning.GetCurrentVersion(Type), Timestamp: time.Now(), MAC: mac, Data: encoded}
+		return nil
+	}
+}
+
+func (mgr *packerManager) Exists(Type resources.Type, mac objects.MAC) (bool, error) {
+	if _, exists := mgr.inflightMACs[Type].Load(mac); exists {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 type PackerMsg struct {
@@ -158,7 +210,7 @@ func NewPacker(hasher hash.Hash) *Packer {
 	}
 }
 
-func (packer *Packer) AddPadding(maxSize int) error {
+func (mgr *packerManager) AddPadding(packfile *packfile.PackFile, maxSize int) error {
 	if maxSize < 0 {
 		return fmt.Errorf("invalid padding size")
 	}
@@ -184,12 +236,11 @@ func (packer *Packer) AddPadding(maxSize int) error {
 		return fmt.Errorf("failed to generate random padding MAC: %w", err)
 	}
 
-	packer.AddBlobIfNotExists(resources.RT_RANDOM, versioning.GetCurrentVersion(resources.RT_RANDOM), mac, buffer, 0)
-
+	packfile.AddBlob(resources.RT_RANDOM, versioning.GetCurrentVersion(resources.RT_RANDOM), mac, buffer, 0)
 	return nil
 }
 
-func (packer *Packer) AddBlobIfNotExists(Type resources.Type, version versioning.Version, mac [32]byte, data []byte, flags uint32) bool {
+func (packer *Packer) addBlobIfNotExists(Type resources.Type, version versioning.Version, mac [32]byte, data []byte, flags uint32) bool {
 	if _, ok := packer.Blobs[Type]; !ok {
 		packer.Blobs[Type] = make(map[[32]byte][]byte)
 	}
@@ -201,7 +252,7 @@ func (packer *Packer) AddBlobIfNotExists(Type resources.Type, version versioning
 	return true
 }
 
-func (packer *Packer) Size() uint32 {
+func (packer *Packer) size() uint32 {
 	return packer.Packfile.Size()
 }
 
@@ -211,58 +262,4 @@ func (packer *Packer) Types() []resources.Type {
 		ret = append(ret, k)
 	}
 	return ret
-}
-
-func (snap *Snapshot) PutBlob(Type resources.Type, mac [32]byte, data []byte) error {
-	snap.Logger().Trace("snapshot", "%x: PutBlob(%s, %064x) len=%d", snap.Header.GetIndexShortID(), Type, mac, len(data))
-
-	if snap.deltaState != nil {
-		if _, exists := snap.packerManager.inflightMACs[Type].LoadOrStore(mac, struct{}{}); exists {
-			// tell prom exporter that we collided a blob
-			return nil
-		}
-	}
-
-	encodedReader, err := snap.repository.Encode(bytes.NewReader(data))
-	if err != nil {
-		return err
-	}
-
-	encoded, err := io.ReadAll(encodedReader)
-	if err != nil {
-		return err
-	}
-
-	snap.packerManager.packerChan <- &PackerMsg{Type: Type, Version: versioning.GetCurrentVersion(Type), Timestamp: time.Now(), MAC: mac, Data: encoded}
-	return nil
-}
-
-func (snap *Snapshot) GetBlob(Type resources.Type, mac [32]byte) ([]byte, error) {
-	snap.Logger().Trace("snapshot", "%x: GetBlob(%s, %x)", snap.Header.GetIndexShortID(), Type, mac)
-	rd, err := snap.repository.GetBlob(Type, mac)
-	if err != nil {
-		return nil, err
-	}
-
-	return io.ReadAll(rd)
-}
-
-func (snap *Snapshot) BlobExists(Type resources.Type, mac [32]byte) bool {
-	snap.Logger().Trace("snapshot", "%x: CheckBlob(%s, %064x)", snap.Header.GetIndexShortID(), Type, mac)
-
-	if snap.deltaState != nil {
-		if _, exists := snap.packerManager.inflightMACs[Type].Load(mac); exists {
-			return true
-		}
-	}
-
-	return snap.repository.BlobExists(Type, mac)
-}
-
-func (snap *Snapshot) PutBlobIfNotExists(Type resources.Type, mac [32]byte, data []byte) error {
-	snap.Logger().Trace("snapshot", "%x: PutBlobIfNotExists(%s, %064x) len=%d", snap.Header.GetIndexShortID(), Type, mac, len(data))
-	if snap.BlobExists(Type, mac) {
-		return nil
-	}
-	return snap.PutBlob(Type, mac, data)
 }

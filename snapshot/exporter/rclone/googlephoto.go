@@ -3,6 +3,7 @@ package rclone
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/snapshot/exporter"
 	"io"
 	"net/http"
@@ -17,8 +18,8 @@ type GooglePhotoExporter struct {
 	*RcloneExporter
 }
 
-func NewGooglePhotoExporter(config map[string]string) (exporter.Exporter, error) {
-	exp, err := NewRcloneExporter(config)
+func NewGooglePhotoExporter(appCtx *appcontext.AppContext, name string, config map[string]string) (exporter.Exporter, error) {
+	exp, err := NewRcloneExporter(appCtx, name, config)
 	if err != nil {
 		return nil, err
 	}

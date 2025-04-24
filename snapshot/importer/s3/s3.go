@@ -31,6 +31,7 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 )
@@ -58,9 +59,10 @@ func connect(location *url.URL, useSsl bool, accessKeyID, secretAccessKey string
 	})
 }
 
-func NewS3Importer(config map[string]string) (importer.Importer, error) {
+func NewS3Importer(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
 
-	location := config["location"]
+	target := name + "://" + config["location"]
+
 	var accessKey string
 	if tmp, ok := config["access_key"]; !ok {
 		return nil, fmt.Errorf("missing access_key")
@@ -84,7 +86,7 @@ func NewS3Importer(config map[string]string) (importer.Importer, error) {
 		useSsl = tmp
 	}
 
-	parsed, err := url.Parse(location)
+	parsed, err := url.Parse(target)
 	if err != nil {
 		return nil, err
 	}

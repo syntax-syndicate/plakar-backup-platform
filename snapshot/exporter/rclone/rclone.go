@@ -3,6 +3,7 @@ package rclone
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"io"
 	"net/http"
 	"os"
@@ -30,7 +31,7 @@ func init() {
 	exporter.Register("iclouddrive", NewRcloneExporter)
 }
 
-func NewRcloneExporter(config map[string]string) (exporter.Exporter, error) {
+func NewRcloneExporter(appCtx *appcontext.AppContext, name string, config map[string]string) (exporter.Exporter, error) {
 	provider, location, _ := strings.Cut(config["location"], "://")
 	remote, base, found := strings.Cut(location, ":")
 
