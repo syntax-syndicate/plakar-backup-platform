@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	_ "github.com/PlakarKorp/plakar/connectors/data/fs"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
-	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
 	ptesting "github.com/PlakarKorp/plakar/testing"
 	"github.com/stretchr/testify/require"
 )

@@ -66,11 +66,11 @@ import (
 	_ "github.com/PlakarKorp/plakar/snapshot/importer/sftp"
 	_ "github.com/PlakarKorp/plakar/snapshot/importer/stdio"
 
-	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
-	_ "github.com/PlakarKorp/plakar/snapshot/exporter/ftp"
-	_ "github.com/PlakarKorp/plakar/snapshot/exporter/s3"
-	_ "github.com/PlakarKorp/plakar/snapshot/exporter/sftp"
-	_ "github.com/PlakarKorp/plakar/snapshot/exporter/stdio"
+	_ "github.com/PlakarKorp/plakar/connectors/data/fs"
+	_ "github.com/PlakarKorp/plakar/connectors/data/ftp"
+	_ "github.com/PlakarKorp/plakar/connectors/data/s3"
+	_ "github.com/PlakarKorp/plakar/connectors/data/sftp"
+	_ "github.com/PlakarKorp/plakar/connectors/data/stdio"
 
 	_ "github.com/PlakarKorp/plakar/classifier/backend/noop"
 )

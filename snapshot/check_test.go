@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	_ "github.com/PlakarKorp/plakar/connectors/data/fs"
 	"github.com/PlakarKorp/plakar/snapshot"
-	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
 	"github.com/stretchr/testify/require"
 )
 
