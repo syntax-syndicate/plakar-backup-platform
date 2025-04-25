@@ -76,7 +76,7 @@ func NewStore(storeConfig map[string]string) (storage.Store, error) {
 		useSsl = tmp
 	}
 
-	storageClass := "standard"
+	storageClass := "STANDARD"
 	if value, ok := storeConfig["storage_class"]; ok {
 		storageClass = strings.ToUpper(value)
 		if storageClass != "STANDARD" && storageClass != "REDUCED_REDUNDANCY" && storageClass != "STANDARD_IA" && storageClass != "ONEZONE_IA" && storageClass != "INTELLIGENT_TIERING" && storageClass != "GLACIER" && storageClass != "GLACIER_IR" && storageClass != "DEEP_ARCHIVE" {
