@@ -27,6 +27,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/secsy/goftp"
@@ -51,26 +52,17 @@ func connectToFTP(host, username, password string) (*goftp.Client, error) {
 	return goftp.DialConfig(config, host)
 }
 
-func NewFTPImporter(config map[string]string) (importer.Importer, error) {
+func NewFTPImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
+	target := name + "://" + config["location"]
 
-	location := config["location"]
-
-	parsed, err := url.Parse(location)
+	parsed, err := url.Parse(target)
 	if err != nil {
 		return nil, err
 	}
 
-	//if parsed.User != nil {
-	//	username = parsed.User.Username()
-	//	if tmppass, passexists := parsed.User.Password(); passexists {
-	//		password = tmppass
-	//	}
-	//}
-
 	return &FTPImporter{
 		host:    parsed.Host,
 		rootDir: parsed.Path,
-		//		client:  client,
 	}, nil
 }
 

@@ -23,8 +23,8 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"strings"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/pkg/xattr"
 )
@@ -37,12 +37,8 @@ func init() {
 	importer.Register("fs", NewFSImporter)
 }
 
-func NewFSImporter(config map[string]string) (importer.Importer, error) {
+func NewFSImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
 	location := config["location"]
-
-	if strings.HasPrefix(location, "fs://") {
-		location = location[5:]
-	}
 
 	if !path.IsAbs(location) {
 		return nil, fmt.Errorf("not an absolute path %s", location)

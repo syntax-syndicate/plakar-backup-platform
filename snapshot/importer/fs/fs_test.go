@@ -5,6 +5,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +19,9 @@ func TestFSImporter(t *testing.T) {
 	err = os.WriteFile(tmpImportDir+"/dummy.txt", []byte("test importer fs"), 0644)
 	require.NoError(t, err)
 
-	importer, err := NewFSImporter(map[string]string{"location": tmpImportDir})
+	appCtx := appcontext.NewAppContext()
+
+	importer, err := NewFSImporter(appCtx, "fs", map[string]string{"location": tmpImportDir})
 	require.NoError(t, err)
 	require.NotNil(t, importer)
 
