@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	_ "github.com/PlakarKorp/plakar/connectors/storage/fs"
 	"github.com/PlakarKorp/plakar/repository"
-	_ "github.com/PlakarKorp/plakar/storage/backends/fs"
 	"github.com/creack/pty"
 	"github.com/stretchr/testify/require"
 )

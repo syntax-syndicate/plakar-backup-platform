@@ -9,13 +9,13 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/caching"
+	bfs "github.com/PlakarKorp/plakar/connectors/storage/fs"
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/storage"
-	bfs "github.com/PlakarKorp/plakar/storage/backends/fs"
 	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/stretchr/testify/require"
 )
