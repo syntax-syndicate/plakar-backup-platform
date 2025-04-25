@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
@@ -47,16 +46,6 @@ type S3Importer struct {
 
 func init() {
 	importer.Register("s3", NewS3Importer)
-}
-
-func connect(location *url.URL, useSsl bool, accessKeyID, secretAccessKey string) (*minio.Client, error) {
-	endpoint := location.Host
-
-	// Initialize minio client object.
-	return minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
-		Secure: useSsl,
-	})
 }
 
 func NewS3Importer(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {

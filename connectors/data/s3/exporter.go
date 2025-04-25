@@ -28,7 +28,6 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/exporter"
 	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 type S3Exporter struct {
@@ -38,16 +37,6 @@ type S3Exporter struct {
 
 func init() {
 	exporter.Register("s3", NewS3Exporter)
-}
-
-func connect(location *url.URL, useSsl bool, accessKeyID, secretAccessKey string) (*minio.Client, error) {
-	endpoint := location.Host
-
-	// Initialize minio client object.
-	return minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
-		Secure: useSsl,
-	})
 }
 
 func NewS3Exporter(appCtx *appcontext.AppContext, name string, config map[string]string) (exporter.Exporter, error) {

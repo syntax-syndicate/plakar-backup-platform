@@ -25,7 +25,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
@@ -41,15 +40,6 @@ type FTPImporter struct {
 
 func init() {
 	importer.Register("ftp", NewFTPImporter)
-}
-
-func connectToFTP(host, username, password string) (*goftp.Client, error) {
-	config := goftp.Config{
-		User:     username,
-		Password: password,
-		Timeout:  10 * time.Second,
-	}
-	return goftp.DialConfig(config, host)
 }
 
 func NewFTPImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {

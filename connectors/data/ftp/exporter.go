@@ -20,7 +20,6 @@ import (
 	"io"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
@@ -32,18 +31,6 @@ type FTPExporter struct {
 	host    string
 	rootDir string
 	client  *goftp.Client
-}
-
-func connectToFTP(host, username, password string) (*goftp.Client, error) {
-	config := goftp.Config{}
-	if username != "" {
-		config.User = username
-	}
-	if password != "" {
-		config.Password = password
-	}
-	config.Timeout = 10 * time.Second
-	return goftp.DialConfig(config, host)
 }
 
 func init() {
