@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 
@@ -246,7 +247,6 @@ func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	_ = sortKeys
 
 	lrepository.RebuildState()
 
@@ -300,6 +300,12 @@ func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 	sort.Slice(locations, func(i, j int) bool {
 		return locations[i].Snapshot.Timestamp.Before(locations[j].Snapshot.Timestamp)
 	})
+
+	if len(sortKeys) > 0 {
+		if sortKeys[0] == "-Timestamp" {
+			slices.Reverse(locations)
+		}
+	}
 
 	if offset > uint32(len(locations)) {
 		locations = []TimelineLocation{}
