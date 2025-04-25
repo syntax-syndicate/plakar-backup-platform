@@ -10,7 +10,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/btree"
-	"github.com/PlakarKorp/plakar/snapshot/importer/fs"
+	"github.com/PlakarKorp/plakar/connectors/data/fs"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/cockroachdb/pebble/v2"
 	"github.com/vmihailenco/msgpack/v5"

@@ -60,12 +60,6 @@ import (
 	_ "github.com/PlakarKorp/plakar/connectors/storage/s3"
 	_ "github.com/PlakarKorp/plakar/connectors/storage/sftp"
 
-	_ "github.com/PlakarKorp/plakar/snapshot/importer/fs"
-	_ "github.com/PlakarKorp/plakar/snapshot/importer/ftp"
-	_ "github.com/PlakarKorp/plakar/snapshot/importer/s3"
-	_ "github.com/PlakarKorp/plakar/snapshot/importer/sftp"
-	_ "github.com/PlakarKorp/plakar/snapshot/importer/stdio"
-
 	_ "github.com/PlakarKorp/plakar/connectors/data/fs"
 	_ "github.com/PlakarKorp/plakar/connectors/data/ftp"
 	_ "github.com/PlakarKorp/plakar/connectors/data/s3"
