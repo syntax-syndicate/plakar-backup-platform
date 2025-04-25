@@ -247,7 +247,6 @@ func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	_ = sortKeys
 
 	lrepository.RebuildState()
 
