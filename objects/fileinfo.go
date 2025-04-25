@@ -119,6 +119,17 @@ func (fileinfo *FileInfo) Equal(fi *FileInfo) bool {
 		fileinfo.Lnlink == fi.Lnlink
 }
 
+func (fileinfo *FileInfo) EqualIgnoreSize(fi *FileInfo) bool {
+	return fileinfo.Lname == fi.Lname &&
+		fileinfo.Lmode == fi.Lmode &&
+		fileinfo.LmodTime == fi.LmodTime &&
+		fileinfo.Ldev == fi.Ldev &&
+		fileinfo.Lino == fi.Lino &&
+		fileinfo.Luid == fi.Luid &&
+		fileinfo.Lgid == fi.Lgid &&
+		fileinfo.Lnlink == fi.Lnlink
+}
+
 func (fileinfo *FileInfo) Type() string {
 	switch mode := fileinfo.Mode(); {
 	case mode.IsRegular():

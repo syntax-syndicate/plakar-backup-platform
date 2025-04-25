@@ -42,14 +42,10 @@ import (
 )
 
 func init() {
-	subcommands.Register("ptar", parse_cmd_ptar)
+	subcommands.Register(func() subcommands.Subcommand { return &Ptar{} }, "ptar")
 }
 
-func parse_cmd_ptar(ctx *appcontext.AppContext, args []string) (subcommands.Subcommand, error) {
-	var opt_hashing string
-	var opt_noencryption bool
-	var opt_nocompression bool
-	var opt_allowweak bool
+func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 	var opt_sync string
 
 	flags := flag.NewFlagSet("ptar", flag.ExitOnError)
@@ -60,42 +56,42 @@ func parse_cmd_ptar(ctx *appcontext.AppContext, args []string) (subcommands.Subc
 		flags.PrintDefaults()
 	}
 
-	flags.BoolVar(&opt_allowweak, "weak-passphrase", false, "allow weak passphrase to protect the repository")
-	flags.StringVar(&opt_hashing, "hashing", hashing.DEFAULT_HASHING_ALGORITHM, "hashing algorithm to use for digests")
-	flags.BoolVar(&opt_noencryption, "no-encryption", false, "disable transparent encryption")
-	flags.BoolVar(&opt_nocompression, "no-compression", false, "disable transparent compression")
+	flags.BoolVar(&cmd.AllowWeak, "weak-passphrase", false, "allow weak passphrase to protect the repository")
+	flags.StringVar(&cmd.Hashing, "hashing", hashing.DEFAULT_HASHING_ALGORITHM, "hashing algorithm to use for digests")
+	flags.BoolVar(&cmd.NoEncryption, "no-encryption", false, "disable transparent encryption")
+	flags.BoolVar(&cmd.NoCompression, "no-compression", false, "disable transparent compression")
 	flags.StringVar(&opt_sync, "sync-from", "", "create a ptar archive from an existing repository")
 	flags.Parse(args)
 
 	if len(opt_sync) > 0 && flags.NArg() > 0 {
-		return nil, fmt.Errorf("%s: can't specify source directories in sync mode.", flag.CommandLine.Name())
+		return fmt.Errorf("%s: can't specify source directories in sync mode.", flag.CommandLine.Name())
 	}
 
 	var peerSecret []byte
 	if len(opt_sync) > 0 {
 		storeConfig, err := ctx.Config.GetRepository(opt_sync)
 		if err != nil {
-			return nil, fmt.Errorf("peer repository: %w", err)
+			return fmt.Errorf("peer repository: %w", err)
 		}
 
 		peerStore, peerStoreSerializedConfig, err := storage.Open(storeConfig)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		peerStoreConfig, err := storage.NewConfigurationFromWrappedBytes(peerStoreSerializedConfig)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if peerStoreConfig.Encryption != nil {
 			if pass, ok := storeConfig["passphrase"]; ok {
 				key, err := encryption.DeriveKey(peerStoreConfig.Encryption.KDFParams, []byte(pass))
 				if err != nil {
-					return nil, err
+					return err
 				}
 				if !encryption.VerifyCanary(peerStoreConfig.Encryption, key) {
-					return nil, fmt.Errorf("invalid passphrase")
+					return fmt.Errorf("invalid passphrase")
 				}
 				peerSecret = key
 			} else {
@@ -108,10 +104,10 @@ func parse_cmd_ptar(ctx *appcontext.AppContext, args []string) (subcommands.Subc
 
 					key, err := encryption.DeriveKey(peerStoreConfig.Encryption.KDFParams, passphrase)
 					if err != nil {
-						return nil, err
+						return err
 					}
 					if !encryption.VerifyCanary(peerStoreConfig.Encryption, key) {
-						return nil, fmt.Errorf("invalid passphrase")
+						return fmt.Errorf("invalid passphrase")
 					}
 					peerSecret = key
 					break
@@ -123,30 +119,28 @@ func parse_cmd_ptar(ctx *appcontext.AppContext, args []string) (subcommands.Subc
 		peerCtx.SetSecret(peerSecret)
 		_, err = repository.New(peerCtx, peerStore, peerStoreSerializedConfig)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	if len(opt_sync) == 0 && flags.NArg() < 1 {
-		return nil, fmt.Errorf("%s: at least one source is needed", flag.CommandLine.Name())
+		return fmt.Errorf("%s: at least one source is needed", flag.CommandLine.Name())
 	}
 
-	if hashing.GetHasher(strings.ToUpper(opt_hashing)) == nil {
-		return nil, fmt.Errorf("%s: unknown hashing algorithm", flag.CommandLine.Name())
+	if hashing.GetHasher(strings.ToUpper(cmd.Hashing)) == nil {
+		return fmt.Errorf("%s: unknown hashing algorithm", flag.CommandLine.Name())
 	}
 
-	return &Ptar{
-		AllowWeak:     opt_allowweak,
-		Hashing:       opt_hashing,
-		NoEncryption:  opt_noencryption,
-		NoCompression: opt_nocompression,
-		SyncFrom:      opt_sync,
-		SyncSrcSecret: peerSecret,
-		Location:      flags.Args(),
-	}, nil
+	cmd.SyncSrcSecret = peerSecret
+	cmd.SyncFrom = opt_sync
+	cmd.Location = flags.Args()
+
+	return nil
 }
 
 type Ptar struct {
+	subcommands.SubcommandBase
+
 	AllowWeak     bool
 	Hashing       string
 	NoEncryption  bool
@@ -276,7 +270,7 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 			return 1, err
 		}
 	} else {
-		if err := cmd.backup(repoWriter); err != nil {
+		if err := cmd.backup(ctx, repoWriter); err != nil {
 			return 1, err
 		}
 	}
@@ -295,9 +289,9 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	return 0, nil
 }
 
-func (cmd *Ptar) backup(repo *repository.RepositoryWriter) error {
+func (cmd *Ptar) backup(ctx *appcontext.AppContext, repo *repository.RepositoryWriter) error {
 	for _, loc := range cmd.Location {
-		imp, err := importer.NewImporter(map[string]string{"location": loc})
+		imp, err := importer.NewImporter(ctx, map[string]string{"location": loc})
 		if err != nil {
 			return err
 		}

@@ -2,9 +2,11 @@ package diag
 
 import (
 	"encoding/hex"
+	"flag"
 	"fmt"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/repository/state"
@@ -12,9 +14,19 @@ import (
 )
 
 type DiagState struct {
-	RepositorySecret []byte
+	subcommands.SubcommandBase
 
 	Args []string
+}
+
+func (cmd *DiagState) Parse(ctx *appcontext.AppContext, args []string) error {
+	flags := flag.NewFlagSet("diag state", flag.ExitOnError)
+	flags.Parse(args)
+
+	cmd.RepositorySecret = ctx.GetSecret()
+	cmd.Args = flags.Args()
+
+	return nil
 }
 
 func (cmd *DiagState) Name() string {

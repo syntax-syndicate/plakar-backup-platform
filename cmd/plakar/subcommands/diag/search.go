@@ -2,19 +2,46 @@ package diag
 
 import (
 	"context"
+	"flag"
 	"fmt"
+	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 )
 
 type DiagSearch struct {
-	RepositorySecret []byte
+	subcommands.SubcommandBase
 
 	SnapshotPath string
 	Mimes        []string
+}
+
+func (cmd *DiagSearch) Parse(ctx *appcontext.AppContext, args []string) error {
+	flags := flag.NewFlagSet("diag search", flag.ExitOnError)
+	flags.Parse(args)
+
+	var path string
+	var mimes []string
+
+	switch flags.NArg() {
+	case 1:
+		path = flags.Arg(0)
+	case 2:
+		path, mimes = flags.Arg(0), strings.Split(flags.Arg(1), ",")
+	default:
+		return fmt.Errorf("usage: %s search snapshot[:path] mimes",
+			flags.Name())
+	}
+
+	cmd.RepositorySecret = ctx.GetSecret()
+	cmd.SnapshotPath = path
+	cmd.Mimes = mimes
+
+	return nil
 }
 
 func (cmd *DiagSearch) Name() string {

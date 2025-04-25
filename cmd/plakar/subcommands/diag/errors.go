@@ -1,17 +1,33 @@
 package diag
 
 import (
+	"flag"
 	"fmt"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
 )
 
 type DiagErrors struct {
-	RepositorySecret []byte
+	subcommands.SubcommandBase
 
 	SnapshotID string
+}
+
+func (cmd *DiagErrors) Parse(ctx *appcontext.AppContext, args []string) error {
+	flags := flag.NewFlagSet("diag errors", flag.ExitOnError)
+	flags.Parse(args)
+
+	if len(flags.Args()) < 1 {
+		return fmt.Errorf("usage: %s errors SNAPSHOT", flags.Name())
+	}
+
+	cmd.RepositorySecret = ctx.GetSecret()
+	cmd.SnapshotID = flags.Args()[0]
+
+	return nil
 }
 
 func (cmd *DiagErrors) Name() string {
