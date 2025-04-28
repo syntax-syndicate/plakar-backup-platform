@@ -62,7 +62,6 @@ type Importer interface {
 	Scan() (<-chan *ScanResult, error)
 	NewReader(string) (io.ReadCloser, error)
 	NewExtendedAttributeReader(string, string) (io.ReadCloser, error)
-	GetExtendedAttributes(string) ([]ExtendedAttributes, error)
 	Close() error
 }
 
