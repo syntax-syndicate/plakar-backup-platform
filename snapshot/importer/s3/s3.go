@@ -184,10 +184,6 @@ func (p *S3Importer) NewExtendedAttributeReader(pathname string, attribute strin
 	return nil, fmt.Errorf("extended attributes are not supported on S3")
 }
 
-func (p *S3Importer) GetExtendedAttributes(pathname string) ([]importer.ExtendedAttributes, error) {
-	return nil, fmt.Errorf("extended attributes are not supported on S3")
-}
-
 func (p *S3Importer) Close() error {
 	return nil
 }

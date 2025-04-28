@@ -31,10 +31,6 @@ func (cmd *DiagContentType) Parse(ctx *appcontext.AppContext, args []string) err
 	return nil
 }
 
-func (cmd *DiagContentType) Name() string {
-	return "diag_contenttype"
-}
-
 func (cmd *DiagContentType) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	snap, pathname, err := utils.OpenSnapshotByPath(repo, cmd.SnapshotPath)
 	if err != nil {

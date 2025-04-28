@@ -79,10 +79,6 @@ func (p *SFTPImporter) NewExtendedAttributeReader(pathname string, attribute str
 	return nil, fmt.Errorf("extended attributes are not supported by the sftp importer yet")
 }
 
-func (p *SFTPImporter) GetExtendedAttributes(pathname string) ([]importer.ExtendedAttributes, error) {
-	return nil, fmt.Errorf("extended attributes are not supported by the sftp importer yet")
-}
-
 func (p *SFTPImporter) Close() error {
 	return p.client.Close()
 }
