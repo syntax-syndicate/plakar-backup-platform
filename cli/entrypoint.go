@@ -458,7 +458,7 @@ func EntryPoint() int {
 	}
 
 	var status int
-	if opt_agentless {
+	if opt_agentless || cmd.GetFlags() & subcommands.AgentSupport == 0 {
 		status, err = cmd.Execute(ctx, repo)
 	} else {
 		status, err = agent.ExecuteRPC(ctx, name, cmd, storeConfig)
