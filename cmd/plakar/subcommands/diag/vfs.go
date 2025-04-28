@@ -33,10 +33,6 @@ func (cmd *DiagVFS) Parse(ctx *appcontext.AppContext, args []string) error {
 	return nil
 }
 
-func (cmd *DiagVFS) Name() string {
-	return "diag_vfs"
-}
-
 func (cmd *DiagVFS) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	snap1, pathname, err := utils.OpenSnapshotByPath(repo, cmd.SnapshotPath)
 	if err != nil {

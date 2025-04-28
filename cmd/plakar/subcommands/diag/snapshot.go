@@ -36,10 +36,6 @@ func (cmd *DiagSnapshot) Parse(ctx *appcontext.AppContext, args []string) error 
 	return nil
 }
 
-func (cmd *DiagSnapshot) Name() string {
-	return "diag_snapshot"
-}
-
 func (cmd *DiagSnapshot) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	snap, _, err := utils.OpenSnapshotByPath(repo, cmd.SnapshotID)
 	if err != nil {
