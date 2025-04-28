@@ -86,14 +86,6 @@ func (p *FSImporter) NewExtendedAttributeReader(pathname string, attribute strin
 	return io.NopCloser(bytes.NewReader(data)), nil
 }
 
-func (p *FSImporter) GetExtendedAttributes(pathname string) ([]importer.ExtendedAttributes, error) {
-	if pathname[0] == '/' && runtime.GOOS == "windows" {
-		pathname = pathname[1:]
-	}
-
-	return getExtendedAttributes(pathname)
-}
-
 func (p *FSImporter) Close() error {
 	return nil
 }

@@ -37,10 +37,6 @@ func (m MockedImporter) NewExtendedAttributeReader(string, string) (io.ReadClose
 	return nil, nil
 }
 
-func (m MockedImporter) GetExtendedAttributes(string) ([]ExtendedAttributes, error) {
-	return nil, nil
-}
-
 func (m MockedImporter) Close() error {
 	return nil
 }
