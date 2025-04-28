@@ -15,6 +15,7 @@ type CommandFlags uint32
 
 const (
 	NeedRepositoryKey CommandFlags = 1 << iota
+	BeforeRepositoryWithStorage
 	BeforeRepositoryOpen
 	AgentSupport
 )
@@ -83,7 +84,7 @@ func Lookup(arguments []string) (Subcommand, []string, []string) {
 		return cmd, arguments[:subcmd.nargs], arguments[subcmd.nargs:]
 	}
 
-	return nil, nil, nil
+	return nil, nil, arguments
 }
 
 func List() []string {

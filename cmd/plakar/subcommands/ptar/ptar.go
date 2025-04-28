@@ -42,7 +42,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Ptar{} }, subcommands.AgentSupport, "ptar")
+	subcommands.Register(func() subcommands.Subcommand { return &Ptar{} }, subcommands.BeforeRepositoryWithStorage, "ptar")
 }
 
 func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
