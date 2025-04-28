@@ -244,13 +244,15 @@ func (s *Store) Size() int64 {
 // states
 func (s *Store) GetStates() ([]objects.MAC, error) {
 	prefix := s.realpath("states/")
+	prefixSize := len(prefix) + 3 // prefix + len(%02x/) encoded
+
 	ret := make([]objects.MAC, 0)
 	for object := range s.minioClient.ListObjects(context.Background(), s.bucketName, minio.ListObjectsOptions{
 		Prefix:    prefix,
 		Recursive: true,
 	}) {
-		if strings.HasPrefix(object.Key, prefix) && len(object.Key) >= len(prefix) {
-			t, err := hex.DecodeString(object.Key[len(prefix):])
+		if strings.HasPrefix(object.Key, prefix) && len(object.Key) >= prefixSize {
+			t, err := hex.DecodeString(object.Key[prefixSize:])
 			if err != nil {
 				return nil, fmt.Errorf("decode state key: %w", err)
 			}
@@ -294,13 +296,15 @@ func (s *Store) DeleteState(mac objects.MAC) error {
 // packfiles
 func (s *Store) GetPackfiles() ([]objects.MAC, error) {
 	prefix := s.realpath("packfiles/")
+	prefixSize := len(prefix) + 3 // prefix + len(%02x/) encoded
+
 	ret := make([]objects.MAC, 0)
 	for object := range s.minioClient.ListObjects(context.Background(), s.bucketName, minio.ListObjectsOptions{
 		Prefix:    prefix,
 		Recursive: true,
 	}) {
-		if strings.HasPrefix(object.Key, prefix) && len(object.Key) >= len(prefix) {
-			t, err := hex.DecodeString(object.Key[len(prefix):])
+		if strings.HasPrefix(object.Key, prefix) && len(object.Key) >= prefixSize {
+			t, err := hex.DecodeString(object.Key[prefixSize:])
 			if err != nil {
 				return nil, fmt.Errorf("decode packfile key: %w", err)
 			}
@@ -358,13 +362,15 @@ func (s *Store) DeletePackfile(mac objects.MAC) error {
 
 func (s *Store) GetLocks() ([]objects.MAC, error) {
 	prefix := s.realpath("locks/")
+	prefixSize := len(prefix) + 3 // prefix + len(%02x/) encoded
+
 	ret := make([]objects.MAC, 0)
 	for object := range s.minioClient.ListObjects(context.Background(), s.bucketName, minio.ListObjectsOptions{
 		Prefix:    prefix,
 		Recursive: true,
 	}) {
-		if strings.HasPrefix(object.Key, prefix) && len(object.Key) >= len(prefix) {
-			t, err := hex.DecodeString(object.Key[len(prefix):])
+		if strings.HasPrefix(object.Key, prefix) && len(object.Key) >= prefixSize {
+			t, err := hex.DecodeString(object.Key[prefixSize:])
 			if err != nil {
 				return nil, fmt.Errorf("decode lock key: %w", err)
 			}
