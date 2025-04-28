@@ -647,12 +647,6 @@ func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importe
 		}
 	}
 
-	if object != nil {
-		if err := snap.repository.PutBlobIfNotExists(resources.RT_OBJECT, objectMAC, objectSerialized); err != nil {
-			return err
-		}
-	}
-
 	// Chunkify the file if it is a regular file and we don't have a cached object
 	if record.FileInfo.Mode().IsRegular() {
 		if object == nil || !snap.repository.BlobExists(resources.RT_OBJECT, objectMAC) {
