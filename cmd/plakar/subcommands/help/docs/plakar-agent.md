@@ -9,7 +9,7 @@ PLAKAR-AGENT(1) - General Commands Manual
 **plakar agent**
 \[**-foreground**]
 \[**-log**&nbsp;*filename*]
-\[**-stop**]
+\[**stop**]
 
 # DESCRIPTION
 
@@ -33,9 +33,11 @@ The options are as follows:
 > Redirect all output to
 > *filename*.
 
-**-stop**
-
-> Terminate an agent running in the background.
+With the
+**stop**
+argument,
+**plakar agent**
+will be stopped.
 
 # DIAGNOSTICS
 
