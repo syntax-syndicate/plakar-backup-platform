@@ -33,7 +33,7 @@ import (
 var docs embed.FS
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Help{} }, "help")
+	subcommands.Register(func() subcommands.Subcommand { return &Help{} }, 0, "help")
 }
 
 func (cmd *Help) Parse(ctx *appcontext.AppContext, args []string) error {

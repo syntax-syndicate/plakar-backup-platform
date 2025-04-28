@@ -43,8 +43,7 @@ func TestExecuteCmdDiagSnapshot(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{"diag", "snapshot", fmt.Sprintf("%s", hex.EncodeToString(indexId[:]))}
 
-	subcommandf, _, args := subcommands.Lookup(args)
-	subcommand := subcommandf()
+	subcommand, _, args := subcommands.Lookup(args)
 	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
@@ -125,8 +124,7 @@ func TestExecuteCmdDiagErrors(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{"diag", "errors", fmt.Sprintf("%s", hex.EncodeToString(indexId[:]))}
 
-	subcommandf, _, args := subcommands.Lookup(args)
-	subcommand := subcommandf()
+	subcommand, _, args := subcommands.Lookup(args)
 	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
@@ -149,8 +147,7 @@ func TestExecuteCmdDiagState(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{"diag", "state"}
 
-	subcommandf, _, args := subcommands.Lookup(args)
-	subcommand := subcommandf()
+	subcommand, _, args := subcommands.Lookup(args)
 	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
@@ -168,8 +165,7 @@ func TestExecuteCmdDiagState(t *testing.T) {
 	bufOut.Reset()
 	args = []string{"diag", "state", strings.Trim(output, "\n")}
 
-	subcommandf, _, args = subcommands.Lookup(args)
-	subcommand = subcommandf()
+	subcommand, _, args = subcommands.Lookup(args)
 	err = subcommand.Parse(repo.AppContext(), args)
 
 	require.NoError(t, err)
@@ -212,8 +208,7 @@ func TestExecuteCmdDiagPackfile(t *testing.T) {
 
 	indexId := snap.Header.GetIndexID()
 	args := []string{"diag", "state"}
-	subcommandf, _, args := subcommands.Lookup(args)
-	subcommand := subcommandf()
+	subcommand, _, args := subcommands.Lookup(args)
 	err := subcommand.Parse(repo.AppContext(), args)
 
 	require.NoError(t, err)
@@ -232,8 +227,7 @@ func TestExecuteCmdDiagPackfile(t *testing.T) {
 	bufOut.Reset()
 	args = []string{"diag", "state", strings.Trim(output, "\n")}
 
-	subcommandf, _, args = subcommands.Lookup(args)
-	subcommand = subcommandf()
+	subcommand, _, args = subcommands.Lookup(args)
 	err = subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
@@ -282,8 +276,7 @@ func TestExecuteCmdDiagPackfile(t *testing.T) {
 	bufOut.Reset()
 	args = []string{"diag", "packfile", hex.EncodeToString(partPackfile)}
 
-	subcommandf, _, args = subcommands.Lookup(args)
-	subcommand = subcommandf()
+	subcommand, _, args = subcommands.Lookup(args)
 	err = subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
@@ -315,8 +308,7 @@ func TestExecuteCmdDiagObject(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{"diag", "state"}
 
-	subcommandf, _, args := subcommands.Lookup(args)
-	subcommand := subcommandf()
+	subcommand, _, args := subcommands.Lookup(args)
 	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
@@ -334,8 +326,7 @@ func TestExecuteCmdDiagObject(t *testing.T) {
 	bufOut.Reset()
 	args = []string{"diag", "state", strings.Trim(output, "\n")}
 
-	subcommandf, _, args = subcommands.Lookup(args)
-	subcommand = subcommandf()
+	subcommand, _, args = subcommands.Lookup(args)
 	err = subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
@@ -382,8 +373,7 @@ func TestExecuteCmdDiagObject(t *testing.T) {
 	bufOut.Reset()
 	args = []string{"diag", "object", hex.EncodeToString(partObject)}
 
-	subcommandf, _, args = subcommands.Lookup(args)
-	subcommand = subcommandf()
+	subcommand, _, args = subcommands.Lookup(args)
 	err = subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
@@ -414,8 +404,7 @@ func TestExecuteCmdDiagVFS(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{"diag", "vfs", fmt.Sprintf("%s:subdir/dummy.txt", hex.EncodeToString(indexId[:]))}
 
-	subcommandf, _, args := subcommands.Lookup(args)
-	subcommand := subcommandf()
+	subcommand, _, args := subcommands.Lookup(args)
 	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
@@ -454,8 +443,7 @@ func TestExecuteCmdDiagVFS(t *testing.T) {
 	bufOut.Reset()
 	args = []string{"diag", "vfs", fmt.Sprintf("%s:/subdir", hex.EncodeToString(indexId[:]))}
 
-	subcommandf, _, args = subcommands.Lookup(args)
-	subcommand = subcommandf()
+	subcommand, _, args = subcommands.Lookup(args)
 	err = subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
@@ -592,8 +580,7 @@ func TestExecuteCmdDiagXattr(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{"diag", "xattr", fmt.Sprintf("%s:subdir/dummy.txt", hex.EncodeToString(indexId[:]))}
 
-	subcommandf, _, args := subcommands.Lookup(args)
-	subcommand := subcommandf()
+	subcommand, _, args := subcommands.Lookup(args)
 	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
@@ -618,8 +605,7 @@ func TestExecuteCmdDiagContentType(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{"diag", "contenttype", fmt.Sprintf("%s:subdir/dummy.txt", hex.EncodeToString(indexId[:]))}
 
-	subcommandf, _, args := subcommands.Lookup(args)
-	subcommand := subcommandf()
+	subcommand, _, args := subcommands.Lookup(args)
 	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
@@ -643,8 +629,7 @@ func TestExecuteCmdDiagLocks(t *testing.T) {
 
 	args := []string{"diag", "locks"}
 
-	subcommandf, _, args := subcommands.Lookup(args)
-	subcommand := subcommandf()
+	subcommand, _, args := subcommands.Lookup(args)
 	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
@@ -669,8 +654,7 @@ func TestExecuteCmdDiagSearch(t *testing.T) {
 	indexId := snap.Header.GetIndexID()
 	args := []string{"diag", "search", fmt.Sprintf("%s:subdir/", hex.EncodeToString(indexId[:]))}
 
-	subcommandf, _, args := subcommands.Lookup(args)
-	subcommand := subcommandf()
+	subcommand, _, args := subcommands.Lookup(args)
 	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)

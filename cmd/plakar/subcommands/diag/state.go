@@ -29,10 +29,6 @@ func (cmd *DiagState) Parse(ctx *appcontext.AppContext, args []string) error {
 	return nil
 }
 
-func (cmd *DiagState) Name() string {
-	return "diag_state"
-}
-
 func (cmd *DiagState) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	if len(cmd.Args) == 0 {
 		states, err := repo.GetStates()

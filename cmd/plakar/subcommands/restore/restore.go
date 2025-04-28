@@ -31,7 +31,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Restore{} }, "restore")
+	subcommands.Register(func() subcommands.Subcommand { return &Restore{} }, subcommands.AgentSupport, "restore")
 }
 
 func (cmd *Restore) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -92,10 +92,6 @@ type Restore struct {
 	Quiet       bool
 	Silent      bool
 	Snapshots   []string
-}
-
-func (cmd *Restore) Name() string {
-	return "restore"
 }
 
 func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
@@ -195,8 +191,7 @@ func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 		if err != nil {
 			return 1, err
 		}
-		ctx.GetLogger().Info("%s: restoration of %x:%s at %s completed successfully",
-			cmd.Name(),
+		ctx.GetLogger().Info("restore: restoration of %x:%s at %s completed successfully",
 			snap.Header.GetIndexShortID(),
 			pathname,
 			cmd.Target)

@@ -33,10 +33,6 @@ func (cmd *DiagObject) Parse(ctx *appcontext.AppContext, args []string) error {
 	return nil
 }
 
-func (cmd *DiagObject) Name() string {
-	return "diag_object"
-}
-
 func (cmd *DiagObject) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	if len(cmd.ObjectID) != 64 {
 		return 1, fmt.Errorf("invalid object hash: %s", cmd.ObjectID)

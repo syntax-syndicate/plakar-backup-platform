@@ -27,10 +27,6 @@ func (cmd *DiagPackfile) Parse(ctx *appcontext.AppContext, args []string) error 
 	return nil
 }
 
-func (cmd *DiagPackfile) Name() string {
-	return "diag_packfile"
-}
-
 func (cmd *DiagPackfile) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	if len(cmd.Args) == 0 {
 		packfiles, err := repo.GetPackfiles()

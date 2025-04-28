@@ -41,10 +41,6 @@ func (cmd *DiagRepository) Parse(ctx *appcontext.AppContext, args []string) erro
 	return nil
 }
 
-func (cmd *DiagRepository) Name() string {
-	return "diag_repository"
-}
-
 func (cmd *DiagRepository) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 
 	fmt.Fprintln(ctx.Stdout, "Version:", repo.Configuration().Version)
