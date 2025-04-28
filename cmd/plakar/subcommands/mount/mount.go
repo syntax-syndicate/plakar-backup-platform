@@ -25,7 +25,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Mount{} }, "mount")
+	subcommands.Register(func() subcommands.Subcommand { return &Mount{} }, subcommands.AgentSupport, "mount")
 }
 
 func (cmd *Mount) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -49,8 +49,4 @@ type Mount struct {
 	subcommands.SubcommandBase
 
 	Mountpoint string
-}
-
-func (cmd *Mount) Name() string {
-	return "mount"
 }

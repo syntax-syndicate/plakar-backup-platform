@@ -31,7 +31,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Version{} }, "version")
+	subcommands.Register(func() subcommands.Subcommand { return &Version{} }, 0, "version")
 }
 
 func (_ *Version) Parse(ctx *appcontext.AppContext, args []string) error {

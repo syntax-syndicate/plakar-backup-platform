@@ -44,10 +44,6 @@ func (cmd *DiagSearch) Parse(ctx *appcontext.AppContext, args []string) error {
 	return nil
 }
 
-func (cmd *DiagSearch) Name() string {
-	return "diag_search"
-}
-
 func (cmd *DiagSearch) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	snap, pathname, err := utils.OpenSnapshotByPath(repo, cmd.SnapshotPath)
 	if err != nil {

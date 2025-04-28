@@ -325,13 +325,11 @@ func EntryPoint() int {
 		}
 		defer repo.Close()
 
-		cmdf, _, args := subcommands.Lookup(args)
-		if cmdf == nil {
+		cmd, _, args := subcommands.Lookup(args)
+		if cmd == nil {
 			fmt.Fprintf(os.Stderr, "command not found: %s\n", command)
 			return 1
 		}
-
-		cmd := cmdf()
 		if err := cmd.Parse(ctx, args); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
@@ -346,13 +344,11 @@ func EntryPoint() int {
 
 	// these commands need to be ran before the repository is opened
 	if command == "agent" || command == "config" || command == "version" || command == "help" {
-		cmdf, _, args := subcommands.Lookup(args)
-		if cmdf == nil {
+		cmd, _, args := subcommands.Lookup(args)
+		if cmd == nil {
 			fmt.Fprintf(os.Stderr, "command not found: %s\n", command)
 			return 1
 		}
-
-		cmd := cmdf()
 		if err := cmd.Parse(ctx, args); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
@@ -456,13 +452,11 @@ func EntryPoint() int {
 
 	// commands below all operate on an open repository
 	t0 := time.Now()
-	cmdf, name, args := subcommands.Lookup(args)
-	if cmdf == nil {
+	cmd, name, args := subcommands.Lookup(args)
+	if cmd == nil {
 		fmt.Fprintf(os.Stderr, "command not found: %s\n", command)
 		return 1
 	}
-
-	cmd := cmdf()
 	if err := cmd.Parse(ctx, args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		return 1

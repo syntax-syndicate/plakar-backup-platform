@@ -33,7 +33,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Diff{} }, "diff")
+	subcommands.Register(func() subcommands.Subcommand { return &Diff{} }, subcommands.AgentSupport, "diff")
 }
 
 func (cmd *Diff) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -64,10 +64,6 @@ type Diff struct {
 	Highlight     bool
 	SnapshotPath1 string
 	SnapshotPath2 string
-}
-
-func (cmd *Diff) Name() string {
-	return "diff"
 }
 
 func (cmd *Diff) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
