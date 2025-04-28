@@ -47,7 +47,6 @@ func TestExecuteCmdMountDefault(t *testing.T) {
 	err = subcommand.Parse(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
-	require.Equal(t, "mount", subcommand.Name())
 
 	subCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()

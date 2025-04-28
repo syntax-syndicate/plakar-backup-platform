@@ -32,7 +32,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Sync{} }, "sync")
+	subcommands.Register(func() subcommands.Subcommand { return &Sync{} }, subcommands.AgentSupport, "sync")
 }
 
 func (cmd *Sync) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -146,10 +146,6 @@ type Sync struct {
 	SrcLocateOptions *utils.LocateOptions
 }
 
-func (cmd *Sync) Name() string {
-	return "sync"
-}
-
 func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	storeConfig, err := ctx.Config.GetRepository(cmd.PeerRepositoryLocation)
 	if err != nil {
@@ -246,20 +242,17 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 					snapshotID[:4], dstRepository.Location(), err)
 			}
 		}
-		ctx.GetLogger().Info("%s: synchronization between %s and %s completed: %d snapshots synchronized",
-			cmd.Name(),
+		ctx.GetLogger().Info("sync: synchronization between %s and %s completed: %d snapshots synchronized",
 			srcRepository.Location(),
 			dstRepository.Location(),
 			len(srcSyncList)+len(dstSyncList))
 	} else if cmd.Direction == "to" {
-		ctx.GetLogger().Info("%s: synchronization from %s to %s completed: %d snapshots synchronized",
-			cmd.Name(),
+		ctx.GetLogger().Info("sync: synchronization from %s to %s completed: %d snapshots synchronized",
 			srcRepository.Location(),
 			dstRepository.Location(),
 			len(srcSyncList))
 	} else {
-		ctx.GetLogger().Info("%s: synchronization from %s to %s completed: %d snapshots synchronized",
-			cmd.Name(),
+		ctx.GetLogger().Info("sync: synchronization from %s to %s completed: %d snapshots synchronized",
 			dstRepository.Location(),
 			srcRepository.Location(),
 			len(srcSyncList))

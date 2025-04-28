@@ -33,10 +33,6 @@ func (cmd *InfoVFS) Parse(ctx *appcontext.AppContext, args []string) error {
 	return nil
 }
 
-func (cmd *InfoVFS) Name() string {
-	return "info_vfs"
-}
-
 func (cmd *InfoVFS) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	snap1, pathname, err := utils.OpenSnapshotByPath(repo, cmd.SnapshotPath)
 	if err != nil {

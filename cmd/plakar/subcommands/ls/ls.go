@@ -35,7 +35,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Ls{} }, "ls")
+	subcommands.Register(func() subcommands.Subcommand { return &Ls{} }, subcommands.AgentSupport, "ls")
 }
 
 func (cmd *Ls) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -71,10 +71,6 @@ type Ls struct {
 	Recursive     bool
 	DisplayUUID   bool
 	Path          string
-}
-
-func (cmd *Ls) Name() string {
-	return "ls"
 }
 
 func (cmd *Ls) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
