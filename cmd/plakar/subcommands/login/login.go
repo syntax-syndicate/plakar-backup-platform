@@ -41,30 +41,35 @@ func init() {
 
 func (cmd *Login) Parse(ctx *appcontext.AppContext, args []string) error {
 	var opt_nospawn bool
+	var opt_github bool
+	var opt_email string
 
 	flags := flag.NewFlagSet("login", flag.ExitOnError)
 	flags.Usage = func() {
-		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] PROVIDER\n", flags.Name())
-		fmt.Fprintln(flags.Output(), "\nSupported providers:")
-		fmt.Fprintln(flags.Output(), "- github")
+		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS]\n", flags.Name())
 		fmt.Fprintf(flags.Output(), "\nOPTIONS:\n")
 		flags.PrintDefaults()
 	}
 
 	flags.BoolVar(&opt_nospawn, "no-spawn", false, "don't spawn browser")
+	flags.BoolVar(&opt_github, "github", false, "login with GitHub")
+	flags.StringVar(&opt_email, "email", "", "login with email")
 	flags.Parse(args)
 
-	if flags.NArg() != 1 {
-		flags.Usage()
-		return fmt.Errorf("invalid arguments")
+	if opt_github && opt_email != "" {
+		return fmt.Errorf("specify either -github or -email, not both")
 	}
 
-	provider := flags.Arg(0)
-	if provider != "github" {
-		flags.Usage()
-		return fmt.Errorf("invalid provider %s", provider)
+	if !opt_github && opt_email == "" {
+		return fmt.Errorf("specify either -github or -email")
 	}
-	cmd.Provider = provider
+
+	if opt_nospawn && !opt_github {
+		return fmt.Errorf("the -no-spawn option is only valid with -github")
+	}
+
+	cmd.Github = opt_github
+	cmd.Email = opt_email
 	cmd.NoSpawn = opt_nospawn
 
 	return nil
@@ -73,11 +78,14 @@ func (cmd *Login) Parse(ctx *appcontext.AppContext, args []string) error {
 type Login struct {
 	subcommands.SubcommandBase
 
-	Provider string
-	NoSpawn  bool
+	Github  bool
+	Email   string
+	NoSpawn bool
 }
 
 func (cmd *Login) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+	var err error
+
 	flow, err := NewLoginFlow()
 	if err != nil {
 		return 1, err
@@ -85,7 +93,16 @@ func (cmd *Login) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 
 	defer flow.Close()
 
-	token, err := flow.Run(!cmd.NoSpawn)
+	var token string
+
+	if cmd.Github {
+		token, err = flow.RunGithub(!cmd.NoSpawn)
+	} else if cmd.Email != "" {
+		token, err = flow.RunEmail(cmd.Email)
+	} else {
+		return 1, fmt.Errorf("invalid login method")
+	}
+
 	if err != nil {
 		return 1, err
 	}
@@ -142,11 +159,10 @@ func NewLoginFlow() (*loginFlow, error) {
 //go:embed loginOk.html
 var loginOkHTML string
 
-// Run sends a POST request to the login endpoint, and waits for the user to
+// RunGithub sends a POST request to the login endpoint and waits for the user to
 // complete the OAuth flow.
-func (flow *loginFlow) Run(spawnBrowser bool) (string, error) {
+func (flow *loginFlow) RunGithub(spawnBrowser bool) (string, error) {
 	reqBody := map[string]string{
-		"provider": "github",
 		"mode":     "headers",
 		"redirect": fmt.Sprintf("http://localhost:%d", flow.port),
 	}
@@ -189,6 +205,34 @@ func (flow *loginFlow) Run(spawnBrowser bool) (string, error) {
 
 	// Wait for the token to be received
 	fmt.Printf("\nWaiting for your browser to complete the login...\n")
+	token := <-flow.channel
+
+	return token, nil
+}
+
+func (flow *loginFlow) RunEmail(email string) (string, error) {
+	reqBody := map[string]string{
+		"email":    email,
+		"mode":     "headers",
+		"redirect": fmt.Sprintf("http://localhost:%d", flow.port),
+	}
+	bodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal JSON: %v", err)
+	}
+
+	// XXX: make backend URL configurable
+	resp, err := http.Post("http://localhost:8080/v1/auth/login/email", "application/json", bytes.NewBuffer(bodyBytes))
+	if err != nil {
+		return "", fmt.Errorf("the /auth/login/email API endpoint failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	fmt.Printf("\nCheck your email for the login link. Do not close this window until you have logged in.\n")
 	token := <-flow.channel
 
 	return token, nil
