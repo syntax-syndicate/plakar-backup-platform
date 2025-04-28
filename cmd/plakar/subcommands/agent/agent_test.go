@@ -11,6 +11,7 @@ import (
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/caching"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ls"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/logging"
@@ -123,13 +124,13 @@ func TestCmdAgentForegroundInit(t *testing.T) {
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx2.HomeDir = repo.Location()
 
-	retval, err := client.SendCommand(ctx2, []string{"ls"}, &ls.Ls{LocateOptions: utils.NewDefaultLocateOptions()}, map[string]string{"location": repo.Location()})
+	retval, err := client.SendCommand(ctx2, []string{"ls"}, &ls.Ls{LocateOptions: utils.NewDefaultLocateOptions(), SubcommandBase: subcommands.SubcommandBase{Flags: subcommands.AgentSupport}}, map[string]string{"location": repo.Location()})
 	require.NoError(t, err)
 	require.Equal(t, 0, retval)
 
 	// disabled for now because if raises: write unix @->agent.sock: write: broken pipe
 	// backupDir := snap.Header.GetSource(0).Importer.Directory
-	// retval, err = client.SendCommand(ctx2, &cat.Cat{Paths: []string{filepath.Join(backupDir, "subdir/dummy.txt")}}, map[string]string{"location": repo.Location()})
+	// retval, err = client.SendCommand(ctx2, []string{"cat"}, &cat.Cat{Paths: []string{filepath.Join(backupDir, "subdir/dummy.txt")}, SubcommandBase: subcommands.SubcommandBase{Flags: subcommands.AgentSupport}}, map[string]string{"location": repo.Location()})
 	// require.NoError(t, err)
 	// require.Equal(t, 0, retval)
 }
