@@ -18,6 +18,7 @@ const (
 	BeforeRepositoryWithStorage
 	BeforeRepositoryOpen
 	AgentSupport
+	IgnoreVersion
 )
 
 type Subcommand interface {

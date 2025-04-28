@@ -27,7 +27,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"sync"
 	"syscall"
 
@@ -45,7 +44,8 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &AgentStop{} }, subcommands.AgentSupport, "agent", "stop")
+	subcommands.Register(func() subcommands.Subcommand { return &AgentStop{} },
+		subcommands.AgentSupport|subcommands.IgnoreVersion, "agent", "stop")
 	subcommands.Register(func() subcommands.Subcommand { return &Agent{} }, 0, "agent")
 }
 
@@ -269,9 +269,6 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				return
 			}
 			if err := encoder.Encode(ourvers); err != nil {
-				return
-			}
-			if !slices.Equal(clientvers, ourvers) {
 				return
 			}
 
