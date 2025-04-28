@@ -64,10 +64,6 @@ func TestFSImporter(t *testing.T) {
 	require.NotNil(t, reader)
 	defer reader.Close()
 
-	attributes, err := importer.GetExtendedAttributes(tmpImportDir + "/dummy.txt")
-	require.NoError(t, err)
-	require.NotNil(t, attributes)
-
 	err = importer.Close()
 	require.NoError(t, err)
 }

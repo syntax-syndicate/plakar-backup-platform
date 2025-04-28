@@ -30,7 +30,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Archive{} }, "archive")
+	subcommands.Register(func() subcommands.Subcommand { return &Archive{} }, subcommands.AgentSupport, "archive")
 }
 
 func (cmd *Archive) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -73,10 +73,6 @@ type Archive struct {
 	Output         string
 	Format         string
 	SnapshotPrefix string
-}
-
-func (cmd *Archive) Name() string {
-	return "archive"
 }
 
 func (cmd *Archive) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {

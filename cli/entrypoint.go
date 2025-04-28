@@ -27,6 +27,31 @@ import (
 	"github.com/denisbrodbeck/machineid"
 	"github.com/google/uuid"
 
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/agent"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/archive"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/backup"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/cat"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/clone"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/config"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/create"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/diag"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/diff"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/digest"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/help"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/info"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/locate"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ls"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/maintenance"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/mount"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ptar"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/server"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ui"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/version"
+
 	_ "github.com/PlakarKorp/plakar/storage/backends/database"
 	_ "github.com/PlakarKorp/plakar/storage/backends/fs"
 	_ "github.com/PlakarKorp/plakar/storage/backends/http"
@@ -300,13 +325,11 @@ func EntryPoint() int {
 		}
 		defer repo.Close()
 
-		cmdf, _, args := subcommands.Lookup(args)
-		if cmdf == nil {
+		cmd, _, args := subcommands.Lookup(args)
+		if cmd == nil {
 			fmt.Fprintf(os.Stderr, "command not found: %s\n", command)
 			return 1
 		}
-
-		cmd := cmdf()
 		if err := cmd.Parse(ctx, args); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
@@ -321,13 +344,11 @@ func EntryPoint() int {
 
 	// these commands need to be ran before the repository is opened
 	if command == "agent" || command == "config" || command == "version" || command == "help" {
-		cmdf, _, args := subcommands.Lookup(args)
-		if cmdf == nil {
+		cmd, _, args := subcommands.Lookup(args)
+		if cmd == nil {
 			fmt.Fprintf(os.Stderr, "command not found: %s\n", command)
 			return 1
 		}
-
-		cmd := cmdf()
 		if err := cmd.Parse(ctx, args); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
@@ -431,13 +452,11 @@ func EntryPoint() int {
 
 	// commands below all operate on an open repository
 	t0 := time.Now()
-	cmdf, name, args := subcommands.Lookup(args)
-	if cmdf == nil {
+	cmd, name, args := subcommands.Lookup(args)
+	if cmd == nil {
 		fmt.Fprintf(os.Stderr, "command not found: %s\n", command)
 		return 1
 	}
-
-	cmd := cmdf()
 	if err := cmd.Parse(ctx, args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		return 1

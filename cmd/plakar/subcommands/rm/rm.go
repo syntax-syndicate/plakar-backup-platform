@@ -29,7 +29,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Rm{} }, "rm")
+	subcommands.Register(func() subcommands.Subcommand { return &Rm{} }, subcommands.AgentSupport, "rm")
 }
 
 func (cmd *Rm) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -64,10 +64,6 @@ type Rm struct {
 	Snapshots     []string
 }
 
-func (cmd *Rm) Name() string {
-	return "rm"
-}
-
 func (cmd *Rm) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	var snapshots []objects.MAC
 	if len(cmd.Snapshots) == 0 {
@@ -96,9 +92,7 @@ func (cmd *Rm) Execute(ctx *appcontext.AppContext, repo *repository.Repository) 
 				ctx.GetLogger().Error("%s", err)
 				errors++
 			}
-			ctx.GetLogger().Info("%s: removal of %x completed successfully",
-				cmd.Name(),
-				snapshotID[:4])
+			ctx.GetLogger().Info("rm: removal of %x completed successfully", snapshotID[:4])
 			wg.Done()
 		}(snap)
 	}

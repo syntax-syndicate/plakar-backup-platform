@@ -32,7 +32,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Ui{} }, "ui")
+	subcommands.Register(func() subcommands.Subcommand { return &Ui{} }, subcommands.AgentSupport, "ui")
 }
 
 func (cmd *Ui) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -61,10 +61,6 @@ type Ui struct {
 	Cors    bool
 	NoAuth  bool
 	NoSpawn bool
-}
-
-func (cmd *Ui) Name() string {
-	return "ui"
 }
 
 func (cmd *Ui) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {

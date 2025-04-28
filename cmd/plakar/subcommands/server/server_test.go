@@ -48,7 +48,6 @@ func TestExecuteCmdServerDefault(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
-	require.Equal(t, "server", subcommand.Name())
 
 	subCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
