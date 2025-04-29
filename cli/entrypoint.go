@@ -314,10 +314,15 @@ func EntryPoint() int {
 		return 1
 	}
 
-	command := args[0]
+	cmd, name, args := subcommands.Lookup(args)
+	if cmd == nil {
+		fmt.Fprintf(os.Stderr, "command not found: %s\n", args[0])
+		return 1
+	}
+	
 	// create is a special case, it operates without a repository...
 	// but needs a repository location to store the new repository
-	if command == "create" || command == "ptar" || command == "server" {
+	if cmd.GetFlags() & subcommands.BeforeRepositoryWithStorage != 0 {
 		repo, err := repository.Inexistent(ctx, storeConfig)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
@@ -325,11 +330,6 @@ func EntryPoint() int {
 		}
 		defer repo.Close()
 
-		cmd, _, args := subcommands.Lookup(args)
-		if cmd == nil {
-			fmt.Fprintf(os.Stderr, "command not found: %s\n", command)
-			return 1
-		}
 		if err := cmd.Parse(ctx, args); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
@@ -343,12 +343,7 @@ func EntryPoint() int {
 	}
 
 	// these commands need to be ran before the repository is opened
-	if command == "agent" || command == "config" || command == "version" || command == "help" {
-		cmd, _, args := subcommands.Lookup(args)
-		if cmd == nil {
-			fmt.Fprintf(os.Stderr, "command not found: %s\n", command)
-			return 1
-		}
+	if cmd.GetFlags() & subcommands.BeforeRepositoryOpen != 0 {
 		if err := cmd.Parse(ctx, args); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
@@ -452,11 +447,6 @@ func EntryPoint() int {
 
 	// commands below all operate on an open repository
 	t0 := time.Now()
-	cmd, name, args := subcommands.Lookup(args)
-	if cmd == nil {
-		fmt.Fprintf(os.Stderr, "command not found: %s\n", command)
-		return 1
-	}
 	if err := cmd.Parse(ctx, args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		return 1
@@ -468,7 +458,7 @@ func EntryPoint() int {
 	}
 
 	var status int
-	if opt_agentless {
+	if opt_agentless || cmd.GetFlags() & subcommands.AgentSupport == 0 {
 		status, err = cmd.Execute(ctx, repo)
 	} else {
 		status, err = agent.ExecuteRPC(ctx, name, cmd, storeConfig)
