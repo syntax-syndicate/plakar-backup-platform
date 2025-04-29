@@ -101,10 +101,6 @@ func (p *MockImporter) NewReader(pathname string) (io.ReadCloser, error) {
 	return io.NopCloser(bytes.NewReader(file.Content)), nil
 }
 
-func (p *MockImporter) GetExtendedAttributes(pathname string) ([]importer.ExtendedAttributes, error) {
-	return nil, nil
-}
-
 func (p *MockImporter) NewExtendedAttributeReader(pathname, attr string) (io.ReadCloser, error) {
 	panic("should not be called")
 }

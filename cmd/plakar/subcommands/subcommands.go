@@ -24,11 +24,16 @@ type Subcommand interface {
 	Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error)
 	GetRepositorySecret() []byte
 	GetFlags() CommandFlags
+	setFlags(CommandFlags)
 }
 
 type SubcommandBase struct {
 	RepositorySecret []byte
 	Flags            CommandFlags
+}
+
+func (cmd *SubcommandBase) setFlags(flags CommandFlags) {
+	cmd.Flags = flags
 }
 
 func (cmd *SubcommandBase) GetFlags() CommandFlags {
@@ -43,12 +48,13 @@ type CmdFactory func() Subcommand
 type subcmd struct {
 	args    []string
 	nargs   int
+	flags   CommandFlags
 	factory CmdFactory
 }
 
 var subcommands []subcmd = make([]subcmd, 0)
 
-func Register(factory CmdFactory, args ...string) {
+func Register(factory CmdFactory, flags CommandFlags, args ...string) {
 	if len(args) == 0 {
 		panic("can't register commands with zero arguments")
 	}
@@ -56,11 +62,12 @@ func Register(factory CmdFactory, args ...string) {
 	subcommands = append(subcommands, subcmd{
 		args:    args,
 		nargs:   len(args),
+		flags:   flags,
 		factory: factory,
 	})
 }
 
-func Lookup(arguments []string) (CmdFactory, []string, []string) {
+func Lookup(arguments []string) (Subcommand, []string, []string) {
 	nargs := len(arguments)
 	for _, subcmd := range subcommands {
 		if nargs < subcmd.nargs {
@@ -71,7 +78,9 @@ func Lookup(arguments []string) (CmdFactory, []string, []string) {
 			continue
 		}
 
-		return subcmd.factory, arguments[:subcmd.nargs], arguments[subcmd.nargs:]
+		cmd := subcmd.factory()
+		cmd.setFlags(subcmd.flags)
+		return cmd, arguments[:subcmd.nargs], arguments[subcmd.nargs:]
 	}
 
 	return nil, nil, nil
@@ -86,21 +95,15 @@ func List() []string {
 	return list
 }
 
-// RPC extends subcommands.Subcommand, but it also includes the Name() method used to identify the RPC on decoding.
-type RPC interface {
-	Subcommand
-	Name() string
-}
-
 type encodedRPC struct {
 	Name        []string
-	Subcommand  RPC
+	Subcommand  Subcommand
 	StoreConfig map[string]string
 }
 
 // Encode marshals the RPC into the msgpack encoder. It prefixes the RPC with
 // the Name() of the RPC. This is used to identify the RPC on decoding.
-func EncodeRPC(encoder *msgpack.Encoder, name []string, cmd RPC, storeConfig map[string]string) error {
+func EncodeRPC(encoder *msgpack.Encoder, name []string, cmd Subcommand, storeConfig map[string]string) error {
 	return encoder.Encode(encodedRPC{
 		Name:        name,
 		Subcommand:  cmd,

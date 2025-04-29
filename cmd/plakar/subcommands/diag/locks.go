@@ -23,10 +23,6 @@ func (cmd *DiagLocks) Parse(ctx *appcontext.AppContext, args []string) error {
 	return nil
 }
 
-func (cmd *DiagLocks) Name() string {
-	return "diag locks"
-}
-
 func (cmd *DiagLocks) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	locksID, err := repo.GetLocks()
 	if err != nil {

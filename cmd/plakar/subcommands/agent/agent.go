@@ -45,7 +45,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Agent{} }, "agent")
+	subcommands.Register(func() subcommands.Subcommand { return &Agent{} }, 0, "agent")
 }
 
 func daemonize(argv []string) error {
@@ -351,13 +351,11 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				read(&tmp)
 			}()
 
-			subcommandf, _, _ := subcommands.Lookup(name)
-			if subcommandf == nil {
+			subcommand, _, _ := subcommands.Lookup(name)
+			if subcommand == nil {
 				fmt.Fprintf(os.Stderr, "unknown command received %s\n", name)
 				return
 			}
-
-			subcommand := subcommandf()
 			if err := msgpack.Unmarshal(request, &subcommand); err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
 				return

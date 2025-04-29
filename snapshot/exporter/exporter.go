@@ -5,11 +5,9 @@ import (
 	"io"
 	"log"
 	"path/filepath"
-	"sort"
-	"strings"
-	"sync"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/location"
 	"github.com/PlakarKorp/plakar/objects"
 )
 
@@ -21,31 +19,18 @@ type Exporter interface {
 	Close() error
 }
 
-var muBackends sync.Mutex
-var backends map[string]func(appCtx *appcontext.AppContext, name string, config map[string]string) (Exporter, error) = make(map[string]func(appCtx *appcontext.AppContext, name string, config map[string]string) (Exporter, error))
+type ExporterFn func(*appcontext.AppContext, string, map[string]string) (Exporter, error)
 
-func Register(name string, backend func(appCtx *appcontext.AppContext, name string, config map[string]string) (Exporter, error)) {
-	muBackends.Lock()
-	defer muBackends.Unlock()
+var backends = location.New[ExporterFn]("fs")
 
-	if _, ok := backends[name]; ok {
+func Register(name string, backend ExporterFn) {
+	if !backends.Register(name, backend) {
 		log.Fatalf("backend '%s' registered twice", name)
 	}
-	backends[name] = backend
 }
 
 func Backends() []string {
-	muBackends.Lock()
-	defer muBackends.Unlock()
-
-	ret := make([]string, 0)
-	for backendName := range backends {
-		ret = append(ret, backendName)
-	}
-	sort.Slice(ret, func(i, j int) bool {
-		return ret[i] < ret[j]
-	})
-	return ret
+	return backends.Names()
 }
 
 func NewExporter(ctx *appcontext.AppContext, config map[string]string) (Exporter, error) {
@@ -54,36 +39,15 @@ func NewExporter(ctx *appcontext.AppContext, config map[string]string) (Exporter
 		return nil, fmt.Errorf("missing location")
 	}
 
-	if strings.HasPrefix(location, "/") {
-		location = "fs://" + location
+	proto, location, backend, ok := backends.Lookup(location)
+	if !ok {
+		return nil, fmt.Errorf("unsupported exporter protocol")
 	}
 
-	muBackends.Lock()
-	defer muBackends.Unlock()
-	for name, backend := range backends {
-		if strings.HasPrefix(location, name+":") {
-
-			locationLen := len(location)
-			location = strings.TrimPrefix(location, name+"://")
-			if len(location) == locationLen {
-				location = strings.TrimPrefix(location, name+":")
-			}
-
-			config["location"] = location
-			backendInstance, err := backend(ctx, name, config)
-			if err != nil && name != "fs" {
-				return nil, err
-			} else if err != nil {
-				if !filepath.IsAbs(location) {
-					config["location"] = filepath.Join(ctx.CWD, location)
-					if backendInstance, err = backend(ctx, name, config); err == nil {
-						return backendInstance, nil
-					}
-				}
-				return nil, err
-			}
-			return backendInstance, nil
-		}
+	if proto == "fs" && !filepath.IsAbs(location) {
+		location = filepath.Join(ctx.CWD, location)
 	}
-	return nil, fmt.Errorf("unsupported exporter protocol")
+
+	config["location"] = location
+	return backend(ctx, proto, config)
 }

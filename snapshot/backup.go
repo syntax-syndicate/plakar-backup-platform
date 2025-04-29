@@ -365,7 +365,6 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 	objectHasher, releaseGlobalHasher := snap.repository.GetPooledMACHasher()
 	defer releaseGlobalHasher()
 
-	var firstChunk = true
 	var cdcOffset uint64
 	var object_t32 objects.MAC
 
@@ -374,15 +373,14 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 	var totalDataSize int64
 
 	// Helper function to process a chunk
-	processChunk := func(data []byte) error {
+	processChunk := func(idx int, data []byte) error {
 		var chunk_t32 objects.MAC
 
 		chunkHasher, releaseChunkHasher := snap.repository.GetPooledMACHasher()
-		if firstChunk {
+		if idx == 0 {
 			if object.ContentType == "" {
 				object.ContentType = mimetype.Detect(data).String()
 			}
-			firstChunk = false
 		}
 
 		chunkHasher.Write(data)
@@ -391,7 +389,7 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 
 		entropyScore, freq := entropy(data)
 		if len(data) > 0 {
-			for i := 0; i < 256; i++ {
+			for i := range 256 {
 				totalFreq[i] += freq[i]
 			}
 		}
@@ -409,61 +407,35 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 		return snap.repository.PutBlobIfNotExists(resources.RT_CHUNK, chunk.ContentMAC, data)
 	}
 
-	if record.FileInfo.Size() == 0 {
-		empty := []byte{}
-		// Produce an empty chunk for empty file
-		objectHasher.Write(empty)
-		if err := processChunk(empty); err != nil {
-			return nil, -1, err
-		}
-	} else if record.FileInfo.Size() != -1 && record.FileInfo.Size() < int64(snap.repository.Configuration().Chunking.MinSize) {
-		// Small file case: read entire file into memory
-		cdcChunk := make([]byte, record.FileInfo.Size())
-		_, err := io.ReadFull(rd, cdcChunk)
-		if err != nil {
-			return nil, -1, err
-		}
-		objectHasher.Write(cdcChunk)
-		if err := processChunk(cdcChunk); err != nil {
-			return nil, -1, err
-		}
-	} else {
-		// Large file case: chunk file with chunker
-		chk, err := snap.repository.Chunker(rd)
-		if err != nil {
-			return nil, -1, err
-		}
+	chk, err := snap.repository.Chunker(rd)
+	if err != nil {
+		return nil, -1, err
+	}
 
-		firstChunk := true
-		for {
-			cdcChunk, err := chk.Next()
-			if err != nil && err != io.EOF {
-				return nil, -1, err
-			}
-			if cdcChunk == nil {
-				if firstChunk {
-					empty := []byte{}
-					// Produce an empty chunk for empty file
-					objectHasher.Write(empty)
-					if err := processChunk(empty); err != nil {
-						return nil, -1, err
-					}
-				}
+	for i := 0; ; i++ {
+		cdcChunk, err := chk.Next()
+		if err != nil && err != io.EOF {
+			return nil, -1, err
+		}
+		if cdcChunk == nil {
+			// on an empty file, we need to compute an empty chunk for the first block
+			// should we make go-cdc-chunkers return an empty chunk instead of nil?
+			if i != 0 {
 				break
 			}
-			firstChunk = false
+			cdcChunk = []byte{}
+		}
 
-			chunkCopy := make([]byte, len(cdcChunk))
-			copy(chunkCopy, cdcChunk)
+		chunkCopy := make([]byte, len(cdcChunk))
+		copy(chunkCopy, cdcChunk)
 
-			objectHasher.Write(chunkCopy)
+		objectHasher.Write(chunkCopy)
 
-			if err := processChunk(chunkCopy); err != nil {
-				return nil, -1, err
-			}
-			if err == io.EOF {
-				break
-			}
+		if err := processChunk(i, chunkCopy); err != nil {
+			return nil, -1, err
+		}
+		if err == io.EOF {
+			break
 		}
 	}
 
@@ -672,12 +644,6 @@ func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importe
 					}
 				}
 			}
-		}
-	}
-
-	if object != nil {
-		if err := snap.repository.PutBlobIfNotExists(resources.RT_OBJECT, objectMAC, objectSerialized); err != nil {
-			return err
 		}
 	}
 

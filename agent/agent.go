@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
@@ -35,11 +36,6 @@ var (
 )
 
 func ExecuteRPC(ctx *appcontext.AppContext, name []string, cmd subcommands.Subcommand, storeConfig map[string]string) (int, error) {
-	rpcCmd, ok := cmd.(subcommands.RPC)
-	if !ok {
-		return 1, fmt.Errorf("subcommand is not an RPC")
-	}
-
 	client, err := NewClient(filepath.Join(ctx.CacheDir, "agent.sock"))
 	if err != nil {
 		if errors.Is(err, ErrWrongVersion) {
@@ -50,7 +46,7 @@ func ExecuteRPC(ctx *appcontext.AppContext, name []string, cmd subcommands.Subco
 	}
 	defer client.Close()
 
-	if status, err := client.SendCommand(ctx, name, rpcCmd, storeConfig); err != nil {
+	if status, err := client.SendCommand(ctx, name, cmd, storeConfig); err != nil {
 		return status, err
 	}
 	return 0, nil
@@ -96,7 +92,11 @@ func (c *Client) handshake() error {
 	return nil
 }
 
-func (c *Client) SendCommand(ctx *appcontext.AppContext, name []string, cmd subcommands.RPC, storeConfig map[string]string) (int, error) {
+func (c *Client) SendCommand(ctx *appcontext.AppContext, name []string, cmd subcommands.Subcommand, storeConfig map[string]string) (int, error) {
+	if cmd.GetFlags()&subcommands.AgentSupport == 0 {
+		return 1, fmt.Errorf("command %v doesn't support execution through agent", strings.Join(name, " "))
+	}
+
 	if err := subcommands.EncodeRPC(c.enc, name, cmd, storeConfig); err != nil {
 		return 1, err
 	}

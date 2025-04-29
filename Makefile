@@ -12,7 +12,7 @@ INSTALL_MAN =	${INSTALL} -m 0444
 all: plakar
 
 plakar:
-	${GO} build -v ./cmd/plakar
+	${GO} build -v .
 
 install:
 	mkdir -p ${DESTDIR}${BINDIR}

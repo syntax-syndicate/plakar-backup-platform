@@ -27,7 +27,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Server{} }, "server")
+	subcommands.Register(func() subcommands.Subcommand { return &Server{} }, subcommands.AgentSupport, "server")
 }
 
 func (cmd *Server) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -59,10 +59,6 @@ type Server struct {
 
 	ListenAddr string
 	NoDelete   bool
-}
-
-func (cmd *Server) Name() string {
-	return "server"
 }
 
 func (cmd *Server) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {

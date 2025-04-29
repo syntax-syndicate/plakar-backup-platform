@@ -29,7 +29,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Check{} }, "check")
+	subcommands.Register(func() subcommands.Subcommand { return &Check{} }, subcommands.AgentSupport, "check")
 }
 
 func (cmd *Check) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -58,6 +58,7 @@ func (cmd *Check) Parse(ctx *appcontext.AppContext, args []string) error {
 	cmd.LocateOptions.MaxConcurrency = ctx.MaxConcurrency
 	cmd.LocateOptions.SortOrder = utils.LocateSortOrderAscending
 	cmd.RepositorySecret = ctx.GetSecret()
+	cmd.Snapshots = flags.Args()
 
 	return nil
 }
@@ -72,10 +73,6 @@ type Check struct {
 	Quiet         bool
 	Snapshots     []string
 	Silent        bool
-}
-
-func (cmd *Check) Name() string {
-	return "check"
 }
 
 func (cmd *Check) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
@@ -145,8 +142,7 @@ func (cmd *Check) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 		}
 
 		if !failures {
-			ctx.GetLogger().Info("%s: verification of %x:%s completed successfully",
-				cmd.Name(),
+			ctx.GetLogger().Info("check: verification of %x:%s completed successfully",
 				snap.Header.GetIndexShortID(),
 				pathname)
 		}
