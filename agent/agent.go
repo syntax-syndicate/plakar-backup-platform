@@ -36,7 +36,7 @@ var (
 )
 
 func ExecuteRPC(ctx *appcontext.AppContext, name []string, cmd subcommands.Subcommand, storeConfig map[string]string) (int, error) {
-	client, err := NewClient(filepath.Join(ctx.CacheDir, "agent.sock"))
+	client, err := NewClient(filepath.Join(ctx.CacheDir, "agent.sock"), cmd.GetFlags()&subcommands.IgnoreVersion != 0)
 	if err != nil {
 		if errors.Is(err, ErrWrongVersion) {
 			ctx.GetLogger().Warn("%v", err)
@@ -52,7 +52,7 @@ func ExecuteRPC(ctx *appcontext.AppContext, name []string, cmd subcommands.Subco
 	return 0, nil
 }
 
-func NewClient(socketPath string) (*Client, error) {
+func NewClient(socketPath string, ignoreVersion bool) (*Client, error) {
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to daemon: %w", err)
@@ -66,14 +66,14 @@ func NewClient(socketPath string) (*Client, error) {
 		dec:  decoder,
 	}
 
-	if err := c.handshake(); err != nil {
+	if err := c.handshake(ignoreVersion); err != nil {
 		return nil, err
 	}
 
 	return c, nil
 }
 
-func (c *Client) handshake() error {
+func (c *Client) handshake(ignoreVersion bool) error {
 	ourvers := []byte(utils.GetVersion())
 
 	if err := c.enc.Encode(ourvers); err != nil {
@@ -85,7 +85,7 @@ func (c *Client) handshake() error {
 		return err
 	}
 
-	if !slices.Equal(ourvers, agentvers) {
+	if !ignoreVersion && !slices.Equal(ourvers, agentvers) {
 		return fmt.Errorf("%w (%v)", ErrWrongVersion, string(agentvers))
 	}
 
