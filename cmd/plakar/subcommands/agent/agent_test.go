@@ -111,7 +111,7 @@ func TestCmdAgentForegroundInit(t *testing.T) {
 		}
 	}()
 
-	client, err := agent.NewClient(filepath.Join(ctx.CacheDir, "agent.sock"))
+	client, err := agent.NewClient(filepath.Join(ctx.CacheDir, "agent.sock"), false)
 	require.NoError(t, err)
 	defer client.Close()
 
