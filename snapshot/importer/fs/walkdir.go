@@ -107,7 +107,7 @@ func walkDir_worker(jobs <-chan string, results chan<- *importer.ScanResult, wg 
 func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results chan<- *importer.ScanResult) {
 	atoms := strings.Split(rootDir, string(os.PathSeparator))
 
-	for i := range len(atoms)-1 {
+	for i := range len(atoms) - 1 {
 		path := filepath.Join(atoms[0 : i+1]...)
 
 		if !strings.HasPrefix(path, "/") {
@@ -123,70 +123,45 @@ func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results ch
 	}
 }
 
-func walkDir_walker(rootDir string, numWorkers int) (<-chan *importer.ScanResult, error) {
-	results := make(chan *importer.ScanResult, 1000) // Larger buffer for results
-	jobs := make(chan string, 1000)                  // Buffered channel to feed paths to workers
+func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir string, numWorkers int) {
 	namecache := &namecache{
 		uidToName: make(map[uint64]string),
 		gidToName: make(map[uint64]string),
 	}
 
-	var wg sync.WaitGroup
+	real, err := f.realpathFollow(rootDir)
+	if err != nil {
+		results <- importer.NewScanError(rootDir, err)
+		return
+	}
 
-	// Launch worker pool
+	jobs := make(chan string, 1000) // Buffered channel to feed paths to workers
+	var wg sync.WaitGroup
 	for range numWorkers {
 		wg.Add(1)
 		go walkDir_worker(jobs, results, &wg, namecache)
 	}
 
-	// Start walking the directory and sending file paths to workers
-	go func() {
-		defer close(jobs)
-
-		orig := rootDir
-		info, err := os.Lstat(rootDir)
-		if err != nil {
-			results <- importer.NewScanError(rootDir, err)
-			return
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			realpath, err := os.Readlink(rootDir)
-			if err != nil {
-				results <- importer.NewScanError(rootDir, err)
-				return
-			}
-
-			if !filepath.IsAbs(realpath) {
-				realpath = filepath.Join(filepath.Dir(rootDir), realpath)
-			}
-			jobs <- rootDir
-			rootDir = realpath
-		}
-
-		// Add prefix directories first
+	// Add prefix directories first
+	walkDir_addPrefixDirectories(real, jobs, results)
+	if real != rootDir {
+		jobs <- rootDir
 		walkDir_addPrefixDirectories(rootDir, jobs, results)
-		if orig != rootDir {
-			walkDir_addPrefixDirectories(orig, jobs, results)
-		}
+	}
 
-		err = filepath.WalkDir(rootDir, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				results <- importer.NewScanError(path, err)
-				return nil
-			}
-			jobs <- path
-			return nil
-		})
+	err = filepath.WalkDir(real, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			results <- importer.NewScanError(rootDir, err)
+			results <- importer.NewScanError(path, err)
+			return nil
 		}
-	}()
+		jobs <- path
+		return nil
+	})
+	if err != nil {
+		results <- importer.NewScanError(real, err)
+	}
 
-	// Close the results channel when all workers are done
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
-	return results, nil
+	close(jobs)
+	wg.Wait()
+	close(results)
 }

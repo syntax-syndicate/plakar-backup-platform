@@ -22,6 +22,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -64,7 +65,30 @@ func (p *FSImporter) Type() string {
 }
 
 func (p *FSImporter) Scan() (<-chan *importer.ScanResult, error) {
-	return walkDir_walker(p.rootDir, 256)
+	results := make(chan *importer.ScanResult, 1000)
+	go p.walkDir_walker(results, p.rootDir, 256)
+	return results, nil
+}
+
+func (f *FSImporter) realpathFollow(path string) (resolved string, err error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return "", err
+	}
+
+	if info.Mode()&os.ModeSymlink != 0 {
+		realpath, err := os.Readlink(path)
+		if err != nil {
+			return "", err
+		}
+
+		if !filepath.IsAbs(realpath) {
+			realpath = filepath.Join(filepath.Dir(path), realpath)
+		}
+		path = realpath
+	}
+
+	return path, nil
 }
 
 func (p *FSImporter) NewReader(pathname string) (io.ReadCloser, error) {
