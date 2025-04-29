@@ -20,9 +20,7 @@
 package fs
 
 import (
-	"fmt"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -50,36 +48,7 @@ func (f *FSImporter) walkDir_worker(jobs <-chan string, results chan<- *importer
 		}
 
 		fileinfo := objects.FileInfoFromStat(info)
-
-		f.mu.RLock()
-		if uname, ok := f.uidToName[fileinfo.Uid()]; !ok {
-			if u, err := user.LookupId(fmt.Sprintf("%d", fileinfo.Uid())); err == nil {
-				fileinfo.Lusername = u.Username
-
-				f.mu.RUnlock()
-				f.mu.Lock()
-				f.uidToName[fileinfo.Uid()] = u.Username
-				f.mu.Unlock()
-				f.mu.RLock()
-			}
-		} else {
-			fileinfo.Lusername = uname
-		}
-
-		if gname, ok := f.gidToName[fileinfo.Gid()]; !ok {
-			if g, err := user.LookupGroupId(fmt.Sprintf("%d", fileinfo.Gid())); err == nil {
-				fileinfo.Lgroupname = g.Name
-
-				f.mu.RUnlock()
-				f.mu.Lock()
-				f.gidToName[fileinfo.Gid()] = g.Name
-				f.mu.Unlock()
-				f.mu.RLock()
-			}
-		} else {
-			fileinfo.Lgroupname = gname
-		}
-		f.mu.RUnlock()
+		fileinfo.Lusername, fileinfo.Lgroupname = f.lookupIDs(fileinfo.Uid(), fileinfo.Gid())
 
 		var originFile string
 		if fileinfo.Mode()&os.ModeSymlink != 0 {

@@ -22,6 +22,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/user"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -114,6 +115,41 @@ func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir
 	close(jobs)
 	wg.Wait()
 	close(results)
+}
+
+func (p *FSImporter) lookupIDs(uid, gid uint64) (uname, gname string) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	if name, ok := p.uidToName[uid]; !ok {
+		if u, err := user.LookupId(fmt.Sprint(uid)); err == nil {
+			uname = u.Username
+
+			p.mu.RUnlock()
+			p.mu.Lock()
+			p.uidToName[uid] = uname
+			p.mu.Unlock()
+			p.mu.RLock()
+		}
+	} else {
+		uname = name
+	}
+
+	if name, ok := p.uidToName[gid]; !ok {
+		if u, err := user.LookupId(fmt.Sprint(gid)); err == nil {
+			gname = u.Username
+
+			p.mu.RUnlock()
+			p.mu.Lock()
+			p.uidToName[gid] = name
+			p.mu.Unlock()
+			p.mu.RLock()
+		}
+	} else {
+		gname = name
+	}
+
+	return
 }
 
 func (f *FSImporter) realpathFollow(path string) (resolved string, err error) {
