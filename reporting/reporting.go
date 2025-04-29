@@ -11,6 +11,8 @@ import (
 	"github.com/PlakarKorp/plakar/snapshot"
 )
 
+const PLAKAR_API_URL = "https://api.plakar.io/v1/reporting/reports"
+
 type Emitter interface {
 	Emit(report Report, logger *logging.Logger)
 }
@@ -23,18 +25,25 @@ type Reporter struct {
 	currentSnapshot   *ReportSnapshot
 }
 
-func NewReporter(emitterString string, logger *logging.Logger) *Reporter {
+func NewReporter(reporting bool, logger *logging.Logger) *Reporter {
 	if logger == nil {
 		logger = logging.NewLogger(os.Stdout, os.Stderr)
 	}
 
 	var emitter Emitter
 
-	if emitterString == "" {
+	if !reporting {
 		emitter = &NullEmitter{}
 	} else {
+
+		url := os.Getenv("PLAKAR_API_URL")
+		if url == "" {
+			url = PLAKAR_API_URL
+		}
+
 		emitter = &HttpEmitter{
-			url:   emitterString,
+			url:   url,
+			token: os.Getenv("PLAKAR_API_TOKEN"),
 			retry: 3,
 		}
 	}
@@ -73,7 +82,7 @@ func (reporter *Reporter) WithRepository(repository *repository.Repository) {
 
 func (reporter *Reporter) WithSnapshotID(repository *repository.Repository, snapshotId objects.MAC) {
 	snap, err := snapshot.Load(repository, snapshotId)
-	if (err != nil) {
+	if err != nil {
 		reporter.logger.Warn("failed to load snapshot: %s", err)
 		return
 	}

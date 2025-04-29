@@ -71,5 +71,5 @@ func (s *Scheduler) Run() {
 }
 
 func (s *Scheduler) NewReporter() *reporting.Reporter {
-	return reporting.NewReporter(s.config.Agent.Reporting.Emitter, s.ctx.GetLogger())
+	return reporting.NewReporter(s.config.Agent.Reporting, s.ctx.GetLogger())
 }

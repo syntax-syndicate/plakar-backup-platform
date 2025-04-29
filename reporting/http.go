@@ -13,6 +13,7 @@ import (
 
 type HttpEmitter struct {
 	url   string
+	token string
 	retry uint8
 }
 
@@ -38,6 +39,9 @@ func (reporter *HttpEmitter) tryEmit(data []byte) error {
 		return err
 	}
 	req.Header.Set("User-Agent", fmt.Sprintf("plakar/%s (%s/%s)", utils.VERSION, runtime.GOOS, runtime.GOARCH))
+	if reporter.token != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", reporter.token))
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	client := http.Client{}

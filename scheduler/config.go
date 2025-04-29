@@ -16,13 +16,9 @@ type Configuration struct {
 }
 
 type AgentConfig struct {
-	Reporting   ReportingConfig
+	Reporting   bool                `yaml:"reporting"`
 	Maintenance []MaintenanceConfig `validate:"dive"`
 	Tasks       []Task              `mapstructure:"tasks" validate:"dive"`
-}
-
-type ReportingConfig struct {
-	Emitter string
 }
 
 type Task struct {
