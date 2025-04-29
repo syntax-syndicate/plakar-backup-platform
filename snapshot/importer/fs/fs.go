@@ -20,10 +20,12 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
+	"sync"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
@@ -32,6 +34,10 @@ import (
 
 type FSImporter struct {
 	rootDir string
+
+	uidToName map[uint64]string
+	gidToName map[uint64]string
+	mu        sync.RWMutex
 }
 
 func init() {
@@ -48,7 +54,9 @@ func NewFSImporter(appCtx *appcontext.AppContext, name string, config map[string
 	location = path.Clean(location)
 
 	return &FSImporter{
-		rootDir: location,
+		rootDir:   location,
+		uidToName: make(map[uint64]string),
+		gidToName: make(map[uint64]string),
 	}, nil
 }
 
@@ -68,6 +76,44 @@ func (p *FSImporter) Scan() (<-chan *importer.ScanResult, error) {
 	results := make(chan *importer.ScanResult, 1000)
 	go p.walkDir_walker(results, p.rootDir, 256)
 	return results, nil
+}
+
+func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir string, numWorkers int) {
+	real, err := f.realpathFollow(rootDir)
+	if err != nil {
+		results <- importer.NewScanError(rootDir, err)
+		return
+	}
+
+	jobs := make(chan string, 1000) // Buffered channel to feed paths to workers
+	var wg sync.WaitGroup
+	for range numWorkers {
+		wg.Add(1)
+		go f.walkDir_worker(jobs, results, &wg)
+	}
+
+	// Add prefix directories first
+	walkDir_addPrefixDirectories(real, jobs, results)
+	if real != rootDir {
+		jobs <- rootDir
+		walkDir_addPrefixDirectories(rootDir, jobs, results)
+	}
+
+	err = filepath.WalkDir(real, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			results <- importer.NewScanError(path, err)
+			return nil
+		}
+		jobs <- path
+		return nil
+	})
+	if err != nil {
+		results <- importer.NewScanError(real, err)
+	}
+
+	close(jobs)
+	wg.Wait()
+	close(results)
 }
 
 func (f *FSImporter) realpathFollow(path string) (resolved string, err error) {
