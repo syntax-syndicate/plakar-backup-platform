@@ -71,7 +71,18 @@ func authToIcloud(username string) {
 	}
 }
 
+func checkIcloudpd() error {
+	cmd := exec.Command("icloudpd", "--version")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("icloudpd is not installed: %w", err)
+	}
+	return nil
+}
+
 func (p *iCloudPhotoImporter) Scan() (<-chan *importer.ScanResult, error) {
+	if err := checkIcloudpd(); err != nil {
+		return nil, fmt.Errorf("icloudpd is not installed: %w", err)
+	}
 	configFile := os.Getenv("HOME") + "/.pyicloud/" + usernameWithoutDotAndAt(p.Username)
 	if _, err := os.Stat(configFile); err != nil {
 		if os.IsNotExist(err) {
