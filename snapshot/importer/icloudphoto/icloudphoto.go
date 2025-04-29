@@ -35,7 +35,6 @@ import (
 
 type iCloudPhotoImporter struct {
 	Username string
-	Password string
 	TempDir  string
 
 	ino uint64
@@ -46,34 +45,57 @@ func init() {
 }
 
 func NewiCloudPhotoImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
-	//create a directory for the icloudpd in the temp directory
 	directory := filepath.Join(os.TempDir(), "plakar-icloudpd")
 	if err := os.MkdirAll(directory, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create directory %s: %w", directory, err)
 	}
 	return &iCloudPhotoImporter{
 		Username: config["apple_id"],
-		Password: config["password"],
 		TempDir:  directory,
 	}, nil
 }
 
+func usernameWithoutDotAndAt(username string) string {
+	username = strings.ReplaceAll(username, ".", "")
+	username = strings.ReplaceAll(username, "@", "")
+	return username
+}
+
+func authToIcloud(username string) {
+	cmd := exec.Command("icloudpd", "--username", username, "--auth-only")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("failed to run icloudpd: %v\n", err)
+	}
+}
+
 func (p *iCloudPhotoImporter) Scan() (<-chan *importer.ScanResult, error) {
-	results := make(chan *importer.ScanResult, 10)
+	configFile := os.Getenv("HOME") + "/.pyicloud/" + usernameWithoutDotAndAt(p.Username)
+	if _, err := os.Stat(configFile); err != nil {
+		if os.IsNotExist(err) {
+			authToIcloud(p.Username)
+		} else {
+			return nil, fmt.Errorf("failed to stat config file %s: %w", configFile, err)
+		}
+	}
 
-	cmd := exec.Command("icloudpd", "--username", p.Username, "--password", p.Password, "--directory", p.TempDir)
+	results := make(chan *importer.ScanResult, 100)
 
-	stdoutPipe, err := cmd.StdoutPipe()
+	cmd2 := exec.Command("icloudpd", "--username", p.Username, "--directory", p.TempDir)
+
+	stdoutPipe, err := cmd2.StdoutPipe()
 	if err != nil {
 		panic(err)
 	}
 
-	stderrPipe, err := cmd.StderrPipe()
+	stderrPipe, err := cmd2.StderrPipe()
 	if err != nil {
 		panic(err)
 	}
 
-	if err := cmd.Start(); err != nil {
+	if err := cmd2.Start(); err != nil {
 		panic(err)
 	}
 
@@ -100,8 +122,6 @@ func (p *iCloudPhotoImporter) Scan() (<-chan *importer.ScanResult, error) {
 		scanner := bufio.NewScanner(stdoutPipe)
 		for scanner.Scan() {
 			line := scanner.Text()
-			//fmt.Println(line)
-
 			if strings.Contains(line, "Downloaded") {
 				parts := strings.Split(line, "Downloaded ")
 				if len(parts) == 2 {
@@ -114,11 +134,10 @@ func (p *iCloudPhotoImporter) Scan() (<-chan *importer.ScanResult, error) {
 
 					var currentPath string
 					for _, part := range parts {
-						if part == "" {
+						if part == "" || strings.Contains(part, "...") {
 							continue
 						}
 						currentPath = filepath.Join(currentPath, part)
-						fmt.Println(currentPath)
 						if filePath == "/"+currentPath {
 							stats, err := os.Stat(realFilePath)
 							if err != nil {
@@ -144,11 +163,9 @@ func (p *iCloudPhotoImporter) Scan() (<-chan *importer.ScanResult, error) {
 									FileInfo: fi,
 								},
 							}
-							fmt.Printf("Créer fichier : %s\n", currentPath)
 							break
 						}
 						if !createdPaths[currentPath] {
-							fmt.Printf("Créer dossier : %s\n", currentPath)
 							createdPaths[currentPath] = true
 							fi := objects.NewFileInfo(
 								filepath.Base("/"+currentPath),
@@ -177,24 +194,21 @@ func (p *iCloudPhotoImporter) Scan() (<-chan *importer.ScanResult, error) {
 		}
 	}()
 
-	wg.Wait()
-
-	if err := cmd.Wait(); err != nil {
-		return nil, fmt.Errorf("error waiting for icloudpd: %w", err)
-	}
-
-	close(results)
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
 	return results, nil
 }
 
 func (p *iCloudPhotoImporter) NewReader(pathname string) (io.ReadCloser, error) {
-	fmt.Printf("NewReader: %s\n", pathname)
 	if pathname == "/" {
 		return nil, fmt.Errorf("cannot read root directory")
 	}
 	if strings.HasSuffix(pathname, "/") {
 		return nil, fmt.Errorf("cannot read directory")
 	}
+	pathname = p.TempDir + pathname
 
 	file, err := os.Open(pathname)
 	if err != nil {
