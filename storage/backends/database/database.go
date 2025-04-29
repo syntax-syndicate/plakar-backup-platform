@@ -24,6 +24,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/storage"
@@ -46,7 +47,7 @@ func init() {
 	storage.Register(NewStore, "sqlite")
 }
 
-func NewStore(storeConfig map[string]string) (storage.Store, error) {
+func NewStore(ctx *appcontext.AppContext, storeConfig map[string]string) (storage.Store, error) {
 	return &Store{
 		location: storeConfig["location"],
 	}, nil
@@ -86,7 +87,7 @@ func (s *Store) connect(addr string) error {
 	return nil
 }
 
-func (s *Store) Create(config []byte) error {
+func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
 	err := s.connect(s.location)
 	if err != nil {
 		return err
@@ -145,7 +146,7 @@ func (s *Store) Create(config []byte) error {
 	return nil
 }
 
-func (s *Store) Open() ([]byte, error) {
+func (s *Store) Open(ctx *appcontext.AppContext) ([]byte, error) {
 	err := s.connect(s.location)
 	if err != nil {
 		return nil, err

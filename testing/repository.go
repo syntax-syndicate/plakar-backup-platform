@@ -33,8 +33,10 @@ func GenerateRepository(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer
 		os.RemoveAll(tmpRepoDirRoot)
 	})
 
+	ctx := appcontext.NewAppContext()
+
 	// create a storage
-	r, err := bfs.NewStore(map[string]string{"location": "fs://" + tmpRepoDir})
+	r, err := bfs.NewStore(ctx, map[string]string{"location": "fs://" + tmpRepoDir})
 	require.NotNil(t, r)
 	require.NoError(t, err)
 	config := storage.NewConfiguration()
@@ -62,15 +64,14 @@ func GenerateRepository(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer
 	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 	require.NoError(t, err)
 
-	err = r.Create(wrappedConfig)
+	err = r.Create(ctx, wrappedConfig)
 	require.NoError(t, err)
 
 	// open the storage to load the configuration
-	r, serializedConfig, err := storage.Open(map[string]string{"location": tmpRepoDir})
+	r, serializedConfig, err := storage.Open(ctx, map[string]string{"location": tmpRepoDir})
 	require.NoError(t, err)
 
 	// create a repository
-	ctx := appcontext.NewAppContext()
 	ctx.MaxConcurrency = 1
 	if bufout != nil && buferr != nil {
 		ctx.Stdout = bufout
@@ -117,8 +118,11 @@ func GenerateRepositoryWithoutConfig(t *testing.T, bufout *bytes.Buffer, buferr 
 		os.RemoveAll(tmpRepoDirRoot)
 	})
 
+	ctx := appcontext.NewAppContext()
+	ctx.MaxConcurrency = 1
+
 	// create a storage
-	r, err := bfs.NewStore(map[string]string{"location": "fs://" + tmpRepoDir})
+	r, err := bfs.NewStore(ctx, map[string]string{"location": "fs://" + tmpRepoDir})
 	require.NotNil(t, r)
 	require.NoError(t, err)
 	config := storage.NewConfiguration()
@@ -130,8 +134,6 @@ func GenerateRepositoryWithoutConfig(t *testing.T, bufout *bytes.Buffer, buferr 
 	}
 
 	// create a repository
-	ctx := appcontext.NewAppContext()
-	ctx.MaxConcurrency = 1
 	if bufout != nil && buferr != nil {
 		ctx.Stdout = bufout
 		ctx.Stderr = buferr

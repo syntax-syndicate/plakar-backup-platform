@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/stretchr/testify/require"
@@ -15,11 +16,14 @@ import (
 )
 
 func TestDatabaseBackend(t *testing.T) {
+	ctx := appcontext.NewAppContext()
+	defer ctx.Close()
+
 	t.Cleanup(func() {
 		os.Remove("/tmp/testdb.db")
 	})
 	// create a repository
-	repo, err := NewStore(map[string]string{"location": "sqlite:///tmp/testdb.db"})
+	repo, err := NewStore(ctx, map[string]string{"location": "sqlite:///tmp/testdb.db"})
 	if err != nil {
 		t.Fatal("error creating repository", err)
 	}
@@ -31,10 +35,10 @@ func TestDatabaseBackend(t *testing.T) {
 	serializedConfig, err := config.ToBytes()
 	require.NoError(t, err)
 
-	err = repo.Create(serializedConfig)
+	err = repo.Create(ctx, serializedConfig)
 	require.NoError(t, err)
 
-	_, err = repo.Open()
+	_, err = repo.Open(ctx)
 	require.NoError(t, err)
 	//	require.Equal(t, repo.Configuration().Version, versioning.FromString(storage.VERSION))
 

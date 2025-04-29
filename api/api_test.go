@@ -42,15 +42,14 @@ func TestAuthMiddleware(t *testing.T) {
 	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 	require.NoError(t, err)
 
-	lstore, err := storage.Create(map[string]string{"location": "mock:///test/location"}, wrappedConfig)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
 	ctx := appcontext.NewAppContext()
 	cache := caching.NewManager("/tmp/test_plakar")
 	defer cache.Close()
 	ctx.SetCache(cache)
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
+
+	lstore, err := storage.Create(ctx, map[string]string{"location": "mock:///test/location"}, wrappedConfig)
+	require.NoError(t, err)
 	repo, err := repository.New(ctx, lstore, wrappedConfig)
 	if err != nil {
 		t.Fatal(err)
@@ -99,15 +98,14 @@ func Test_UnknownEndpoint(t *testing.T) {
 	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 	require.NoError(t, err)
 
-	lstore, err := storage.Create(map[string]string{"location": "mock:///test/location"}, wrappedConfig)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
 	ctx := appcontext.NewAppContext()
 	cache := caching.NewManager("/tmp/test_plakar")
 	defer cache.Close()
 	ctx.SetCache(cache)
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
+
+	lstore, err := storage.Create(ctx, map[string]string{"location": "mock:///test/location"}, wrappedConfig)
+	require.NoError(t, err)
 	repo, err := repository.New(ctx, lstore, wrappedConfig)
 	if err != nil {
 		t.Fatal(err)

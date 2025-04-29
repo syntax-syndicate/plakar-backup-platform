@@ -28,6 +28,7 @@ func init() {
 
 // XXX: re-add once we move to non-mocked state object.
 func _Test_RepositoryConfiguration(t *testing.T) {
+	ctx := appcontext.NewAppContext()
 
 	config := ptesting.NewConfiguration()
 	serializedConfig, err := config.ToBytes()
@@ -38,10 +39,9 @@ func _Test_RepositoryConfiguration(t *testing.T) {
 	require.NoError(t, err)
 	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 	require.NoError(t, err)
-	lstore, err := storage.Create(map[string]string{"location": "mock:///test/location"}, wrappedConfig)
+	lstore, err := storage.Create(ctx, map[string]string{"location": "mock:///test/location"}, wrappedConfig)
 	require.NoError(t, err, "creating storage")
 
-	ctx := appcontext.NewAppContext()
 	cache := caching.NewManager("/tmp/test_plakar")
 	defer cache.Close()
 	ctx.SetCache(cache)
@@ -317,14 +317,14 @@ func _Test_RepositorySnapshots(t *testing.T) {
 			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 			require.NoError(t, err)
 
-			lstore, err := storage.Create(map[string]string{"location": c.location}, wrappedConfig)
-			require.NoError(t, err, "creating storage")
-
 			ctx := appcontext.NewAppContext()
 			cache := caching.NewManager("/tmp/test_plakar")
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
+
+			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
+			require.NoError(t, err, "creating storage")
 			repo, err := repository.New(ctx, lstore, wrappedConfig)
 			require.NoError(t, err, "creating repository")
 
@@ -416,14 +416,14 @@ func _Test_RepositorySnapshotsErrors(t *testing.T) {
 			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 			require.NoError(t, err)
 
-			lstore, err := storage.Create(map[string]string{"location": c.location}, wrappedConfig)
-			require.NoError(t, err, "creating storage")
-
 			ctx := appcontext.NewAppContext()
 			cache := caching.NewManager("/tmp/test_plakar")
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
+
+			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
+			require.NoError(t, err, "creating storage")
 			repo, err := repository.New(ctx, lstore, wrappedConfig)
 			require.NoError(t, err, "creating repository")
 
@@ -490,14 +490,14 @@ func _Test_RepositoryStates(t *testing.T) {
 			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 			require.NoError(t, err)
 
-			lstore, err := storage.Create(map[string]string{"location": c.location}, wrappedConfig)
-			require.NoError(t, err, "creating storage")
-
 			ctx := appcontext.NewAppContext()
 			cache := caching.NewManager("/tmp/test_plakar")
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
+
+			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
+			require.NoError(t, err, "creating storage")
 			repo, err := repository.New(ctx, lstore, wrappedConfig)
 			require.NoError(t, err, "creating repository")
 
@@ -558,14 +558,14 @@ func _Test_RepositoryState(t *testing.T) {
 			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 			require.NoError(t, err)
 
-			lstore, err := storage.Create(map[string]string{"location": c.location}, wrappedConfig)
-			require.NoError(t, err, "creating storage")
-
 			ctx := appcontext.NewAppContext()
 			cache := caching.NewManager("/tmp/test_plakar")
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
+
+			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
+			require.NoError(t, err, "creating storage")
 			repo, err := repository.New(ctx, lstore, wrappedConfig)
 			require.NoError(t, err, "creating repository")
 
@@ -631,14 +631,14 @@ func Test_RepositoryStateErrors(t *testing.T) {
 			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 			require.NoError(t, err)
 
-			lstore, err := storage.Create(map[string]string{"location": c.location}, wrappedConfig)
-			require.NoError(t, err, "creating storage")
-
 			ctx := appcontext.NewAppContext()
 			cache := caching.NewManager("/tmp/test_plakar")
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
+
+			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
+			require.NoError(t, err, "creating storage")
 			repo, err := repository.New(ctx, lstore, wrappedConfig)
 			require.NoError(t, err, "creating repository")
 
