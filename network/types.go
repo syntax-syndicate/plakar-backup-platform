@@ -135,5 +135,5 @@ type ReqDeleteLock struct {
 	Mac objects.MAC
 }
 type ResDeleteLock struct {
-	Err  string
+	Err string
 }

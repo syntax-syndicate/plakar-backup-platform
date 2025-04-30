@@ -28,9 +28,9 @@ type Cache[K comparable, V any] struct {
 
 func New[K comparable, V any](target int, onevict func(K, V) error) *Cache[K, V] {
 	return &Cache[K, V]{
-		target: target,
+		target:  target,
 		onevict: onevict,
-		items: make(map[K]V, target),
+		items:   make(map[K]V, target),
 	}
 }
 
