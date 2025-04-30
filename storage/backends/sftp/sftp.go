@@ -28,6 +28,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
 	plakarsftp "github.com/PlakarKorp/plakar/sftp"
@@ -48,7 +49,7 @@ func init() {
 	storage.Register(NewStore, "sftp")
 }
 
-func NewStore(storeConfig map[string]string) (storage.Store, error) {
+func NewStore(ctx *appcontext.AppContext, storeConfig map[string]string) (storage.Store, error) {
 	location := storeConfig["location"]
 	if location == "" {
 		return nil, fmt.Errorf("missing location")
@@ -88,7 +89,7 @@ func (s *Store) Path(args ...string) string {
 	return path.Join(args...)
 }
 
-func (s *Store) Create(config []byte) error {
+func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
 	client, err := plakarsftp.Connect(s.endpoint, s.config)
 	if err != nil {
 		return err
@@ -132,7 +133,7 @@ func (s *Store) Create(config []byte) error {
 	return err
 }
 
-func (s *Store) Open() ([]byte, error) {
+func (s *Store) Open(ctx *appcontext.AppContext) ([]byte, error) {
 	client, err := plakarsftp.Connect(s.endpoint, s.config)
 	if err != nil {
 		return nil, err

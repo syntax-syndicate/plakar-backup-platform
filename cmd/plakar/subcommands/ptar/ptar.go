@@ -74,7 +74,7 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 			return fmt.Errorf("peer repository: %w", err)
 		}
 
-		peerStore, peerStoreSerializedConfig, err := storage.Open(storeConfig)
+		peerStore, peerStoreSerializedConfig, err := storage.Open(ctx, storeConfig)
 		if err != nil {
 			return err
 		}
@@ -231,7 +231,7 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		return 1, err
 	}
 
-	st, err := storage.Create(map[string]string{"location": repo.Location()}, wrappedConfig)
+	st, err := storage.Create(ctx, map[string]string{"location": repo.Location()}, wrappedConfig)
 	if err != nil {
 		return 1, err
 	}
@@ -254,7 +254,7 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 			return 1, fmt.Errorf("source repository: %w", err)
 		}
 
-		peerStore, peerStoreSerializedConfig, err := storage.Open(storeConfig)
+		peerStore, peerStoreSerializedConfig, err := storage.Open(ctx, storeConfig)
 		if err != nil {
 			return 1, fmt.Errorf("could not open source store %s: %s", cmd.SyncFrom, err)
 		}

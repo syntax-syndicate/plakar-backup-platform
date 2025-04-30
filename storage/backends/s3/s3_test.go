@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/johannesboyne/gofakes3"
@@ -15,6 +16,9 @@ import (
 )
 
 func TestS3Backend(t *testing.T) {
+	ctx := appcontext.NewAppContext()
+	defer ctx.Close()
+
 	// Start the fake S3 server
 	backend := s3mem.New()
 	faker := gofakes3.New(backend)
@@ -22,7 +26,12 @@ func TestS3Backend(t *testing.T) {
 	defer ts.Close()
 
 	// create a repository
-	repo, err := NewStore(map[string]string{"location": ts.URL + "/testbucket", "access_key": "", "secret_access_key": "", "use_tls": "false"})
+	repo, err := NewStore(ctx, map[string]string{
+		"location":          ts.URL + "/testbucket",
+		"access_key":        "",
+		"secret_access_key": "",
+		"use_tls":           "false",
+	})
 	if err != nil {
 		t.Fatal("error creating repository", err)
 	}
@@ -35,10 +44,10 @@ func TestS3Backend(t *testing.T) {
 	serializedConfig, err := config.ToBytes()
 	require.NoError(t, err)
 
-	err = repo.Create(serializedConfig)
+	err = repo.Create(ctx, serializedConfig)
 	require.NoError(t, err)
 
-	_, err = repo.Open()
+	_, err = repo.Open(ctx)
 	require.NoError(t, err)
 
 	err = repo.Close()

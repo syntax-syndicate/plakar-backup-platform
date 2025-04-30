@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/stretchr/testify/require"
@@ -23,8 +24,10 @@ func TestPtarBackend(t *testing.T) {
 		os.RemoveAll(tmpRepoDirRoot)
 	})
 
+	ctx := appcontext.NewAppContext()
+
 	// create a repository
-	repo, err := NewStore(map[string]string{"location": "ptar://" + tmpRepoDir})
+	repo, err := NewStore(ctx, map[string]string{"location": "ptar://" + tmpRepoDir})
 	if err != nil {
 		t.Fatal("error creating repository", err)
 	}
@@ -36,7 +39,7 @@ func TestPtarBackend(t *testing.T) {
 	serializedConfig, err := config.ToBytes()
 	require.NoError(t, err)
 
-	err = repo.Create(serializedConfig)
+	err = repo.Create(ctx, serializedConfig)
 	require.NoError(t, err)
 
 	// packfiles
@@ -84,7 +87,7 @@ func TestPtarBackend(t *testing.T) {
 	err = repo.Close()
 	require.NoError(t, err)
 
-	_, err = repo.Open()
+	_, err = repo.Open(ctx)
 	require.NoError(t, err)
 
 	states, err := repo.GetStates()
@@ -97,7 +100,7 @@ func TestPtarBackend(t *testing.T) {
 	err = repo.Close()
 	require.NoError(t, err)
 
-	_, err = repo.Open()
+	_, err = repo.Open(ctx)
 	require.NoError(t, err)
 
 	rd, err = repo.GetState(stateMAC)

@@ -27,6 +27,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/storage"
@@ -42,7 +43,7 @@ func init() {
 	storage.Register(NewStore, "fs")
 }
 
-func NewStore(storeConfig map[string]string) (storage.Store, error) {
+func NewStore(ctx *appcontext.AppContext, storeConfig map[string]string) (storage.Store, error) {
 	return &Store{
 		location: storeConfig["location"],
 	}, nil
@@ -62,7 +63,7 @@ func (s *Store) Path(args ...string) string {
 	return filepath.Join(args...)
 }
 
-func (s *Store) Create(config []byte) error {
+func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
 	dirfp, err := os.Open(s.Path())
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
@@ -102,8 +103,7 @@ func (s *Store) Create(config []byte) error {
 	return err
 }
 
-func (s *Store) Open() ([]byte, error) {
-
+func (s *Store) Open(ctx *appcontext.AppContext) ([]byte, error) {
 	s.packfiles = NewBuckets(s.Path("packfiles"))
 	s.states = NewBuckets(s.Path("states"))
 

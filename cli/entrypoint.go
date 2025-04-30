@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"os/user"
 	"path/filepath"
 	"runtime"
@@ -190,6 +191,13 @@ func EntryPoint() int {
 	ctx.SetCache(caching.NewManager(cacheDir))
 	defer ctx.GetCache().Close()
 
+	c := make(chan os.Signal, 1)
+	go func() {
+		<-c
+		ctx.Cancel()
+	}()
+	signal.Notify(c, os.Interrupt, os.Kill)
+
 	// best effort check if security or reliability fix have been issued
 	_, noCriticalChecks := os.LookupEnv("PLAKAR_NO_CRITICAL_CHECKS")
 	if noCriticalChecks {
@@ -355,7 +363,7 @@ func EntryPoint() int {
 		return retval
 	}
 
-	store, serializedConfig, err := storage.Open(storeConfig)
+	store, serializedConfig, err := storage.Open(ctx, storeConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: failed to open the repository at %s: %s\n", flag.CommandLine.Name(), storeConfig["location"], err)
 		fmt.Fprintln(os.Stderr, "To specify an alternative repository, please use \"plakar at <location> <command>\".")

@@ -154,7 +154,7 @@ func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		return 1, err
 	}
 
-	if err := repo.Store().Create(wrappedConfig); err != nil {
+	if err := repo.Store().Create(ctx, wrappedConfig); err != nil {
 		return 1, err
 	}
 

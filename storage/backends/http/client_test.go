@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/PlakarKorp/plakar/api"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/network"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/storage"
@@ -223,8 +224,11 @@ func TestHttpBackend(t *testing.T) {
 	ts := httptest.NewServer(mux)
 	t.Cleanup(ts.Close)
 
+	ctx := appcontext.NewAppContext()
+	defer ctx.Close()
+
 	// create a repository
-	repo, err := NewStore(map[string]string{"location": ts.URL})
+	repo, err := NewStore(ctx, map[string]string{"location": ts.URL})
 	if err != nil {
 		t.Fatal("error creating repository", err)
 	}
@@ -236,10 +240,10 @@ func TestHttpBackend(t *testing.T) {
 	serializedConfig, err := config.ToBytes()
 	require.NoError(t, err)
 
-	err = repo.Create(serializedConfig)
+	err = repo.Create(ctx, serializedConfig)
 	require.NoError(t, err)
 
-	_, err = repo.Open()
+	_, err = repo.Open(ctx)
 	require.NoError(t, err)
 	//require.Equal(t, repo.Configuration().Version, versioning.FromString(storage.VERSION))
 

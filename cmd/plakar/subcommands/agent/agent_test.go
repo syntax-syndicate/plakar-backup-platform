@@ -2,7 +2,6 @@ package agent
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -86,10 +85,6 @@ func TestCmdAgentForegroundInit(t *testing.T) {
 
 	_, err = os.Stat(logFile)
 	require.NoError(t, err)
-
-	subCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	ctx.SetContext(subCtx)
 
 	go func() {
 		defer func() {

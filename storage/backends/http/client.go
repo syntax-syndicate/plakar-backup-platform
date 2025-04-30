@@ -23,6 +23,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/network"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/storage"
@@ -38,7 +39,7 @@ func init() {
 	storage.Register(NewStore, "http", "https")
 }
 
-func NewStore(storeConfig map[string]string) (storage.Store, error) {
+func NewStore(ctx *appcontext.AppContext, storeConfig map[string]string) (storage.Store, error) {
 	return &Store{
 		location: storeConfig["location"],
 	}, nil
@@ -62,11 +63,11 @@ func (s *Store) sendRequest(method string, requestType string, payload interface
 	return client.Do(req)
 }
 
-func (s *Store) Create(config []byte) error {
+func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
 	return nil
 }
 
-func (s *Store) Open() ([]byte, error) {
+func (s *Store) Open(ctx *appcontext.AppContext) ([]byte, error) {
 	s.Repository = s.location
 	r, err := s.sendRequest("GET", "/", network.ReqOpen{
 		Repository: "",

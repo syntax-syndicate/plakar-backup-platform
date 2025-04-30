@@ -17,7 +17,6 @@
 package agent
 
 import (
-	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -138,8 +137,7 @@ func (cmd *AgentStop) Parse(ctx *appcontext.AppContext, args []string) error {
 
 func (cmd *AgentStop) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	log.Println("stopping")
-	os.Exit(1)
-	return 1, nil
+	return 0, nil
 }
 
 type Agent struct {
@@ -256,9 +254,8 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			encoder := msgpack.NewEncoder(_conn)
 			decoder := msgpack.NewDecoder(_conn)
 
-			// Create a context tied to the connection
-			cancelCtx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			clientContext := appcontext.NewAppContextFrom(ctx)
+			defer clientContext.Close()
 
 			// handshake
 			var (
@@ -272,16 +269,12 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				return
 			}
 
-			clientContext := appcontext.NewAppContextFrom(ctx)
-			clientContext.SetContext(cancelCtx)
-			defer clientContext.Close()
-
 			write := func(packet agent.Packet) {
 				if encodingErrorOccurred {
 					return
 				}
 				select {
-				case <-clientContext.GetContext().Done():
+				case <-clientContext.Context.Done():
 					return
 				default:
 					mu.Lock()
@@ -294,7 +287,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			read := func(v interface{}) (interface{}, error) {
 				if err := decoder.Decode(v); err != nil {
 					if isDisconnectError(err) {
-						cancel()
+						clientContext.Close()
 					}
 					return nil, err
 				}
@@ -326,7 +319,6 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			if err != nil {
 				if isDisconnectError(err) {
 					fmt.Fprintf(os.Stderr, "Client disconnected during initial request\n")
-					cancel() // Cancel the context on disconnect
 					return
 				}
 				fmt.Fprintf(os.Stderr, "%s\n", err)
@@ -350,7 +342,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			}
 
 			clientContext.SetSecret(subcommand.GetRepositorySecret())
-			store, serializedConfig, err := storage.Open(storeConfig)
+			store, serializedConfig, err := storage.Open(ctx, storeConfig)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to open storage: %s\n", err)
 				return
@@ -404,7 +396,6 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				ExitCode: status,
 				Err:      errStr,
 			})
-
 		}(conn)
 	}
 }
