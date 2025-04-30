@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -41,6 +40,8 @@ func TestExecuteCmdServerDefault(t *testing.T) {
 	snap.Close()
 
 	ctx := repo.AppContext()
+	defer ctx.Close()
+
 	args := []string{"-listen", "127.0.0.1:12345"}
 
 	subcommand := &Server{}
@@ -48,10 +49,6 @@ func TestExecuteCmdServerDefault(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
-
-	subCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	ctx.SetContext(subCtx)
 
 	go func() {
 		status, err := subcommand.Execute(ctx, repo)

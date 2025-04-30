@@ -55,8 +55,10 @@ func TestParseCmdHelpDefault(t *testing.T) {
 		os.RemoveAll(tmpRepoDirRoot)
 	})
 
+	ctx := appcontext.NewAppContext()
+
 	// create a storage
-	r, err := bfs.NewStore(map[string]string{"location": "fs://" + tmpRepoDir})
+	r, err := bfs.NewStore(ctx, map[string]string{"location": "fs://" + tmpRepoDir})
 	require.NotNil(t, r)
 	require.NoError(t, err)
 	config := storage.NewConfiguration()
@@ -70,15 +72,14 @@ func TestParseCmdHelpDefault(t *testing.T) {
 	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 	require.NoError(t, err)
 
-	err = r.Create(wrappedConfig)
+	err = r.Create(ctx, wrappedConfig)
 	require.NoError(t, err)
 
 	// open the storage to load the configuration
-	r, serializedConfig, err := storage.Open(map[string]string{"location": tmpRepoDir})
+	r, serializedConfig, err := storage.Open(ctx, map[string]string{"location": tmpRepoDir})
 	require.NoError(t, err)
 
 	// create a repository
-	ctx := appcontext.NewAppContext()
 	cache := caching.NewManager(tmpCacheDir)
 	ctx.SetCache(cache)
 
@@ -150,8 +151,10 @@ func TestParseCmdHelpCommand(t *testing.T) {
 		os.RemoveAll(tmpRepoDirRoot)
 	})
 
+	ctx := appcontext.NewAppContext()
+
 	// create a storage
-	r, err := bfs.NewStore(map[string]string{"location": "fs://" + tmpRepoDir})
+	r, err := bfs.NewStore(ctx, map[string]string{"location": "fs://" + tmpRepoDir})
 	require.NotNil(t, r)
 	require.NoError(t, err)
 	config := storage.NewConfiguration()
@@ -165,15 +168,14 @@ func TestParseCmdHelpCommand(t *testing.T) {
 	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 	require.NoError(t, err)
 
-	err = r.Create(wrappedConfig)
+	err = r.Create(ctx, wrappedConfig)
 	require.NoError(t, err)
 
 	// open the storage to load the configuration
-	r, serializedConfig, err := storage.Open(map[string]string{"location": tmpRepoDir})
+	r, serializedConfig, err := storage.Open(ctx, map[string]string{"location": tmpRepoDir})
 	require.NoError(t, err)
 
 	// create a repository
-	ctx := appcontext.NewAppContext()
 	cache := caching.NewManager(tmpCacheDir)
 	ctx.SetCache(cache)
 

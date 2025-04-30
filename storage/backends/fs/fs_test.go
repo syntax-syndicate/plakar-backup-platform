@@ -6,17 +6,20 @@ import (
 	"os"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/stretchr/testify/require"
 )
 
 func TestFsBackend(t *testing.T) {
+	ctx := appcontext.NewAppContext()
+
 	t.Cleanup(func() {
 		os.RemoveAll("/tmp/testfs")
 	})
 	// create a repository
-	repo, err := NewStore(map[string]string{"location": "fs:///tmp/testfs"})
+	repo, err := NewStore(ctx, map[string]string{"location": "fs:///tmp/testfs"})
 	if err != nil {
 		t.Fatal("error creating repository", err)
 	}
@@ -28,10 +31,10 @@ func TestFsBackend(t *testing.T) {
 	serialized, err := config.ToBytes()
 	require.NoError(t, err)
 
-	err = repo.Create(serialized)
+	err = repo.Create(ctx, serialized)
 	require.NoError(t, err)
 
-	_, err = repo.Open()
+	_, err = repo.Open(ctx)
 	require.NoError(t, err)
 	//require.Equal(t, repo.Configuration().Version, versioning.FromString(storage.VERSION))
 

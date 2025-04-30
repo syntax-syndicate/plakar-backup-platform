@@ -572,7 +572,7 @@ func (snap *Builder) processFiles(backupCtx *BackupContext, filesChannel <-chan 
 	var wg sync.WaitGroup
 	semaphore := make(chan struct{}, backupCtx.maxConcurrency)
 
-	ctx := snap.AppContext().GetContext()
+	ctx := snap.AppContext()
 
 	for {
 		select {
@@ -775,8 +775,8 @@ func (snap *Builder) persistVFS(backupCtx *BackupContext) (*header.VFS, *vfs.Sum
 	diriter := backupCtx.scanCache.EnumerateKeysWithPrefix("__directory__:", true)
 	for dirPath, bytes := range diriter {
 		select {
-		case <-snap.AppContext().GetContext().Done():
-			return nil, nil, snap.AppContext().GetContext().Err()
+		case <-snap.AppContext().Done():
+			return nil, nil, snap.AppContext().Err()
 		default:
 		}
 
