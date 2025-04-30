@@ -144,14 +144,14 @@ func _TestSnapshotHeader(t *testing.T) {
 			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 			require.NoError(t, err)
 
-			lstore, err := storage.Create(map[string]string{"location": c.location}, wrappedConfig)
-			require.NoError(t, err, "creating storage")
-
 			ctx := appcontext.NewAppContext()
 			cache := caching.NewManager("/tmp/test_plakar")
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
+
+			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
+			require.NoError(t, err, "creating storage")
 			repo, err := repository.New(ctx, lstore, wrappedConfig)
 			require.NoError(t, err, "creating repository")
 
@@ -217,14 +217,14 @@ func TestSnapshotHeaderErrors(t *testing.T) {
 			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 			require.NoError(t, err)
 
-			lstore, err := storage.Create(map[string]string{"location": c.location}, wrappedConfig)
-			require.NoError(t, err, "creating storage")
-
 			ctx := appcontext.NewAppContext()
 			cache := caching.NewManager("/tmp/test_plakar")
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
+
+			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
+			require.NoError(t, err, "creating storage")
 			repo, err := repository.New(ctx, lstore, wrappedConfig)
 			require.NoError(t, err, "creating repository")
 
@@ -275,14 +275,14 @@ func _TestSnapshotSign(t *testing.T) {
 			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 			require.NoError(t, err)
 
-			lstore, err := storage.Create(map[string]string{"location": c.location}, wrappedConfig)
-			require.NoError(t, err, "creating storage")
-
 			ctx := appcontext.NewAppContext()
 			cache := caching.NewManager("/tmp/test_plakar")
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
+
+			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
+			require.NoError(t, err, "creating storage")
 			repo, err := repository.New(ctx, lstore, wrappedConfig)
 			require.NoError(t, err, "creating repository")
 

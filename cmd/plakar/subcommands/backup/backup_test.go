@@ -54,8 +54,10 @@ func generateFixtures(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 	err = os.WriteFile(tmpBackupDir+"/another_subdir/bar", []byte("hello bar"), 0644)
 	require.NoError(t, err)
 
+	ctx := appcontext.NewAppContext()
+
 	// create a storage
-	r, err := bfs.NewStore(map[string]string{"location": "fs://" + tmpRepoDir})
+	r, err := bfs.NewStore(ctx, map[string]string{"location": "fs://" + tmpRepoDir})
 	require.NotNil(t, r)
 	require.NoError(t, err)
 	config := storage.NewConfiguration()
@@ -69,15 +71,14 @@ func generateFixtures(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 	require.NoError(t, err)
 
-	err = r.Create(wrappedConfig)
+	err = r.Create(ctx, wrappedConfig)
 	require.NoError(t, err)
 
 	// open the storage to load the configuration
-	r, serializedConfig, err := storage.Open(map[string]string{"location": "fs://" + tmpRepoDir})
+	r, serializedConfig, err := storage.Open(ctx, map[string]string{"location": "fs://" + tmpRepoDir})
 	require.NoError(t, err)
 
 	// create a repository
-	ctx := appcontext.NewAppContext()
 	cache := caching.NewManager(tmpCacheDir)
 	ctx.SetCache(cache)
 

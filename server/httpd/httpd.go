@@ -7,12 +7,14 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/network"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/storage"
 )
 
 var store storage.Store
+var ctx *appcontext.AppContext
 var lNoDelete bool
 
 func openRepository(w http.ResponseWriter, r *http.Request) {
@@ -22,7 +24,7 @@ func openRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	serializedConfig, err := store.Open()
+	serializedConfig, err := store.Open(ctx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -322,6 +324,7 @@ func deleteLock(w http.ResponseWriter, r *http.Request) {
 func Server(repo *repository.Repository, addr string, noDelete bool) error {
 	lNoDelete = noDelete
 	store = repo.Store()
+	ctx = repo.AppContext()
 
 	http.HandleFunc("GET /", openRepository)
 

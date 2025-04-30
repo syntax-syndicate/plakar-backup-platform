@@ -86,7 +86,7 @@ type Repository struct {
 }
 
 func Inexistent(ctx *appcontext.AppContext, storeConfig map[string]string) (*Repository, error) {
-	st, err := storage.New(storeConfig)
+	st, err := storage.New(ctx, storeConfig)
 	if err != nil {
 		return nil, err
 	}

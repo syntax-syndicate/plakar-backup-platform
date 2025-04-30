@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/storage"
 
@@ -53,7 +54,7 @@ func init() {
 	storage.Register(NewStore, "s3")
 }
 
-func NewStore(storeConfig map[string]string) (storage.Store, error) {
+func NewStore(ctx *appcontext.AppContext, storeConfig map[string]string) (storage.Store, error) {
 	var accessKey string
 	if value, ok := storeConfig["access_key"]; !ok {
 		return nil, fmt.Errorf("missing access_key")
@@ -127,7 +128,7 @@ func (s *Store) connect(location *url.URL) error {
 	return nil
 }
 
-func (s *Store) Create(config []byte) error {
+func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
 	parsed, err := url.Parse(s.location)
 	if err != nil {
 		return fmt.Errorf("parse location: %w", err)
@@ -181,7 +182,7 @@ func (s *Store) Create(config []byte) error {
 	return nil
 }
 
-func (s *Store) Open() ([]byte, error) {
+func (s *Store) Open(ctx *appcontext.AppContext) ([]byte, error) {
 	parsed, err := url.Parse(s.location)
 	if err != nil {
 		return nil, fmt.Errorf("parse location: %w", err)
