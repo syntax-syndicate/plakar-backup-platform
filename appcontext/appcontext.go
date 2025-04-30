@@ -10,7 +10,6 @@ import (
 	"github.com/PlakarKorp/plakar/encryption/keypair"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
-	"github.com/PlakarKorp/plakar/objects"
 	"github.com/google/uuid"
 )
 
@@ -48,8 +47,6 @@ type AppContext struct {
 
 	Identity uuid.UUID
 	Keypair  *keypair.KeyPair
-
-	SnapshotID objects.MAC
 }
 
 func NewAppContext() *AppContext {
