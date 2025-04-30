@@ -111,18 +111,18 @@ func (s *Scheduler) backupTask(taskset Task, task BackupConfig) error {
 			}
 			reporter.WithRepository(repo)
 
-			retval, err := backupSubcommand.Execute(s.ctx, repo)
-			if err != nil || retval != 0 {
+			if retval, err, snapId := backupSubcommand.DoBackup(s.ctx, repo); err != nil || retval != 0 {
 				s.ctx.GetLogger().Error("Error creating backup: %s", err)
 				reporter.TaskFailed(1, "Error creating backup: retval=%d, err=%s", retval, err)
 				goto close
+			} else {
+				reporter.WithSnapshotID(repo, snapId)
+				fmt.Println(snapId)
 			}
-			reporter.WithSnapshotID(repo, s.ctx.SnapshotID)
 
 			if task.Retention != "" {
 				rmSubcommand.LocateOptions.Before = time.Now().Add(-retention)
-				retval, err = rmSubcommand.Execute(s.ctx, repo)
-				if err != nil || retval != 0 {
+				if retval, err := rmSubcommand.Execute(s.ctx, repo); err != nil || retval != 0 {
 					reporter.TaskWarning("Error removing obsolete backups: retval=%d, err=%s", retval, err)
 					s.ctx.GetLogger().Error("Error removing obsolete backups: %s", err)
 					goto close
