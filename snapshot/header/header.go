@@ -33,13 +33,13 @@ type Identity struct {
 }
 
 type Class struct {
-	Name        string
-	Probability float64
+	Name        string  `json:"name"`
+	Probability float64 `json:"probability"`
 }
 
 type Classification struct {
-	Analyzer string
-	Classes  []Class
+	Analyzer string  `json:"analyzer"`
+	Classes  []Class `json:"classes"`
 }
 
 type KeyValue struct {

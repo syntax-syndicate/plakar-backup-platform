@@ -17,27 +17,27 @@ const (
 )
 
 type ReportSnapshot struct {
-	Header *header.Header
+	header.Header
 }
 
 type ReportRepository struct {
-	Name    string
-	Storage *storage.Configuration
+	Name    string                `json:"name"`
+	Storage storage.Configuration `json:"storage"`
 }
 
 type ReportTask struct {
-	Type         string
-	Name         string
-	StartTime    time.Time
-	Duration     time.Duration
-	Status       TaskStatus
-	ErrorCode    TaskErrorCode
-	ErrorMessage string
+	Type         string        `json:"type"`
+	Name         string        `json:"name"`
+	StartTime    time.Time     `json:"start_time"`
+	Duration     time.Duration `json:"duration"`
+	Status       TaskStatus    `json:"status"`
+	ErrorCode    TaskErrorCode `json:"error_code"`
+	ErrorMessage string        `json:"error_message"`
 }
 
 type Report struct {
-	Timestamp  time.Time
-	Task       *ReportTask       `json:"Task,omitempty"`
-	Repository *ReportRepository `json:"Repository,omitempty"`
-	Snapshot   *ReportSnapshot   `json:"Snapshot,omitempty"`
+	Timestamp  time.Time         `json:"timestamp"`
+	Task       *ReportTask       `json:"report_task,omitempty"`
+	Repository *ReportRepository `json:"report_repository,omitempty"`
+	Snapshot   *ReportSnapshot   `json:"report_snapshot,omitempty"`
 }

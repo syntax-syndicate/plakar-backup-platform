@@ -29,6 +29,7 @@ func (emitter *HttpEmitter) Emit(report Report, logger *logging.Logger) {
 			return
 		}
 		logger.Warn("failed to emit report: %s", err)
+
 	}
 	logger.Error("failed to emit report after %d attempts", emitter.retry)
 }
