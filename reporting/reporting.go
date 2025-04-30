@@ -131,5 +131,5 @@ func (reporter *Reporter) taskEnd(status TaskStatus, errorCode TaskErrorCode, er
 	reporter.currentTask = nil
 	reporter.currentRepository = nil
 	reporter.currentSnapshot = nil
-	reporter.emitter.Emit(report, reporter.logger)
+	go reporter.emitter.Emit(report, reporter.logger)
 }
