@@ -77,7 +77,7 @@ func (reporter *Reporter) WithRepositoryName(name string) {
 
 func (reporter *Reporter) WithRepository(repository *repository.Repository) {
 	configuration := repository.Configuration()
-	reporter.currentRepository.Storage = &configuration
+	reporter.currentRepository.Storage = configuration
 }
 
 func (reporter *Reporter) WithSnapshotID(repository *repository.Repository, snapshotId objects.MAC) {
@@ -95,7 +95,7 @@ func (reporter *Reporter) WithSnapshot(snapshot *snapshot.Snapshot) {
 		reporter.logger.Warn("already has a snapshot")
 	}
 	reporter.currentSnapshot = &ReportSnapshot{
-		Header: snapshot.Header,
+		Header: *snapshot.Header,
 	}
 }
 
