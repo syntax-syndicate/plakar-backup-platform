@@ -70,28 +70,28 @@ func (nr *NotionReader) Read(p []byte) (int, error) {
 			return 0, err
 		}
 
-		// Write blocks to buffer
-		//for _, block := range blockResp.Results {
-		//	// If this is not the first block, add a comma
-		//	if nr.wroteFirstBlock {
-		//		nr.buf.WriteByte(',')
-		//	}
-		//	nr.buf.Write(block)
-		//	nr.wroteFirstBlock = true
-		//}
-		//Prettified version
+		//Write blocks to buffer
 		for _, block := range blockResp.Results {
+			// If this is not the first block, add a comma
 			if nr.wroteFirstBlock {
 				nr.buf.WriteByte(',')
-				nr.buf.WriteByte('\n')
 			}
-			var prettyBlock bytes.Buffer
-			if err := json.Indent(&prettyBlock, block, "  ", "  "); err != nil {
-				return 0, fmt.Errorf("failed to prettify block: %w", err)
-			}
-			nr.buf.Write(prettyBlock.Bytes())
+			nr.buf.Write(block)
 			nr.wroteFirstBlock = true
 		}
+		//Prettified version (less efficient, more readable)
+		//for _, block := range blockResp.Results {
+		//	if nr.wroteFirstBlock {
+		//		nr.buf.WriteByte(',')
+		//		nr.buf.WriteByte('\n')
+		//	}
+		//	var prettyBlock bytes.Buffer
+		//	if err := json.Indent(&prettyBlock, block, "  ", "  "); err != nil {
+		//		return 0, fmt.Errorf("failed to prettify block: %w", err)
+		//	}
+		//	nr.buf.Write(prettyBlock.Bytes())
+		//	nr.wroteFirstBlock = true
+		//}
 
 		// Check if there are more blocks
 		if !blockResp.HasMore {

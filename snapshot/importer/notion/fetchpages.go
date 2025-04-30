@@ -3,7 +3,6 @@ package notion
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"net/http"
@@ -15,7 +14,7 @@ import (
 
 const notionURL = "https://api.notion.com/v1"
 const notionSearchURL = notionURL + "/search"
-const pageSize = 1 // number of pages to fetch at once default is 100
+const pageSize = 1 // Number of pages to fetch at once default is 100
 
 type SearchResponse struct {
 	Results    []Page `json:"results"`
@@ -30,23 +29,21 @@ type Page struct {
 		Type   string `json:"type"`
 		PageID string `json:"page_id"`
 	}
-	Properties struct {
-		Title struct {
-			Title []struct {
-				Text struct {
-					Content string `json:"content"` // The title text (later used to create the displayed name)
-				} `json:"text"`
-			} `json:"title"`
-		} `json:"title"`
-	} `json:"properties"`
+	//Properties struct {
+	//	Title struct {
+	//		Title []struct {
+	//			Text struct {
+	//				Content string `json:"content"` // The title text (later used to create the displayed name)
+	//			} `json:"text"`
+	//		} `json:"title"`
+	//	} `json:"title"`
+	//} `json:"properties"`
 }
 
 type PageInfo struct {
 	ID    string
 	Title string
 }
-
-var pageMap = make(map[string]PageInfo)
 
 func (p *NotionImporter) fetchAllPages(cursor string, results chan<- *importer.ScanResult, wg *sync.WaitGroup) error {
 	bodyMap := map[string]interface{}{
@@ -72,54 +69,18 @@ func (p *NotionImporter) fetchAllPages(cursor string, results chan<- *importer.S
 	}
 	defer resp.Body.Close()
 
-	//var prettyJSON bytes.Buffer
-	//json.Indent(&prettyJSON, respBody, "", "  ")
-	//log.Print("\n==================\n")
-	//log.Print(prettyJSON.String())
-	//log.Print("\n==================\n")
-
 	var response SearchResponse
 	err = json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
 		return err
 	}
 
-	//results <- importer.NewScanRecord()
-
-	// Traitement des pages récupérées
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-
 		AddPagesToTree(response.Results, results)
-		roots := GetRootNodes()
-		PrintHierarchy(roots, 0)
-
-		//for _, page := range response.Results {
-		//	title := "(no title)"
-		//	if len(page.Properties.Title.Title) > 0 {
-		//		title = page.Properties.Title.Title[0].Text.Content
-		//	}
-		//	pageMap[page.ID] = PageInfo{ID: page.ID, Title: title}
-		//	fmt.Printf("\n🔸 Page: %s | ID: %s\n", title, page.ID)
-		//
-		//	//fInfo := objects.NewFileInfo(
-		//	//	page.ID,
-		//	//	-1,
-		//	//	0,
-		//	//	time.Time{},
-		//	//	0,
-		//	//	0,
-		//	//	0,
-		//	//	0,
-		//	//	0,
-		//	//)
-		//	//
-		//	//results <- importer.NewScanRecord("/"+page.ID, "", fInfo, nil)
-		//}
 	}()
 
-	// Récupération des pages suivantes si disponible
 	if response.HasMore {
 		wg.Add(1)
 		go func() {
@@ -131,29 +92,11 @@ func (p *NotionImporter) fetchAllPages(cursor string, results chan<- *importer.S
 	return nil
 }
 
-type BlockResponse struct {
-	//Results []Block `json:"results"`
-	HasMore    bool   `json:"has_more"`
-	NextCursor string `json:"next_cursor"`
-}
-
 type PageNode struct {
 	Page            Page
 	Children        []*PageNode
 	Parent          *PageNode
 	ConnectedToRoot bool
-}
-
-func PrintHierarchy(nodes []*PageNode, level int) {
-	prefix := strings.Repeat("  ", level)
-	for _, node := range nodes {
-		title := "Untitled"
-		if len(node.Page.Properties.Title.Title) > 0 {
-			title = node.Page.Properties.Title.Title[0].Text.Content
-		}
-		fmt.Printf("%s- %s (ID: %s) (%v)\n", prefix, title, node.Page.ID, node.ConnectedToRoot)
-		PrintHierarchy(node.Children, level+1)
-	}
 }
 
 // Global maps
@@ -233,66 +176,3 @@ func GetPathToRoot(node *PageNode) string {
 
 	return "/" + strings.Join(path, "/")
 }
-
-func GetRootNodes() []*PageNode {
-	var roots []*PageNode
-	for _, node := range nodeMap {
-		if node.Parent == nil {
-			roots = append(roots, node)
-		}
-	}
-	return roots
-}
-
-//type RichTextMention struct {
-//	Type string `json:"type"`
-//	Page struct {
-//		ID string `json:"id"`
-//	} `json:"page"`
-//}
-//
-//type RichText struct {
-//	Type    string           `json:"type"`
-//	Mention *RichTextMention `json:"mention,omitempty"`
-//}
-//
-//type Paragraph struct {
-//	RichText []RichText `json:"rich_text"`
-//}
-//
-//type Block struct {
-//	Type      string     `json:"type"`
-//	Paragraph *Paragraph `json:"paragraph,omitempty"`
-//}
-//
-//type ChildrenResponse struct {
-//	Results []Block `json:"results"`
-//}
-//
-//// ExtractMentionedPageIDs parses a Notion children response and extracts the page IDs from mentions
-//func ExtractMentionedPageIDs(body []byte) ([]string, error) {
-//	var children ChildrenResponse
-//	if err := json.Unmarshal(body, &children); err != nil {
-//		return nil, err
-//	}
-//
-//	var pageIDs []string
-//	for _, block := range children.Results {
-//		if block.Type == "paragraph" && block.Paragraph != nil {
-//			for _, rt := range block.Paragraph.RichText {
-//				if rt.Type == "mention" && rt.Mention != nil && rt.Mention.Type == "page" {
-//					pageIDs = append(pageIDs, rt.Mention.Page.ID)
-//				}
-//			}
-//		}
-//	}
-//
-//	return pageIDs, nil
-//}
-
-//func main() {
-//	err := fetchAllPages("")
-//	if err != nil {
-//		fmt.Println("Erreur:", err)
-//	}
-//}

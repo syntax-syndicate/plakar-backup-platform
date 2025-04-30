@@ -19,10 +19,8 @@ package notion
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path"
-	"strings"
 	"sync"
 	"time"
 
@@ -82,9 +80,7 @@ func (p *NotionImporter) Scan() (<-chan *importer.ScanResult, error) {
 }
 
 func (p *NotionImporter) NewReader(pathname string) (io.ReadCloser, error) {
-	log.Printf("Reading %s", pathname)
-	_, file := path.Split(strings.TrimSuffix(pathname, "/content.json"))
-	log.Printf("File: %s", file)
+	file := path.Base(path.Dir(pathname))
 	return io.NopCloser(NewNotionReader(p.token, file)), nil
 }
 
