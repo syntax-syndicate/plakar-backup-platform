@@ -33,13 +33,13 @@ type Identity struct {
 }
 
 type Class struct {
-	Name        string  `json:"name"`
-	Probability float64 `json:"probability"`
+	Name        string  `msgpack:"name" json:"name"`
+	Probability float64 `msgpack:"probability" json:"probability"`
 }
 
 type Classification struct {
-	Analyzer string  `json:"analyzer"`
-	Classes  []Class `json:"classes"`
+	Analyzer string  `msgpack:"analyzer" json:"analyzer"`
+	Classes  []Class `msgpack:"classes" json:"classes"`
 }
 
 type KeyValue struct {
