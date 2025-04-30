@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
-	"io"
-	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -35,7 +34,7 @@ type Page struct {
 		Title struct {
 			Title []struct {
 				Text struct {
-					Content string `json:"content"`
+					Content string `json:"content"` // The title text (later used to create the displayed name)
 				} `json:"text"`
 			} `json:"title"`
 		} `json:"title"`
@@ -72,16 +71,15 @@ func (p *NotionImporter) fetchAllPages(cursor string, results chan<- *importer.S
 		return err
 	}
 	defer resp.Body.Close()
-	respBody, _ := io.ReadAll(resp.Body)
 
-	var prettyJSON bytes.Buffer
-	json.Indent(&prettyJSON, respBody, "", "  ")
-	log.Print("\n==================\n")
-	log.Print(prettyJSON.String())
-	log.Print("\n==================\n")
+	//var prettyJSON bytes.Buffer
+	//json.Indent(&prettyJSON, respBody, "", "  ")
+	//log.Print("\n==================\n")
+	//log.Print(prettyJSON.String())
+	//log.Print("\n==================\n")
 
 	var response SearchResponse
-	err = json.Unmarshal(respBody, &response)
+	err = json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
 		return err
 	}
@@ -133,35 +131,10 @@ func (p *NotionImporter) fetchAllPages(cursor string, results chan<- *importer.S
 	return nil
 }
 
-func (p *NotionImporter) fetchBlocks(blockID string) (io.ReadCloser, error) {
-	url := notionURL + fmt.Sprintf("/blocks/%s/children?page_size=%d", blockID, pageSize)
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("Authorization", "Bearer "+p.token)
-	req.Header.Set("Notion-Version", "2022-06-28")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	//defer resp.Body.Close()
-	//body, _ := io.ReadAll(resp.Body)
-
-	//var prettyJSON bytes.Buffer
-	//json.Indent(&prettyJSON, body, "", "  ")
-	//log.Print(prettyJSON.String())
-
-	// Extraction des IDs de pages mentionnées dans les blocs
-	//pageIDs, _ := ExtractMentionedPageIDs(body)
-	//for _, pageID := range pageIDs {
-	//	// Affichage de la page mentionnée avec son titre et son ID
-	//	pageTitle := pageMap[pageID].Title
-	//	fmt.Printf("\n🔸 Page: %s | Page ID: %s | Mentioned in block ID: %s\n", pageTitle, pageID, blockID)
-	//	// Récupérer les enfants de cette page mentionnée
-	//	fetchBlocks(pageID) // Appel récursif pour récupérer les blocs de la page mentionnée
-	//}
-	return resp.Body, nil
+type BlockResponse struct {
+	//Results []Block `json:"results"`
+	HasMore    bool   `json:"has_more"`
+	NextCursor string `json:"next_cursor"`
 }
 
 type PageNode struct {
@@ -241,10 +214,24 @@ func propagateConnectionToRoot(node *PageNode, results chan<- *importer.ScanResu
 		return
 	}
 	node.ConnectedToRoot = true
-	results <- importer.NewScanRecord("/"+node.Page.ID, "", objects.NewFileInfo(node.Page.ID, 0, 0, time.Time{}, 0, 0, 0, 0, 0), nil)
+	results <- importer.NewScanRecord(GetPathToRoot(node), "", objects.NewFileInfo(node.Page.ID, 0, os.ModeDir, time.Time{}, 0, 0, 0, 0, 0), nil)
+	results <- importer.NewScanRecord(GetPathToRoot(node)+"/content.json", "", objects.NewFileInfo("index.json", 0, 0, time.Time{}, 0, 0, 0, 0, 0), nil)
 	for _, child := range node.Children {
 		propagateConnectionToRoot(child, results)
 	}
+}
+
+func GetPathToRoot(node *PageNode) string {
+	var path []string
+	current := node
+
+	for current != nil {
+		title := current.Page.ID
+		path = append([]string{title}, path...)
+		current = current.Parent
+	}
+
+	return "/" + strings.Join(path, "/")
 }
 
 func GetRootNodes() []*PageNode {
