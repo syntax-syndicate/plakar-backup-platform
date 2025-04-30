@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"runtime"
+	"time"
 
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/logging"
@@ -23,13 +24,15 @@ func (emitter *HttpEmitter) Emit(report Report, logger *logging.Logger) {
 		logger.Error("failed to encode report: %s", err)
 		return
 	}
-	for _ = range emitter.retry {
+
+	backoffUnit := time.Minute
+	for i := range emitter.retry {
 		err := emitter.tryEmit(data)
 		if err == nil {
 			return
 		}
+		time.Sleep(backoffUnit << i)
 		logger.Warn("failed to emit report: %s", err)
-
 	}
 	logger.Error("failed to emit report after %d attempts", emitter.retry)
 }
