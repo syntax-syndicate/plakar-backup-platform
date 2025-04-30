@@ -18,7 +18,6 @@ package fs
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -109,42 +108,4 @@ func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results ch
 
 		jobs <- pathname
 	}
-}
-
-func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir string, numWorkers int) {
-	real, err := f.realpathFollow(rootDir)
-	if err != nil {
-		results <- importer.NewScanError(rootDir, err)
-		return
-	}
-
-	jobs := make(chan string, 1000) // Buffered channel to feed paths to workers
-	var wg sync.WaitGroup
-	for range numWorkers {
-		wg.Add(1)
-		go walkDir_worker(jobs, results, &wg)
-	}
-
-	// Add prefix directories first
-	walkDir_addPrefixDirectories(rootDir, jobs, results)
-	if real != rootDir {
-		jobs <- rootDir
-		walkDir_addPrefixDirectories(rootDir, jobs, results)
-	}
-
-	err = filepath.WalkDir(real, func(pathname string, d fs.DirEntry, err error) error {
-		if err != nil {
-			results <- importer.NewScanError(pathname, err)
-			return nil
-		}
-		jobs <- pathname
-		return nil
-	})
-	if err != nil {
-		results <- importer.NewScanError(real, err)
-	}
-
-	close(jobs)
-	wg.Wait()
-	close(results)
 }
