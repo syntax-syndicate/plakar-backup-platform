@@ -25,6 +25,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
@@ -45,6 +46,10 @@ func (e *excludeFlags) String() string {
 func (e *excludeFlags) Set(value string) error {
 	*e = append(*e, value)
 	return nil
+}
+
+type BackupResult struct {
+	SnapId objects.MAC
 }
 
 func (cmd *Backup) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -119,11 +124,11 @@ type Backup struct {
 	OptCheck    bool
 }
 
-func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error, interface{}) {
 	snap, err := snapshot.Create(repo, repository.DefaultType)
 	if err != nil {
 		ctx.GetLogger().Error("%s", err)
-		return 1, err
+		return 1, err, nil
 	}
 	ctx.SnapshotID = snap.Header.Identifier
 	defer snap.Close()
@@ -143,7 +148,7 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 	for _, item := range cmd.Excludes {
 		g, err := glob.Compile(item)
 		if err != nil {
-			return 1, fmt.Errorf("failed to compile exclude pattern: %s", item)
+			return 1, fmt.Errorf("failed to compile exclude pattern: %s", item), nil
 		}
 		excludes = append(excludes, g)
 	}
@@ -166,10 +171,10 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 	if strings.HasPrefix(scanDir, "@") {
 		remote, ok := ctx.Config.GetRemote(scanDir[1:])
 		if !ok {
-			return 1, fmt.Errorf("could not resolve importer: %s", scanDir)
+			return 1, fmt.Errorf("could not resolve importer: %s", scanDir), nil
 		}
 		if _, ok := remote["location"]; !ok {
-			return 1, fmt.Errorf("could not resolve importer location: %s", scanDir)
+			return 1, fmt.Errorf("could not resolve importer location: %s", scanDir), nil
 		} else {
 			importerConfig = remote
 		}
@@ -177,19 +182,19 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 
 	imp, err := importer.NewImporter(ctx, importerConfig)
 	if err != nil {
-		return 1, fmt.Errorf("failed to create an importer for %s: %s", scanDir, err)
+		return 1, fmt.Errorf("failed to create an importer for %s: %s", scanDir, err), nil
 	}
 	defer imp.Close()
 
 	if cmd.Silent {
 		if err := snap.Backup(imp, opts); err != nil {
-			return 1, fmt.Errorf("failed to create snapshot: %w", err)
+			return 1, fmt.Errorf("failed to create snapshot: %w", err), nil
 		}
 	} else {
 		ep := startEventsProcessor(ctx, imp.Root(), true, cmd.Quiet)
 		if err := snap.Backup(imp, opts); err != nil {
 			ep.Close()
-			return 1, fmt.Errorf("failed to create snapshot: %w", err)
+			return 1, fmt.Errorf("failed to create snapshot: %w", err), nil
 		}
 		ep.Close()
 	}
@@ -204,13 +209,13 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 
 		checkSnap, err := snapshot.Load(repo, snap.Header.Identifier)
 		if err != nil {
-			return 1, fmt.Errorf("failed to load snapshot: %w", err)
+			return 1, fmt.Errorf("failed to load snapshot: %w", err), nil
 		}
 		defer checkSnap.Close()
 
 		checkCache, err := ctx.GetCache().Check()
 		if err != nil {
-			return 1, err
+			return 1, err, nil
 		}
 		defer checkCache.Close()
 
@@ -218,10 +223,10 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 
 		ok, err := checkSnap.Check("/", checkOptions)
 		if err != nil {
-			return 1, fmt.Errorf("failed to check snapshot: %w", err)
+			return 1, fmt.Errorf("failed to check snapshot: %w", err), nil
 		}
 		if !ok {
-			return 1, fmt.Errorf("snapshot is not valid")
+			return 1, fmt.Errorf("snapshot is not valid"), nil
 		}
 	}
 
@@ -240,5 +245,9 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		humanize.Bytes(uint64(snap.Repository().WBytes())),
 		savings,
 	)
-	return 0, nil
+
+	ret := BackupResult{
+		SnapId: snap.Header.Identifier,
+	}
+	return 0, nil, &ret
 }

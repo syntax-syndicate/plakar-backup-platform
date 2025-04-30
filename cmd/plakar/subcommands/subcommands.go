@@ -23,7 +23,7 @@ const (
 
 type Subcommand interface {
 	Parse(ctx *appcontext.AppContext, args []string) error
-	Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error)
+	Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error, interface{})
 	GetRepositorySecret() []byte
 	GetFlags() CommandFlags
 	setFlags(CommandFlags)
