@@ -70,7 +70,11 @@ func (p *NotionImporter) Scan() (<-chan *importer.ScanResult, error) {
 
 		results <- importer.NewScanRecord("/", "", fInfo, nil)
 
-		p.fetchAllPages("", results, &wg)
+		err := p.fetchAllPages("", results, &wg)
+		if err != nil {
+			results <- importer.NewScanError("", err) // TODO: handle error more gracefully
+			return
+		}
 	}()
 	go func() {
 		wg.Wait()

@@ -81,11 +81,7 @@ func (p *NotionImporter) fetchAllPages(cursor string, results chan<- *importer.S
 	}()
 
 	if response.HasMore {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			p.fetchAllPages(response.NextCursor, results, wg)
-		}()
+		return p.fetchAllPages(response.NextCursor, results, wg)
 	}
 
 	return nil
