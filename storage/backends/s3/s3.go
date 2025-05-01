@@ -343,14 +343,7 @@ func (s *Store) GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (
 		return nil, fmt.Errorf("get object: %w", err)
 	}
 
-	buffer := make([]byte, length)
-	if nbytes, err := object.ReadAt(buffer, int64(offset)); err != nil {
-		return nil, fmt.Errorf("read object: %w", err)
-	} else if nbytes != int(length) {
-		return nil, fmt.Errorf("short read")
-	}
-
-	return bytes.NewBuffer(buffer), nil
+	return io.NewSectionReader(object, int64(offset), int64(length)), nil
 }
 
 func (s *Store) DeletePackfile(mac objects.MAC) error {
