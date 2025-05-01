@@ -37,8 +37,7 @@ func NewBuckets(path string) Buckets {
 }
 
 func (buckets *Buckets) Create() error {
-
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		err := os.MkdirAll(filepath.Join(buckets.path, fmt.Sprintf("%02x", i)), 0700)
 		if err != nil {
 			return err
