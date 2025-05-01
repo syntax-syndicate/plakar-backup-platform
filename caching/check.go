@@ -26,6 +26,7 @@ func newCheckCache(cacheManager *Manager) (*CheckCache, error) {
 	}
 
 	return &CheckCache{
+		id:          id,
 		PebbleCache: db,
 		manager:     cacheManager,
 	}, nil

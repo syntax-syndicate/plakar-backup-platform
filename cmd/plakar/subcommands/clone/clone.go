@@ -97,7 +97,7 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 		return 1, err
 	}
 
-	cloneStore, err := storage.Create(storeConfig, wrappedSerializedConfig)
+	cloneStore, err := storage.Create(ctx, storeConfig, wrappedSerializedConfig)
 	if err != nil {
 		return 1, fmt.Errorf("could not create repository: %w", err)
 	}

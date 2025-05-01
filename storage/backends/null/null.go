@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"io"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/storage"
 )
@@ -34,7 +35,7 @@ func init() {
 	// storage.Register(NewStore, "null")
 }
 
-func NewStore(storeConfig map[string]string) (storage.Store, error) {
+func NewStore(ctx *appcontext.AppContext, storeConfig map[string]string) (storage.Store, error) {
 	return &Store{
 		location: storeConfig["location"],
 	}, nil
@@ -44,12 +45,12 @@ func (s *Store) Location() string {
 	return s.location
 }
 
-func (s *Store) Create(config []byte) error {
+func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
 	s.config = config
 	return nil
 }
 
-func (s *Store) Open() ([]byte, error) {
+func (s *Store) Open(ctx *appcontext.AppContext) ([]byte, error) {
 	return s.config, nil
 }
 

@@ -25,6 +25,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/chunking"
 	"github.com/PlakarKorp/plakar/compression"
 	"github.com/PlakarKorp/plakar/encryption"
@@ -115,8 +116,8 @@ const (
 )
 
 type Store interface {
-	Create(config []byte) error
-	Open() ([]byte, error)
+	Create(ctx *appcontext.AppContext, config []byte) error
+	Open(ctx *appcontext.AppContext) ([]byte, error)
 	Location() string
 	Mode() Mode
 	Size() int64 // this can be costly, call with caution
@@ -140,7 +141,7 @@ type Store interface {
 	Close() error
 }
 
-type StoreFn func(map[string]string) (Store, error)
+type StoreFn func(*appcontext.AppContext, map[string]string) (Store, error)
 
 var backends = location.New[StoreFn]("fs")
 
@@ -156,7 +157,7 @@ func Backends() []string {
 	return backends.Names()
 }
 
-func New(storeConfig map[string]string) (Store, error) {
+func New(ctx *appcontext.AppContext, storeConfig map[string]string) (Store, error) {
 	location, ok := storeConfig["location"]
 	if !ok {
 		return nil, fmt.Errorf("missing location")
@@ -164,19 +165,19 @@ func New(storeConfig map[string]string) (Store, error) {
 
 	proto, _, backend, ok := backends.Lookup(location)
 	if ok {
-		return backend(storeConfig)
+		return backend(ctx, storeConfig)
 	}
 	return nil, fmt.Errorf("backend '%s' does not exist", proto)
 }
 
-func Open(storeConfig map[string]string) (Store, []byte, error) {
-	store, err := New(storeConfig)
+func Open(ctx *appcontext.AppContext, storeConfig map[string]string) (Store, []byte, error) {
+	store, err := New(ctx, storeConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		return nil, nil, err
 	}
 
-	serializedConfig, err := store.Open()
+	serializedConfig, err := store.Open(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -184,14 +185,14 @@ func Open(storeConfig map[string]string) (Store, []byte, error) {
 	return store, serializedConfig, nil
 }
 
-func Create(storeConfig map[string]string, configuration []byte) (Store, error) {
-	store, err := New(storeConfig)
+func Create(ctx *appcontext.AppContext, storeConfig map[string]string, configuration []byte) (Store, error) {
+	store, err := New(ctx, storeConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		return nil, err
 	}
 
-	if err = store.Create(configuration); err != nil {
+	if err = store.Create(ctx, configuration); err != nil {
 		return nil, err
 	} else {
 		return store, nil

@@ -24,6 +24,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/PlakarKorp/plakar/versioning"
@@ -55,7 +56,7 @@ func init() {
 	storage.Register(NewStore, "ptar")
 }
 
-func NewStore(storeConfig map[string]string) (storage.Store, error) {
+func NewStore(ctx *appcontext.AppContext, storeConfig map[string]string) (storage.Store, error) {
 	return &Store{
 		location: storeConfig["location"],
 	}, nil
@@ -65,7 +66,7 @@ func (s *Store) Location() string {
 	return s.location
 }
 
-func (s *Store) Create(config []byte) error {
+func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
 	s.config = config
 	s.mode = storage.ModeRead | storage.ModeWrite
 
@@ -94,7 +95,7 @@ func (s *Store) Create(config []byte) error {
 	return nil
 }
 
-func (s *Store) Open() ([]byte, error) {
+func (s *Store) Open(ctx *appcontext.AppContext) ([]byte, error) {
 	s.mode = storage.ModeRead
 
 	location := strings.TrimPrefix(s.location, "ptar://")

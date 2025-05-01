@@ -4,7 +4,6 @@ package mount
 
 import (
 	"bytes"
-	"context"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -41,16 +40,14 @@ func TestExecuteCmdMountDefault(t *testing.T) {
 	defer os.RemoveAll(tmpMountPoint)
 
 	ctx := repo.AppContext()
+	defer ctx.Close()
+
 	args := []string{tmpMountPoint}
 
 	subcommand := &Mount{}
 	err = subcommand.Parse(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
-
-	subCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	ctx.SetContext(subCtx)
 
 	go func() {
 		status, err := subcommand.Execute(ctx, repo)
@@ -85,7 +82,4 @@ func TestExecuteCmdMountDefault(t *testing.T) {
 	content, err := io.ReadAll(dummyFile)
 	require.NoError(t, err)
 	require.Equal(t, "hello dummy", string(content))
-
-	// Close the goroutine by canceling the context
-	cancel()
 }

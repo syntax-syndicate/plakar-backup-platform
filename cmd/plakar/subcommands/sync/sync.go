@@ -77,7 +77,7 @@ func (cmd *Sync) Parse(ctx *appcontext.AppContext, args []string) error {
 		return fmt.Errorf("peer repository: %w", err)
 	}
 
-	peerStore, peerStoreSerializedConfig, err := storage.Open(storeConfig)
+	peerStore, peerStoreSerializedConfig, err := storage.Open(ctx, storeConfig)
 	if err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		return 1, fmt.Errorf("peer repository: %w", err)
 	}
 
-	peerStore, peerStoreSerializedConfig, err := storage.Open(storeConfig)
+	peerStore, peerStoreSerializedConfig, err := storage.Open(ctx, storeConfig)
 	if err != nil {
 		return 1, fmt.Errorf("could not open peer store %s: %s", cmd.PeerRepositoryLocation, err)
 	}

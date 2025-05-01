@@ -5,14 +5,17 @@ import (
 	"io"
 	"testing"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNullBackend(t *testing.T) {
+	ctx := appcontext.NewAppContext()
+
 	// create a repository
-	repo, err := NewStore(map[string]string{"location": "/test/location"})
+	repo, err := NewStore(ctx, map[string]string{"location": "/test/location"})
 	if err != nil {
 		t.Fatal("error creating repository", err)
 	}
@@ -24,10 +27,10 @@ func TestNullBackend(t *testing.T) {
 	serializedConfig, err := config.ToBytes()
 	require.NoError(t, err)
 
-	err = repo.Create(serializedConfig)
+	err = repo.Create(ctx, serializedConfig)
 	require.NoError(t, err)
 
-	_, err = repo.Open()
+	_, err = repo.Open(ctx)
 	require.NoError(t, err)
 	// only test one field
 	//require.Equal(t, repo.Configuration().Version, versioning.FromString(storage.VERSION))

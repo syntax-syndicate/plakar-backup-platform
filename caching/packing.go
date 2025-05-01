@@ -28,6 +28,7 @@ func newPackingCache(cacheManager *Manager) (*PackingCache, error) {
 	}
 
 	return &PackingCache{
+		id:          id,
 		PebbleCache: db,
 		manager:     cacheManager,
 	}, nil
