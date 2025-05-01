@@ -8,11 +8,15 @@ import (
 	"net/http"
 )
 
+const notionURL = "https://api.notion.com/v1"
+const pageSize = 1 // Number of pages to fetch at once default is 100
+const notionVersionHeader = "2022-06-28"
+
 type NotionReader struct {
+	buf             *bytes.Buffer
 	token           string
 	pageID          string
 	cursor          string
-	buf             *bytes.Buffer
 	done            bool
 	blockOpen       bool
 	first           bool
@@ -21,10 +25,10 @@ type NotionReader struct {
 
 func NewNotionReader(token, pageID string) *NotionReader {
 	return &NotionReader{
+		buf:             new(bytes.Buffer),
 		token:           token,
 		pageID:          pageID,
 		cursor:          "",
-		buf:             new(bytes.Buffer),
 		done:            false,
 		blockOpen:       false,
 		first:           true,
@@ -32,68 +36,25 @@ func NewNotionReader(token, pageID string) *NotionReader {
 	}
 }
 
+type BlockResponse struct {
+	Results    []json.RawMessage `json:"results"`
+	HasMore    bool              `json:"has_more"`
+	NextCursor string            `json:"next_cursor"`
+}
+
 func (nr *NotionReader) Read(p []byte) (int, error) {
 	for nr.buf.Len() < len(p) && !nr.done {
-		// First-time call: open the JSON array
 		if nr.first {
-			nr.buf.WriteByte('[')
-			nr.blockOpen = true
-			nr.first = false
+			nr.openJSONArray()
 		}
 
-		// Fetch `pagesize` blocks
-		url := fmt.Sprintf("%s/blocks/%s/children?page_size=%d", notionURL, nr.pageID, pageSize)
-		if nr.cursor != "" {
-			url += fmt.Sprintf("&start_cursor=%s", nr.cursor)
-		}
-
-		req, err := http.NewRequest("GET", url, nil)
+		blockResp, err := nr.fetchBlocks()
 		if err != nil {
-			return 0, err
-		}
-		req.Header.Set("Authorization", "Bearer "+nr.token)
-		req.Header.Set("Notion-Version", "2022-06-28")
-
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return 0, err
-		}
-		defer resp.Body.Close()
-
-		var blockResp struct {
-			Results    []json.RawMessage `json:"results"`
-			HasMore    bool              `json:"has_more"`
-			NextCursor string            `json:"next_cursor"`
+			return 0, fmt.Errorf("failed to fetch blocks: %w", err)
 		}
 
-		if err := json.NewDecoder(resp.Body).Decode(&blockResp); err != nil {
-			return 0, err
-		}
+		nr.writeBlocksToBuffer(blockResp.Results)
 
-		//Write blocks to buffer
-		for _, block := range blockResp.Results {
-			// If this is not the first block, add a comma
-			if nr.wroteFirstBlock {
-				nr.buf.WriteByte(',')
-			}
-			nr.buf.Write(block)
-			nr.wroteFirstBlock = true
-		}
-		//Prettified version (less efficient, more readable)
-		//for _, block := range blockResp.Results {
-		//	if nr.wroteFirstBlock {
-		//		nr.buf.WriteByte(',')
-		//		nr.buf.WriteByte('\n')
-		//	}
-		//	var prettyBlock bytes.Buffer
-		//	if err := json.Indent(&prettyBlock, block, "  ", "  "); err != nil {
-		//		return 0, fmt.Errorf("failed to prettify block: %w", err)
-		//	}
-		//	nr.buf.Write(prettyBlock.Bytes())
-		//	nr.wroteFirstBlock = true
-		//}
-
-		// Check if there are more blocks
 		if !blockResp.HasMore {
 			nr.done = true
 		} else {
@@ -101,16 +62,61 @@ func (nr *NotionReader) Read(p []byte) (int, error) {
 		}
 	}
 
-	// Close the JSON array if done
 	if nr.done && nr.blockOpen {
-		nr.buf.WriteByte(']')
-		nr.blockOpen = false
+		nr.closeJSONArray()
 	}
 
-	// Read from the buffer
 	n, err := nr.buf.Read(p)
 	if n == 0 && nr.done {
 		return 0, io.EOF
 	}
 	return n, err
+}
+
+func (nr *NotionReader) openJSONArray() {
+	nr.buf.WriteByte('[')
+	nr.blockOpen = true
+	nr.first = false
+}
+
+func (nr *NotionReader) closeJSONArray() {
+	nr.buf.WriteByte(']')
+	nr.blockOpen = false
+}
+
+func (nr *NotionReader) fetchBlocks() (*BlockResponse, error) {
+	url := fmt.Sprintf("%s/blocks/%s/children?page_size=%d", notionURL, nr.pageID, pageSize)
+	if nr.cursor != "" {
+		url += fmt.Sprintf("&start_cursor=%s", nr.cursor)
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+nr.token)
+	req.Header.Set("Notion-Version", notionVersionHeader)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var blockResp BlockResponse
+	if err := json.NewDecoder(resp.Body).Decode(&blockResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &blockResp, nil
+}
+
+func (nr *NotionReader) writeBlocksToBuffer(blocks []json.RawMessage) {
+	for _, block := range blocks {
+		if nr.wroteFirstBlock {
+			nr.buf.WriteByte(',')
+		}
+		nr.buf.Write(block)
+		nr.wroteFirstBlock = true
+	}
 }

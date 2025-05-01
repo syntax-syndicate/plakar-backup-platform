@@ -3,18 +3,17 @@ package notion
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/plakar/snapshot/importer"
 )
 
-const notionURL = "https://api.notion.com/v1"
 const notionSearchURL = notionURL + "/search"
-const pageSize = 1 // Number of pages to fetch at once default is 100
 
 type SearchResponse struct {
 	Results    []Page `json:"results"`
@@ -60,7 +59,7 @@ func (p *NotionImporter) fetchAllPages(cursor string, results chan<- *importer.S
 	}
 	req.Header.Set("Authorization", "Bearer "+p.token)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Notion-Version", "2022-06-28")
+	req.Header.Set("Notion-Version", notionVersionHeader)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
