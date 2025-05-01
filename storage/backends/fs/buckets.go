@@ -22,6 +22,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/PlakarKorp/plakar/objects"
 )
@@ -89,14 +90,30 @@ func (buckets *Buckets) List() ([]objects.MAC, error) {
 	return ret, nil
 }
 
-func (buckets *Buckets) Path(mac objects.MAC) string {
-	return filepath.Join(buckets.path,
+func (buckets *Buckets) Path(mac objects.MAC) (string, error) {
+	dest := filepath.Join(buckets.path,
 		fmt.Sprintf("%02x", mac[0]),
 		fmt.Sprintf("%064x", mac))
+
+	/*
+	 * This is so dumb.  But CodeQL is even more dumb, and can't
+	 * realize that a MAC serialized in hex form and used as path
+	 * can't escape, so it thinks there's an uncontrolled data
+	 * used in path expression.
+	 */
+	if !strings.HasPrefix(dest, buckets.path) {
+		return "", fmt.Errorf("invalid path")
+	}
+	return dest, nil
 }
 
 func (buckets *Buckets) Get(mac objects.MAC) (io.Reader, error) {
-	fp, err := os.Open(buckets.Path(mac))
+	p, err := buckets.Path(mac)
+	if err != nil {
+		return nil, err
+	}
+
+	fp, err := os.Open(p)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +121,12 @@ func (buckets *Buckets) Get(mac objects.MAC) (io.Reader, error) {
 }
 
 func (buckets *Buckets) GetBlob(mac objects.MAC, offset uint64, length uint32) (io.Reader, error) {
-	fp, err := os.Open(buckets.Path(mac))
+	p, err := buckets.Path(mac)
+	if err != nil {
+		return nil, err
+	}
+
+	fp, err := os.Open(p)
 	if err != nil {
 		return nil, err
 	}
@@ -112,9 +134,19 @@ func (buckets *Buckets) GetBlob(mac objects.MAC, offset uint64, length uint32) (
 }
 
 func (buckets *Buckets) Remove(mac objects.MAC) error {
-	return os.Remove(buckets.Path(mac))
+	p, err := buckets.Path(mac)
+	if err != nil {
+		return err
+	}
+
+	return os.Remove(p)
 }
 
 func (buckets *Buckets) Put(mac objects.MAC, rd io.Reader) (int64, error) {
-	return WriteToFileAtomicTempDir(buckets.Path(mac), rd, buckets.path)
+	p, err := buckets.Path(mac)
+	if err != nil {
+		return 0, err
+	}
+
+	return WriteToFileAtomicTempDir(p, rd, buckets.path)
 }
