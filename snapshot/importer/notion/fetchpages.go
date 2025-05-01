@@ -158,7 +158,7 @@ func propagateConnectionToRoot(node *PageNode, results chan<- *importer.ScanResu
 	}
 	node.ConnectedToRoot = true
 	results <- importer.NewScanRecord(GetPathToRoot(node), "", objects.NewFileInfo(node.Page.ID, 0, os.ModeDir, time.Time{}, 0, 0, 0, 0, 0), nil)
-	results <- importer.NewScanRecord(GetPathToRoot(node)+"/content.json", "", objects.NewFileInfo("index.json", 0, 0, time.Time{}, 0, 0, 0, 0, 0), nil)
+	results <- importer.NewScanRecord(GetPathToRoot(node)+"/content.json", "", objects.NewFileInfo("content.json", 0, 0, time.Time{}, 0, 0, 0, 0, 0), nil)
 	for _, child := range node.Children {
 		propagateConnectionToRoot(child, results)
 	}
