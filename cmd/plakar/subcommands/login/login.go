@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Gilles Chehade <gilles@poolp.org>
+ * Copyright (c) 2025 Gilles Chehade <gilles@poolp.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -107,9 +107,11 @@ func (cmd *Login) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 		return 1, err
 	}
 
-	// XXX: store token in the configuration
-	fmt.Printf("Authentication token: %s\n", token)
-
+	if cache, err := ctx.GetCache().Repository(repo.Configuration().RepositoryID); err != nil {
+		return 1, fmt.Errorf("failed to get repository cache: %w", err)
+	} else if err := cache.PutAuthToken(token); err != nil {
+		return 1, fmt.Errorf("failed to store token in cache: %w", err)
+	}
 	return 0, nil
 }
 
@@ -172,6 +174,7 @@ func (flow *loginFlow) RunGithub(spawnBrowser bool) (string, error) {
 	}
 
 	// XXX: make backend URL configurable
+
 	resp, err := http.Post("http://localhost:8080/v1/auth/login/github", "application/json", bytes.NewBuffer(bodyBytes))
 	if err != nil {
 		return "", fmt.Errorf("unable to get the login URL: %w", err)
@@ -204,7 +207,7 @@ func (flow *loginFlow) RunGithub(spawnBrowser bool) (string, error) {
 	}
 
 	// Wait for the token to be received
-	fmt.Printf("\nWaiting for your browser to complete the login...\n")
+	fmt.Printf("Waiting for your browser to complete the login...\n")
 	token := <-flow.channel
 
 	return token, nil
