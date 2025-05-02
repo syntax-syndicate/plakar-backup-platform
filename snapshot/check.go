@@ -176,7 +176,11 @@ func snapshotCheckPath(snap *Snapshot, opts *CheckOptions, wg *errgroup.Group) f
 			if err != nil {
 				snap.Event(events.FileCorruptedEvent(snap.Header.Identifier, entrypath))
 				snap.checkCache.PutVFSEntryStatus(entryMAC, []byte(err.Error()))
-				return err
+
+				// don't stop at the first error; we
+				// need to process all the entries to
+				// report all the findings.
+				return nil
 			}
 
 			snap.Event(events.FileOKEvent(snap.Header.Identifier, entrypath, e.Size()))
