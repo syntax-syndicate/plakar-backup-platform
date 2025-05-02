@@ -53,6 +53,10 @@ func (c *_RepositoryCache) HasAuthToken() bool {
 	return err == nil
 }
 
+func (c *_RepositoryCache) DeleteAuthToken() error {
+	return os.Remove(filepath.Join(c.cookiesDir, ".auth-token"))
+}
+
 func (c *_RepositoryCache) PutAuthToken(token string) error {
 	return os.WriteFile(filepath.Join(c.cookiesDir, ".auth-token"), []byte(token), 0600)
 }

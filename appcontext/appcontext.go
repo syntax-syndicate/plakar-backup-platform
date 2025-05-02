@@ -23,6 +23,8 @@ type AppContext struct {
 	Context context.Context    `msgpack:"-"`
 	Cancel  context.CancelFunc `msgpack:"-"`
 
+	AuthToken string `msgpack:"-"`
+
 	Stdout io.Writer `msgpack:"-"`
 	Stderr io.Writer `msgpack:"-"`
 

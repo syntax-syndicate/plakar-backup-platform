@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/snapshot/header"
@@ -25,6 +27,7 @@ type RepositoryInfoSnapshots struct {
 }
 
 type RepositoryInfoResponse struct {
+	AuthToken     string                  `json:"auth_token,omitempty"`
 	Location      string                  `json:"location"`
 	Snapshots     RepositoryInfoSnapshots `json:"snapshots"`
 	Configuration storage.Configuration   `json:"configuration"`
@@ -33,6 +36,14 @@ type RepositoryInfoResponse struct {
 func repositoryInfo(w http.ResponseWriter, r *http.Request) error {
 
 	configuration := lrepository.Configuration()
+	cache, err := lrepository.AppContext().GetCache().Repository(configuration.RepositoryID)
+	if err != nil {
+		return err
+	}
+	authToken, _ := cache.GetAuthToken()
+	if err != nil {
+		//
+	}
 
 	nSnapshots, logicalSize, err := snapshot.LogicalSize(lrepository)
 	if err != nil {
@@ -59,7 +70,8 @@ func repositoryInfo(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	return json.NewEncoder(w).Encode(Item[RepositoryInfoResponse]{Item: RepositoryInfoResponse{
-		Location: lrepository.Location(),
+		AuthToken: authToken,
+		Location:  lrepository.Location(),
 		Snapshots: RepositoryInfoSnapshots{
 			Total:       nSnapshots,
 			StorageSize: int64(lrepository.StorageSize()),
@@ -339,4 +351,113 @@ func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 	items.Items = append(items.Items, locations...)
 
 	return json.NewEncoder(w).Encode(items)
+}
+
+// XXXXX
+
+type TokenResponse struct {
+	Token string `json:"token"`
+}
+
+type loginFlow struct {
+	appCtx *appcontext.AppContext
+}
+
+func NewLoginFlow(appCtx *appcontext.AppContext) (*loginFlow, error) {
+	flow := &loginFlow{
+		appCtx: appCtx,
+	}
+	return flow, nil
+}
+
+type GithubLoginRequest struct {
+	Mode     string `json:"mode"`
+	Redirect string `json:"redirect,omitempty"`
+}
+
+type URLRedirectResponse struct {
+	URL string `json:"URL"`
+}
+
+func repositoryLoginGithub(w http.ResponseWriter, r *http.Request) error {
+	reqBody := map[string]string{
+		"mode": "headers",
+	}
+	bodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %v", err)
+	}
+
+	resp, err := http.Post("http://localhost:8080/v1/auth/login/github", "application/json", bytes.NewBuffer(bodyBytes))
+	if err != nil {
+		return fmt.Errorf("unable to get the login URL: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var respData struct {
+		URL    string `json:"URL"`
+		PollID string `json:"poll_id"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
+		return fmt.Errorf("failed to decode response JSON: %v", err)
+	}
+
+	return json.NewEncoder(w).Encode(respData)
+}
+
+type PollRequest struct {
+	PollID string `json:"poll_id"`
+}
+
+type PollResponse struct {
+	Token string `json:"token"`
+}
+
+func repositoryLoginPoll(w http.ResponseWriter, r *http.Request) error {
+	var req PollRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return fmt.Errorf("failed to decode request JSON: %v", err)
+	}
+	if req.PollID == "" {
+		return fmt.Errorf("missing poll_id")
+	}
+
+	reqUrl := "http://localhost:8080/v1/auth/poll/" + req.PollID
+	subreq, err := http.NewRequestWithContext(lrepository.AppContext().Context, "POST", reqUrl, nil)
+	if err != nil {
+		return fmt.Errorf("the /auth/login/github/poll API endpoint failed: %w", err)
+	}
+
+	client := http.DefaultClient
+	subresp, err := client.Do(subreq)
+	if err != nil {
+		return fmt.Errorf("the /auth/login/github/poll API endpoint failed: %w", err)
+	}
+	// leaking resp for now
+	if subresp.StatusCode == http.StatusOK {
+		var tokenResponse PollResponse
+		if err := json.NewDecoder(subresp.Body).Decode(&tokenResponse); err != nil {
+			return fmt.Errorf("failed to decode response JSON: %v", err)
+		}
+		return json.NewEncoder(w).Encode(subresp)
+	} else {
+		w.WriteHeader(subresp.StatusCode)
+	}
+	return nil
+}
+
+func repositoryLogout(w http.ResponseWriter, r *http.Request) error {
+	configuration := lrepository.Configuration()
+	cache, err := lrepository.AppContext().GetCache().Repository(configuration.RepositoryID)
+	if err != nil {
+		return err
+	}
+	if exists := cache.HasAuthToken(); !exists {
+		return fmt.Errorf("no auth token found")
+	}
+	return cache.DeleteAuthToken()
 }
