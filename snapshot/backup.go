@@ -288,6 +288,7 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 
 	done, err := snap.Lock()
 	if err != nil {
+		snap.repository.PackerManager.Wait()
 		return err
 	}
 	defer snap.Unlock(done)
@@ -305,6 +306,7 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 
 	backupCtx, err := snap.prepareBackup(imp, options)
 	if err != nil {
+		snap.repository.PackerManager.Wait()
 		return err
 	}
 
@@ -317,17 +319,20 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	/* importer */
 	filesChannel, err := snap.importerJob(backupCtx, options)
 	if err != nil {
+		snap.repository.PackerManager.Wait()
 		return err
 	}
 
 	/* scanner */
 	if err := snap.processFiles(backupCtx, filesChannel); err != nil {
+		snap.repository.PackerManager.Wait()
 		return err
 	}
 
 	/* tree builders */
 	vfsHeader, rootSummary, indexes, err := snap.persistTrees(backupCtx)
 	if err != nil {
+		snap.repository.PackerManager.Wait()
 		return nil
 	}
 
