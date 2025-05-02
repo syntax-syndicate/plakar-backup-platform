@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/google/uuid"
@@ -11,9 +12,14 @@ import (
 
 const CACHE_VERSION = "2.0.0"
 
-var ErrInUse = fmt.Errorf("cache in use")
+var (
+	ErrInUse  = fmt.Errorf("cache in use")
+	ErrClosed = fmt.Errorf("cache closed")
+)
 
 type Manager struct {
+	closed atomic.Bool
+
 	cacheDir string
 
 	repositoryCache      map[uuid.UUID]*_RepositoryCache
@@ -37,6 +43,11 @@ func NewManager(cacheDir string) *Manager {
 }
 
 func (m *Manager) Close() error {
+	if !m.closed.CompareAndSwap(false, true) {
+		// the cache was already closed
+		return nil
+	}
+
 	m.vfsCacheMutex.Lock()
 	defer m.vfsCacheMutex.Unlock()
 
@@ -58,6 +69,10 @@ func (m *Manager) Close() error {
 }
 
 func (m *Manager) VFS(repositoryID uuid.UUID, scheme string, origin string) (*VFSCache, error) {
+	if m.closed.Load() {
+		return nil, ErrClosed
+	}
+
 	m.vfsCacheMutex.Lock()
 	defer m.vfsCacheMutex.Unlock()
 
@@ -76,6 +91,10 @@ func (m *Manager) VFS(repositoryID uuid.UUID, scheme string, origin string) (*VF
 }
 
 func (m *Manager) Repository(repositoryID uuid.UUID) (*_RepositoryCache, error) {
+	if m.closed.Load() {
+		return nil, ErrClosed
+	}
+
 	m.repositoryCacheMutex.Lock()
 	defer m.repositoryCacheMutex.Unlock()
 
@@ -92,6 +111,10 @@ func (m *Manager) Repository(repositoryID uuid.UUID) (*_RepositoryCache, error) 
 }
 
 func (m *Manager) Maintenance(repositoryID uuid.UUID) (*MaintenanceCache, error) {
+	if m.closed.Load() {
+		return nil, ErrClosed
+	}
+
 	m.maintenanceCacheMutex.Lock()
 	defer m.maintenanceCacheMutex.Unlock()
 
