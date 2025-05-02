@@ -39,8 +39,12 @@ func (cmd *Mount) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 	if err != nil {
 		return 1, fmt.Errorf("mount: %v", err)
 	}
-	defer c.Close()
 	ctx.GetLogger().Info("mounted repository %s at %s", repo.Location(), cmd.Mountpoint)
+
+	go func() {
+		<-ctx.Done()
+		fuse.Unmount(cmd.Mountpoint)
+	}()
 
 	err = fs.Serve(c, plakarfs.NewFS(repo, cmd.Mountpoint))
 	if err != nil {
@@ -51,5 +55,4 @@ func (cmd *Mount) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 		return 1, err
 	}
 	return 0, nil
-
 }
