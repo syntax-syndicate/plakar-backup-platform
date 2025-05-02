@@ -19,6 +19,7 @@ package notion
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path"
 	"sync"
@@ -31,7 +32,7 @@ import (
 
 type NotionImporter struct {
 	token  string
-	rootID string
+	rootID string // TODO: take a look at this
 }
 
 func init() {
@@ -85,7 +86,19 @@ func (p *NotionImporter) Scan() (<-chan *importer.ScanResult, error) {
 
 func (p *NotionImporter) NewReader(pathname string) (io.ReadCloser, error) {
 	file := path.Base(path.Dir(pathname))
-	return io.NopCloser(NewNotionReader(p.token, file)), nil
+	//debug
+	rd, err := NewNotionReader(p.token, file)
+	if rd == nil {
+		return nil, err
+	}
+	b, _ := io.ReadAll(rd)
+	log.Print(string(b))
+	//end debug
+	nRd, err := NewNotionReader(p.token, file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Notion reader: %w", err)
+	}
+	return io.NopCloser(nRd), nil
 }
 
 func (p *NotionImporter) NewExtendedAttributeReader(pathname string, attribute string) (io.ReadCloser, error) {

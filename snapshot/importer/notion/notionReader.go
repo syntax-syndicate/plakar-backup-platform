@@ -23,8 +23,14 @@ type NotionReader struct {
 	wroteFirstBlock bool
 }
 
-func NewNotionReader(token, pageID string) *NotionReader {
-	return &NotionReader{
+type BlockResponse struct {
+	Results    []json.RawMessage `json:"results"`
+	HasMore    bool              `json:"has_more"`
+	NextCursor string            `json:"next_cursor"`
+}
+
+func NewNotionReader(token, pageID string) (*NotionReader, error) {
+	nRd := &NotionReader{
 		buf:             new(bytes.Buffer),
 		token:           token,
 		pageID:          pageID,
@@ -34,12 +40,58 @@ func NewNotionReader(token, pageID string) *NotionReader {
 		first:           true,
 		wroteFirstBlock: false,
 	}
+	pageHeader, err := nRd.fetchPageHeader()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch page header: %w", err)
+	}
+	var mapp map[string]interface{}
+	if err = json.Unmarshal(*pageHeader, &mapp); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal page header: %w", err)
+	}
+	delete(mapp, "request_id")
+	b, err := json.Marshal(mapp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal page header: %w", err)
+	}
+	nRd.buf.WriteByte('[')
+	nRd.buf.Write(b)
+	nRd.buf.Write([]byte(",["))
+	return nRd, nil
 }
 
-type BlockResponse struct {
-	Results    []json.RawMessage `json:"results"`
-	HasMore    bool              `json:"has_more"`
-	NextCursor string            `json:"next_cursor"`
+func fetchFromURL[T any](url, token string) (*T, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Notion-Version", notionVersionHeader)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result T
+	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &result, nil
+}
+
+func (nr *NotionReader) fetchPageHeader() (*json.RawMessage, error) {
+	url := fmt.Sprintf("%s/pages/%s", notionURL, nr.pageID)
+	return fetchFromURL[json.RawMessage](url, nr.token)
+}
+
+func (nr *NotionReader) fetchBlocks() (*BlockResponse, error) {
+	url := fmt.Sprintf("%s/blocks/%s/children?page_size=%d", notionURL, nr.pageID, pageSize)
+	if nr.cursor != "" {
+		url += fmt.Sprintf("&start_cursor=%s", nr.cursor)
+	}
+	return fetchFromURL[BlockResponse](url, nr.token)
 }
 
 func (nr *NotionReader) Read(p []byte) (int, error) {
@@ -74,41 +126,14 @@ func (nr *NotionReader) Read(p []byte) (int, error) {
 }
 
 func (nr *NotionReader) openJSONArray() {
-	nr.buf.WriteByte('[')
+	//nr.buf.WriteByte('[')
 	nr.blockOpen = true
 	nr.first = false
 }
 
 func (nr *NotionReader) closeJSONArray() {
-	nr.buf.WriteByte(']')
+	nr.buf.Write([]byte("]]"))
 	nr.blockOpen = false
-}
-
-func (nr *NotionReader) fetchBlocks() (*BlockResponse, error) {
-	url := fmt.Sprintf("%s/blocks/%s/children?page_size=%d", notionURL, nr.pageID, pageSize)
-	if nr.cursor != "" {
-		url += fmt.Sprintf("&start_cursor=%s", nr.cursor)
-	}
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+nr.token)
-	req.Header.Set("Notion-Version", notionVersionHeader)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var blockResp BlockResponse
-	if err := json.NewDecoder(resp.Body).Decode(&blockResp); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	return &blockResp, nil
 }
 
 func (nr *NotionReader) writeBlocksToBuffer(blocks []json.RawMessage) {
