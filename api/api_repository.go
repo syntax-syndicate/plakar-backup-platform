@@ -1,7 +1,6 @@
 package api
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -380,15 +379,7 @@ type URLRedirectResponse struct {
 }
 
 func repositoryLoginGithub(w http.ResponseWriter, r *http.Request) error {
-	reqBody := map[string]string{
-		"mode": "headers",
-	}
-	bodyBytes, err := json.Marshal(reqBody)
-	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %v", err)
-	}
-
-	resp, err := http.Post("http://localhost:8080/v1/auth/login/github", "application/json", bytes.NewBuffer(bodyBytes))
+	resp, err := http.Post("http://localhost:8080/v1/auth/login/github", "application/json", r.Body)
 	if err != nil {
 		return fmt.Errorf("unable to get the login URL: %w", err)
 	}
@@ -443,7 +434,7 @@ func repositoryLoginPoll(w http.ResponseWriter, r *http.Request) error {
 		if err := json.NewDecoder(subresp.Body).Decode(&tokenResponse); err != nil {
 			return fmt.Errorf("failed to decode response JSON: %v", err)
 		}
-		return json.NewEncoder(w).Encode(subresp)
+		return json.NewEncoder(w).Encode(tokenResponse)
 	} else {
 		w.WriteHeader(subresp.StatusCode)
 	}
