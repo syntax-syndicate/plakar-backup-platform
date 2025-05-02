@@ -431,7 +431,14 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 		return nil, -1, err
 	}
 
+	ctx := snap.AppContext()
 	for i := 0; ; i++ {
+		if i%1024 == 0 {
+			if err := ctx.Err(); err != nil {
+				return nil, -1, err
+			}
+		}
+
 		cdcChunk, err := chk.Next()
 		if err != nil && err != io.EOF {
 			return nil, -1, err
