@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"hash"
 
 	"github.com/PlakarKorp/plakar/events"
+	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"golang.org/x/sync/errgroup"
@@ -16,11 +18,125 @@ type CheckOptions struct {
 	FastCheck      bool
 }
 
-var ErrFileCorrupted = errors.New("file corrupted")
+var (
+	ErrObjectMissing   = errors.New("object is missing")
+	ErrObjectCorrupted = errors.New("object corrupted")
+	ErrChunkMissing    = errors.New("chunk is missing")
+	ErrChunkCorrupted  = errors.New("chunk corrupted")
+)
+
+func checkChunk(snap *Snapshot, chunk *objects.Chunk, hasher hash.Hash, fast bool) error {
+	chunkStatus, err := snap.checkCache.GetChunkStatus(chunk.ContentMAC)
+	if err != nil {
+		return err
+	}
+
+	// if chunkStatus is nil, we've never seen this chunk and we
+	// have to process it.  It is zero if it's fine, or an error
+	// otherwise.
+	var seen bool
+	if chunkStatus != nil {
+		if len(chunkStatus) != 0 {
+			return fmt.Errorf("%s", string(chunkStatus))
+		}
+		if fast {
+			return nil
+		}
+		seen = true
+	}
+
+	snap.Event(events.ChunkEvent(snap.Header.Identifier, chunk.ContentMAC))
+
+	if fast {
+		if !snap.repository.BlobExists(resources.RT_CHUNK, chunk.ContentMAC) {
+			snap.Event(events.ChunkMissingEvent(snap.Header.Identifier, chunk.ContentMAC))
+			snap.checkCache.PutChunkStatus(chunk.ContentMAC, []byte(ErrChunkMissing.Error()))
+			return ErrChunkMissing
+		}
+
+		snap.Event(events.ChunkOKEvent(snap.Header.Identifier, chunk.ContentMAC))
+		snap.checkCache.PutChunkStatus(chunk.ContentMAC, []byte(""))
+		return nil
+	}
+
+	data, err := snap.repository.GetBlobBytes(resources.RT_CHUNK, chunk.ContentMAC)
+	if err != nil {
+		snap.Event(events.ChunkMissingEvent(snap.Header.Identifier, chunk.ContentMAC))
+		snap.checkCache.PutChunkStatus(chunk.ContentMAC, []byte(ErrChunkMissing.Error()))
+		return ErrChunkMissing
+	}
+
+	hasher.Write(data)
+	if seen {
+		return nil
+	}
+
+	mac := snap.repository.ComputeMAC(data)
+	if !bytes.Equal(mac[:], chunk.ContentMAC[:]) {
+		snap.Event(events.ChunkCorruptedEvent(snap.Header.Identifier, chunk.ContentMAC))
+		snap.checkCache.PutChunkStatus(chunk.ContentMAC, []byte(ErrChunkCorrupted.Error()))
+		return ErrChunkCorrupted
+	}
+
+	snap.Event(events.ChunkOKEvent(snap.Header.Identifier, chunk.ContentMAC))
+	snap.checkCache.PutChunkStatus(chunk.ContentMAC, []byte(""))
+	return nil
+}
+
+func checkObject(snap *Snapshot, fileEntry *vfs.Entry, fast bool) error {
+	objectStatus, err := snap.checkCache.GetObjectStatus(fileEntry.Object)
+	if err != nil {
+		return err
+	}
+
+	// if objectStatus is nil, we've never seen this object and we
+	// have to process it.  It is zero if it's fine, or an error
+	// otherwise.
+	if objectStatus != nil {
+		if len(objectStatus) != 0 {
+			return fmt.Errorf("%s", string(objectStatus))
+		}
+		return nil
+	}
+
+	object, err := snap.LookupObject(fileEntry.Object)
+	if err != nil {
+		snap.Event(events.ObjectMissingEvent(snap.Header.Identifier, fileEntry.Object))
+		snap.checkCache.PutObjectStatus(fileEntry.Object, []byte(ErrObjectMissing.Error()))
+		return ErrObjectMissing
+	}
+
+	hasher := snap.repository.GetMACHasher()
+	snap.Event(events.ObjectEvent(snap.Header.Identifier, object.ContentMAC))
+
+	var failed bool
+	for i := range object.Chunks {
+		if err := checkChunk(snap, &object.Chunks[i], hasher, fast); err != nil {
+			failed = true
+		}
+	}
+
+	if failed {
+		snap.Event(events.ObjectCorruptedEvent(snap.Header.Identifier, object.ContentMAC))
+		snap.checkCache.PutObjectStatus(fileEntry.Object, []byte(ErrObjectCorrupted.Error()))
+		return ErrObjectCorrupted
+	}
+
+	if !fast {
+		if !bytes.Equal(hasher.Sum(nil), object.ContentMAC[:]) {
+			snap.Event(events.ObjectCorruptedEvent(snap.Header.Identifier, object.ContentMAC))
+			snap.checkCache.PutObjectStatus(fileEntry.Object, []byte(ErrObjectCorrupted.Error()))
+			return ErrObjectCorrupted
+		}
+	}
+
+	snap.Event(events.ObjectOKEvent(snap.Header.Identifier, object.ContentMAC))
+	snap.checkCache.PutObjectStatus(fileEntry.Object, []byte(""))
+	return nil
+}
 
 func snapshotCheckPath(snap *Snapshot, opts *CheckOptions, wg *errgroup.Group) func(entrypath string, e *vfs.Entry, err error) error {
 	return func(entrypath string, e *vfs.Entry, err error) error {
-
 		if err != nil {
 			snap.Event(events.PathErrorEvent(snap.Header.Identifier, entrypath, err.Error()))
 			return err
@@ -53,103 +169,18 @@ func snapshotCheckPath(snap *Snapshot, opts *CheckOptions, wg *errgroup.Group) f
 			return nil
 		}
 
-		objectStatus, err := snap.checkCache.GetObjectStatus(e.Object)
-		if err != nil {
-			return err
-		}
-		if objectStatus != nil {
-			if len(objectStatus) == 0 {
-				return nil
-			} else {
-				return fmt.Errorf("%s", string(objectStatus))
-			}
-		}
-
 		snap.Event(events.FileEvent(snap.Header.Identifier, entrypath))
 
-		_fileEntry := e
-		path := entrypath
-		_entryMAC := entryMAC
 		wg.Go(func() error {
-			object, err := snap.LookupObject(_fileEntry.Object)
+			err := checkObject(snap, e, opts.FastCheck)
 			if err != nil {
-				snap.Event(events.ObjectMissingEvent(snap.Header.Identifier, _fileEntry.Object))
+				snap.Event(events.FileCorruptedEvent(snap.Header.Identifier, entrypath))
+				snap.checkCache.PutVFSEntryStatus(entryMAC, []byte(err.Error()))
 				return err
 			}
 
-			hasher := snap.repository.GetMACHasher()
-			snap.Event(events.ObjectEvent(snap.Header.Identifier, object.ContentMAC))
-			complete := true
-
-			for _, chunk := range object.Chunks {
-				chunkStatus, err := snap.checkCache.GetChunkStatus(chunk.ContentMAC)
-				if err != nil {
-					complete = false
-					continue
-				}
-				if objectStatus != nil {
-					if len(chunkStatus) == 0 {
-						continue
-					} else {
-						complete = false
-						continue
-					}
-				}
-
-				snap.Event(events.ChunkEvent(snap.Header.Identifier, chunk.ContentMAC))
-				if opts.FastCheck {
-					if !snap.repository.BlobExists(resources.RT_CHUNK, chunk.ContentMAC) {
-						snap.Event(events.ChunkMissingEvent(snap.Header.Identifier, chunk.ContentMAC))
-						snap.checkCache.PutChunkStatus(chunk.ContentMAC, []byte("chunk missing"))
-						complete = false
-						break
-					}
-					snap.checkCache.PutChunkStatus(chunk.ContentMAC, []byte(""))
-					snap.Event(events.ChunkOKEvent(snap.Header.Identifier, chunk.ContentMAC))
-				} else {
-					data, err := snap.repository.GetBlobBytes(resources.RT_CHUNK, chunk.ContentMAC)
-					if err != nil {
-						snap.Event(events.ChunkMissingEvent(snap.Header.Identifier, chunk.ContentMAC))
-						snap.checkCache.PutChunkStatus(chunk.ContentMAC, []byte("chunk missing"))
-						complete = false
-						break
-					}
-					snap.checkCache.PutChunkStatus(chunk.ContentMAC, []byte(""))
-					snap.Event(events.ChunkOKEvent(snap.Header.Identifier, chunk.ContentMAC))
-
-					hasher.Write(data)
-
-					mac := snap.repository.ComputeMAC(data)
-					if !bytes.Equal(mac[:], chunk.ContentMAC[:]) {
-						snap.Event(events.ChunkCorruptedEvent(snap.Header.Identifier, chunk.ContentMAC))
-						complete = false
-						break
-					}
-				}
-			}
-
-			if !complete {
-				snap.Event(events.ObjectCorruptedEvent(snap.Header.Identifier, object.ContentMAC))
-			} else {
-				snap.Event(events.ObjectOKEvent(snap.Header.Identifier, object.ContentMAC))
-			}
-
-			if !opts.FastCheck {
-				if !bytes.Equal(hasher.Sum(nil), object.ContentMAC[:]) {
-					snap.Event(events.ObjectCorruptedEvent(snap.Header.Identifier, object.ContentMAC))
-					snap.Event(events.FileCorruptedEvent(snap.Header.Identifier, path))
-					return fmt.Errorf("%w: %s", ErrFileCorrupted, path)
-				}
-			}
 			snap.Event(events.FileOKEvent(snap.Header.Identifier, entrypath, e.Size()))
-
-			if err != nil {
-				snap.checkCache.PutObjectStatus(_fileEntry.Object, []byte(err.Error()))
-				snap.checkCache.PutVFSEntryStatus(_entryMAC, []byte(err.Error()))
-			} else {
-				snap.checkCache.PutObjectStatus(_fileEntry.Object, []byte(""))
-				snap.checkCache.PutVFSEntryStatus(_entryMAC, []byte(""))
-			}
+			snap.checkCache.PutVFSEntryStatus(entryMAC, []byte(""))
 			return nil
 		})
 		return nil
@@ -164,12 +195,15 @@ func (snap *Snapshot) Check(pathname string, opts *CheckOptions) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
+	// if vfsStatus is nil, we've never seen this vfs and we have
+	// to process it.  It is zero if it's fine, or an error
+	// otherwise.
 	if vfsStatus != nil {
-		if len(vfsStatus) == 0 {
-			return true, nil
-		} else {
+		if len(vfsStatus) != 0 {
 			return false, fmt.Errorf("%s", string(vfsStatus))
 		}
+		return true, nil
 	}
 
 	fs, err := snap.Filesystem()
