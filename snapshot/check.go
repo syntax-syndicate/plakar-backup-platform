@@ -188,16 +188,11 @@ func (snap *Snapshot) Check(pathname string, opts *CheckOptions) (bool, error) {
 
 	err = fs.WalkDir(pathname, snapshotCheckPath(snap, opts, maxConcurrencyChan, &wg))
 	if err != nil {
+		snap.checkCache.PutVFSStatus(snap.Header.GetSource(0).VFS.Root, []byte(err.Error()))
 		return false, err
 	}
 	wg.Wait()
-
-	if err != nil {
-		snap.checkCache.PutVFSStatus(snap.Header.GetSource(0).VFS.Root, []byte(err.Error()))
-	} else {
-		snap.checkCache.PutVFSStatus(snap.Header.GetSource(0).VFS.Root, []byte(""))
-	}
-
+	snap.checkCache.PutVFSStatus(snap.Header.GetSource(0).VFS.Root, []byte(""))
 	return true, nil
 }
 
