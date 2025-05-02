@@ -2,13 +2,13 @@ package snapshot
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/PlakarKorp/plakar/events"
-	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
+	"golang.org/x/sync/errgroup"
 )
 
 type CheckOptions struct {
@@ -16,7 +16,9 @@ type CheckOptions struct {
 	FastCheck      bool
 }
 
-func snapshotCheckPath(snap *Snapshot, opts *CheckOptions, concurrency chan bool, wg *sync.WaitGroup) func(entrypath string, e *vfs.Entry, err error) error {
+var ErrFileCorrupted = errors.New("file corrupted")
+
+func snapshotCheckPath(snap *Snapshot, opts *CheckOptions, wg *errgroup.Group) func(entrypath string, e *vfs.Entry, err error) error {
 	return func(entrypath string, e *vfs.Entry, err error) error {
 
 		if err != nil {
@@ -64,16 +66,15 @@ func snapshotCheckPath(snap *Snapshot, opts *CheckOptions, concurrency chan bool
 		}
 
 		snap.Event(events.FileEvent(snap.Header.Identifier, entrypath))
-		concurrency <- true
-		wg.Add(1)
-		go func(_fileEntry *vfs.Entry, path string, _entryMAC objects.MAC) {
-			defer wg.Done()
-			defer func() { <-concurrency }()
 
+		_fileEntry := e
+		path := entrypath
+		_entryMAC := entryMAC
+		wg.Go(func() error {
 			object, err := snap.LookupObject(_fileEntry.Object)
 			if err != nil {
 				snap.Event(events.ObjectMissingEvent(snap.Header.Identifier, _fileEntry.Object))
-				return
+				return err
 			}
 
 			hasher := snap.repository.GetMACHasher()
@@ -137,7 +138,7 @@ func snapshotCheckPath(snap *Snapshot, opts *CheckOptions, concurrency chan bool
 				if !bytes.Equal(hasher.Sum(nil), object.ContentMAC[:]) {
 					snap.Event(events.ObjectCorruptedEvent(snap.Header.Identifier, object.ContentMAC))
 					snap.Event(events.FileCorruptedEvent(snap.Header.Identifier, path))
-					return
+					return fmt.Errorf("%w: %s", ErrFileCorrupted, path)
 				}
 			}
 			snap.Event(events.FileOKEvent(snap.Header.Identifier, entrypath, e.Size()))
@@ -149,8 +150,8 @@ func snapshotCheckPath(snap *Snapshot, opts *CheckOptions, concurrency chan bool
 				snap.checkCache.PutObjectStatus(_fileEntry.Object, []byte(""))
 				snap.checkCache.PutVFSEntryStatus(_entryMAC, []byte(""))
 			}
-
-		}(e, entrypath, entryMAC)
+			return nil
+		})
 		return nil
 	}
 }
@@ -181,17 +182,19 @@ func (snap *Snapshot) Check(pathname string, opts *CheckOptions) (bool, error) {
 		maxConcurrency = uint64(snap.AppContext().MaxConcurrency)
 	}
 
-	maxConcurrencyChan := make(chan bool, maxConcurrency)
-	wg := sync.WaitGroup{}
-	defer wg.Wait()
-	defer close(maxConcurrencyChan)
+	wg := new(errgroup.Group)
+	wg.SetLimit(int(maxConcurrency))
 
-	err = fs.WalkDir(pathname, snapshotCheckPath(snap, opts, maxConcurrencyChan, &wg))
+	err = fs.WalkDir(pathname, snapshotCheckPath(snap, opts, wg))
 	if err != nil {
 		snap.checkCache.PutVFSStatus(snap.Header.GetSource(0).VFS.Root, []byte(err.Error()))
 		return false, err
 	}
-	wg.Wait()
+	if err := wg.Wait(); err != nil {
+		snap.checkCache.PutVFSStatus(snap.Header.GetSource(0).VFS.Root, []byte(err.Error()))
+		return false, err
+	}
+
 	snap.checkCache.PutVFSStatus(snap.Header.GetSource(0).VFS.Root, []byte(""))
 	return true, nil
 }
