@@ -37,7 +37,7 @@ type PackerManagerInt interface {
 
 type packerManager struct {
 	inflightMACs   map[resources.Type]*sync.Map
-	packerChan     chan interface{}
+	packerChan     chan PackerMsg
 	packerChanDone chan struct{}
 
 	storageConf  *storage.Configuration
@@ -57,7 +57,7 @@ func NewPackerManager(ctx *appcontext.AppContext, storageConfiguration *storage.
 	}
 	return &packerManager{
 		inflightMACs:   inflightsMACs,
-		packerChan:     make(chan interface{}, runtime.NumCPU()*2+1),
+		packerChan:     make(chan PackerMsg, runtime.NumCPU()*2+1),
 		packerChanDone: make(chan struct{}),
 		storageConf:    storageConfiguration,
 		encodingFunc:   encodingFunc,
@@ -102,17 +102,12 @@ func (mgr *packerManager) Run() error {
 				select {
 				case <-workerCtx.Done():
 					return workerCtx.Err()
-				case msg, ok := <-mgr.packerChan:
+				case pm, ok := <-mgr.packerChan:
 					if !ok {
 						if pfile != nil && pfile.Size() > 0 {
 							packerResultChan <- pfile
 						}
 						return nil
-					}
-
-					pm, ok := msg.(*PackerMsg)
-					if !ok {
-						return fmt.Errorf("unexpected message type")
 					}
 
 					if pfile == nil {
@@ -172,7 +167,7 @@ func (mgr *packerManager) Put(Type resources.Type, mac objects.MAC, data []byte)
 			return err
 		}
 
-		mgr.packerChan <- &PackerMsg{Type: Type, Version: versioning.GetCurrentVersion(Type), Timestamp: time.Now(), MAC: mac, Data: encoded}
+		mgr.packerChan <- PackerMsg{Type: Type, Version: versioning.GetCurrentVersion(Type), Timestamp: time.Now(), MAC: mac, Data: encoded}
 		return nil
 	}
 }
