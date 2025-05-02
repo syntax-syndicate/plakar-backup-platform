@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/snapshot/header"
@@ -358,26 +357,6 @@ type TokenResponse struct {
 	Token string `json:"token"`
 }
 
-type loginFlow struct {
-	appCtx *appcontext.AppContext
-}
-
-func NewLoginFlow(appCtx *appcontext.AppContext) (*loginFlow, error) {
-	flow := &loginFlow{
-		appCtx: appCtx,
-	}
-	return flow, nil
-}
-
-type GithubLoginRequest struct {
-	Mode     string `json:"mode"`
-	Redirect string `json:"redirect,omitempty"`
-}
-
-type URLRedirectResponse struct {
-	URL string `json:"URL"`
-}
-
 func repositoryLoginGithub(w http.ResponseWriter, r *http.Request) error {
 	resp, err := http.Post("http://localhost:8080/v1/auth/login/github", "application/json", r.Body)
 	if err != nil {
@@ -388,28 +367,20 @@ func repositoryLoginGithub(w http.ResponseWriter, r *http.Request) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
-
-	var respData struct {
-		URL    string `json:"URL"`
-		PollID string `json:"poll_id"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
-		return fmt.Errorf("failed to decode response JSON: %v", err)
-	}
-
-	return json.NewEncoder(w).Encode(respData)
+	_, err = io.Copy(w, resp.Body)
+	return err
 }
 
 type PollRequest struct {
 	PollID string `json:"poll_id"`
 }
-
 type PollResponse struct {
 	Token string `json:"token"`
 }
 
 func repositoryLoginPoll(w http.ResponseWriter, r *http.Request) error {
 	var req PollRequest
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return fmt.Errorf("failed to decode request JSON: %v", err)
 	}
@@ -428,13 +399,22 @@ func repositoryLoginPoll(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return fmt.Errorf("the /auth/login/github/poll API endpoint failed: %w", err)
 	}
-	// leaking resp for now
+	defer subresp.Body.Close()
+
 	if subresp.StatusCode == http.StatusOK {
 		var tokenResponse PollResponse
 		if err := json.NewDecoder(subresp.Body).Decode(&tokenResponse); err != nil {
 			return fmt.Errorf("failed to decode response JSON: %v", err)
 		}
-		return json.NewEncoder(w).Encode(tokenResponse)
+
+		configuration := lrepository.Configuration()
+		if cache, err := lrepository.AppContext().GetCache().Repository(configuration.RepositoryID); err != nil {
+			return err
+		} else if err := cache.PutAuthToken(tokenResponse.Token); err != nil {
+			return err
+		} else {
+			return json.NewEncoder(w).Encode(tokenResponse)
+		}
 	} else {
 		w.WriteHeader(subresp.StatusCode)
 	}
@@ -443,12 +423,11 @@ func repositoryLoginPoll(w http.ResponseWriter, r *http.Request) error {
 
 func repositoryLogout(w http.ResponseWriter, r *http.Request) error {
 	configuration := lrepository.Configuration()
-	cache, err := lrepository.AppContext().GetCache().Repository(configuration.RepositoryID)
-	if err != nil {
+	if cache, err := lrepository.AppContext().GetCache().Repository(configuration.RepositoryID); err != nil {
 		return err
-	}
-	if exists := cache.HasAuthToken(); !exists {
+	} else if exists := cache.HasAuthToken(); !exists {
 		return fmt.Errorf("no auth token found")
+	} else {
+		return cache.DeleteAuthToken()
 	}
-	return cache.DeleteAuthToken()
 }
