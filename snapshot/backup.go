@@ -25,8 +25,6 @@ import (
 )
 
 type BackupContext struct {
-	aborted        atomic.Bool
-	abortedReason  error
 	imp            importer.Importer
 	maxConcurrency uint64
 
@@ -131,10 +129,23 @@ func (snap *Builder) importerJob(backupCtx *BackupContext, options *BackupOption
 
 		concurrencyChan := make(chan struct{}, backupCtx.maxConcurrency)
 
-		for _record := range scanner {
-			if backupCtx.aborted.Load() {
-				break
+		ctx := snap.AppContext()
+	loop:
+		for {
+			var (
+				_record *importer.ScanResult
+				ok      bool
+			)
+
+			select {
+			case _record, ok = <-scanner:
+				if !ok {
+					break loop
+				}
+			case <-ctx.Done():
+				break loop
 			}
+
 			if snap.skipExcludedPathname(options, _record) {
 				continue
 			}
@@ -151,8 +162,9 @@ func (snap *Builder) importerJob(backupCtx *BackupContext, options *BackupOption
 				case record.Error != nil:
 					record := record.Error
 					if record.Pathname == backupCtx.imp.Root() || len(record.Pathname) < len(backupCtx.imp.Root()) {
-						backupCtx.aborted.Store(true)
-						backupCtx.abortedReason = record.Err
+						// do we really need to do this?  if so, maybe we
+						// should propagate the original error as well.
+						ctx.Cancel()
 						return
 					}
 					backupCtx.recordError(record.Pathname, record.Err)
@@ -194,6 +206,13 @@ func (snap *Builder) importerJob(backupCtx *BackupContext, options *BackupOption
 			}(_record)
 		}
 		wg.Wait()
+
+		for range scanner {
+			// drain the importer channel since we might
+			// have been cancelled while the importer is
+			// trying to still produce some records.
+		}
+
 		close(filesChannel)
 		doneEvent := events.DoneImporterEvent()
 		doneEvent.SnapshotID = snap.Header.Identifier
@@ -310,8 +329,8 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 		return nil
 	}
 
-	if backupCtx.aborted.Load() {
-		return backupCtx.abortedReason
+	if err := snap.AppContext().Err(); err != nil {
+		return err
 	}
 
 	snap.Header.Duration = time.Since(beginTime)
