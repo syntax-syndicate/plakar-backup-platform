@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/PlakarKorp/plakar/agent"
@@ -196,7 +197,7 @@ func EntryPoint() int {
 		<-c
 		ctx.Cancel()
 	}()
-	signal.Notify(c, os.Interrupt, os.Kill)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 	// best effort check if security or reliability fix have been issued
 	_, noCriticalChecks := os.LookupEnv("PLAKAR_NO_CRITICAL_CHECKS")
