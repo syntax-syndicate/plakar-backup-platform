@@ -114,10 +114,18 @@ func Ui(repo *repository.Repository, addr string, opts *UiOptions) error {
 		fmt.Println("launching webUI at", url)
 	}
 
+	var handler http.Handler = server
 	if opts.Cors {
-		return http.ListenAndServe(addr, corsMiddleware(server))
+		handler = corsMiddleware(server)
 	}
-	return http.ListenAndServe(addr, server)
+
+	s := &http.Server{Addr: addr, Handler: handler}
+	go func() {
+		<-repo.AppContext().Done()
+		s.Shutdown(repo.AppContext().Context)
+	}()
+
+	return s.ListenAndServe()
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
