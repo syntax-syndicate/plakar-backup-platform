@@ -321,16 +321,14 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	}
 
 	/* scanner */
-	snap.processFiles(backupCtx, filesChannel)
+	if err := snap.processFiles(backupCtx, filesChannel); err != nil {
+		return err
+	}
 
 	/* tree builders */
 	vfsHeader, rootSummary, indexes, err := snap.persistTrees(backupCtx)
 	if err != nil {
 		return nil
-	}
-
-	if err := snap.AppContext().Err(); err != nil {
-		return err
 	}
 
 	snap.Header.Duration = time.Since(beginTime)
@@ -600,16 +598,15 @@ func (snap *Builder) processFiles(backupCtx *BackupContext, filesChannel <-chan 
 
 	ctx := snap.AppContext()
 
+loop:
 	for {
 		select {
 		case <-ctx.Done():
-			wg.Wait()
-			return ctx.Err()
+			break loop
 
 		case record, ok := <-filesChannel:
 			if !ok {
-				wg.Wait()
-				return nil
+				break loop
 			}
 
 			semaphore <- struct{}{}
@@ -629,6 +626,12 @@ func (snap *Builder) processFiles(backupCtx *BackupContext, filesChannel <-chan 
 			}(record)
 		}
 	}
+	wg.Wait()
+	for range filesChannel {
+		// drain the filesChannel to consume the items that
+		// the importerJob might still have inflight.
+	}
+	return ctx.Err()
 }
 
 func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importer.ScanRecord) error {
