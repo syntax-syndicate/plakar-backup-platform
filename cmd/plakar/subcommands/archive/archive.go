@@ -49,6 +49,7 @@ func (cmd *Archive) Parse(ctx *appcontext.AppContext, args []string) error {
 	if flags.NArg() == 0 {
 		return fmt.Errorf("need at least one snapshot ID to pull")
 	}
+	cmd.SnapshotPrefix = flags.Arg(0)
 
 	supportedFormats := map[string]string{
 		"tar":     ".tar",
