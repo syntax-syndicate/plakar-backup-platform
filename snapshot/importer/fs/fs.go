@@ -34,6 +34,7 @@ import (
 )
 
 type FSImporter struct {
+	ctx     *appcontext.AppContext
 	rootDir string
 
 	uidToName map[uint64]string
@@ -55,6 +56,7 @@ func NewFSImporter(appCtx *appcontext.AppContext, name string, config map[string
 	location = path.Clean(location)
 
 	return &FSImporter{
+		ctx:       appCtx,
 		rootDir:   location,
 		uidToName: make(map[uint64]string),
 		gidToName: make(map[uint64]string),
