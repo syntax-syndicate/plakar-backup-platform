@@ -195,6 +195,7 @@ func EntryPoint() int {
 	c := make(chan os.Signal, 1)
 	go func() {
 		<-c
+		fmt.Fprintf(os.Stderr, "%s: Interrupting, it might take a while...\n", flag.CommandLine.Name())
 		ctx.Cancel()
 	}()
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
