@@ -18,11 +18,18 @@ package icloudphoto
 
 import (
 	"bufio"
+	"bytes"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"io"
+	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,7 +38,125 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"golang.org/x/crypto/pbkdf2"
 )
+
+type SrpInitResponse struct {
+	Salt      string `json:"salt"`
+	B         string `json:"b"`
+	C         string `json:"c"`
+	Iteration int    `json:"iteration"`
+	Protocol  string `json:"protocol"`
+}
+
+func test() {
+	session := &http.Client{}
+	appleID := ""
+	password := ""
+
+	params := srp.GetParams(2048)
+	secret1 := srp.GenKey()
+
+	clientSrpInit := srp.NewClient(params, nil, []byte(appleID), nil, secret1)
+	A := clientSrpInit.ComputeA()
+
+	srpInitPayload := map[string]interface{}{
+		"a":           base64.StdEncoding.EncodeToString(A),
+		"accountName": appleID,
+		"protocols":   []string{"s2k", "s2k_fo"},
+	}
+
+	body, _ := json.Marshal(srpInitPayload)
+	req, _ := http.NewRequest("POST", "https://idmsa.apple.com/appleauth/auth/signin/init", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
+	req.Header.Set("Origin", "https://www.icloud.com")
+	req.Header.Set("Referer", "https://www.icloud.com/")
+
+	res, err := session.Do(req)
+	if err != nil {
+		log.Fatalf("Échec HTTP signin/init: %v", err)
+	}
+	defer res.Body.Close()
+
+	raw, _ := io.ReadAll(res.Body)
+	if res.StatusCode != 200 {
+		os.Exit(1)
+	}
+
+	var srpResp SrpInitResponse
+	if err := json.Unmarshal(raw, &srpResp); err != nil {
+		log.Fatalf("Erreur lors du décodage JSON SRP init: %v", err)
+	}
+
+	salt, err := base64.StdEncoding.DecodeString(srpResp.Salt)
+	if err != nil {
+		log.Fatalf("Erreur de décodage base64 du salt: %v", err)
+	}
+
+	var derivedKey []byte
+	switch srpResp.Protocol {
+	case "s2k_fo":
+		passwordHash := sha256.Sum256([]byte(password))
+		passwordHex := hex.EncodeToString(passwordHash[:])
+		derivedKey = pbkdf2.Key([]byte(passwordHex), salt, srpResp.Iteration, 32, sha256.New)
+	case "s2k":
+		passwordHash := sha256.Sum256([]byte(password))
+		derivedKey = pbkdf2.Key(passwordHash[:], salt, srpResp.Iteration, 32, sha256.New)
+	default:
+		log.Fatalf("Protocole SRP non reconnu : %s", srpResp.Protocol)
+	}
+
+	clientSrp := srp.NewClient(params, salt, []byte(appleID), derivedKey, secret1)
+
+	fmt.Println("🔐 A utilisé pour /signin/init et /signin/complete:", base64.StdEncoding.EncodeToString(A))
+
+	B, err := base64.StdEncoding.DecodeString(srpResp.B)
+	if err != nil {
+		log.Fatalf("Erreur de décodage base64 du B: %v", err)
+	}
+	clientSrp.SetB(B)
+
+	M1 := clientSrp.ComputeM1()
+
+	signinComplete := map[string]interface{}{
+		"accountName": appleID,
+		"c":           srpResp.C,
+		"m1":          base64.StdEncoding.EncodeToString(M1),
+		"rememberMe":  true,
+		"trustTokens": []string{},
+	}
+
+	body2, err := json.Marshal(signinComplete)
+	if err != nil {
+		log.Fatalf("Erreur JSON signin/complete: %v", err)
+	}
+
+	req2, err := http.NewRequest("POST", "https://idmsa.apple.com/appleauth/auth/signin/complete?isRememberMeEnabled=false", bytes.NewBuffer(body2))
+	if err != nil {
+		log.Fatalf("Erreur creation requête signin/complete: %v", err)
+	}
+	req2.Header.Set("Content-Type", "application/json")
+	req2.Header.Set("Accept", "application/json")
+	req2.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
+	req2.Header.Set("Origin", "https://www.icloud.com")
+	req2.Header.Set("Referer", "https://www.icloud.com/")
+
+	res2, err := session.Do(req2)
+	if err != nil {
+		log.Fatalf("Erreur requête signin/complete: %v", err)
+	}
+	defer res2.Body.Close()
+
+	_, err = io.ReadAll(res2.Body)
+	if err != nil {
+		log.Fatalf("Erreur lecture réponse signin/complete: %v", err)
+	}
+
+	fmt.Println("🟢 Réponse de /signin/complete :", res2.Status)
+}
 
 type iCloudPhotoImporter struct {
 	Username string
@@ -80,6 +205,8 @@ func checkIcloudpd() error {
 }
 
 func (p *iCloudPhotoImporter) Scan() (<-chan *importer.ScanResult, error) {
+	test()
+	os.Exit(0)
 	if err := checkIcloudpd(); err != nil {
 		return nil, fmt.Errorf("icloudpd is not installed: %w", err)
 	}
