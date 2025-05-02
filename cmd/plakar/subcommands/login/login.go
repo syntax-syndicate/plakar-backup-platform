@@ -18,16 +18,11 @@ package login
 
 import (
 	"bytes"
-	"context"
 	_ "embed"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
-	"net"
 	"net/http"
-	"os/exec"
-	"runtime"
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -86,7 +81,7 @@ type Login struct {
 func (cmd *Login) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	var err error
 
-	flow, err := NewLoginFlow()
+	flow, err := NewLoginFlow(ctx)
 	if err != nil {
 		return 1, err
 	}
@@ -96,13 +91,12 @@ func (cmd *Login) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 	var token string
 
 	if cmd.Github {
-		token, err = flow.RunGithub(!cmd.NoSpawn)
+		token, err = flow.RunGithub()
 	} else if cmd.Email != "" {
 		token, err = flow.RunEmail(cmd.Email)
 	} else {
 		return 1, fmt.Errorf("invalid login method")
 	}
-
 	if err != nil {
 		return 1, err
 	}
@@ -112,61 +106,32 @@ func (cmd *Login) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 	} else if err := cache.PutAuthToken(token); err != nil {
 		return 1, fmt.Errorf("failed to store token in cache: %w", err)
 	}
+
 	return 0, nil
 }
 
+type TokenResponse struct {
+	Token string `json:"token"`
+}
+
 type loginFlow struct {
-	server  *http.Server
-	port    int
-	channel chan string
+	appCtx *appcontext.AppContext
 }
 
 // NewLoginFlow spawns a local HTTP server in a goroutine, listening for the
 // OAuth callback on a random port.
-func NewLoginFlow() (*loginFlow, error) {
-	flow := &loginFlow{}
-
-	listener, err := net.Listen("tcp", "localhost:0")
-	if err != nil {
-		return nil, fmt.Errorf("failed to listen on a random port: %w", err)
+func NewLoginFlow(appCtx *appcontext.AppContext) (*loginFlow, error) {
+	flow := &loginFlow{
+		appCtx: appCtx,
 	}
-	flow.port = listener.Addr().(*net.TCPAddr).Port
-
-	flow.channel = make(chan string)
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		token := r.URL.Query().Get("token")
-
-		if token != "" {
-			w.Header().Set("Content-Type", "text/html")
-			w.Write([]byte(loginOkHTML))
-			flow.channel <- token
-		} else {
-			fmt.Fprintf(w, "Waiting for OAuth callback with token...")
-		}
-	})
-
-	flow.server = &http.Server{Handler: mux}
-	go func() {
-		if err := flow.server.Serve(listener); err != nil {
-			if err != http.ErrServerClosed {
-				log.Printf("HTTP server error: %v", err)
-			}
-		}
-	}()
 	return flow, nil
 }
 
-//go:embed loginOk.html
-var loginOkHTML string
-
 // RunGithub sends a POST request to the login endpoint and waits for the user to
 // complete the OAuth flow.
-func (flow *loginFlow) RunGithub(spawnBrowser bool) (string, error) {
+func (flow *loginFlow) RunGithub() (string, error) {
 	reqBody := map[string]string{
-		"mode":     "headers",
-		"redirect": fmt.Sprintf("http://localhost:%d", flow.port),
+		"mode": "headers",
 	}
 	bodyBytes, err := json.Marshal(reqBody)
 	if err != nil {
@@ -186,38 +151,60 @@ func (flow *loginFlow) RunGithub(spawnBrowser bool) (string, error) {
 	}
 
 	var respData struct {
-		URL string `json:"URL"`
+		URL    string `json:"URL"`
+		PollID string `json:"poll_id"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
 		return "", fmt.Errorf("failed to decode response JSON: %v", err)
 	}
 
-	if spawnBrowser {
-		switch runtime.GOOS {
-		case "windows":
-			err = exec.Command("rundll32", "url.dll,FileProtocolHandler", respData.URL).Start()
-		case "darwin":
-			err = exec.Command("open", respData.URL).Start()
-		default: // "linux", "freebsd", "openbsd", "netbsd"
-			err = exec.Command("xdg-open", respData.URL).Start()
-		}
-	}
-	if !spawnBrowser || err != nil {
-		fmt.Printf("Open the following URL in your browser to login:\n\n%s\n", respData.URL)
-	}
+	fmt.Printf("\nPlease open the following URL in your browser:\n\n")
+	fmt.Printf("  %s\n\n", respData.URL)
 
 	// Wait for the token to be received
 	fmt.Printf("Waiting for your browser to complete the login...\n")
-	token := <-flow.channel
 
-	return token, nil
+	for _ = range 5 {
+		tick := time.After(1 * time.Second)
+		select {
+		case <-flow.appCtx.Done():
+			return "", flow.appCtx.Err()
+		case <-tick:
+			reqUrl := "http://localhost:8080/v1/auth/poll/" + respData.PollID
+			req, err := http.NewRequestWithContext(flow.appCtx.Context, "POST", reqUrl, nil)
+			if err != nil {
+				return "", fmt.Errorf("the /auth/login/github/poll API endpoint failed: %w", err)
+			}
+
+			client := http.DefaultClient
+			resp, err := client.Do(req)
+			if err != nil {
+				return "", fmt.Errorf("the /auth/login/github/poll API endpoint failed: %w", err)
+			}
+			// leaking resp for now
+			if resp.StatusCode == http.StatusOK {
+				var tokenResponse TokenResponse
+				if err := json.NewDecoder(resp.Body).Decode(&tokenResponse); err != nil {
+					return "", fmt.Errorf("failed to decode response JSON: %v", err)
+				}
+				return tokenResponse.Token, nil
+			} else if resp.StatusCode == http.StatusNotFound {
+				return "", fmt.Errorf("unknown ID")
+			} else if resp.StatusCode == http.StatusAccepted {
+				fmt.Print(".")
+			} else {
+				return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+			}
+		}
+	}
+
+	return "", fmt.Errorf("login flow timed out")
 }
 
 func (flow *loginFlow) RunEmail(email string) (string, error) {
 	reqBody := map[string]string{
-		"email":    email,
-		"mode":     "headers",
-		"redirect": fmt.Sprintf("http://localhost:%d", flow.port),
+		"email": email,
+		"mode":  "headers",
 	}
 	bodyBytes, err := json.Marshal(reqBody)
 	if err != nil {
@@ -236,17 +223,11 @@ func (flow *loginFlow) RunEmail(email string) (string, error) {
 	}
 
 	fmt.Printf("\nCheck your email for the login link. Do not close this window until you have logged in.\n")
-	token := <-flow.channel
+	//	token := <-flow.channel
 
-	return token, nil
+	return "", nil
 }
 
 func (flow *loginFlow) Close() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	if err := flow.server.Shutdown(ctx); err != nil {
-		return fmt.Errorf("error shutting down server: %v", err)
-	}
 	return nil
 }
