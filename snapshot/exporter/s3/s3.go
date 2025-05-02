@@ -17,7 +17,6 @@
 package s3
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/url"
@@ -33,7 +32,9 @@ import (
 
 type S3Exporter struct {
 	minioClient *minio.Client
-	rootDir     string
+	ctx         *appcontext.AppContext
+
+	rootDir string
 }
 
 func init() {
@@ -50,7 +51,7 @@ func connect(location *url.URL, useSsl bool, accessKeyID, secretAccessKey string
 	})
 }
 
-func NewS3Exporter(appCtx *appcontext.AppContext, name string, config map[string]string) (exporter.Exporter, error) {
+func NewS3Exporter(ctx *appcontext.AppContext, name string, config map[string]string) (exporter.Exporter, error) {
 	target := name + "://" + config["location"]
 	var accessKey string
 	if tmp, ok := config["access_key"]; !ok {
@@ -85,7 +86,7 @@ func NewS3Exporter(appCtx *appcontext.AppContext, name string, config map[string
 		return nil, err
 	}
 
-	err = conn.MakeBucket(context.Background(), strings.TrimPrefix(parsed.Path, "/"), minio.MakeBucketOptions{})
+	err = conn.MakeBucket(ctx, strings.TrimPrefix(parsed.Path, "/"), minio.MakeBucketOptions{})
 	if err != nil {
 		if minio.ToErrorResponse(err).Code != "BucketAlreadyOwnedByYou" {
 			return nil, err
@@ -95,6 +96,7 @@ func NewS3Exporter(appCtx *appcontext.AppContext, name string, config map[string
 	return &S3Exporter{
 		rootDir:     parsed.Path,
 		minioClient: conn,
+		ctx:         ctx,
 	}, nil
 }
 
@@ -107,7 +109,7 @@ func (p *S3Exporter) CreateDirectory(pathname string) error {
 }
 
 func (p *S3Exporter) StoreFile(pathname string, fp io.Reader) error {
-	_, err := p.minioClient.PutObject(context.Background(),
+	_, err := p.minioClient.PutObject(p.ctx,
 		strings.TrimPrefix(p.rootDir, "/"),
 		strings.TrimPrefix(pathname, p.rootDir+"/"),
 		fp, -1, minio.PutObjectOptions{})

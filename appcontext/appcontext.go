@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"time"
 
 	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/config"
@@ -68,12 +69,20 @@ func NewAppContextFrom(template *AppContext) *AppContext {
 	return &ctx
 }
 
+func (c *AppContext) Deadline() (time.Time, bool) {
+	return c.Context.Deadline()
+}
+
 func (c *AppContext) Done() <-chan struct{} {
 	return c.Context.Done()
 }
 
 func (c *AppContext) Err() error {
 	return c.Context.Err()
+}
+
+func (c *AppContext) Value(key any) any {
+	return c.Context.Value(key)
 }
 
 func (c *AppContext) Close() {

@@ -30,6 +30,10 @@ func snapshotRestorePath(snap *Snapshot, exp exporter.Exporter, target string, o
 			return err
 		}
 
+		if err := snap.AppContext().Err(); err != nil {
+			return err
+		}
+
 		snap.Event(events.PathEvent(snap.Header.Identifier, entrypath))
 
 		// Determine destination path by stripping the prefix.

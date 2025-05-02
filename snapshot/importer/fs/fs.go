@@ -34,6 +34,7 @@ import (
 )
 
 type FSImporter struct {
+	ctx     *appcontext.AppContext
 	rootDir string
 
 	uidToName map[uint64]string
@@ -55,6 +56,7 @@ func NewFSImporter(appCtx *appcontext.AppContext, name string, config map[string
 	location = path.Clean(location)
 
 	return &FSImporter{
+		ctx:       appCtx,
 		rootDir:   location,
 		uidToName: make(map[uint64]string),
 		gidToName: make(map[uint64]string),
@@ -101,6 +103,10 @@ func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir
 	}
 
 	err = filepath.WalkDir(real, func(path string, d fs.DirEntry, err error) error {
+		if f.ctx.Err() != nil {
+			return err
+		}
+
 		if err != nil {
 			results <- importer.NewScanError(path, err)
 			return nil

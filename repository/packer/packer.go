@@ -37,7 +37,7 @@ type PackerManagerInt interface {
 
 type packerManager struct {
 	inflightMACs   map[resources.Type]*sync.Map
-	packerChan     chan interface{}
+	packerChan     chan PackerMsg
 	packerChanDone chan struct{}
 
 	storageConf  *storage.Configuration
@@ -57,7 +57,7 @@ func NewPackerManager(ctx *appcontext.AppContext, storageConfiguration *storage.
 	}
 	return &packerManager{
 		inflightMACs:   inflightsMACs,
-		packerChan:     make(chan interface{}, runtime.NumCPU()*2+1),
+		packerChan:     make(chan PackerMsg, runtime.NumCPU()*2+1),
 		packerChanDone: make(chan struct{}),
 		storageConf:    storageConfiguration,
 		encodingFunc:   encodingFunc,
@@ -68,12 +68,9 @@ func NewPackerManager(ctx *appcontext.AppContext, storageConfiguration *storage.
 }
 
 func (mgr *packerManager) Run() error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	packerResultChan := make(chan *packfile.PackFile, runtime.NumCPU())
 
-	flusherGroup, _ := errgroup.WithContext(ctx)
+	flusherGroup, _ := errgroup.WithContext(context.TODO())
 	flusherGroup.Go(func() error {
 		for pfile := range packerResultChan {
 			if pfile == nil || pfile.Size() == 0 {
@@ -83,7 +80,11 @@ func (mgr *packerManager) Run() error {
 			mgr.AddPadding(pfile, int(mgr.storageConf.Chunking.MinSize))
 
 			if err := mgr.flush(pfile); err != nil {
-				return fmt.Errorf("failed to flush packer: %w", err)
+				err = fmt.Errorf("failed to flush packer: %w", err)
+				for range packerResultChan {
+				}
+
+				return err
 			}
 
 			for _, record := range pfile.Index {
@@ -93,7 +94,11 @@ func (mgr *packerManager) Run() error {
 		return nil
 	})
 
-	workerGroup, workerCtx := errgroup.WithContext(ctx)
+	// This needs to be context.Background (OR TODO for that matter), because
+	// it's a real worked / background task it's not tied to the backup
+	// pipeline and as such we might have valid packerManager.Put() happening
+	// while this background task was ripped under our feet.
+	workerGroup, workerCtx := errgroup.WithContext(context.TODO())
 	for i := 0; i < runtime.NumCPU(); i++ {
 		workerGroup.Go(func() error {
 			var pfile *packfile.PackFile
@@ -102,17 +107,12 @@ func (mgr *packerManager) Run() error {
 				select {
 				case <-workerCtx.Done():
 					return workerCtx.Err()
-				case msg, ok := <-mgr.packerChan:
+				case pm, ok := <-mgr.packerChan:
 					if !ok {
 						if pfile != nil && pfile.Size() > 0 {
 							packerResultChan <- pfile
 						}
 						return nil
-					}
-
-					pm, ok := msg.(*PackerMsg)
-					if !ok {
-						return fmt.Errorf("unexpected message type")
 					}
 
 					if pfile == nil {
@@ -134,7 +134,6 @@ func (mgr *packerManager) Run() error {
 	// Wait for workers to finish.
 	if err := workerGroup.Wait(); err != nil {
 		mgr.appCtx.GetLogger().Error("Worker group error: %s", err)
-		cancel() // Propagate cancellation.
 	}
 
 	// Close the result channel and wait for the flusher to finish.
@@ -172,7 +171,7 @@ func (mgr *packerManager) Put(Type resources.Type, mac objects.MAC, data []byte)
 			return err
 		}
 
-		mgr.packerChan <- &PackerMsg{Type: Type, Version: versioning.GetCurrentVersion(Type), Timestamp: time.Now(), MAC: mac, Data: encoded}
+		mgr.packerChan <- PackerMsg{Type: Type, Version: versioning.GetCurrentVersion(Type), Timestamp: time.Now(), MAC: mac, Data: encoded}
 		return nil
 	}
 }
