@@ -141,6 +141,9 @@ func (cmd *Ls) list_snapshot(ctx *appcontext.AppContext, repo *repository.Reposi
 		if err != nil {
 			return err
 		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if !resolved {
 			// pathname might point to a symlink, so we
 			// have to deal with physical vs logical path
