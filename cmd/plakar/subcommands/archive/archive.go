@@ -52,9 +52,9 @@ func (cmd *Archive) Parse(ctx *appcontext.AppContext, args []string) error {
 	cmd.SnapshotPrefix = flags.Arg(0)
 
 	supportedFormats := map[string]string{
-		"tar":     ".tar",
-		"tarball": ".tar.gz",
-		"zip":     ".zip",
+		"tar":     "tar",
+		"tarball": "tar.gz",
+		"zip":     "zip",
 	}
 	if _, ok := supportedFormats[cmd.Format]; !ok {
 		return fmt.Errorf("unsupported format %s", cmd.Format)
