@@ -142,6 +142,10 @@ func snapshotCheckPath(snap *Snapshot, opts *CheckOptions, wg *errgroup.Group) f
 			return err
 		}
 
+		if err := snap.AppContext().Err(); err != nil {
+			return err
+		}
+
 		entryMAC := e.MAC
 		entryStatus, err := snap.checkCache.GetVFSEntryStatus(entryMAC)
 		if err != nil {
