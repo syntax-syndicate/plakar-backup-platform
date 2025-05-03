@@ -141,13 +141,13 @@ func (p *FSImporter) lookupIDs(uid, gid uint64) (uname, gname string) {
 		uname = name
 	}
 
-	if name, ok := p.uidToName[gid]; !ok {
-		if u, err := user.LookupId(fmt.Sprint(gid)); err == nil {
-			gname = u.Username
+	if name, ok := p.gidToName[gid]; !ok {
+		if g, err := user.LookupGroupId(fmt.Sprint(gid)); err == nil {
+			gname = g.Name
 
 			p.mu.RUnlock()
 			p.mu.Lock()
-			p.uidToName[gid] = name
+			p.gidToName[gid] = name
 			p.mu.Unlock()
 			p.mu.RLock()
 		}
