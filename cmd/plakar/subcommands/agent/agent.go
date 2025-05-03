@@ -45,7 +45,8 @@ import (
 func init() {
 	subcommands.Register(func() subcommands.Subcommand { return &AgentStop{} },
 		subcommands.AgentSupport|subcommands.IgnoreVersion, "agent", "stop")
-	subcommands.Register(func() subcommands.Subcommand { return &Agent{} }, 0, "agent")
+	subcommands.Register(func() subcommands.Subcommand { return &Agent{} },
+		subcommands.BeforeRepositoryOpen, "agent")
 }
 
 func daemonize(argv []string) error {
