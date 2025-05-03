@@ -290,6 +290,7 @@ func EntryPoint() int {
 
 	var repositoryPath string
 
+	var at bool
 	var args []string
 	if flag.Arg(0) == "at" {
 		if len(flag.Args()) < 2 {
@@ -300,10 +301,7 @@ func EntryPoint() int {
 		}
 		repositoryPath = flag.Arg(1)
 		args = flag.Args()[2:]
-
-		if flag.Args()[2] == "agent" {
-			log.Fatalf("%s: agent command can not be used with 'at' parameter.", flag.CommandLine.Name())
-		}
+		at = true
 	} else {
 		repositoryPath = os.Getenv("PLAKAR_REPOSITORY")
 		if repositoryPath == "" {
@@ -354,6 +352,10 @@ func EntryPoint() int {
 
 	// these commands need to be ran before the repository is opened
 	if cmd.GetFlags()&subcommands.BeforeRepositoryOpen != 0 {
+		if at {
+			log.Fatalf("%s: %s command cannot be used with 'at' parameter.",
+				flag.CommandLine.Name(), strings.Join(name, " "))
+		}
 		if err := cmd.Parse(ctx, args); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
