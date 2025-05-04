@@ -78,6 +78,8 @@ func Backends() []string {
 }
 
 func NewImporter(ctx *appcontext.AppContext, config map[string]string) (Importer, error) {
+	fmt.Println(ctx.Stderr, "NewImporter", config)
+
 	location, ok := config["location"]
 	if !ok {
 		return nil, fmt.Errorf("missing location")
