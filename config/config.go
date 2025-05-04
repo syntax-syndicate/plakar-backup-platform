@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"maps"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -84,8 +86,11 @@ func (c *Config) GetRepository(name string) (map[string]string, error) {
 	}
 	if _, ok := kv["location"]; !ok {
 		return nil, fmt.Errorf("repository %s has no location", name)
+	} else {
+		res := make(map[string]string)
+		maps.Copy(res, kv)
+		return res, nil
 	}
-	return kv, nil
 }
 
 func (c *Config) HasRemote(name string) bool {
@@ -94,6 +99,11 @@ func (c *Config) HasRemote(name string) bool {
 }
 
 func (c *Config) GetRemote(name string) (map[string]string, bool) {
-	kv, ok := c.Remotes[name]
-	return kv, ok
+	if kv, ok := c.Remotes[name]; !ok {
+		return nil, false
+	} else {
+		res := make(map[string]string)
+		maps.Copy(res, kv)
+		return res, ok
+	}
 }
