@@ -19,7 +19,7 @@ func (m MockedExporter) CreateDirectory(pathname string) error {
 	return nil
 }
 
-func (m MockedExporter) StoreFile(pathname string, fp io.Reader) error {
+func (m MockedExporter) StoreFile(pathname string, fp io.Reader, size int64) error {
 	return nil
 }
 
