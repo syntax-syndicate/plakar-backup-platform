@@ -108,11 +108,11 @@ func (p *S3Exporter) CreateDirectory(pathname string) error {
 	return nil
 }
 
-func (p *S3Exporter) StoreFile(pathname string, fp io.Reader) error {
+func (p *S3Exporter) StoreFile(pathname string, fp io.Reader, size int64) error {
 	_, err := p.minioClient.PutObject(p.ctx,
 		strings.TrimPrefix(p.rootDir, "/"),
 		strings.TrimPrefix(pathname, p.rootDir+"/"),
-		fp, -1, minio.PutObjectOptions{})
+		fp, size, minio.PutObjectOptions{})
 	return err
 }
 
