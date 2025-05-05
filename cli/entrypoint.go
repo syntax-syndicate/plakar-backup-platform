@@ -367,6 +367,14 @@ func EntryPoint() int {
 		return retval
 	}
 
+	if cmd.GetFlags()&(subcommands.AgentSupport|subcommands.IgnoreVersion) != 0 {
+		retval, err := cmd.Execute(ctx, nil)
+		if err != nil {
+			return 0
+		}
+		return retval
+	}
+
 	store, serializedConfig, err := storage.Open(ctx, storeConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: failed to open the repository at %s: %s\n", flag.CommandLine.Name(), storeConfig["location"], err)
