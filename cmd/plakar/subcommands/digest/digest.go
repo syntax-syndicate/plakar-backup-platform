@@ -75,7 +75,6 @@ type Digest struct {
 func (cmd *Digest) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	errors := 0
 	for _, snapshotPath := range cmd.Targets {
-
 		snap, pathname, err := utils.OpenSnapshotByPath(repo, snapshotPath)
 		if err != nil {
 			ctx.GetLogger().Error("digest: %s: %s", pathname, err)
@@ -97,6 +96,10 @@ func (cmd *Digest) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 }
 
 func (cmd *Digest) displayDigests(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repository.Repository, snap *snapshot.Snapshot, pathname string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	fsinfo, err := fs.GetEntry(pathname)
 	if err != nil {
 		return err

@@ -34,6 +34,7 @@ import (
 )
 
 type FSImporter struct {
+	ctx     *appcontext.AppContext
 	rootDir string
 
 	uidToName map[uint64]string
@@ -55,6 +56,7 @@ func NewFSImporter(appCtx *appcontext.AppContext, name string, config map[string
 	location = path.Clean(location)
 
 	return &FSImporter{
+		ctx:       appCtx,
 		rootDir:   location,
 		uidToName: make(map[uint64]string),
 		gidToName: make(map[uint64]string),
@@ -101,6 +103,10 @@ func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir
 	}
 
 	err = filepath.WalkDir(real, func(path string, d fs.DirEntry, err error) error {
+		if f.ctx.Err() != nil {
+			return err
+		}
+
 		if err != nil {
 			results <- importer.NewScanError(path, err)
 			return nil
@@ -135,13 +141,13 @@ func (p *FSImporter) lookupIDs(uid, gid uint64) (uname, gname string) {
 		uname = name
 	}
 
-	if name, ok := p.uidToName[gid]; !ok {
-		if u, err := user.LookupId(fmt.Sprint(gid)); err == nil {
-			gname = u.Username
+	if name, ok := p.gidToName[gid]; !ok {
+		if g, err := user.LookupGroupId(fmt.Sprint(gid)); err == nil {
+			gname = g.Name
 
 			p.mu.RUnlock()
 			p.mu.Lock()
-			p.uidToName[gid] = name
+			p.gidToName[gid] = name
 			p.mu.Unlock()
 			p.mu.RLock()
 		}

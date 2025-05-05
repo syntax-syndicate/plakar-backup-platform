@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/PlakarKorp/plakar/agent"
@@ -195,9 +196,10 @@ func EntryPoint() int {
 	c := make(chan os.Signal, 1)
 	go func() {
 		<-c
+		fmt.Fprintf(os.Stderr, "%s: Interrupting, it might take a while...\n", flag.CommandLine.Name())
 		ctx.Cancel()
 	}()
-	signal.Notify(c, os.Interrupt, os.Kill)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 	// best effort check if security or reliability fix have been issued
 	_, noCriticalChecks := os.LookupEnv("PLAKAR_NO_CRITICAL_CHECKS")
@@ -289,6 +291,7 @@ func EntryPoint() int {
 
 	var repositoryPath string
 
+	var at bool
 	var args []string
 	if flag.Arg(0) == "at" {
 		if len(flag.Args()) < 2 {
@@ -299,10 +302,7 @@ func EntryPoint() int {
 		}
 		repositoryPath = flag.Arg(1)
 		args = flag.Args()[2:]
-
-		if flag.Args()[2] == "agent" {
-			log.Fatalf("%s: agent command can not be used with 'at' parameter.", flag.CommandLine.Name())
-		}
+		at = true
 	} else {
 		repositoryPath = os.Getenv("PLAKAR_REPOSITORY")
 		if repositoryPath == "" {
@@ -353,6 +353,10 @@ func EntryPoint() int {
 
 	// these commands need to be ran before the repository is opened
 	if cmd.GetFlags()&subcommands.BeforeRepositoryOpen != 0 {
+		if at {
+			log.Fatalf("%s: %s command cannot be used with 'at' parameter.",
+				flag.CommandLine.Name(), strings.Join(name, " "))
+		}
 		if err := cmd.Parse(ctx, args); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1

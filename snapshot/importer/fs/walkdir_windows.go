@@ -46,7 +46,21 @@ func toUnixPath(pathname string) string {
 func (f *FSImporter) walkDir_worker(jobs <-chan string, results chan<- *importer.ScanResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	for pathname := range jobs {
+	for {
+		var (
+			pathname string
+			ok       bool
+		)
+
+		select {
+		case pathname, ok = <-jobs:
+			if !ok {
+				return
+			}
+		case <-f.ctx.Done():
+			return
+		}
+
 		unixPath := toUnixPath(pathname)
 
 		var fileinfo objects.FileInfo

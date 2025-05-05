@@ -326,23 +326,31 @@ func Server(repo *repository.Repository, addr string, noDelete bool) error {
 	store = repo.Store()
 	ctx = repo.AppContext()
 
-	http.HandleFunc("GET /", openRepository)
+	mux := http.NewServeMux()
 
-	http.HandleFunc("GET /states", getStates)
-	http.HandleFunc("PUT /state", putState)
-	http.HandleFunc("GET /state", getState)
-	http.HandleFunc("DELETE /state", deleteState)
+	mux.HandleFunc("GET /", openRepository)
 
-	http.HandleFunc("GET /packfiles", getPackfiles)
-	http.HandleFunc("PUT /packfile", putPackfile)
-	http.HandleFunc("GET /packfile", getPackfile)
-	http.HandleFunc("GET /packfile/blob", GetPackfileBlob)
-	http.HandleFunc("DELETE /packfile", deletePackfile)
+	mux.HandleFunc("GET /states", getStates)
+	mux.HandleFunc("PUT /state", putState)
+	mux.HandleFunc("GET /state", getState)
+	mux.HandleFunc("DELETE /state", deleteState)
 
-	http.HandleFunc("GET /locks", getLocks)
-	http.HandleFunc("PUT /lock", putLock)
-	http.HandleFunc("GET /lock", getLock)
-	http.HandleFunc("DELETE /lock", deleteLock)
+	mux.HandleFunc("GET /packfiles", getPackfiles)
+	mux.HandleFunc("PUT /packfile", putPackfile)
+	mux.HandleFunc("GET /packfile", getPackfile)
+	mux.HandleFunc("GET /packfile/blob", GetPackfileBlob)
+	mux.HandleFunc("DELETE /packfile", deletePackfile)
 
-	return http.ListenAndServe(addr, nil)
+	mux.HandleFunc("GET /locks", getLocks)
+	mux.HandleFunc("PUT /lock", putLock)
+	mux.HandleFunc("GET /lock", getLock)
+	mux.HandleFunc("DELETE /lock", deleteLock)
+
+	server := &http.Server{Addr: addr, Handler: mux}
+	go func() {
+		<-repo.AppContext().Done()
+		server.Shutdown(repo.AppContext().Context)
+	}()
+
+	return server.ListenAndServe()
 }

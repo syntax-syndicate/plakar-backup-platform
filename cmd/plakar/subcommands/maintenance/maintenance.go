@@ -60,7 +60,7 @@ type Maintenance struct {
 
 // Builds the local cache of snapshot -> packfiles
 func (cmd *Maintenance) updateCache(ctx *appcontext.AppContext, cache *caching.MaintenanceCache) error {
-	wg, _ := errgroup.WithContext(ctx.Context)
+	wg := new(errgroup.Group)
 	wg.SetLimit(ctx.MaxConcurrency)
 
 	for snapshotID := range cmd.repository.ListSnapshots() {
@@ -69,6 +69,7 @@ func (cmd *Maintenance) updateCache(ctx *appcontext.AppContext, cache *caching.M
 			if err != nil {
 				return err
 			}
+			defer snapshot.Close()
 
 			ok, err := cache.HasSnapshot(snapshotID)
 			if err != nil {
@@ -89,14 +90,16 @@ func (cmd *Maintenance) updateCache(ctx *appcontext.AppContext, cache *caching.M
 					return err
 				}
 
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+
 				if err := cache.PutPackfile(snapshotID, packfile); err != nil {
 					return err
 				}
 			}
 
 			cache.PutSnapshot(snapshotID, nil)
-			snapshot.Close()
-
 			return nil
 		})
 	}

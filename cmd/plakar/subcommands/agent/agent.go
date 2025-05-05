@@ -45,7 +45,8 @@ import (
 func init() {
 	subcommands.Register(func() subcommands.Subcommand { return &AgentStop{} },
 		subcommands.AgentSupport|subcommands.IgnoreVersion, "agent", "stop")
-	subcommands.Register(func() subcommands.Subcommand { return &Agent{} }, 0, "agent")
+	subcommands.Register(func() subcommands.Subcommand { return &Agent{} },
+		subcommands.BeforeRepositoryOpen, "agent")
 }
 
 func daemonize(argv []string) error {
@@ -218,8 +219,9 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 		return fmt.Errorf("failed to set socket permissions: %w", err)
 	}
 
+	var promlistener net.Listener
 	if cmd.prometheus != "" {
-		promlistener, err := net.Listen("tcp", cmd.prometheus)
+		promlistener, err = net.Listen("tcp", cmd.prometheus)
 		if err != nil {
 			return fmt.Errorf("failed to bind prometheus listener: %w", err)
 		}
@@ -231,11 +233,21 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 		}()
 	}
 
+	// close the listener when the context gets closed
+	go func() {
+		<-ctx.Done()
+		if promlistener != nil {
+			promlistener.Close()
+		}
+		cmd.listener.Close()
+	}()
+
 	var wg sync.WaitGroup
 
 	for {
 		conn, err := cmd.listener.Accept()
 		if err != nil {
+			wg.Wait()
 			if opErr, ok := err.(*net.OpError); ok && opErr.Err.Error() == "use of closed network connection" {
 				return nil
 			}

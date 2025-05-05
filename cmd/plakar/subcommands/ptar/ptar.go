@@ -266,7 +266,7 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 			return 1, fmt.Errorf("could not open source repository %s: %s", cmd.SyncFrom, err)
 		}
 
-		if err := cmd.synchronize(srcRepository, repoWriter); err != nil {
+		if err := cmd.synchronize(ctx, srcRepository, repoWriter); err != nil {
 			return 1, err
 		}
 	} else {
@@ -316,7 +316,7 @@ func (cmd *Ptar) backup(ctx *appcontext.AppContext, repo *repository.RepositoryW
 	return nil
 }
 
-func (cmd *Ptar) synchronize(srcRepository *repository.Repository, dstRepository *repository.RepositoryWriter) error {
+func (cmd *Ptar) synchronize(ctx *appcontext.AppContext, srcRepository *repository.Repository, dstRepository *repository.RepositoryWriter) error {
 	srcLocateOptions := utils.NewDefaultLocateOptions()
 	srcSnapshotIDs, err := utils.LocateSnapshotIDs(srcRepository, srcLocateOptions)
 	if err != nil {
@@ -324,6 +324,10 @@ func (cmd *Ptar) synchronize(srcRepository *repository.Repository, dstRepository
 	}
 
 	for _, snapshotID := range srcSnapshotIDs {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
 		srcSnapshot, err := snapshot.Load(srcRepository, snapshotID)
 		if err != nil {
 			return err

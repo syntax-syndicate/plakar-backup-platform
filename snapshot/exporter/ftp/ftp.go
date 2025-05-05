@@ -97,7 +97,7 @@ func (p *FTPExporter) CreateDirectory(pathname string) error {
 	return err
 }
 
-func (p *FTPExporter) StoreFile(pathname string, fp io.Reader) error {
+func (p *FTPExporter) StoreFile(pathname string, fp io.Reader, size int64) error {
 	return p.client.Store(pathname, fp)
 }
 

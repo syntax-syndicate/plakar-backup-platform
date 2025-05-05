@@ -97,6 +97,10 @@ func (cmd *Locate) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 				return 1, fmt.Errorf("locate: could not get pathname: %w", err)
 			}
 
+			if err := ctx.Err(); err != nil {
+				return 1, err
+			}
+
 			for _, pattern := range cmd.Patterns {
 				matched := false
 				if path.Base(pathname) == pattern {

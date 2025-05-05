@@ -34,7 +34,21 @@ import (
 func (f *FSImporter) walkDir_worker(jobs <-chan string, results chan<- *importer.ScanResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	for path := range jobs {
+	for {
+		var (
+			path string
+			ok   bool
+		)
+
+		select {
+		case path, ok = <-jobs:
+			if !ok {
+				return
+			}
+		case <-f.ctx.Done():
+			return
+		}
+
 		info, err := os.Lstat(path)
 		if err != nil {
 			results <- importer.NewScanError(path, err)
