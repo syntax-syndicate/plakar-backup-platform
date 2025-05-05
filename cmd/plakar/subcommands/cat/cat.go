@@ -33,7 +33,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Cat{} }, "cat")
+	subcommands.Register(func() subcommands.Subcommand { return &Cat{} }, subcommands.AgentSupport, "cat")
 }
 
 func (cmd *Cat) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -64,10 +64,6 @@ type Cat struct {
 	NoDecompress bool
 	Highlight    bool
 	Paths        []string
-}
-
-func (cmd *Cat) Name() string {
-	return "cat"
 }
 
 func (cmd *Cat) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {

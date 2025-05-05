@@ -33,8 +33,10 @@ func GenerateRepository(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer
 		os.RemoveAll(tmpRepoDirRoot)
 	})
 
+	ctx := appcontext.NewAppContext()
+
 	// create a storage
-	r, err := bfs.NewStore(map[string]string{"location": "fs://" + tmpRepoDir})
+	r, err := bfs.NewStore(ctx, map[string]string{"location": "fs://" + tmpRepoDir})
 	require.NotNil(t, r)
 	require.NoError(t, err)
 	config := storage.NewConfiguration()
@@ -62,15 +64,14 @@ func GenerateRepository(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer
 	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 	require.NoError(t, err)
 
-	err = r.Create(wrappedConfig)
+	err = r.Create(ctx, wrappedConfig)
 	require.NoError(t, err)
 
 	// open the storage to load the configuration
-	r, serializedConfig, err := storage.Open(map[string]string{"location": tmpRepoDir})
+	r, serializedConfig, err := storage.Open(ctx, map[string]string{"location": tmpRepoDir})
 	require.NoError(t, err)
 
 	// create a repository
-	ctx := appcontext.NewAppContext()
 	ctx.MaxConcurrency = 1
 	if bufout != nil && buferr != nil {
 		ctx.Stdout = bufout
@@ -100,6 +101,65 @@ func GenerateRepository(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer
 
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = repo.Location()
+
+	return repo
+}
+
+func GenerateRepositoryWithoutConfig(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer, passphrase *[]byte) *repository.Repository {
+	// init temporary directories
+	tmpRepoDirRoot, err := os.MkdirTemp("", "tmp_repo")
+	require.NoError(t, err)
+	tmpRepoDir := filepath.Join(tmpRepoDirRoot, "repo")
+	tmpCacheDir, err := os.MkdirTemp("", "tmp_cache")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		os.RemoveAll(tmpRepoDir)
+		os.RemoveAll(tmpCacheDir)
+		os.RemoveAll(tmpRepoDirRoot)
+	})
+
+	ctx := appcontext.NewAppContext()
+	ctx.MaxConcurrency = 1
+
+	// create a storage
+	r, err := bfs.NewStore(ctx, map[string]string{"location": "fs://" + tmpRepoDir})
+	require.NotNil(t, r)
+	require.NoError(t, err)
+	config := storage.NewConfiguration()
+
+	var key []byte
+	if passphrase != nil {
+		key, err = encryption.DeriveKey(config.Encryption.KDFParams, *passphrase)
+		require.NoError(t, err)
+	}
+
+	// create a repository
+	if bufout != nil && buferr != nil {
+		ctx.Stdout = bufout
+		ctx.Stderr = buferr
+	}
+	cache := caching.NewManager(tmpCacheDir)
+	ctx.SetCache(cache)
+
+	if passphrase != nil {
+		ctx.SetSecret(key)
+	}
+
+	// Create a new logger
+	var logger *logging.Logger
+	if bufout == nil || buferr == nil {
+		logger = logging.NewLogger(os.Stdout, os.Stderr)
+	} else {
+		logger = logging.NewLogger(bufout, buferr)
+	}
+	if bufout != nil && buferr != nil {
+		logger.EnableInfo()
+	}
+	// logger.EnableTrace("all")
+	ctx.SetLogger(logger)
+
+	repo, err := repository.Inexistent(ctx, map[string]string{"location": tmpRepoDirRoot + "/repo"})
+	require.NoError(t, err, "creating repository")
 
 	return repo
 }

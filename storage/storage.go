@@ -23,14 +23,14 @@ import (
 	"io"
 	"log"
 	"os"
-	"sort"
-	"strings"
 	"time"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/chunking"
 	"github.com/PlakarKorp/plakar/compression"
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/hashing"
+	"github.com/PlakarKorp/plakar/location"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/packfile"
 	"github.com/PlakarKorp/plakar/resources"
@@ -116,8 +116,8 @@ const (
 )
 
 type Store interface {
-	Create(config []byte) error
-	Open() ([]byte, error)
+	Create(ctx *appcontext.AppContext, config []byte) error
+	Open(ctx *appcontext.AppContext) ([]byte, error)
 	Location() string
 	Mode() Mode
 	Size() int64 // this can be costly, call with caution
@@ -141,69 +141,43 @@ type Store interface {
 	Close() error
 }
 
-var backends = make(map[string]func(map[string]string) (Store, error))
+type StoreFn func(*appcontext.AppContext, map[string]string) (Store, error)
 
-func NewStore(name string, storeConfig map[string]string) (Store, error) {
-	if backend, exists := backends[name]; !exists {
-		return nil, fmt.Errorf("backend '%s' does not exist", name)
-	} else {
-		return backend(storeConfig)
-	}
-}
+var backends = location.New[StoreFn]("fs")
 
-func Register(backend func(map[string]string) (Store, error), names ...string) {
+func Register(backend StoreFn, names ...string) {
 	for _, name := range names {
-		if _, ok := backends[name]; ok {
+		if !backends.Register(name, backend) {
 			log.Fatalf("backend '%s' registered twice", name)
 		}
-		backends[name] = backend
 	}
 }
 
 func Backends() []string {
-	ret := make([]string, 0)
-	for backendName := range backends {
-		ret = append(ret, backendName)
-	}
-	sort.Slice(ret, func(i, j int) bool {
-		return ret[i] < ret[j]
-	})
-	return ret
+	return backends.Names()
 }
 
-func allowedInUri(c rune) bool {
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
-		c == '+' || c == '-' || c == '.'
-}
-
-func New(storeConfig map[string]string) (Store, error) {
+func New(ctx *appcontext.AppContext, storeConfig map[string]string) (Store, error) {
 	location, ok := storeConfig["location"]
 	if !ok {
 		return nil, fmt.Errorf("missing location")
 	}
 
-	// extract the protocol
-	proto := "fs"
-	for i, c := range location {
-		if !allowedInUri(c) {
-			if i != 0 && strings.HasPrefix(location[i:], "://") {
-				proto = location[:i]
-			}
-			break
-		}
+	proto, _, backend, ok := backends.Lookup(location)
+	if ok {
+		return backend(ctx, storeConfig)
 	}
-
-	return NewStore(proto, storeConfig)
+	return nil, fmt.Errorf("backend '%s' does not exist", proto)
 }
 
-func Open(storeConfig map[string]string) (Store, []byte, error) {
-	store, err := New(storeConfig)
+func Open(ctx *appcontext.AppContext, storeConfig map[string]string) (Store, []byte, error) {
+	store, err := New(ctx, storeConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		return nil, nil, err
 	}
 
-	serializedConfig, err := store.Open()
+	serializedConfig, err := store.Open(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -211,14 +185,14 @@ func Open(storeConfig map[string]string) (Store, []byte, error) {
 	return store, serializedConfig, nil
 }
 
-func Create(storeConfig map[string]string, configuration []byte) (Store, error) {
-	store, err := New(storeConfig)
+func Create(ctx *appcontext.AppContext, storeConfig map[string]string, configuration []byte) (Store, error) {
+	store, err := New(ctx, storeConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		return nil, err
 	}
 
-	if err = store.Create(configuration); err != nil {
+	if err = store.Create(ctx, configuration); err != nil {
 		return nil, err
 	} else {
 		return store, nil

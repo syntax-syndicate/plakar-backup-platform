@@ -25,8 +25,6 @@ import (
 )
 
 type BackupContext struct {
-	aborted        atomic.Bool
-	abortedReason  error
 	imp            importer.Importer
 	maxConcurrency uint64
 
@@ -131,10 +129,23 @@ func (snap *Builder) importerJob(backupCtx *BackupContext, options *BackupOption
 
 		concurrencyChan := make(chan struct{}, backupCtx.maxConcurrency)
 
-		for _record := range scanner {
-			if backupCtx.aborted.Load() {
-				break
+		ctx := snap.AppContext()
+	loop:
+		for {
+			var (
+				_record *importer.ScanResult
+				ok      bool
+			)
+
+			select {
+			case _record, ok = <-scanner:
+				if !ok {
+					break loop
+				}
+			case <-ctx.Done():
+				break loop
 			}
+
 			if snap.skipExcludedPathname(options, _record) {
 				continue
 			}
@@ -151,8 +162,9 @@ func (snap *Builder) importerJob(backupCtx *BackupContext, options *BackupOption
 				case record.Error != nil:
 					record := record.Error
 					if record.Pathname == backupCtx.imp.Root() || len(record.Pathname) < len(backupCtx.imp.Root()) {
-						backupCtx.aborted.Store(true)
-						backupCtx.abortedReason = record.Err
+						// do we really need to do this?  if so, maybe we
+						// should propagate the original error as well.
+						ctx.Cancel()
 						return
 					}
 					backupCtx.recordError(record.Pathname, record.Err)
@@ -194,6 +206,13 @@ func (snap *Builder) importerJob(backupCtx *BackupContext, options *BackupOption
 			}(_record)
 		}
 		wg.Wait()
+
+		for range scanner {
+			// drain the importer channel since we might
+			// have been cancelled while the importer is
+			// trying to still produce some records.
+		}
+
 		close(filesChannel)
 		doneEvent := events.DoneImporterEvent()
 		doneEvent.SnapshotID = snap.Header.Identifier
@@ -269,6 +288,7 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 
 	done, err := snap.Lock()
 	if err != nil {
+		snap.repository.PackerManager.Wait()
 		return err
 	}
 	defer snap.Unlock(done)
@@ -286,6 +306,7 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 
 	backupCtx, err := snap.prepareBackup(imp, options)
 	if err != nil {
+		snap.repository.PackerManager.Wait()
 		return err
 	}
 
@@ -298,20 +319,21 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	/* importer */
 	filesChannel, err := snap.importerJob(backupCtx, options)
 	if err != nil {
+		snap.repository.PackerManager.Wait()
 		return err
 	}
 
 	/* scanner */
-	snap.processFiles(backupCtx, filesChannel)
+	if err := snap.processFiles(backupCtx, filesChannel); err != nil {
+		snap.repository.PackerManager.Wait()
+		return err
+	}
 
 	/* tree builders */
 	vfsHeader, rootSummary, indexes, err := snap.persistTrees(backupCtx)
 	if err != nil {
+		snap.repository.PackerManager.Wait()
 		return nil
-	}
-
-	if backupCtx.aborted.Load() {
-		return backupCtx.abortedReason
 	}
 
 	snap.Header.Duration = time.Since(beginTime)
@@ -412,7 +434,14 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 		return nil, -1, err
 	}
 
+	ctx := snap.AppContext()
 	for i := 0; ; i++ {
+		if i%1024 == 0 {
+			if err := ctx.Err(); err != nil {
+				return nil, -1, err
+			}
+		}
+
 		cdcChunk, err := chk.Next()
 		if err != nil && err != io.EOF {
 			return nil, -1, err
@@ -572,18 +601,17 @@ func (snap *Builder) processFiles(backupCtx *BackupContext, filesChannel <-chan 
 	var wg sync.WaitGroup
 	semaphore := make(chan struct{}, backupCtx.maxConcurrency)
 
-	ctx := snap.AppContext().GetContext()
+	ctx := snap.AppContext()
 
+loop:
 	for {
 		select {
 		case <-ctx.Done():
-			wg.Wait()
-			return ctx.Err()
+			break loop
 
 		case record, ok := <-filesChannel:
 			if !ok {
-				wg.Wait()
-				return nil
+				break loop
 			}
 
 			semaphore <- struct{}{}
@@ -603,6 +631,12 @@ func (snap *Builder) processFiles(backupCtx *BackupContext, filesChannel <-chan 
 			}(record)
 		}
 	}
+	wg.Wait()
+	for range filesChannel {
+		// drain the filesChannel to consume the items that
+		// the importerJob might still have inflight.
+	}
+	return ctx.Err()
 }
 
 func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importer.ScanRecord) error {
@@ -644,12 +678,6 @@ func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importe
 					}
 				}
 			}
-		}
-	}
-
-	if object != nil {
-		if err := snap.repository.PutBlobIfNotExists(resources.RT_OBJECT, objectMAC, objectSerialized); err != nil {
-			return err
 		}
 	}
 
@@ -781,8 +809,8 @@ func (snap *Builder) persistVFS(backupCtx *BackupContext) (*header.VFS, *vfs.Sum
 	diriter := backupCtx.scanCache.EnumerateKeysWithPrefix("__directory__:", true)
 	for dirPath, bytes := range diriter {
 		select {
-		case <-snap.AppContext().GetContext().Done():
-			return nil, nil, snap.AppContext().GetContext().Err()
+		case <-snap.AppContext().Done():
+			return nil, nil, snap.AppContext().Err()
 		default:
 		}
 

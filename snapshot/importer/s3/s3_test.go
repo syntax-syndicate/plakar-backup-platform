@@ -75,9 +75,6 @@ func TestS3Importer(t *testing.T) {
 	_, err = importer.NewExtendedAttributeReader("/bucket/dummy.txt", "user.plakar.test")
 	require.EqualError(t, err, "extended attributes are not supported on S3")
 
-	_, err = importer.GetExtendedAttributes("/bucket/dummy.txt")
-	require.EqualError(t, err, "extended attributes are not supported on S3")
-
 	err = importer.Close()
 	require.NoError(t, err)
 }

@@ -20,9 +20,13 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
+	"os/user"
 	"path"
+	"path/filepath"
 	"runtime"
+	"sync"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
@@ -30,7 +34,12 @@ import (
 )
 
 type FSImporter struct {
+	ctx     *appcontext.AppContext
 	rootDir string
+
+	uidToName map[uint64]string
+	gidToName map[uint64]string
+	mu        sync.RWMutex
 }
 
 func init() {
@@ -47,7 +56,10 @@ func NewFSImporter(appCtx *appcontext.AppContext, name string, config map[string
 	location = path.Clean(location)
 
 	return &FSImporter{
-		rootDir: location,
+		ctx:       appCtx,
+		rootDir:   location,
+		uidToName: make(map[uint64]string),
+		gidToName: make(map[uint64]string),
 	}, nil
 }
 
@@ -64,7 +76,107 @@ func (p *FSImporter) Type() string {
 }
 
 func (p *FSImporter) Scan() (<-chan *importer.ScanResult, error) {
-	return walkDir_walker(p.rootDir, 256)
+	results := make(chan *importer.ScanResult, 1000)
+	go p.walkDir_walker(results, p.rootDir, 256)
+	return results, nil
+}
+
+func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir string, numWorkers int) {
+	real, err := f.realpathFollow(rootDir)
+	if err != nil {
+		results <- importer.NewScanError(rootDir, err)
+		return
+	}
+
+	jobs := make(chan string, 1000) // Buffered channel to feed paths to workers
+	var wg sync.WaitGroup
+	for range numWorkers {
+		wg.Add(1)
+		go f.walkDir_worker(jobs, results, &wg)
+	}
+
+	// Add prefix directories first
+	walkDir_addPrefixDirectories(real, jobs, results)
+	if real != rootDir {
+		jobs <- rootDir
+		walkDir_addPrefixDirectories(rootDir, jobs, results)
+	}
+
+	err = filepath.WalkDir(real, func(path string, d fs.DirEntry, err error) error {
+		if f.ctx.Err() != nil {
+			return err
+		}
+
+		if err != nil {
+			results <- importer.NewScanError(path, err)
+			return nil
+		}
+		jobs <- path
+		return nil
+	})
+	if err != nil {
+		results <- importer.NewScanError(real, err)
+	}
+
+	close(jobs)
+	wg.Wait()
+	close(results)
+}
+
+func (p *FSImporter) lookupIDs(uid, gid uint64) (uname, gname string) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	if name, ok := p.uidToName[uid]; !ok {
+		if u, err := user.LookupId(fmt.Sprint(uid)); err == nil {
+			uname = u.Username
+
+			p.mu.RUnlock()
+			p.mu.Lock()
+			p.uidToName[uid] = uname
+			p.mu.Unlock()
+			p.mu.RLock()
+		}
+	} else {
+		uname = name
+	}
+
+	if name, ok := p.gidToName[gid]; !ok {
+		if g, err := user.LookupGroupId(fmt.Sprint(gid)); err == nil {
+			gname = g.Name
+
+			p.mu.RUnlock()
+			p.mu.Lock()
+			p.gidToName[gid] = name
+			p.mu.Unlock()
+			p.mu.RLock()
+		}
+	} else {
+		gname = name
+	}
+
+	return
+}
+
+func (f *FSImporter) realpathFollow(path string) (resolved string, err error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return "", err
+	}
+
+	if info.Mode()&os.ModeSymlink != 0 {
+		realpath, err := os.Readlink(path)
+		if err != nil {
+			return "", err
+		}
+
+		if !filepath.IsAbs(realpath) {
+			realpath = filepath.Join(filepath.Dir(path), realpath)
+		}
+		path = realpath
+	}
+
+	return path, nil
 }
 
 func (p *FSImporter) NewReader(pathname string) (io.ReadCloser, error) {
@@ -84,14 +196,6 @@ func (p *FSImporter) NewExtendedAttributeReader(pathname string, attribute strin
 		return nil, err
 	}
 	return io.NopCloser(bytes.NewReader(data)), nil
-}
-
-func (p *FSImporter) GetExtendedAttributes(pathname string) ([]importer.ExtendedAttributes, error) {
-	if pathname[0] == '/' && runtime.GOOS == "windows" {
-		pathname = pathname[1:]
-	}
-
-	return getExtendedAttributes(pathname)
 }
 
 func (p *FSImporter) Close() error {

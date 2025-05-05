@@ -18,7 +18,6 @@ package s3
 
 import (
 	"bytes"
-	"context"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -26,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/storage"
 
@@ -37,7 +37,9 @@ type Store struct {
 	location    string
 	Repository  string
 	minioClient *minio.Client
+	ctx         *appcontext.AppContext
 	bucketName  string
+	prefixDir   string
 
 	useSsl          bool
 	accessKey       string
@@ -52,7 +54,7 @@ func init() {
 	storage.Register(NewStore, "s3")
 }
 
-func NewStore(storeConfig map[string]string) (storage.Store, error) {
+func NewStore(ctx *appcontext.AppContext, storeConfig map[string]string) (storage.Store, error) {
 	var accessKey string
 	if value, ok := storeConfig["access_key"]; !ok {
 		return nil, fmt.Errorf("missing access_key")
@@ -76,7 +78,7 @@ func NewStore(storeConfig map[string]string) (storage.Store, error) {
 		useSsl = tmp
 	}
 
-	storageClass := "standard"
+	storageClass := "STANDARD"
 	if value, ok := storeConfig["storage_class"]; ok {
 		storageClass = strings.ToUpper(value)
 		if storageClass != "STANDARD" && storageClass != "REDUCED_REDUNDANCY" && storageClass != "STANDARD_IA" && storageClass != "ONEZONE_IA" && storageClass != "INTELLIGENT_TIERING" && storageClass != "GLACIER" && storageClass != "GLACIER_IR" && storageClass != "DEEP_ARCHIVE" {
@@ -90,6 +92,7 @@ func NewStore(storeConfig map[string]string) (storage.Store, error) {
 		secretAccessKey: secretAccessKey,
 		useSsl:          useSsl,
 		storageClass:    storageClass,
+		ctx:             ctx,
 
 		putObjectOptions: minio.PutObjectOptions{
 			// Some providers (eg. BlackBlaze) return the error
@@ -103,6 +106,10 @@ func NewStore(storeConfig map[string]string) (storage.Store, error) {
 
 func (s *Store) Location() string {
 	return s.location
+}
+
+func (s *Store) realpath(path string) string {
+	return s.prefixDir + path
 }
 
 func (s *Store) connect(location *url.URL) error {
@@ -122,7 +129,7 @@ func (s *Store) connect(location *url.URL) error {
 	return nil
 }
 
-func (s *Store) Create(config []byte) error {
+func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
 	parsed, err := url.Parse(s.location)
 	if err != nil {
 		return fmt.Errorf("parse location: %w", err)
@@ -132,20 +139,24 @@ func (s *Store) Create(config []byte) error {
 	if err != nil {
 		return fmt.Errorf("connect: %w", err)
 	}
-	s.bucketName = parsed.RequestURI()[1:]
 
-	exists, err := s.minioClient.BucketExists(context.Background(), s.bucketName)
+	s.bucketName, s.prefixDir, _ = strings.Cut(parsed.RequestURI()[1:], "/")
+	if s.prefixDir != "" && !strings.HasSuffix(s.prefixDir, "/") {
+		s.prefixDir += "/"
+	}
+
+	exists, err := s.minioClient.BucketExists(s.ctx, s.bucketName)
 	if err != nil {
 		return fmt.Errorf("check if bucket exists: %w", err)
 	}
 	if !exists {
-		err = s.minioClient.MakeBucket(context.Background(), s.bucketName, minio.MakeBucketOptions{})
+		err = s.minioClient.MakeBucket(s.ctx, s.bucketName, minio.MakeBucketOptions{})
 		if err != nil {
 			return fmt.Errorf("make bucket: %w", err)
 		}
 	}
 
-	_, err = s.minioClient.StatObject(context.Background(), s.bucketName, "CONFIG", minio.StatObjectOptions{})
+	_, err = s.minioClient.StatObject(s.ctx, s.bucketName, s.realpath("CONFIG"), minio.StatObjectOptions{})
 	if err != nil {
 		if minio.ToErrorResponse(err).Code != "NoSuchKey" {
 			return fmt.Errorf("stat object CONFIG: %w", err)
@@ -155,7 +166,7 @@ func (s *Store) Create(config []byte) error {
 	}
 
 	if s.Mode()&storage.ModeRead == 0 {
-		_, err = s.minioClient.PutObject(context.Background(), s.bucketName, "CONFIG.frozen", bytes.NewReader(config), int64(len(config)), s.putObjectOptions)
+		_, err = s.minioClient.PutObject(s.ctx, s.bucketName, s.realpath("CONFIG.frozen"), bytes.NewReader(config), int64(len(config)), s.putObjectOptions)
 		if err != nil {
 			return fmt.Errorf("put object CONFIG.frozen: %w", err)
 		}
@@ -164,7 +175,7 @@ func (s *Store) Create(config []byte) error {
 	putObjectOptions := s.putObjectOptions
 	putObjectOptions.StorageClass = "STANDARD"
 
-	_, err = s.minioClient.PutObject(context.Background(), s.bucketName, "CONFIG", bytes.NewReader(config), int64(len(config)), putObjectOptions)
+	_, err = s.minioClient.PutObject(s.ctx, s.bucketName, s.realpath("CONFIG"), bytes.NewReader(config), int64(len(config)), putObjectOptions)
 	if err != nil {
 		return fmt.Errorf("put object CONFIG: %w", err)
 	}
@@ -172,7 +183,7 @@ func (s *Store) Create(config []byte) error {
 	return nil
 }
 
-func (s *Store) Open() ([]byte, error) {
+func (s *Store) Open(ctx *appcontext.AppContext) ([]byte, error) {
 	parsed, err := url.Parse(s.location)
 	if err != nil {
 		return nil, fmt.Errorf("parse location: %w", err)
@@ -183,9 +194,12 @@ func (s *Store) Open() ([]byte, error) {
 		return nil, fmt.Errorf("connect: %w", err)
 	}
 
-	s.bucketName = parsed.RequestURI()[1:]
+	s.bucketName, s.prefixDir, _ = strings.Cut(parsed.RequestURI()[1:], "/")
+	if s.prefixDir != "" && !strings.HasSuffix(s.prefixDir, "/") {
+		s.prefixDir += "/"
+	}
 
-	exists, err := s.minioClient.BucketExists(context.Background(), s.bucketName)
+	exists, err := s.minioClient.BucketExists(s.ctx, s.bucketName)
 	if err != nil {
 		return nil, fmt.Errorf("error checking if bucket exists: %w", err)
 	}
@@ -193,7 +207,7 @@ func (s *Store) Open() ([]byte, error) {
 		return nil, fmt.Errorf("bucket does not exist")
 	}
 
-	object, err := s.minioClient.GetObject(context.Background(), s.bucketName, "CONFIG", minio.GetObjectOptions{})
+	object, err := s.minioClient.GetObject(s.ctx, s.bucketName, s.realpath("CONFIG"), minio.GetObjectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("error getting object: %w", err)
 	}
@@ -231,13 +245,16 @@ func (s *Store) Size() int64 {
 
 // states
 func (s *Store) GetStates() ([]objects.MAC, error) {
+	prefix := s.realpath("states/")
+	prefixSize := len(prefix) + 3 // prefix + len(%02x/) encoded
+
 	ret := make([]objects.MAC, 0)
-	for object := range s.minioClient.ListObjects(context.Background(), s.bucketName, minio.ListObjectsOptions{
-		Prefix:    "states/",
+	for object := range s.minioClient.ListObjects(s.ctx, s.bucketName, minio.ListObjectsOptions{
+		Prefix:    prefix,
 		Recursive: true,
 	}) {
-		if strings.HasPrefix(object.Key, "states/") && len(object.Key) >= 10 {
-			t, err := hex.DecodeString(object.Key[10:])
+		if strings.HasPrefix(object.Key, prefix) && len(object.Key) >= prefixSize {
+			t, err := hex.DecodeString(object.Key[prefixSize:])
 			if err != nil {
 				return nil, fmt.Errorf("decode state key: %w", err)
 			}
@@ -253,7 +270,7 @@ func (s *Store) GetStates() ([]objects.MAC, error) {
 }
 
 func (s *Store) PutState(mac objects.MAC, rd io.Reader) (int64, error) {
-	info, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("states/%02x/%016x", mac[0], mac), rd, -1, s.putObjectOptions)
+	info, err := s.minioClient.PutObject(s.ctx, s.bucketName, s.realpath(fmt.Sprintf("states/%02x/%016x", mac[0], mac)), rd, -1, s.putObjectOptions)
 	if err != nil {
 		return 0, fmt.Errorf("put object: %w", err)
 	}
@@ -262,7 +279,7 @@ func (s *Store) PutState(mac objects.MAC, rd io.Reader) (int64, error) {
 }
 
 func (s *Store) GetState(mac objects.MAC) (io.Reader, error) {
-	object, err := s.minioClient.GetObject(context.Background(), s.bucketName, fmt.Sprintf("states/%02x/%016x", mac[0], mac), minio.GetObjectOptions{})
+	object, err := s.minioClient.GetObject(s.ctx, s.bucketName, s.realpath(fmt.Sprintf("states/%02x/%016x", mac[0], mac)), minio.GetObjectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("get object: %w", err)
 	}
@@ -271,7 +288,7 @@ func (s *Store) GetState(mac objects.MAC) (io.Reader, error) {
 }
 
 func (s *Store) DeleteState(mac objects.MAC) error {
-	err := s.minioClient.RemoveObject(context.Background(), s.bucketName, fmt.Sprintf("states/%02x/%016x", mac[0], mac), minio.RemoveObjectOptions{})
+	err := s.minioClient.RemoveObject(s.ctx, s.bucketName, s.realpath(fmt.Sprintf("states/%02x/%016x", mac[0], mac)), minio.RemoveObjectOptions{})
 	if err != nil {
 		return fmt.Errorf("remove object: %w", err)
 	}
@@ -280,13 +297,16 @@ func (s *Store) DeleteState(mac objects.MAC) error {
 
 // packfiles
 func (s *Store) GetPackfiles() ([]objects.MAC, error) {
+	prefix := s.realpath("packfiles/")
+	prefixSize := len(prefix) + 3 // prefix + len(%02x/) encoded
+
 	ret := make([]objects.MAC, 0)
-	for object := range s.minioClient.ListObjects(context.Background(), s.bucketName, minio.ListObjectsOptions{
-		Prefix:    "packfiles/",
+	for object := range s.minioClient.ListObjects(s.ctx, s.bucketName, minio.ListObjectsOptions{
+		Prefix:    prefix,
 		Recursive: true,
 	}) {
-		if strings.HasPrefix(object.Key, "packfiles/") && len(object.Key) >= 13 {
-			t, err := hex.DecodeString(object.Key[13:])
+		if strings.HasPrefix(object.Key, prefix) && len(object.Key) >= prefixSize {
+			t, err := hex.DecodeString(object.Key[prefixSize:])
 			if err != nil {
 				return nil, fmt.Errorf("decode packfile key: %w", err)
 			}
@@ -302,7 +322,7 @@ func (s *Store) GetPackfiles() ([]objects.MAC, error) {
 }
 
 func (s *Store) PutPackfile(mac objects.MAC, rd io.Reader) (int64, error) {
-	info, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), rd, -1, s.putObjectOptions)
+	info, err := s.minioClient.PutObject(s.ctx, s.bucketName, s.realpath(fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac)), rd, -1, s.putObjectOptions)
 	if err != nil {
 		return 0, fmt.Errorf("put object: %w", err)
 	}
@@ -310,7 +330,7 @@ func (s *Store) PutPackfile(mac objects.MAC, rd io.Reader) (int64, error) {
 }
 
 func (s *Store) GetPackfile(mac objects.MAC) (io.Reader, error) {
-	object, err := s.minioClient.GetObject(context.Background(), s.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), minio.GetObjectOptions{})
+	object, err := s.minioClient.GetObject(s.ctx, s.bucketName, s.realpath(fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac)), minio.GetObjectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("get object: %w", err)
 	}
@@ -319,23 +339,16 @@ func (s *Store) GetPackfile(mac objects.MAC) (io.Reader, error) {
 
 func (s *Store) GetPackfileBlob(mac objects.MAC, offset uint64, length uint32) (io.Reader, error) {
 	opts := minio.GetObjectOptions{}
-	object, err := s.minioClient.GetObject(context.Background(), s.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), opts)
+	object, err := s.minioClient.GetObject(s.ctx, s.bucketName, s.realpath(fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac)), opts)
 	if err != nil {
 		return nil, fmt.Errorf("get object: %w", err)
 	}
 
-	buffer := make([]byte, length)
-	if nbytes, err := object.ReadAt(buffer, int64(offset)); err != nil {
-		return nil, fmt.Errorf("read object: %w", err)
-	} else if nbytes != int(length) {
-		return nil, fmt.Errorf("short read")
-	}
-
-	return bytes.NewBuffer(buffer), nil
+	return io.NewSectionReader(object, int64(offset), int64(length)), nil
 }
 
 func (s *Store) DeletePackfile(mac objects.MAC) error {
-	err := s.minioClient.RemoveObject(context.Background(), s.bucketName, fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac), minio.RemoveObjectOptions{})
+	err := s.minioClient.RemoveObject(s.ctx, s.bucketName, s.realpath(fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac)), minio.RemoveObjectOptions{})
 	if err != nil {
 		return fmt.Errorf("remove object: %w", err)
 	}
@@ -343,13 +356,16 @@ func (s *Store) DeletePackfile(mac objects.MAC) error {
 }
 
 func (s *Store) GetLocks() ([]objects.MAC, error) {
+	prefix := s.realpath("locks/")
+	prefixSize := len(prefix) + 3 // prefix + len(%02x/) encoded
+
 	ret := make([]objects.MAC, 0)
-	for object := range s.minioClient.ListObjects(context.Background(), s.bucketName, minio.ListObjectsOptions{
-		Prefix:    "locks/",
+	for object := range s.minioClient.ListObjects(s.ctx, s.bucketName, minio.ListObjectsOptions{
+		Prefix:    prefix,
 		Recursive: true,
 	}) {
-		if strings.HasPrefix(object.Key, "locks/") && len(object.Key) >= 6 {
-			t, err := hex.DecodeString(object.Key[6:])
+		if strings.HasPrefix(object.Key, prefix) && len(object.Key) >= prefixSize {
+			t, err := hex.DecodeString(object.Key[prefixSize:])
 			if err != nil {
 				return nil, fmt.Errorf("decode lock key: %w", err)
 			}
@@ -367,7 +383,7 @@ func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) (int64, error) {
 	putObjectOptions := s.putObjectOptions
 	putObjectOptions.StorageClass = "STANDARD"
 
-	info, err := s.minioClient.PutObject(context.Background(), s.bucketName, fmt.Sprintf("locks/%016x", lockID), rd, -1, putObjectOptions)
+	info, err := s.minioClient.PutObject(s.ctx, s.bucketName, s.realpath(fmt.Sprintf("locks/%016x", lockID)), rd, -1, putObjectOptions)
 	if err != nil {
 		return 0, fmt.Errorf("put object: %w", err)
 	}
@@ -375,7 +391,7 @@ func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) (int64, error) {
 }
 
 func (s *Store) GetLock(lockID objects.MAC) (io.Reader, error) {
-	object, err := s.minioClient.GetObject(context.Background(), s.bucketName, fmt.Sprintf("locks/%016x", lockID), minio.GetObjectOptions{})
+	object, err := s.minioClient.GetObject(s.ctx, s.bucketName, s.realpath(fmt.Sprintf("locks/%016x", lockID)), minio.GetObjectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("get object: %w", err)
 	}
@@ -383,7 +399,7 @@ func (s *Store) GetLock(lockID objects.MAC) (io.Reader, error) {
 }
 
 func (s *Store) DeleteLock(lockID objects.MAC) error {
-	err := s.minioClient.RemoveObject(context.Background(), s.bucketName, fmt.Sprintf("locks/%016x", lockID), minio.RemoveObjectOptions{})
+	err := s.minioClient.RemoveObject(s.ctx, s.bucketName, s.realpath(fmt.Sprintf("locks/%016x", lockID)), minio.RemoveObjectOptions{})
 	if err != nil {
 		return fmt.Errorf("remove object: %w", err)
 	}

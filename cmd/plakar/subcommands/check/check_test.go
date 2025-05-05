@@ -45,7 +45,6 @@ func TestExecuteCmdCheckDefault(t *testing.T) {
 	err := subcommand.Parse(repo.AppContext(), args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
-	require.Equal(t, "check", subcommand.Name())
 
 	status, err := subcommand.Execute(repo.AppContext(), repo)
 	require.NoError(t, err)

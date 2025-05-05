@@ -32,7 +32,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Sync{} }, "sync")
+	subcommands.Register(func() subcommands.Subcommand { return &Sync{} }, subcommands.AgentSupport, "sync")
 }
 
 func (cmd *Sync) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -77,7 +77,7 @@ func (cmd *Sync) Parse(ctx *appcontext.AppContext, args []string) error {
 		return fmt.Errorf("peer repository: %w", err)
 	}
 
-	peerStore, peerStoreSerializedConfig, err := storage.Open(storeConfig)
+	peerStore, peerStoreSerializedConfig, err := storage.Open(ctx, storeConfig)
 	if err != nil {
 		return err
 	}
@@ -146,17 +146,13 @@ type Sync struct {
 	SrcLocateOptions *utils.LocateOptions
 }
 
-func (cmd *Sync) Name() string {
-	return "sync"
-}
-
 func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	storeConfig, err := ctx.Config.GetRepository(cmd.PeerRepositoryLocation)
 	if err != nil {
 		return 1, fmt.Errorf("peer repository: %w", err)
 	}
 
-	peerStore, peerStoreSerializedConfig, err := storage.Open(storeConfig)
+	peerStore, peerStoreSerializedConfig, err := storage.Open(ctx, storeConfig)
 	if err != nil {
 		return 1, fmt.Errorf("could not open peer store %s: %s", cmd.PeerRepositoryLocation, err)
 	}
@@ -219,6 +215,10 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	}
 
 	for _, snapshotID := range srcSyncList {
+		if err := ctx.Err(); err != nil {
+			return 1, err
+		}
+
 		err := synchronize(srcRepository, dstRepository, snapshotID)
 		if err != nil {
 			ctx.GetLogger().Error("failed to synchronize snapshot %x from source repository %s: %s",
@@ -240,26 +240,26 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		}
 
 		for _, snapshotID := range dstSyncList {
+			if err := ctx.Err(); err != nil {
+				return 1, err
+			}
 			err := synchronize(dstRepository, srcRepository, snapshotID)
 			if err != nil {
 				ctx.GetLogger().Error("failed to synchronize snapshot %x from peer repository %s: %s",
 					snapshotID[:4], dstRepository.Location(), err)
 			}
 		}
-		ctx.GetLogger().Info("%s: synchronization between %s and %s completed: %d snapshots synchronized",
-			cmd.Name(),
+		ctx.GetLogger().Info("sync: synchronization between %s and %s completed: %d snapshots synchronized",
 			srcRepository.Location(),
 			dstRepository.Location(),
 			len(srcSyncList)+len(dstSyncList))
 	} else if cmd.Direction == "to" {
-		ctx.GetLogger().Info("%s: synchronization from %s to %s completed: %d snapshots synchronized",
-			cmd.Name(),
+		ctx.GetLogger().Info("sync: synchronization from %s to %s completed: %d snapshots synchronized",
 			srcRepository.Location(),
 			dstRepository.Location(),
 			len(srcSyncList))
 	} else {
-		ctx.GetLogger().Info("%s: synchronization from %s to %s completed: %d snapshots synchronized",
-			cmd.Name(),
+		ctx.GetLogger().Info("sync: synchronization from %s to %s completed: %d snapshots synchronized",
 			dstRepository.Location(),
 			srcRepository.Location(),
 			len(srcSyncList))

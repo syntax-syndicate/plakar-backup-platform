@@ -20,10 +20,7 @@
 package fs
 
 import (
-	"fmt"
-	"io/fs"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -33,18 +30,25 @@ import (
 	"github.com/pkg/xattr"
 )
 
-type namecache struct {
-	uidToName map[uint64]string
-	gidToName map[uint64]string
-
-	mu sync.RWMutex
-}
-
 // Worker pool to handle file scanning in parallel
-func walkDir_worker(jobs <-chan string, results chan<- *importer.ScanResult, wg *sync.WaitGroup, namecache *namecache) {
+func (f *FSImporter) walkDir_worker(jobs <-chan string, results chan<- *importer.ScanResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	for path := range jobs {
+	for {
+		var (
+			path string
+			ok   bool
+		)
+
+		select {
+		case path, ok = <-jobs:
+			if !ok {
+				return
+			}
+		case <-f.ctx.Done():
+			return
+		}
+
 		info, err := os.Lstat(path)
 		if err != nil {
 			results <- importer.NewScanError(path, err)
@@ -58,36 +62,7 @@ func walkDir_worker(jobs <-chan string, results chan<- *importer.ScanResult, wg 
 		}
 
 		fileinfo := objects.FileInfoFromStat(info)
-
-		namecache.mu.RLock()
-		if uname, ok := namecache.uidToName[fileinfo.Uid()]; !ok {
-			if u, err := user.LookupId(fmt.Sprintf("%d", fileinfo.Uid())); err == nil {
-				fileinfo.Lusername = u.Username
-
-				namecache.mu.RUnlock()
-				namecache.mu.Lock()
-				namecache.uidToName[fileinfo.Uid()] = u.Username
-				namecache.mu.Unlock()
-				namecache.mu.RLock()
-			}
-		} else {
-			fileinfo.Lusername = uname
-		}
-
-		if gname, ok := namecache.gidToName[fileinfo.Gid()]; !ok {
-			if g, err := user.LookupGroupId(fmt.Sprintf("%d", fileinfo.Gid())); err == nil {
-				fileinfo.Lgroupname = g.Name
-
-				namecache.mu.RUnlock()
-				namecache.mu.Lock()
-				namecache.gidToName[fileinfo.Gid()] = g.Name
-				namecache.mu.Unlock()
-				namecache.mu.RLock()
-			}
-		} else {
-			fileinfo.Lgroupname = gname
-		}
-		namecache.mu.RUnlock()
+		fileinfo.Lusername, fileinfo.Lgroupname = f.lookupIDs(fileinfo.Uid(), fileinfo.Gid())
 
 		var originFile string
 		if fileinfo.Mode()&os.ModeSymlink != 0 {
@@ -107,7 +82,7 @@ func walkDir_worker(jobs <-chan string, results chan<- *importer.ScanResult, wg 
 func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results chan<- *importer.ScanResult) {
 	atoms := strings.Split(rootDir, string(os.PathSeparator))
 
-	for i := range len(atoms)-1 {
+	for i := range len(atoms) - 1 {
 		path := filepath.Join(atoms[0 : i+1]...)
 
 		if !strings.HasPrefix(path, "/") {
@@ -121,72 +96,4 @@ func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results ch
 
 		jobs <- path
 	}
-}
-
-func walkDir_walker(rootDir string, numWorkers int) (<-chan *importer.ScanResult, error) {
-	results := make(chan *importer.ScanResult, 1000) // Larger buffer for results
-	jobs := make(chan string, 1000)                  // Buffered channel to feed paths to workers
-	namecache := &namecache{
-		uidToName: make(map[uint64]string),
-		gidToName: make(map[uint64]string),
-	}
-
-	var wg sync.WaitGroup
-
-	// Launch worker pool
-	for range numWorkers {
-		wg.Add(1)
-		go walkDir_worker(jobs, results, &wg, namecache)
-	}
-
-	// Start walking the directory and sending file paths to workers
-	go func() {
-		defer close(jobs)
-
-		orig := rootDir
-		info, err := os.Lstat(rootDir)
-		if err != nil {
-			results <- importer.NewScanError(rootDir, err)
-			return
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			realpath, err := os.Readlink(rootDir)
-			if err != nil {
-				results <- importer.NewScanError(rootDir, err)
-				return
-			}
-
-			if !filepath.IsAbs(realpath) {
-				realpath = filepath.Join(filepath.Dir(rootDir), realpath)
-			}
-			jobs <- rootDir
-			rootDir = realpath
-		}
-
-		// Add prefix directories first
-		walkDir_addPrefixDirectories(rootDir, jobs, results)
-		if orig != rootDir {
-			walkDir_addPrefixDirectories(orig, jobs, results)
-		}
-
-		err = filepath.WalkDir(rootDir, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				results <- importer.NewScanError(path, err)
-				return nil
-			}
-			jobs <- path
-			return nil
-		})
-		if err != nil {
-			results <- importer.NewScanError(rootDir, err)
-		}
-	}()
-
-	// Close the results channel when all workers are done
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
-	return results, nil
 }

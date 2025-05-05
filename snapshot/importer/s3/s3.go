@@ -17,7 +17,6 @@
 package s3
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/url"
@@ -38,9 +37,11 @@ import (
 
 type S3Importer struct {
 	minioClient *minio.Client
-	bucket      string
-	host        string
-	scanDir     string
+	ctx         *appcontext.AppContext
+
+	bucket  string
+	host    string
+	scanDir string
 
 	ino uint64
 }
@@ -59,8 +60,7 @@ func connect(location *url.URL, useSsl bool, accessKeyID, secretAccessKey string
 	})
 }
 
-func NewS3Importer(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
-
+func NewS3Importer(ctx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
 	target := name + "://" + config["location"]
 
 	var accessKey string
@@ -105,11 +105,12 @@ func NewS3Importer(appCtx *appcontext.AppContext, name string, config map[string
 		scanDir:     scanDir,
 		minioClient: conn,
 		host:        parsed.Host,
+		ctx:         ctx,
 	}, nil
 }
 
 func (p *S3Importer) scanRecursive(prefix string, result chan *importer.ScanResult) {
-	for object := range p.minioClient.ListObjects(context.Background(), p.bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: false}) {
+	for object := range p.minioClient.ListObjects(p.ctx, p.bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: false}) {
 		objectPath := "/" + object.Key
 		if !strings.HasPrefix(objectPath, p.scanDir) && !strings.HasPrefix(p.scanDir, objectPath) {
 			continue
@@ -172,7 +173,7 @@ func (p *S3Importer) NewReader(pathname string) (io.ReadCloser, error) {
 	}
 	pathname = strings.TrimPrefix(pathname, "/")
 
-	obj, err := p.minioClient.GetObject(context.Background(), p.bucket, pathname,
+	obj, err := p.minioClient.GetObject(p.ctx, p.bucket, pathname,
 		minio.GetObjectOptions{})
 	if err != nil {
 		return nil, err
@@ -181,10 +182,6 @@ func (p *S3Importer) NewReader(pathname string) (io.ReadCloser, error) {
 }
 
 func (p *S3Importer) NewExtendedAttributeReader(pathname string, attribute string) (io.ReadCloser, error) {
-	return nil, fmt.Errorf("extended attributes are not supported on S3")
-}
-
-func (p *S3Importer) GetExtendedAttributes(pathname string) ([]importer.ExtendedAttributes, error) {
 	return nil, fmt.Errorf("extended attributes are not supported on S3")
 }
 

@@ -56,7 +56,7 @@ func (p *FSExporter) CreateDirectory(pathname string) error {
 	return os.MkdirAll(pathname, 0700)
 }
 
-func (p *FSExporter) StoreFile(pathname string, fp io.Reader) error {
+func (p *FSExporter) StoreFile(pathname string, fp io.Reader, size int64) error {
 	f, err := os.Create(pathname)
 	if err != nil {
 		return err

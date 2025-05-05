@@ -4,7 +4,10 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
+
+	_ "github.com/PlakarKorp/plakar/snapshot/importer/fs"
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
@@ -87,6 +90,25 @@ func WithName(name string) TestingOptions {
 	return func(o *testingOptions) {
 		o.name = name
 	}
+}
+
+func GenerateFiles(t *testing.T, files []MockFile) string {
+	tmpBackupDir, err := os.MkdirTemp("", "tmp_to_backup")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		os.RemoveAll(tmpBackupDir)
+	})
+
+	for _, file := range files {
+		dest := filepath.Join(tmpBackupDir, filepath.FromSlash(file.Path))
+		if file.IsDir {
+			err = os.MkdirAll(dest, file.Mode)
+		} else {
+			err = os.WriteFile(dest, file.Content, file.Mode)
+		}
+	}
+
+	return tmpBackupDir
 }
 
 func WithGenerator(gen func(chan<- *importer.ScanResult), open func(string) (io.ReadCloser, error)) TestingOptions {

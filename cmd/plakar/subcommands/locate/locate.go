@@ -30,12 +30,12 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Locate{} }, "locate")
+	subcommands.Register(func() subcommands.Subcommand { return &Locate{} }, subcommands.AgentSupport, "locate")
 }
 
 func (cmd *Locate) Parse(ctx *appcontext.AppContext, args []string) error {
 	cmd.LocateOptions = utils.NewDefaultLocateOptions()
-	
+
 	flags := flag.NewFlagSet("locate", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS] PATTERN...\n", flags.Name())
@@ -63,12 +63,8 @@ type Locate struct {
 	subcommands.SubcommandBase
 
 	LocateOptions *utils.LocateOptions
-	Snapshot string
-	Patterns []string
-}
-
-func (cmd *Locate) Name() string {
-	return "locate"
+	Snapshot      string
+	Patterns      []string
 }
 
 func (cmd *Locate) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
@@ -99,6 +95,10 @@ func (cmd *Locate) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 			if err != nil {
 				snap.Close()
 				return 1, fmt.Errorf("locate: could not get pathname: %w", err)
+			}
+
+			if err := ctx.Err(); err != nil {
+				return 1, err
 			}
 
 			for _, pattern := range cmd.Patterns {

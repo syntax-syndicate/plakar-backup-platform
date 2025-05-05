@@ -8,7 +8,7 @@
 .Nm
 .Op Fl foreground
 .Op Fl log Ar filename
-.Op Fl stop
+.Op Cm stop
 .Sh DESCRIPTION
 The
 .Nm
@@ -26,9 +26,13 @@ run in foreground.
 .It Fl log Ar filename
 Redirect all output to
 .Ar filename .
-.It Fl stop
-Terminate an agent running in the background.
 .El
+.Pp
+With the
+.Cm stop
+argument,
+.Nm
+will be stopped.
 .Sh DIAGNOSTICS
 .Ex -std
 .Bl -tag -width Ds

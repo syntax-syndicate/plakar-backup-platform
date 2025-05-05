@@ -33,7 +33,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Digest{} }, "digest")
+	subcommands.Register(func() subcommands.Subcommand { return &Digest{} }, subcommands.AgentSupport, "digest")
 }
 
 func (cmd *Digest) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -72,14 +72,9 @@ type Digest struct {
 	Targets         []string
 }
 
-func (cmd *Digest) Name() string {
-	return "digest"
-}
-
 func (cmd *Digest) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	errors := 0
 	for _, snapshotPath := range cmd.Targets {
-
 		snap, pathname, err := utils.OpenSnapshotByPath(repo, snapshotPath)
 		if err != nil {
 			ctx.GetLogger().Error("digest: %s: %s", pathname, err)
@@ -101,6 +96,10 @@ func (cmd *Digest) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 }
 
 func (cmd *Digest) displayDigests(ctx *appcontext.AppContext, fs *vfs.Filesystem, repo *repository.Repository, snap *snapshot.Snapshot, pathname string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	fsinfo, err := fs.GetEntry(pathname)
 	if err != nil {
 		return err

@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"os/user"
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/PlakarKorp/plakar/agent"
@@ -191,6 +193,14 @@ func EntryPoint() int {
 	ctx.SetCache(caching.NewManager(cacheDir))
 	defer ctx.GetCache().Close()
 
+	c := make(chan os.Signal, 1)
+	go func() {
+		<-c
+		fmt.Fprintf(os.Stderr, "%s: Interrupting, it might take a while...\n", flag.CommandLine.Name())
+		ctx.Cancel()
+	}()
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
 	// best effort check if security or reliability fix have been issued
 	_, noCriticalChecks := os.LookupEnv("PLAKAR_NO_CRITICAL_CHECKS")
 	if noCriticalChecks {
@@ -281,6 +291,7 @@ func EntryPoint() int {
 
 	var repositoryPath string
 
+	var at bool
 	var args []string
 	if flag.Arg(0) == "at" {
 		if len(flag.Args()) < 2 {
@@ -291,10 +302,7 @@ func EntryPoint() int {
 		}
 		repositoryPath = flag.Arg(1)
 		args = flag.Args()[2:]
-
-		if flag.Args()[2] == "agent" {
-			log.Fatalf("%s: agent command can not be used with 'at' parameter.", flag.CommandLine.Name())
-		}
+		at = true
 	} else {
 		repositoryPath = os.Getenv("PLAKAR_REPOSITORY")
 		if repositoryPath == "" {
@@ -315,10 +323,15 @@ func EntryPoint() int {
 		return 1
 	}
 
-	command := args[0]
+	cmd, name, args := subcommands.Lookup(args)
+	if cmd == nil {
+		fmt.Fprintf(os.Stderr, "command not found: %s\n", args[0])
+		return 1
+	}
+
 	// create is a special case, it operates without a repository...
 	// but needs a repository location to store the new repository
-	if command == "create" || command == "ptar" || command == "server" {
+	if cmd.GetFlags()&subcommands.BeforeRepositoryWithStorage != 0 {
 		repo, err := repository.Inexistent(ctx, storeConfig)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
@@ -326,13 +339,6 @@ func EntryPoint() int {
 		}
 		defer repo.Close()
 
-		cmdf, _, args := subcommands.Lookup(args)
-		if cmdf == nil {
-			fmt.Fprintf(os.Stderr, "command not found: %s\n", command)
-			return 1
-		}
-
-		cmd := cmdf()
 		if err := cmd.Parse(ctx, args); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
@@ -346,14 +352,11 @@ func EntryPoint() int {
 	}
 
 	// these commands need to be ran before the repository is opened
-	if command == "agent" || command == "config" || command == "version" || command == "help" {
-		cmdf, _, args := subcommands.Lookup(args)
-		if cmdf == nil {
-			fmt.Fprintf(os.Stderr, "command not found: %s\n", command)
-			return 1
+	if cmd.GetFlags()&subcommands.BeforeRepositoryOpen != 0 {
+		if at {
+			log.Fatalf("%s: %s command cannot be used with 'at' parameter.",
+				flag.CommandLine.Name(), strings.Join(name, " "))
 		}
-
-		cmd := cmdf()
 		if err := cmd.Parse(ctx, args); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
@@ -365,7 +368,7 @@ func EntryPoint() int {
 		return retval
 	}
 
-	store, serializedConfig, err := storage.Open(storeConfig)
+	store, serializedConfig, err := storage.Open(ctx, storeConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: failed to open the repository at %s: %s\n", flag.CommandLine.Name(), storeConfig["location"], err)
 		fmt.Fprintln(os.Stderr, "To specify an alternative repository, please use \"plakar at <location> <command>\".")
@@ -457,13 +460,6 @@ func EntryPoint() int {
 
 	// commands below all operate on an open repository
 	t0 := time.Now()
-	cmdf, name, args := subcommands.Lookup(args)
-	if cmdf == nil {
-		fmt.Fprintf(os.Stderr, "command not found: %s\n", command)
-		return 1
-	}
-
-	cmd := cmdf()
 	if err := cmd.Parse(ctx, args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		return 1
@@ -475,7 +471,7 @@ func EntryPoint() int {
 	}
 
 	var status int
-	if opt_agentless {
+	if opt_agentless || cmd.GetFlags()&subcommands.AgentSupport == 0 {
 		status, err = cmd.Execute(ctx, repo)
 	} else {
 		status, err = agent.ExecuteRPC(ctx, name, cmd, storeConfig)

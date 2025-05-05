@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
@@ -35,12 +36,7 @@ var (
 )
 
 func ExecuteRPC(ctx *appcontext.AppContext, name []string, cmd subcommands.Subcommand, storeConfig map[string]string) (int, error) {
-	rpcCmd, ok := cmd.(subcommands.RPC)
-	if !ok {
-		return 1, fmt.Errorf("subcommand is not an RPC")
-	}
-
-	client, err := NewClient(filepath.Join(ctx.CacheDir, "agent.sock"))
+	client, err := NewClient(filepath.Join(ctx.CacheDir, "agent.sock"), cmd.GetFlags()&subcommands.IgnoreVersion != 0)
 	if err != nil {
 		if errors.Is(err, ErrWrongVersion) {
 			ctx.GetLogger().Warn("%v", err)
@@ -50,13 +46,18 @@ func ExecuteRPC(ctx *appcontext.AppContext, name []string, cmd subcommands.Subco
 	}
 	defer client.Close()
 
-	if status, err := client.SendCommand(ctx, name, rpcCmd, storeConfig); err != nil {
+	go func() {
+		<-ctx.Done()
+		client.Close()
+	}()
+
+	if status, err := client.SendCommand(ctx, name, cmd, storeConfig); err != nil {
 		return status, err
 	}
 	return 0, nil
 }
 
-func NewClient(socketPath string) (*Client, error) {
+func NewClient(socketPath string, ignoreVersion bool) (*Client, error) {
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to daemon: %w", err)
@@ -70,14 +71,14 @@ func NewClient(socketPath string) (*Client, error) {
 		dec:  decoder,
 	}
 
-	if err := c.handshake(); err != nil {
+	if err := c.handshake(ignoreVersion); err != nil {
 		return nil, err
 	}
 
 	return c, nil
 }
 
-func (c *Client) handshake() error {
+func (c *Client) handshake(ignoreVersion bool) error {
 	ourvers := []byte(utils.GetVersion())
 
 	if err := c.enc.Encode(ourvers); err != nil {
@@ -89,14 +90,18 @@ func (c *Client) handshake() error {
 		return err
 	}
 
-	if !slices.Equal(ourvers, agentvers) {
+	if !ignoreVersion && !slices.Equal(ourvers, agentvers) {
 		return fmt.Errorf("%w (%v)", ErrWrongVersion, string(agentvers))
 	}
 
 	return nil
 }
 
-func (c *Client) SendCommand(ctx *appcontext.AppContext, name []string, cmd subcommands.RPC, storeConfig map[string]string) (int, error) {
+func (c *Client) SendCommand(ctx *appcontext.AppContext, name []string, cmd subcommands.Subcommand, storeConfig map[string]string) (int, error) {
+	if cmd.GetFlags()&subcommands.AgentSupport == 0 {
+		return 1, fmt.Errorf("command %v doesn't support execution through agent", strings.Join(name, " "))
+	}
+
 	if err := subcommands.EncodeRPC(c.enc, name, cmd, storeConfig); err != nil {
 		return 1, err
 	}
@@ -106,6 +111,9 @@ func (c *Client) SendCommand(ctx *appcontext.AppContext, name []string, cmd subc
 		if err := c.dec.Decode(&response); err != nil {
 			if err == io.EOF {
 				break
+			}
+			if err := ctx.Err(); err != nil {
+				return 1, err
 			}
 			return 1, fmt.Errorf("failed to decode response: %w", err)
 		}
