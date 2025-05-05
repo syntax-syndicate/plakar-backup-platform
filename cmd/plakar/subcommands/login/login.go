@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -85,15 +86,13 @@ func (cmd *Login) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 	if err != nil {
 		return 1, err
 	}
-
 	defer flow.Close()
 
 	var token string
-
 	if cmd.Github {
-		token, err = flow.RunGithub()
+		token, err = flow.Run("github", map[string]string{})
 	} else if cmd.Email != "" {
-		token, err = flow.RunEmail(cmd.Email)
+		token, err = flow.Run("email", map[string]string{"email": cmd.Email})
 	} else {
 		return 1, fmt.Errorf("invalid login method")
 	}
@@ -127,50 +126,14 @@ func NewLoginFlow(appCtx *appcontext.AppContext) (*loginFlow, error) {
 	return flow, nil
 }
 
-// RunGithub sends a POST request to the login endpoint and waits for the user to
-// complete the OAuth flow.
-func (flow *loginFlow) RunGithub() (string, error) {
-	reqBody := map[string]string{
-		"mode": "headers",
-	}
-	bodyBytes, err := json.Marshal(reqBody)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal JSON: %v", err)
-	}
-
-	// XXX: make backend URL configurable
-
-	resp, err := http.Post("http://localhost:8080/v1/auth/login/github", "application/json", bytes.NewBuffer(bodyBytes))
-	if err != nil {
-		return "", fmt.Errorf("unable to get the login URL: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	var respData struct {
-		URL    string `json:"URL"`
-		PollID string `json:"poll_id"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
-		return "", fmt.Errorf("failed to decode response JSON: %v", err)
-	}
-
-	fmt.Printf("\nPlease open the following URL in your browser:\n\n")
-	fmt.Printf("  %s\n\n", respData.URL)
-
-	// Wait for the token to be received
-	fmt.Printf("Waiting for your browser to complete the login...\n")
-
-	for _ = range 5 {
-		tick := time.After(1 * time.Second)
+func (flow *loginFlow) Poll(pollID string, iterations int, delay time.Duration) (string, error) {
+	for range iterations {
+		tick := time.After(delay)
 		select {
 		case <-flow.appCtx.Done():
 			return "", flow.appCtx.Err()
 		case <-tick:
-			reqUrl := "http://localhost:8080/v1/auth/poll/" + respData.PollID
+			reqUrl := "https://api.plakar.io/v1/auth/poll/" + pollID
 			req, err := http.NewRequestWithContext(flow.appCtx.Context, "POST", reqUrl, nil)
 			if err != nil {
 				return "", fmt.Errorf("the /auth/login/github/poll API endpoint failed: %w", err)
@@ -197,35 +160,78 @@ func (flow *loginFlow) RunGithub() (string, error) {
 			}
 		}
 	}
-
-	return "", fmt.Errorf("login flow timed out")
+	return "", fmt.Errorf("could not obtain token after %d iterations", iterations)
 }
 
-func (flow *loginFlow) RunEmail(email string) (string, error) {
-	reqBody := map[string]string{
-		"email": email,
-		"mode":  "headers",
-	}
-	bodyBytes, err := json.Marshal(reqBody)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal JSON: %v", err)
+func (flow *loginFlow) Run(provider string, parameters map[string]string) (string, error) {
+	var url string
+	var body io.Reader
+
+	switch provider {
+	case "github":
+		url = "https://api.plakar.io/v1/auth/login/github"
+	case "email":
+		url = "https://api.plakar.io/v1/auth/login/email"
+	default:
+		return "", fmt.Errorf("unsupported provider: %s", provider)
 	}
 
-	// XXX: make backend URL configurable
-	resp, err := http.Post("http://localhost:8080/v1/auth/login/email", "application/json", bytes.NewBuffer(bodyBytes))
+	if bodyBytes, err := json.Marshal(parameters); err != nil {
+		return "", fmt.Errorf("failed to marshal JSON: %v", err)
+	} else {
+		body = bytes.NewBuffer(bodyBytes)
+	}
+
+	resp, err := http.Post(url, "application/json", body)
 	if err != nil {
-		return "", fmt.Errorf("the /auth/login/email API endpoint failed: %w", err)
+		return "", fmt.Errorf("unable to get the login URL: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		data, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("unexpected status code: %d : %s", resp.StatusCode, data)
+	}
+
+	switch provider {
+	case "github":
+		return flow.handleGithubResponse(resp)
+	case "email":
+		return flow.handleEmailResponse(resp)
+	default:
+		return "", fmt.Errorf("unsupported provider: %s", provider)
+	}
+}
+
+func (flow *loginFlow) handleGithubResponse(resp *http.Response) (string, error) {
+	var respData struct {
+		URL    string `json:"URL"`
+		PollID string `json:"poll_id"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
+		return "", fmt.Errorf("failed to decode response JSON: %v", err)
+	}
+
+	fmt.Printf("\nPlease open the following URL in your browser:\n\n")
+	fmt.Printf("  %s\n\n", respData.URL)
+
+	// Wait for the token to be received
+	fmt.Printf("Waiting for your browser to complete the login...\n")
+
+	return flow.Poll(respData.PollID, 10, time.Second*5)
+}
+
+func (flow *loginFlow) handleEmailResponse(resp *http.Response) (string, error) {
+	var respData struct {
+		PollID string `json:"poll_id"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
+		return "", fmt.Errorf("failed to decode response JSON: %v", err)
 	}
 
 	fmt.Printf("\nCheck your email for the login link. Do not close this window until you have logged in.\n")
-	//	token := <-flow.channel
 
-	return "", nil
+	return flow.Poll(respData.PollID, 10, time.Second*5)
 }
 
 func (flow *loginFlow) Close() error {
