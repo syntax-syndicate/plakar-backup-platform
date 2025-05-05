@@ -53,14 +53,14 @@ var ErrInvalidVersion = fmt.Errorf("invalid version")
 
 type Configuration struct {
 	Version      versioning.Version `msgpack:"-"`
-	Timestamp    time.Time
-	RepositoryID uuid.UUID
+	Timestamp    time.Time          `json:"timestamp"`
+	RepositoryID uuid.UUID          `json:"repository_id"`
 
-	Packfile    packfile.Configuration
-	Chunking    chunking.Configuration
-	Hashing     hashing.Configuration
-	Compression *compression.Configuration
-	Encryption  *encryption.Configuration
+	Packfile    packfile.Configuration     `json:"packfile"`
+	Chunking    chunking.Configuration     `json:"chunking"`
+	Hashing     hashing.Configuration      `json:"hashing"`
+	Compression *compression.Configuration `json:"compression,omitempty"`
+	Encryption  *encryption.Configuration  `json:"encryption,omitempty"`
 }
 
 func NewConfiguration() *Configuration {
