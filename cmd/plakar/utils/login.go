@@ -44,7 +44,7 @@ func NewLoginFlow(appCtx *appcontext.AppContext) (*loginFlow, error) {
 	return flow, nil
 }
 
-func (flow *loginFlow) Poll(pollID string, iterations int, delay time.Duration) (string, error) {
+func (flow *loginFlow) Poll(pollID string, iterations int, delay time.Duration, progressCb func()) (string, error) {
 	for range iterations {
 		tick := time.After(delay)
 		select {
@@ -72,7 +72,7 @@ func (flow *loginFlow) Poll(pollID string, iterations int, delay time.Duration) 
 			} else if resp.StatusCode == http.StatusNotFound {
 				return "", fmt.Errorf("unknown ID")
 			} else if resp.StatusCode == http.StatusAccepted {
-				fmt.Print(".")
+				progressCb()
 			} else {
 				return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 			}
@@ -136,7 +136,7 @@ func (flow *loginFlow) handleGithubResponse(resp *http.Response) (string, error)
 	// Wait for the token to be received
 	fmt.Printf("Waiting for your browser to complete the login...\n")
 
-	return flow.Poll(respData.PollID, 10, time.Second*5)
+	return flow.Poll(respData.PollID, 10, time.Second*5, func() { fmt.Printf(".") })
 }
 
 func (flow *loginFlow) handleEmailResponse(resp *http.Response) (string, error) {
@@ -149,7 +149,7 @@ func (flow *loginFlow) handleEmailResponse(resp *http.Response) (string, error) 
 
 	fmt.Printf("\nCheck your email for the login link. Do not close this window until you have logged in.\n")
 
-	return flow.Poll(respData.PollID, 10, time.Second*5)
+	return flow.Poll(respData.PollID, 10, time.Second*5, func() { fmt.Printf(".") })
 }
 
 func (flow *loginFlow) RunUI(provider string, parameters map[string]string) (string, error) {
@@ -202,7 +202,7 @@ func (flow *loginFlow) handleGithubResponseUI(resp *http.Response) (string, erro
 	}
 
 	go func() {
-		flow.Poll(respData.PollID, 10, time.Second*5)
+		flow.Poll(respData.PollID, 10, time.Second*5, func() {})
 	}()
 
 	return respData.URL, nil
@@ -217,7 +217,7 @@ func (flow *loginFlow) handleEmailResponseUI(resp *http.Response) (string, error
 	}
 
 	go func() {
-		flow.Poll(respData.PollID, 10, time.Second*5)
+		flow.Poll(respData.PollID, 10, time.Second*5, func() {})
 	}()
 
 	return "", nil

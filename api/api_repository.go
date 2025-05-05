@@ -369,9 +369,11 @@ type LoginRequestEmail struct {
 
 func repositoryLoginGithub(w http.ResponseWriter, r *http.Request) error {
 	var req LoginRequestGithub
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return fmt.Errorf("failed to decode request body: %w", err)
 	}
+
 	parameters := make(map[string]string)
 	parameters["redirect"] = req.Redirect
 
@@ -390,14 +392,17 @@ func repositoryLoginGithub(w http.ResponseWriter, r *http.Request) error {
 	}{
 		URL: redirectURL,
 	}
+
 	return json.NewEncoder(w).Encode(ret)
 }
 
 func repositoryLoginEmail(w http.ResponseWriter, r *http.Request) error {
 	var req LoginRequestEmail
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return fmt.Errorf("failed to decode request body: %w", err)
 	}
+
 	parameters := make(map[string]string)
 	parameters["email"] = req.Email
 	parameters["redirect"] = req.Redirect
@@ -417,6 +422,7 @@ func repositoryLoginEmail(w http.ResponseWriter, r *http.Request) error {
 	}{
 		URL: redirectURL,
 	}
+
 	return json.NewEncoder(w).Encode(ret)
 }
 
