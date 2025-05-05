@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot"
 	"github.com/PlakarKorp/plakar/snapshot/header"
@@ -357,68 +358,66 @@ type TokenResponse struct {
 	Token string `json:"token"`
 }
 
+type LoginRequestGithub struct {
+	Redirect string `json:"redirect"`
+}
+
+type LoginRequestEmail struct {
+	Email    string `json:"email"`
+	Redirect string `json:"redirect"`
+}
+
 func repositoryLoginGithub(w http.ResponseWriter, r *http.Request) error {
-	resp, err := http.Post("http://localhost:8080/v1/auth/login/github", "application/json", r.Body)
-	if err != nil {
-		return fmt.Errorf("unable to get the login URL: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-	_, err = io.Copy(w, resp.Body)
-	return err
-}
-
-type PollRequest struct {
-	PollID string `json:"poll_id"`
-}
-type PollResponse struct {
-	Token string `json:"token"`
-}
-
-func repositoryLoginPoll(w http.ResponseWriter, r *http.Request) error {
-	var req PollRequest
-
+	var req LoginRequestGithub
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return fmt.Errorf("failed to decode request JSON: %v", err)
+		return fmt.Errorf("failed to decode request body: %w", err)
 	}
-	if req.PollID == "" {
-		return fmt.Errorf("missing poll_id")
-	}
+	parameters := make(map[string]string)
+	parameters["redirect"] = req.Redirect
 
-	reqUrl := "http://localhost:8080/v1/auth/poll/" + req.PollID
-	subreq, err := http.NewRequestWithContext(lrepository.AppContext().Context, "POST", reqUrl, nil)
+	lf, err := utils.NewLoginFlow(lrepository.AppContext())
 	if err != nil {
-		return fmt.Errorf("the /auth/login/github/poll API endpoint failed: %w", err)
+		return fmt.Errorf("failed to create login flow: %w", err)
 	}
 
-	client := http.DefaultClient
-	subresp, err := client.Do(subreq)
+	redirectURL, err := lf.RunUI("github", parameters)
 	if err != nil {
-		return fmt.Errorf("the /auth/login/github/poll API endpoint failed: %w", err)
+		return fmt.Errorf("failed to run login flow: %w", err)
 	}
-	defer subresp.Body.Close()
 
-	if subresp.StatusCode == http.StatusOK {
-		var tokenResponse PollResponse
-		if err := json.NewDecoder(subresp.Body).Decode(&tokenResponse); err != nil {
-			return fmt.Errorf("failed to decode response JSON: %v", err)
-		}
-
-		configuration := lrepository.Configuration()
-		if cache, err := lrepository.AppContext().GetCache().Repository(configuration.RepositoryID); err != nil {
-			return err
-		} else if err := cache.PutAuthToken(tokenResponse.Token); err != nil {
-			return err
-		} else {
-			return json.NewEncoder(w).Encode(tokenResponse)
-		}
-	} else {
-		w.WriteHeader(subresp.StatusCode)
+	ret := struct {
+		URL string `json:"URL"`
+	}{
+		URL: redirectURL,
 	}
-	return nil
+	return json.NewEncoder(w).Encode(ret)
+}
+
+func repositoryLoginEmail(w http.ResponseWriter, r *http.Request) error {
+	var req LoginRequestEmail
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return fmt.Errorf("failed to decode request body: %w", err)
+	}
+	parameters := make(map[string]string)
+	parameters["email"] = req.Email
+	parameters["redirect"] = req.Redirect
+
+	lf, err := utils.NewLoginFlow(lrepository.AppContext())
+	if err != nil {
+		return fmt.Errorf("failed to create login flow: %w", err)
+	}
+
+	redirectURL, err := lf.RunUI("email", parameters)
+	if err != nil {
+		return fmt.Errorf("failed to run login flow: %w", err)
+	}
+
+	ret := struct {
+		URL string `json:"URL"`
+	}{
+		URL: redirectURL,
+	}
+	return json.NewEncoder(w).Encode(ret)
 }
 
 func repositoryLogout(w http.ResponseWriter, r *http.Request) error {

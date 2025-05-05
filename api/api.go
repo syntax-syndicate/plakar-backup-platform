@@ -143,7 +143,7 @@ func SetupRoutes(server *http.ServeMux, repo *repository.Repository, token strin
 	server.Handle("GET /api/info", authToken(JSONAPIView(apiInfo)))
 
 	server.Handle("POST /api/login/github", authToken(JSONAPIView(repositoryLoginGithub)))
-	server.Handle("POST /api/login/poll", authToken(JSONAPIView(repositoryLoginPoll)))
+	server.Handle("POST /api/login/email", authToken(JSONAPIView(repositoryLoginEmail)))
 	server.Handle("POST /api/logout", authToken(JSONAPIView(repositoryLogout)))
 
 	server.Handle("GET /api/repository/info", authToken(JSONAPIView(repositoryInfo)))
