@@ -137,7 +137,7 @@ func (cmd *AgentStop) Parse(ctx *appcontext.AppContext, args []string) error {
 }
 
 func (cmd *AgentStop) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	log.Println("stopping")
+	syscall.Kill(os.Getpid(), syscall.SIGINT)
 	return 0, nil
 }
 
@@ -350,6 +350,11 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			}
 			if err := msgpack.Unmarshal(request, &subcommand); err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
+				return
+			}
+
+			if subcommand.GetFlags()&(subcommands.AgentSupport|subcommands.IgnoreVersion) != 0 {
+				subcommand.Execute(nil, nil)
 				return
 			}
 

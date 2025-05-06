@@ -368,10 +368,7 @@ func EntryPoint() int {
 	}
 
 	if cmd.GetFlags()&(subcommands.AgentSupport|subcommands.IgnoreVersion) != 0 {
-		retval, err := cmd.Execute(ctx, nil)
-		if err != nil {
-			return 0
-		}
+		retval, _ := agent.ExecuteRPC(ctx, name, cmd, storeConfig)
 		return retval
 	}
 
