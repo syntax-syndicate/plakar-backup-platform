@@ -8,12 +8,14 @@ import (
 	"net/http"
 )
 
-const notionURL = "https://api.notion.com/v1"
-const pageSize = 1 // Number of pages to fetch at once default is 100
-const notionVersionHeader = "2022-06-28"
+const (
+	NotionURL           = "https://api.notion.com/v1"
+	PageSize            = 1 // Number of pages to fetch at once default is 100
+	NotionVersionHeader = "2022-06-28"
+)
 
 type NotionReader struct {
-	buf             *bytes.Buffer
+	buf             *bytes.Buffer // look to see if this can be a bytes.Reader
 	token           string
 	pageID          string
 	cursor          string
@@ -53,9 +55,10 @@ func NewNotionReader(token, pageID string) (*NotionReader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal page header: %w", err)
 	}
-	nRd.buf.WriteByte('[')
 	nRd.buf.Write(b)
-	nRd.buf.Write([]byte(",["))
+	// Remove the last brace to add the childrens array
+	nRd.buf.Truncate(nRd.buf.Len() - 1)
+	nRd.buf.WriteString(",\"children\":[")
 	return nRd, nil
 }
 
@@ -65,7 +68,7 @@ func fetchFromURL[T any](url, token string) (*T, error) {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Notion-Version", notionVersionHeader)
+	req.Header.Set("Notion-Version", NotionVersionHeader)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -82,12 +85,12 @@ func fetchFromURL[T any](url, token string) (*T, error) {
 }
 
 func (nr *NotionReader) fetchPageHeader() (*json.RawMessage, error) {
-	url := fmt.Sprintf("%s/pages/%s", notionURL, nr.pageID)
+	url := fmt.Sprintf("%s/pages/%s", NotionURL, nr.pageID)
 	return fetchFromURL[json.RawMessage](url, nr.token)
 }
 
 func (nr *NotionReader) fetchBlocks() (*BlockResponse, error) {
-	url := fmt.Sprintf("%s/blocks/%s/children?page_size=%d", notionURL, nr.pageID, pageSize)
+	url := fmt.Sprintf("%s/blocks/%s/children?page_size=%d", NotionURL, nr.pageID, PageSize)
 	if nr.cursor != "" {
 		url += fmt.Sprintf("&start_cursor=%s", nr.cursor)
 	}
@@ -126,13 +129,13 @@ func (nr *NotionReader) Read(p []byte) (int, error) {
 }
 
 func (nr *NotionReader) openJSONArray() {
-	//nr.buf.WriteByte('[')
 	nr.blockOpen = true
 	nr.first = false
 }
 
 func (nr *NotionReader) closeJSONArray() {
-	nr.buf.Write([]byte("]]"))
+	// Close the array and add the last brace that was removed
+	nr.buf.Write([]byte("]}"))
 	nr.blockOpen = false
 }
 

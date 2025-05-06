@@ -3,6 +3,7 @@ package notion
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -13,7 +14,7 @@ import (
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 )
 
-const notionSearchURL = notionURL + "/search"
+const notionSearchURL = NotionURL + "/search"
 
 type SearchResponse struct {
 	Results    []Page `json:"results"`
@@ -37,6 +38,7 @@ type Page struct {
 	//		} `json:"title"`
 	//	} `json:"title"`
 	//} `json:"properties"`
+	//Other properties can be added here as needed
 }
 
 type PageInfo struct {
@@ -46,7 +48,7 @@ type PageInfo struct {
 
 func (p *NotionImporter) fetchAllPages(cursor string, results chan<- *importer.ScanResult, wg *sync.WaitGroup) error {
 	bodyMap := map[string]interface{}{
-		"page_size": pageSize,
+		"page_size": PageSize,
 	}
 	if cursor != "" {
 		bodyMap["start_cursor"] = cursor
@@ -58,21 +60,25 @@ func (p *NotionImporter) fetchAllPages(cursor string, results chan<- *importer.S
 		return err
 	}
 	req.Header.Set("Authorization", "Bearer "+p.token)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Notion-Version", notionVersionHeader)
+	req.Header.Set("Notion-Version", NotionVersionHeader)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("notion returned status code %d", resp.StatusCode)
+	}
 
 	var response SearchResponse
 	err = json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
 		return err
 	}
+
+	//log.Print(response.Results)
 
 	wg.Add(1)
 	go func() {
