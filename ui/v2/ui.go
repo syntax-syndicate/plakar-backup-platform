@@ -92,7 +92,7 @@ func Ui(repo *repository.Repository, addr string, opts *UiOptions) error {
 	if opts.Token == "" {
 		url = fmt.Sprintf("http://%s", addr)
 	} else {
-		url = fmt.Sprintf("http://%s?token=%s", addr, opts.Token)
+		url = fmt.Sprintf("http://%s?plakar_token=%s", addr, opts.Token)
 	}
 
 	var err error
