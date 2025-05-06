@@ -18,7 +18,6 @@ package fs
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -47,7 +46,21 @@ func toUnixPath(pathname string) string {
 func (f *FSImporter) walkDir_worker(jobs <-chan string, results chan<- *importer.ScanResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	for pathname := range jobs {
+	for {
+		var (
+			pathname string
+			ok       bool
+		)
+
+		select {
+		case pathname, ok = <-jobs:
+			if !ok {
+				return
+			}
+		case <-f.ctx.Done():
+			return
+		}
+
 		unixPath := toUnixPath(pathname)
 
 		var fileinfo objects.FileInfo
@@ -109,42 +122,4 @@ func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results ch
 
 		jobs <- pathname
 	}
-}
-
-func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir string, numWorkers int) {
-	real, err := f.realpathFollow(rootDir)
-	if err != nil {
-		results <- importer.NewScanError(rootDir, err)
-		return
-	}
-
-	jobs := make(chan string, 1000) // Buffered channel to feed paths to workers
-	var wg sync.WaitGroup
-	for range numWorkers {
-		wg.Add(1)
-		go walkDir_worker(jobs, results, &wg)
-	}
-
-	// Add prefix directories first
-	walkDir_addPrefixDirectories(rootDir, jobs, results)
-	if real != rootDir {
-		jobs <- rootDir
-		walkDir_addPrefixDirectories(rootDir, jobs, results)
-	}
-
-	err = filepath.WalkDir(real, func(pathname string, d fs.DirEntry, err error) error {
-		if err != nil {
-			results <- importer.NewScanError(pathname, err)
-			return nil
-		}
-		jobs <- pathname
-		return nil
-	})
-	if err != nil {
-		results <- importer.NewScanError(real, err)
-	}
-
-	close(jobs)
-	wg.Wait()
-	close(results)
 }

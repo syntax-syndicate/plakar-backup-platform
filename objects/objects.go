@@ -44,7 +44,7 @@ func (m *MAC) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func RandomMAC() (MAC) {
+func RandomMAC() MAC {
 	var r MAC
 
 	// According to the documentation, this call never fails and

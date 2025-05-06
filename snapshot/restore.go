@@ -30,6 +30,10 @@ func snapshotRestorePath(snap *Snapshot, exp exporter.Exporter, target string, o
 			return err
 		}
 
+		if err := snap.AppContext().Err(); err != nil {
+			return err
+		}
+
 		snap.Event(events.PathEvent(snap.Header.Identifier, entrypath))
 
 		// Determine destination path by stripping the prefix.
@@ -102,7 +106,7 @@ func snapshotRestorePath(snap *Snapshot, exp exporter.Exporter, target string, o
 			}
 
 			// Restore the file content.
-			if err := exp.StoreFile(dest, rd); err != nil {
+			if err := exp.StoreFile(dest, rd, e.Size()); err != nil {
 				snap.Event(events.FileErrorEvent(snap.Header.Identifier, entrypath, err.Error()))
 			} else if err := exp.SetPermissions(dest, e.Stat()); err != nil {
 				snap.Event(events.FileErrorEvent(snap.Header.Identifier, entrypath, err.Error()))

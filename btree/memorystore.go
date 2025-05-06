@@ -44,4 +44,3 @@ func (s *InMemoryStore[K, V]) Put(n *Node[K, int, V]) (int, error) {
 	s.store = append(s.store, *dup)
 	return len(s.store) - 1, nil
 }
-

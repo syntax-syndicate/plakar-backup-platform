@@ -46,6 +46,11 @@ func ExecuteRPC(ctx *appcontext.AppContext, name []string, cmd subcommands.Subco
 	}
 	defer client.Close()
 
+	go func() {
+		<-ctx.Done()
+		client.Close()
+	}()
+
 	if status, err := client.SendCommand(ctx, name, cmd, storeConfig); err != nil {
 		return status, err
 	}
@@ -106,6 +111,9 @@ func (c *Client) SendCommand(ctx *appcontext.AppContext, name []string, cmd subc
 		if err := c.dec.Decode(&response); err != nil {
 			if err == io.EOF {
 				break
+			}
+			if err := ctx.Err(); err != nil {
+				return 1, err
 			}
 			return 1, fmt.Errorf("failed to decode response: %w", err)
 		}

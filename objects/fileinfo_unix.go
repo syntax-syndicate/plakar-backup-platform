@@ -35,4 +35,3 @@ func FileInfoFromStat(stat fs.FileInfo) FileInfo {
 		Lnlink:   Lnlink,
 	}
 }
-

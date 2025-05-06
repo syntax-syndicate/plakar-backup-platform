@@ -31,14 +31,17 @@ func TestExporter(t *testing.T) {
 
 	require.Equal(t, tmpExportDir, exporterInstance.Root())
 
-	err = os.WriteFile(tmpOriginDir+"/dummy.txt", []byte("test exporter fs"), 0644)
+	data := []byte("test exporter fs")
+	datalen := int64(len(data))
+
+	err = os.WriteFile(tmpOriginDir+"/dummy.txt", data, 0644)
 	require.NoError(t, err)
 
 	fpOrigin, err := os.Open(tmpOriginDir + "/dummy.txt")
 	require.NoError(t, err)
 	defer fpOrigin.Close()
 
-	err = exporterInstance.StoreFile(tmpExportDir+"/dummy.txt", fpOrigin)
+	err = exporterInstance.StoreFile(tmpExportDir+"/dummy.txt", fpOrigin, datalen)
 	require.NoError(t, err)
 
 	fpExported, err := os.Open(tmpExportDir + "/dummy.txt")
@@ -48,7 +51,7 @@ func TestExporter(t *testing.T) {
 	newContent, err := io.ReadAll(fpExported)
 	require.NoError(t, err)
 
-	require.Equal(t, "test exporter fs", string(newContent))
+	require.Equal(t, string(data), string(newContent))
 
 	err = exporterInstance.CreateDirectory(tmpExportDir + "/subdir")
 	require.NoError(t, err)

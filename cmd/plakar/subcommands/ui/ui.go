@@ -22,7 +22,6 @@ package ui
 import (
 	"flag"
 	"fmt"
-	"os"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
@@ -76,7 +75,7 @@ func (cmd *Ui) Execute(ctx *appcontext.AppContext, repo *repository.Repository) 
 
 	err := v2.Ui(repo, cmd.Addr, &ui_opts)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ui: %s\n", err)
+		fmt.Fprintf(ctx.Stderr, "ui: %s\n", err)
 		return 1, err
 	}
 	return 0, err

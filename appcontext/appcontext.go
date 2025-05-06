@@ -4,13 +4,13 @@ import (
 	"context"
 	"io"
 	"os"
+	"time"
 
 	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/config"
 	"github.com/PlakarKorp/plakar/encryption/keypair"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
-	"github.com/PlakarKorp/plakar/objects"
 	"github.com/google/uuid"
 )
 
@@ -48,8 +48,6 @@ type AppContext struct {
 
 	Identity uuid.UUID
 	Keypair  *keypair.KeyPair
-
-	SnapshotID objects.MAC
 }
 
 func NewAppContext() *AppContext {
@@ -71,12 +69,20 @@ func NewAppContextFrom(template *AppContext) *AppContext {
 	return &ctx
 }
 
+func (c *AppContext) Deadline() (time.Time, bool) {
+	return c.Context.Deadline()
+}
+
 func (c *AppContext) Done() <-chan struct{} {
 	return c.Context.Done()
 }
 
 func (c *AppContext) Err() error {
 	return c.Context.Err()
+}
+
+func (c *AppContext) Value(key any) any {
+	return c.Context.Value(key)
 }
 
 func (c *AppContext) Close() {
