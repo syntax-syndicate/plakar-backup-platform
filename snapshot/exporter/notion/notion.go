@@ -74,7 +74,7 @@ func (p *NotionExporter) CreateDirectory(pathname string) error {
 
 var pageIDMap = map[string]string{}
 
-func (p *NotionExporter) StoreFile(pathname string, fp io.Reader) error {
+func (p *NotionExporter) StoreFile(pathname string, fp io.Reader, size int64) error {
 
 	var jsonData map[string]interface{}
 	err := json.NewDecoder(fp).Decode(&jsonData)
