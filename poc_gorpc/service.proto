@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package main;
+
+// Option pour le package Go généré
+option go_package = "./generated;generated";
+
+// Définition du service
+service Greeter {
+  rpc SayHello (HelloRequest) returns (HelloResponse);
+  rpc downloadPhoto (CredentialsApple) returns (DownloadPhotoResponse);
+}
+
+// Message de requête
+message HelloRequest {
+  string name = 1;
+}
+
+// Message de réponse
+message HelloResponse {
+  string message = 1;
+}
+
+// Message de requête pour le téléchargement de photo
+message CredentialsApple {
+  string email = 1;
+  string password = 2;
+}
+
+// Message de réponse pour le téléchargement de photo
+message DownloadPhotoResponse {
+  string message = 1;
+}
