@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/google/uuid"
 )
 
 type TokenResponse struct {
@@ -32,14 +33,16 @@ type TokenResponse struct {
 }
 
 type loginFlow struct {
-	appCtx *appcontext.AppContext
+	appCtx       *appcontext.AppContext
+	repositoryID uuid.UUID
 }
 
 // NewLoginFlow spawns a local HTTP server in a goroutine, listening for the
 // OAuth callback on a random port.
-func NewLoginFlow(appCtx *appcontext.AppContext) (*loginFlow, error) {
+func NewLoginFlow(appCtx *appcontext.AppContext, repositoryID uuid.UUID) (*loginFlow, error) {
 	flow := &loginFlow{
-		appCtx: appCtx,
+		appCtx:       appCtx,
+		repositoryID: repositoryID,
 	}
 	return flow, nil
 }
@@ -202,7 +205,13 @@ func (flow *loginFlow) handleGithubResponseUI(resp *http.Response) (string, erro
 	}
 
 	go func() {
-		flow.Poll(respData.PollID, 10, time.Second*5, func() {})
+		token, _ := flow.Poll(respData.PollID, 10, time.Second*5, func() {})
+		if token != "" {
+			if cache, err := flow.appCtx.GetCache().Repository(flow.repositoryID); err != nil {
+			} else if err := cache.PutAuthToken(token); err != nil {
+			}
+		}
+
 	}()
 
 	return respData.URL, nil
@@ -217,7 +226,12 @@ func (flow *loginFlow) handleEmailResponseUI(resp *http.Response) (string, error
 	}
 
 	go func() {
-		flow.Poll(respData.PollID, 10, time.Second*5, func() {})
+		token, _ := flow.Poll(respData.PollID, 10, time.Second*5, func() {})
+		if token != "" {
+			if cache, err := flow.appCtx.GetCache().Repository(flow.repositoryID); err != nil {
+			} else if err := cache.PutAuthToken(token); err != nil {
+			}
+		}
 	}()
 
 	return "", nil

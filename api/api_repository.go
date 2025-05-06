@@ -43,6 +43,7 @@ func repositoryInfo(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		//
 	}
+	fmt.Println("authToken")
 
 	nSnapshots, logicalSize, err := snapshot.LogicalSize(lrepository)
 	if err != nil {
@@ -377,7 +378,7 @@ func repositoryLoginGithub(w http.ResponseWriter, r *http.Request) error {
 	parameters := make(map[string]string)
 	parameters["redirect"] = req.Redirect
 
-	lf, err := utils.NewLoginFlow(lrepository.AppContext())
+	lf, err := utils.NewLoginFlow(lrepository.AppContext(), lrepository.Configuration().RepositoryID)
 	if err != nil {
 		return fmt.Errorf("failed to create login flow: %w", err)
 	}
@@ -407,7 +408,7 @@ func repositoryLoginEmail(w http.ResponseWriter, r *http.Request) error {
 	parameters["email"] = req.Email
 	parameters["redirect"] = req.Redirect
 
-	lf, err := utils.NewLoginFlow(lrepository.AppContext())
+	lf, err := utils.NewLoginFlow(lrepository.AppContext(), lrepository.Configuration().RepositoryID)
 	if err != nil {
 		return fmt.Errorf("failed to create login flow: %w", err)
 	}

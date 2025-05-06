@@ -78,7 +78,7 @@ type Login struct {
 func (cmd *Login) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	var err error
 
-	flow, err := utils.NewLoginFlow(ctx)
+	flow, err := utils.NewLoginFlow(ctx, repo.Configuration().RepositoryID)
 	if err != nil {
 		return 1, err
 	}
