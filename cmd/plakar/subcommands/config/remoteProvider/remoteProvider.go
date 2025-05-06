@@ -3,7 +3,6 @@ package remoteProvider
 import (
 	"bufio"
 	"context"
-	"crypto/rand"
 	"fmt"
 	"github.com/PlakarKorp/plakar/appcontext"
 	_ "github.com/rclone/rclone/backend/all"
@@ -343,15 +342,6 @@ func contains(slice []string, item string) bool {
 		}
 	}
 	return false
-}
-
-func nextRandom() string {
-	b := make([]byte, 8)
-	_, err := rand.Read(b)
-	if err != nil {
-		panic(err)
-	}
-	return fmt.Sprintf("%x", b)
 }
 
 func promptForRemoteName(ctx *appcontext.AppContext) (string, error) {
