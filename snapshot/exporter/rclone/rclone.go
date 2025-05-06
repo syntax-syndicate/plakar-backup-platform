@@ -93,7 +93,7 @@ func (p *RcloneExporter) CreateDirectory(pathname string) error {
 // second file, it is possible that Google Drive doesn't see the root directory
 // yet, and creates a new one. This results in a duplicated root directory, with
 // some files in the first directory and the rest in the second.
-func (p *RcloneExporter) StoreFile(pathname string, fp io.Reader) error {
+func (p *RcloneExporter) StoreFile(pathname string, fp io.Reader, size int64) error {
 	tmpFile, err := os.CreateTemp("", "tempfile-*.tmp")
 	if err != nil {
 		return err

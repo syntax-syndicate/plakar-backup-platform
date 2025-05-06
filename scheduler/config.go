@@ -16,27 +16,9 @@ type Configuration struct {
 }
 
 type AgentConfig struct {
-	Alerting    *AlertingConfig
+	Reporting   bool                `yaml:"reporting"`
 	Maintenance []MaintenanceConfig `validate:"dive"`
 	Tasks       []Task              `mapstructure:"tasks" validate:"dive"`
-}
-
-type AlertingConfig struct {
-	Email []EmailConfig `validate:"dive"`
-}
-
-type EmailConfig struct {
-	Name       string     `validate:"required"`
-	Sender     string     `validate:"required"`
-	Recipients []string   `validate:"required,dive,required,email"`
-	Smtp       SmtpConfig `validate:"required"`
-}
-
-type SmtpConfig struct {
-	Host     string
-	Port     int
-	Username string
-	Password string
 }
 
 type Task struct {

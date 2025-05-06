@@ -26,7 +26,8 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &ConfigCmd{} }, "config")
+	subcommands.Register(func() subcommands.Subcommand { return &ConfigCmd{} },
+		subcommands.BeforeRepositoryOpen, "config")
 }
 
 func (cmd *ConfigCmd) Parse(ctx *appcontext.AppContext, args []string) error {

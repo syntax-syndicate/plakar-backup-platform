@@ -25,8 +25,6 @@ import (
 )
 
 type BackupContext struct {
-	aborted        atomic.Bool
-	abortedReason  error
 	imp            importer.Importer
 	maxConcurrency uint64
 
@@ -131,10 +129,23 @@ func (snap *Builder) importerJob(backupCtx *BackupContext, options *BackupOption
 
 		concurrencyChan := make(chan struct{}, backupCtx.maxConcurrency)
 
-		for _record := range scanner {
-			if backupCtx.aborted.Load() {
-				break
+		ctx := snap.AppContext()
+	loop:
+		for {
+			var (
+				_record *importer.ScanResult
+				ok      bool
+			)
+
+			select {
+			case _record, ok = <-scanner:
+				if !ok {
+					break loop
+				}
+			case <-ctx.Done():
+				break loop
 			}
+
 			if snap.skipExcludedPathname(options, _record) {
 				continue
 			}
@@ -151,8 +162,9 @@ func (snap *Builder) importerJob(backupCtx *BackupContext, options *BackupOption
 				case record.Error != nil:
 					record := record.Error
 					if record.Pathname == backupCtx.imp.Root() || len(record.Pathname) < len(backupCtx.imp.Root()) {
-						backupCtx.aborted.Store(true)
-						backupCtx.abortedReason = record.Err
+						// do we really need to do this?  if so, maybe we
+						// should propagate the original error as well.
+						ctx.Cancel()
 						return
 					}
 					backupCtx.recordError(record.Pathname, record.Err)
@@ -194,6 +206,13 @@ func (snap *Builder) importerJob(backupCtx *BackupContext, options *BackupOption
 			}(_record)
 		}
 		wg.Wait()
+
+		for range scanner {
+			// drain the importer channel since we might
+			// have been cancelled while the importer is
+			// trying to still produce some records.
+		}
+
 		close(filesChannel)
 		doneEvent := events.DoneImporterEvent()
 		doneEvent.SnapshotID = snap.Header.Identifier
@@ -269,6 +288,7 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 
 	done, err := snap.Lock()
 	if err != nil {
+		snap.repository.PackerManager.Wait()
 		return err
 	}
 	defer snap.Unlock(done)
@@ -286,6 +306,7 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 
 	backupCtx, err := snap.prepareBackup(imp, options)
 	if err != nil {
+		snap.repository.PackerManager.Wait()
 		return err
 	}
 
@@ -298,20 +319,21 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	/* importer */
 	filesChannel, err := snap.importerJob(backupCtx, options)
 	if err != nil {
+		snap.repository.PackerManager.Wait()
 		return err
 	}
 
 	/* scanner */
-	snap.processFiles(backupCtx, filesChannel)
+	if err := snap.processFiles(backupCtx, filesChannel); err != nil {
+		snap.repository.PackerManager.Wait()
+		return err
+	}
 
 	/* tree builders */
 	vfsHeader, rootSummary, indexes, err := snap.persistTrees(backupCtx)
 	if err != nil {
+		snap.repository.PackerManager.Wait()
 		return nil
-	}
-
-	if backupCtx.aborted.Load() {
-		return backupCtx.abortedReason
 	}
 
 	snap.Header.Duration = time.Since(beginTime)
@@ -365,7 +387,6 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 	objectHasher, releaseGlobalHasher := snap.repository.GetPooledMACHasher()
 	defer releaseGlobalHasher()
 
-	var firstChunk = true
 	var cdcOffset uint64
 	var object_t32 objects.MAC
 
@@ -374,15 +395,14 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 	var totalDataSize int64
 
 	// Helper function to process a chunk
-	processChunk := func(data []byte) error {
+	processChunk := func(idx int, data []byte) error {
 		var chunk_t32 objects.MAC
 
 		chunkHasher, releaseChunkHasher := snap.repository.GetPooledMACHasher()
-		if firstChunk {
+		if idx == 0 {
 			if object.ContentType == "" {
 				object.ContentType = mimetype.Detect(data).String()
 			}
-			firstChunk = false
 		}
 
 		chunkHasher.Write(data)
@@ -391,7 +411,7 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 
 		entropyScore, freq := entropy(data)
 		if len(data) > 0 {
-			for i := 0; i < 256; i++ {
+			for i := range 256 {
 				totalFreq[i] += freq[i]
 			}
 		}
@@ -409,61 +429,42 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 		return snap.repository.PutBlobIfNotExists(resources.RT_CHUNK, chunk.ContentMAC, data)
 	}
 
-	if record.FileInfo.Size() == 0 {
-		empty := []byte{}
-		// Produce an empty chunk for empty file
-		objectHasher.Write(empty)
-		if err := processChunk(empty); err != nil {
-			return nil, -1, err
-		}
-	} else if record.FileInfo.Size() != -1 && record.FileInfo.Size() < int64(snap.repository.Configuration().Chunking.MinSize) {
-		// Small file case: read entire file into memory
-		cdcChunk := make([]byte, record.FileInfo.Size())
-		_, err := io.ReadFull(rd, cdcChunk)
-		if err != nil {
-			return nil, -1, err
-		}
-		objectHasher.Write(cdcChunk)
-		if err := processChunk(cdcChunk); err != nil {
-			return nil, -1, err
-		}
-	} else {
-		// Large file case: chunk file with chunker
-		chk, err := snap.repository.Chunker(rd)
-		if err != nil {
-			return nil, -1, err
-		}
+	chk, err := snap.repository.Chunker(rd)
+	if err != nil {
+		return nil, -1, err
+	}
 
-		firstChunk := true
-		for {
-			cdcChunk, err := chk.Next()
-			if err != nil && err != io.EOF {
+	ctx := snap.AppContext()
+	for i := 0; ; i++ {
+		if i%1024 == 0 {
+			if err := ctx.Err(); err != nil {
 				return nil, -1, err
 			}
-			if cdcChunk == nil {
-				if firstChunk {
-					empty := []byte{}
-					// Produce an empty chunk for empty file
-					objectHasher.Write(empty)
-					if err := processChunk(empty); err != nil {
-						return nil, -1, err
-					}
-				}
+		}
+
+		cdcChunk, err := chk.Next()
+		if err != nil && err != io.EOF {
+			return nil, -1, err
+		}
+		if cdcChunk == nil {
+			// on an empty file, we need to compute an empty chunk for the first block
+			// should we make go-cdc-chunkers return an empty chunk instead of nil?
+			if i != 0 {
 				break
 			}
-			firstChunk = false
+			cdcChunk = []byte{}
+		}
 
-			chunkCopy := make([]byte, len(cdcChunk))
-			copy(chunkCopy, cdcChunk)
+		chunkCopy := make([]byte, len(cdcChunk))
+		copy(chunkCopy, cdcChunk)
 
-			objectHasher.Write(chunkCopy)
+		objectHasher.Write(chunkCopy)
 
-			if err := processChunk(chunkCopy); err != nil {
-				return nil, -1, err
-			}
-			if err == io.EOF {
-				break
-			}
+		if err := processChunk(i, chunkCopy); err != nil {
+			return nil, -1, err
+		}
+		if err == io.EOF {
+			break
 		}
 	}
 
@@ -600,18 +601,17 @@ func (snap *Builder) processFiles(backupCtx *BackupContext, filesChannel <-chan 
 	var wg sync.WaitGroup
 	semaphore := make(chan struct{}, backupCtx.maxConcurrency)
 
-	ctx := snap.AppContext().GetContext()
+	ctx := snap.AppContext()
 
+loop:
 	for {
 		select {
 		case <-ctx.Done():
-			wg.Wait()
-			return ctx.Err()
+			break loop
 
 		case record, ok := <-filesChannel:
 			if !ok {
-				wg.Wait()
-				return nil
+				break loop
 			}
 
 			semaphore <- struct{}{}
@@ -631,6 +631,12 @@ func (snap *Builder) processFiles(backupCtx *BackupContext, filesChannel <-chan 
 			}(record)
 		}
 	}
+	wg.Wait()
+	for range filesChannel {
+		// drain the filesChannel to consume the items that
+		// the importerJob might still have inflight.
+	}
+	return ctx.Err()
 }
 
 func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importer.ScanRecord) error {
@@ -672,12 +678,6 @@ func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importe
 					}
 				}
 			}
-		}
-	}
-
-	if object != nil {
-		if err := snap.repository.PutBlobIfNotExists(resources.RT_OBJECT, objectMAC, objectSerialized); err != nil {
-			return err
 		}
 	}
 
@@ -809,8 +809,8 @@ func (snap *Builder) persistVFS(backupCtx *BackupContext) (*header.VFS, *vfs.Sum
 	diriter := backupCtx.scanCache.EnumerateKeysWithPrefix("__directory__:", true)
 	for dirPath, bytes := range diriter {
 		select {
-		case <-snap.AppContext().GetContext().Done():
-			return nil, nil, snap.AppContext().GetContext().Err()
+		case <-snap.AppContext().Done():
+			return nil, nil, snap.AppContext().Err()
 		default:
 		}
 

@@ -31,7 +31,7 @@ func (p *GooglePhotoExporter) CreateDirectory(pathname string) error {
 	return nil
 }
 
-func (p *GooglePhotoExporter) StoreFile(pathname string, fp io.Reader) error {
+func (p *GooglePhotoExporter) StoreFile(pathname string, fp io.Reader, size int64) error {
 	tmpFile, err := os.CreateTemp("", "tempfile-*.tmp")
 	if err != nil {
 		return err

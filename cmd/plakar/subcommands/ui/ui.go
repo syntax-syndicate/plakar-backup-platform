@@ -22,7 +22,6 @@ package ui
 import (
 	"flag"
 	"fmt"
-	"os"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
@@ -32,7 +31,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Ui{} }, "ui")
+	subcommands.Register(func() subcommands.Subcommand { return &Ui{} }, subcommands.AgentSupport, "ui")
 }
 
 func (cmd *Ui) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -63,10 +62,6 @@ type Ui struct {
 	NoSpawn bool
 }
 
-func (cmd *Ui) Name() string {
-	return "ui"
-}
-
 func (cmd *Ui) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	ui_opts := v2.UiOptions{
 		NoSpawn: cmd.NoSpawn,
@@ -80,7 +75,7 @@ func (cmd *Ui) Execute(ctx *appcontext.AppContext, repo *repository.Repository) 
 
 	err := v2.Ui(repo, cmd.Addr, &ui_opts)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ui: %s\n", err)
+		fmt.Fprintf(ctx.Stderr, "ui: %s\n", err)
 		return 1, err
 	}
 	return 0, err

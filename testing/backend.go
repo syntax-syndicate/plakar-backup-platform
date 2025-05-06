@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/header"
 	"github.com/PlakarKorp/plakar/storage"
@@ -16,7 +17,7 @@ import (
 )
 
 func init() {
-	storage.Register(func(storeConfig map[string]string) (storage.Store, error) {
+	storage.Register(func(ctx *appcontext.AppContext, storeConfig map[string]string) (storage.Store, error) {
 		return &MockBackend{location: storeConfig["location"]}, nil
 	}, "mock")
 }
@@ -75,7 +76,7 @@ func NewMockBackend(storeConfig map[string]string) *MockBackend {
 	return &MockBackend{location: storeConfig["location"]}
 }
 
-func (mb *MockBackend) Create(configuration []byte) error {
+func (mb *MockBackend) Create(ctx *appcontext.AppContext, configuration []byte) error {
 	if strings.Contains(mb.location, "musterror") {
 		return errors.New("creating error")
 	}
@@ -98,7 +99,7 @@ func (mb *MockBackend) Create(configuration []byte) error {
 	return nil
 }
 
-func (mb *MockBackend) Open() ([]byte, error) {
+func (mb *MockBackend) Open(ctx *appcontext.AppContext) ([]byte, error) {
 	if strings.Contains(mb.location, "musterror") {
 		return nil, errors.New("opening error")
 	}

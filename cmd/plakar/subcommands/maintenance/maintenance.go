@@ -35,7 +35,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Maintenance{} }, "maintenance")
+	subcommands.Register(func() subcommands.Subcommand { return &Maintenance{} }, subcommands.AgentSupport, "maintenance")
 }
 
 func (cmd *Maintenance) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -58,22 +58,18 @@ type Maintenance struct {
 	cutoff        time.Time
 }
 
-func (cmd *Maintenance) Name() string {
-	return "maintenance"
-}
-
 // Builds the local cache of snapshot -> packfiles
 func (cmd *Maintenance) updateCache(ctx *appcontext.AppContext, cache *caching.MaintenanceCache) error {
-	wg, _ := errgroup.WithContext(ctx.GetContext())
+	wg := new(errgroup.Group)
 	wg.SetLimit(ctx.MaxConcurrency)
 
 	for snapshotID := range cmd.repository.ListSnapshots() {
-
 		wg.Go(func() error {
 			snapshot, err := snapshot.Load(cmd.repository, snapshotID)
 			if err != nil {
 				return err
 			}
+			defer snapshot.Close()
 
 			ok, err := cache.HasSnapshot(snapshotID)
 			if err != nil {
@@ -94,14 +90,16 @@ func (cmd *Maintenance) updateCache(ctx *appcontext.AppContext, cache *caching.M
 					return err
 				}
 
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+
 				if err := cache.PutPackfile(snapshotID, packfile); err != nil {
 					return err
 				}
 			}
 
 			cache.PutSnapshot(snapshotID, nil)
-			snapshot.Close()
-
 			return nil
 		})
 	}

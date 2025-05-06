@@ -30,7 +30,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Archive{} }, "archive")
+	subcommands.Register(func() subcommands.Subcommand { return &Archive{} }, subcommands.AgentSupport, "archive")
 }
 
 func (cmd *Archive) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -49,11 +49,12 @@ func (cmd *Archive) Parse(ctx *appcontext.AppContext, args []string) error {
 	if flags.NArg() == 0 {
 		return fmt.Errorf("need at least one snapshot ID to pull")
 	}
+	cmd.SnapshotPrefix = flags.Arg(0)
 
 	supportedFormats := map[string]string{
-		"tar":     ".tar",
-		"tarball": ".tar.gz",
-		"zip":     ".zip",
+		"tar":     "tar",
+		"tarball": "tar.gz",
+		"zip":     "zip",
 	}
 	if _, ok := supportedFormats[cmd.Format]; !ok {
 		return fmt.Errorf("unsupported format %s", cmd.Format)
@@ -73,10 +74,6 @@ type Archive struct {
 	Output         string
 	Format         string
 	SnapshotPrefix string
-}
-
-func (cmd *Archive) Name() string {
-	return "archive"
 }
 
 func (cmd *Archive) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {

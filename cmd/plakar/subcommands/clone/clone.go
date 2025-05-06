@@ -23,19 +23,18 @@ import (
 	"hash"
 	"io"
 	"os"
-	"sync"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/hashing"
-	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/storage"
+	"golang.org/x/sync/errgroup"
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Clone{} }, "clone")
+	subcommands.Register(func() subcommands.Subcommand { return &Clone{} }, subcommands.AgentSupport, "clone")
 }
 
 func (cmd *Clone) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -62,10 +61,6 @@ type Clone struct {
 	subcommands.SubcommandBase
 
 	Dest string
-}
-
-func (cmd *Clone) Name() string {
-	return "clone"
 }
 
 func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
@@ -101,7 +96,7 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 		return 1, err
 	}
 
-	cloneStore, err := storage.Create(storeConfig, wrappedSerializedConfig)
+	cloneStore, err := storage.Create(ctx, storeConfig, wrappedSerializedConfig)
 	if err != nil {
 		return 1, fmt.Errorf("could not create repository: %w", err)
 	}
@@ -111,52 +106,66 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 		return 1, fmt.Errorf("could not get packfiles list from repository: %w", err)
 	}
 
-	wg := sync.WaitGroup{}
-	for _, _packfileMAC := range packfileMACs {
-		wg.Add(1)
-		go func(packfileMAC objects.MAC) {
-			defer wg.Done()
+	wg := new(errgroup.Group)
+	wg.SetLimit(ctx.MaxConcurrency)
+	for _, packfileMAC := range packfileMACs {
+		if err := ctx.Err(); err != nil {
+			break
+		}
 
+		packfileMAC := packfileMAC
+		wg.Go(func() error {
 			rd, err := sourceStore.GetPackfile(packfileMAC)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "could not get packfile from repository: %s\n", err)
-				return
+				return err
 			}
 
 			_, err = cloneStore.PutPackfile(packfileMAC, rd)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "could not put packfile to repository: %s\n", err)
-				return
+				return err
 			}
-		}(_packfileMAC)
+
+			return nil
+		})
 	}
-	wg.Wait()
+	if err := wg.Wait(); err != nil {
+		return 1, fmt.Errorf("failed to process packfiles: %v", err)
+	}
 
 	indexesMACs, err := sourceStore.GetStates()
 	if err != nil {
 		return 1, fmt.Errorf("could not get packfiles list from repository: %w", err)
 	}
 
-	wg = sync.WaitGroup{}
-	for _, _indexMAC := range indexesMACs {
-		wg.Add(1)
-		go func(indexMAC objects.MAC) {
-			defer wg.Done()
+	wg = new(errgroup.Group)
+	wg.SetLimit(ctx.MaxConcurrency)
+	for _, indexMAC := range indexesMACs {
+		if err := ctx.Err(); err != nil {
+			break
+		}
 
+		indexMAC := indexMAC
+		wg.Go(func() error {
 			data, err := sourceStore.GetState(indexMAC)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "could not get index from repository: %s\n", err)
-				return
+				return err
 			}
 
 			_, err = cloneStore.PutState(indexMAC, data)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "could not put packfile to repository: %s\n", err)
-				return
+				return err
 			}
-		}(_indexMAC)
+
+			return nil
+		})
 	}
-	wg.Wait()
+	if err := wg.Wait(); err != nil {
+		return 1, fmt.Errorf("failed to process states: %v", err)
+	}
 
 	return 0, nil
 }

@@ -39,10 +39,6 @@ func (cmd *InfoRepository) Parse(ctx *appcontext.AppContext, args []string) erro
 	return nil
 }
 
-func (cmd *InfoRepository) Name() string {
-	return "info_repository"
-}
-
 func (cmd *InfoRepository) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 
 	fmt.Fprintln(ctx.Stdout, "Version:", repo.Configuration().Version)

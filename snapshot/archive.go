@@ -24,7 +24,7 @@ const (
 
 var (
 	ErrInvalidArchiveFormat = errors.New("unknown archive format")
-	ErrNotADirectory = errors.New("is not a directory")
+	ErrNotADirectory        = errors.New("is not a directory")
 )
 
 func (snap *Snapshot) Archive(w io.Writer, format ArchiveFormat, paths []string, rebase bool) error {
@@ -84,10 +84,17 @@ func (snap *Snapshot) Archive(w io.Writer, format ArchiveFormat, paths []string,
 		return ErrInvalidArchiveFormat
 	}
 
-	for _, p := range paths {
+	ctx := snap.AppContext()
+	for i, p := range paths {
 		err := fsc.WalkDir(p, func(entrypath string, e *vfs.Entry, err error) error {
 			if err != nil {
 				return err
+			}
+
+			if i%16 == 0 {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
 			}
 
 			outpath := entrypath
