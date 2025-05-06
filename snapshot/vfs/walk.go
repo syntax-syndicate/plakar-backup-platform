@@ -26,6 +26,10 @@ func (fsc *Filesystem) walkdir(entry *Entry, fn WalkDirFunc) error {
 			return fn(path, nil, err)
 		}
 
+		if entry.FileInfo.IsDir() {
+			continue
+		}
+
 		if err := fsc.walkdir(entry, fn); err != nil {
 			if err == fs.SkipDir {
 				continue
@@ -33,6 +37,29 @@ func (fsc *Filesystem) walkdir(entry *Entry, fn WalkDirFunc) error {
 			return err
 		}
 	}
+
+	iter, err = entry.Getdents(fsc)
+	if err != nil {
+		return fn(path, nil, err)
+	}
+
+	for entry, err := range iter {
+		if err != nil {
+			return fn(path, nil, err)
+		}
+
+		if !(entry.FileInfo.IsDir()) {
+			continue
+		}
+
+		if err := fsc.walkdir(entry, fn); err != nil {
+			if err == fs.SkipDir {
+				continue
+			}
+			return err
+		}
+	}
+	// TODO: make a default behaviour and a custom behaviour for notion
 
 	return nil
 }

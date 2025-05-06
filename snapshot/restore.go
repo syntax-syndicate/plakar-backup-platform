@@ -123,10 +123,11 @@ func (snap *Snapshot) Restore(exp exporter.Exporter, base string, pathname strin
 		return err
 	}
 
-	maxConcurrency := opts.MaxConcurrency
-	if maxConcurrency == 0 {
-		maxConcurrency = uint64(snap.AppContext().MaxConcurrency)
-	}
+	//maxConcurrency := opts.MaxConcurrency
+	//if maxConcurrency == 0 {
+	//	maxConcurrency = uint64(snap.AppContext().MaxConcurrency)
+	//}
+	maxConcurrency := 1
 
 	restoreContext := &restoreContext{
 		hardlinks:      make(map[string]string),
