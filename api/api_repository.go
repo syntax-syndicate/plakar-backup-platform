@@ -26,25 +26,13 @@ type RepositoryInfoSnapshots struct {
 }
 
 type RepositoryInfoResponse struct {
-	AuthToken     string                  `json:"auth_token,omitempty"`
 	Location      string                  `json:"location"`
 	Snapshots     RepositoryInfoSnapshots `json:"snapshots"`
 	Configuration storage.Configuration   `json:"configuration"`
 }
 
 func repositoryInfo(w http.ResponseWriter, r *http.Request) error {
-
 	configuration := lrepository.Configuration()
-	cache, err := lrepository.AppContext().GetCache().Repository(configuration.RepositoryID)
-	if err != nil {
-		return err
-	}
-	authToken, _ := cache.GetAuthToken()
-	if err != nil {
-		//
-	}
-	fmt.Println("authToken")
-
 	nSnapshots, logicalSize, err := snapshot.LogicalSize(lrepository)
 	if err != nil {
 		return fmt.Errorf("unable to calculate logical size: %w", err)
@@ -70,8 +58,7 @@ func repositoryInfo(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	return json.NewEncoder(w).Encode(Item[RepositoryInfoResponse]{Item: RepositoryInfoResponse{
-		AuthToken: authToken,
-		Location:  lrepository.Location(),
+		Location: lrepository.Location(),
 		Snapshots: RepositoryInfoSnapshots{
 			Total:       nSnapshots,
 			StorageSize: int64(lrepository.StorageSize()),
