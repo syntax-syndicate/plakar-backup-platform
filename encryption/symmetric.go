@@ -24,19 +24,19 @@ const (
 )
 
 type Configuration struct {
-	SubKeyAlgorithm string
-	DataAlgorithm   string
-	ChunkSize       int
-	KDFParams       KDFParams
-	Canary          []byte
+	SubKeyAlgorithm string    `json:"subkey_algorithm"`
+	DataAlgorithm   string    `json:"data_algorithm"`
+	ChunkSize       int       `json:"chunk_size"`
+	KDFParams       KDFParams `json:"KDF_params"`
+	Canary          []byte    `json:"canary"`
 }
 
 type KDFParams struct {
-	KDF            string
-	Salt           []byte
-	Argon2idParams *Argon2idParams `msgpack:"argon2id,omitempty"`
-	ScryptParams   *ScryptParams   `msgpack:"scrypt,omitempty"`
-	Pbkdf2Params   *PBKDF2Params   `msgpack:"pbkdf2,omitempty"`
+	KDF            string          `json:"KDF"`
+	Salt           []byte          `json:"salt"`
+	Argon2idParams *Argon2idParams `msgpack:"argon2id,omitempty" json:"argon2id,omitempty"`
+	ScryptParams   *ScryptParams   `msgpack:"scrypt,omitempty" json:"scrypt,omitempty"`
+	Pbkdf2Params   *PBKDF2Params   `msgpack:"pbkdf2,omitempty" json:"pbkdf2,omitempty"`
 }
 
 func NewDefaultKDFParams(KDF string) (*KDFParams, error) {
