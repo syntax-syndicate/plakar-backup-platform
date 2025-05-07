@@ -42,6 +42,7 @@ import (
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/digest"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/help"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/info"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/install"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/locate"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/login"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ls"

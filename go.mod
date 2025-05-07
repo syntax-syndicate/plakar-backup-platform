@@ -50,6 +50,7 @@ require (
 
 require (
 	github.com/DataDog/zstd v1.5.6 // indirect
+	github.com/Masterminds/semver/v3 v3.3.1 // indirect
 	github.com/NickBall/go-aes-key-wrap v0.0.0-20170929221519-1c3aa3e4dfc5 // indirect
 	github.com/alecthomas/chroma/v2 v2.15.0 // indirect
 	github.com/aws/aws-sdk-go v1.44.256 // indirect
