@@ -146,6 +146,7 @@ func (cmd *AgentStop) Parse(ctx *appcontext.AppContext, args []string) error {
 
 func (cmd *AgentStop) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	log.Println("stopping")
+	syscall.Kill(os.Getpid(), syscall.SIGINT)
 	return 0, nil
 }
 
