@@ -324,7 +324,7 @@ func (s *Scheduler) maintenanceTask(task MaintenanceConfig) error {
 				s.ctx.GetLogger().Error("Error loading repository: %s", err)
 				continue
 			}
-			reporter := s.NewTaskReporter(repo, "maintenance", "default", task.Repository)
+			reporter := s.NewTaskReporter(repo, "maintenance", "maintenance", task.Repository)
 
 			retval, err := maintenanceSubcommand.Execute(s.ctx, repo)
 			if err != nil || retval != 0 {
