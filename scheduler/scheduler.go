@@ -71,6 +71,10 @@ func (s *Scheduler) Run() {
 	<-make(chan struct{})
 }
 
-func (s *Scheduler) NewReporter(repo *repository.Repository) *reporting.Reporter {
-	return reporting.NewReporter(s.config.Agent.Reporting, repo, s.ctx.GetLogger())
+func (s *Scheduler) NewTaskReporter(repo *repository.Repository, taskType, taskName, repoName string) *reporting.Reporter {
+	reporter := reporting.NewReporter(s.config.Agent.Reporting, repo, s.ctx.GetLogger())
+	reporter.TaskStart(taskType, taskName)
+	reporter.WithRepositoryName(repoName)
+	reporter.WithRepository(repo)
+	return reporter
 }
