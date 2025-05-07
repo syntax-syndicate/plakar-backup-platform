@@ -91,7 +91,6 @@ func (s *Scheduler) backupTask(taskset Task, task BackupConfig) error {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		reporter := s.NewReporter()
 		firstRun := true
 		for {
 			if firstRun {
@@ -100,15 +99,18 @@ func (s *Scheduler) backupTask(taskset Task, task BackupConfig) error {
 				time.Sleep(interval)
 			}
 
+			reporter := s.NewReporter(nil)
 			reporter.TaskStart("backup", taskset.Name)
 			reporter.WithRepositoryName(taskset.Repository)
-
 			repo, store, err := loadRepository(s.ctx, taskset.Repository)
 			if err != nil {
 				s.ctx.GetLogger().Error("Error loading repository: %s", err)
 				reporter.TaskFailed(1, "Error loading repository: %s", err)
 				continue
 			}
+			reporter = s.NewReporter(repo)
+			reporter.TaskStart("backup", taskset.Name)
+			reporter.WithRepositoryName(taskset.Repository)
 			reporter.WithRepository(repo)
 
 			if retval, err, snapId := backupSubcommand.DoBackup(s.ctx, repo); err != nil || retval != 0 {
@@ -157,7 +159,6 @@ func (s *Scheduler) checkTask(taskset Task, task CheckConfig) error {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		reporter := s.NewReporter()
 		firstRun := true
 		for {
 			if firstRun {
@@ -166,6 +167,7 @@ func (s *Scheduler) checkTask(taskset Task, task CheckConfig) error {
 				time.Sleep(interval)
 			}
 
+			reporter := s.NewReporter(nil)
 			reporter.TaskStart("check", taskset.Name)
 			reporter.WithRepositoryName(taskset.Repository)
 
@@ -176,6 +178,9 @@ func (s *Scheduler) checkTask(taskset Task, task CheckConfig) error {
 				reporter.TaskFailed(1, "Error loading repository: %s", err)
 				continue
 			}
+			reporter = s.NewReporter(repo)
+			reporter.TaskStart("check", taskset.Name)
+			reporter.WithRepositoryName(taskset.Repository)
 			reporter.WithRepository(repo)
 
 			retval, err := checkSubcommand.Execute(s.ctx, repo)
@@ -211,7 +216,6 @@ func (s *Scheduler) restoreTask(taskset Task, task RestoreConfig) error {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		reporter := s.NewReporter()
 		firstRun := true
 		for {
 			if firstRun {
@@ -220,6 +224,7 @@ func (s *Scheduler) restoreTask(taskset Task, task RestoreConfig) error {
 				time.Sleep(interval)
 			}
 
+			reporter := s.NewReporter(nil)
 			reporter.TaskStart("restore", taskset.Name)
 			reporter.WithRepositoryName(taskset.Repository)
 
@@ -229,6 +234,9 @@ func (s *Scheduler) restoreTask(taskset Task, task RestoreConfig) error {
 				reporter.TaskFailed(1, "Error loading repository: %s", err)
 				continue
 			}
+			reporter = s.NewReporter(repo)
+			reporter.TaskStart("restore", taskset.Name)
+			reporter.WithRepositoryName(taskset.Repository)
 			reporter.WithRepository(repo)
 
 			retval, err := restoreSubcommand.Execute(s.ctx, repo)
