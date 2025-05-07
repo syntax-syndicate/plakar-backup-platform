@@ -59,8 +59,8 @@ type Configuration struct {
 	Packfile    packfile.Configuration     `json:"packfile"`
 	Chunking    chunking.Configuration     `json:"chunking"`
 	Hashing     hashing.Configuration      `json:"hashing"`
-	Compression *compression.Configuration `json:"compression,omitempty"`
-	Encryption  *encryption.Configuration  `json:"encryption,omitempty"`
+	Compression *compression.Configuration `json:"compression"`
+	Encryption  *encryption.Configuration  `json:"encryption"`
 }
 
 func NewConfiguration() *Configuration {
