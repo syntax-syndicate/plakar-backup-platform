@@ -410,7 +410,6 @@ func repositoryLoginEmail(w http.ResponseWriter, r *http.Request) error {
 	}{
 		URL: redirectURL,
 	}
-
 	return json.NewEncoder(w).Encode(ret)
 }
 
@@ -419,7 +418,7 @@ func repositoryLogout(w http.ResponseWriter, r *http.Request) error {
 	if cache, err := lrepository.AppContext().GetCache().Repository(configuration.RepositoryID); err != nil {
 		return err
 	} else if exists := cache.HasAuthToken(); !exists {
-		return fmt.Errorf("no auth token found")
+		return nil
 	} else {
 		return cache.DeleteAuthToken()
 	}
