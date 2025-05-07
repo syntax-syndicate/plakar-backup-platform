@@ -23,6 +23,8 @@ import (
 	"github.com/PlakarKorp/plakar/config"
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/logging"
+	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/plakar/reporting"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/PlakarKorp/plakar/versioning"
@@ -31,8 +33,10 @@ import (
 
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/agent"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/archive"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/backup"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/backup"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/cat"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/clone"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/config"
@@ -43,14 +47,18 @@ import (
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/help"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/info"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/locate"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/login"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ls"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/maintenance"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/maintenance"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/mount"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ptar"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/server"
-	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
+	syncSubcmd "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ui"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/version"
 
@@ -290,6 +298,7 @@ func EntryPoint() int {
 
 	var repositoryPath string
 
+	var at bool
 	var args []string
 	if flag.Arg(0) == "at" {
 		if len(flag.Args()) < 2 {
@@ -300,10 +309,7 @@ func EntryPoint() int {
 		}
 		repositoryPath = flag.Arg(1)
 		args = flag.Args()[2:]
-
-		if flag.Args()[2] == "agent" {
-			log.Fatalf("%s: agent command can not be used with 'at' parameter.", flag.CommandLine.Name())
-		}
+		at = true
 	} else {
 		repositoryPath = os.Getenv("PLAKAR_REPOSITORY")
 		if repositoryPath == "" {
@@ -354,6 +360,10 @@ func EntryPoint() int {
 
 	// these commands need to be ran before the repository is opened
 	if cmd.GetFlags()&subcommands.BeforeRepositoryOpen != 0 {
+		if at {
+			log.Fatalf("%s: %s command cannot be used with 'at' parameter.",
+				flag.CommandLine.Name(), strings.Join(name, " "))
+		}
 		if err := cmd.Parse(ctx, args); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
@@ -469,7 +479,51 @@ func EntryPoint() int {
 
 	var status int
 	if opt_agentless || cmd.GetFlags()&subcommands.AgentSupport == 0 {
-		status, err = cmd.Execute(ctx, repo)
+		var taskKind string
+		switch cmd.(type) {
+		case *backup.Backup:
+			taskKind = "backup"
+		case *check.Check:
+			taskKind = "check"
+		case *restore.Restore:
+			taskKind = "restore"
+		case *syncSubcmd.Sync:
+			taskKind = "sync"
+		case *rm.Rm:
+			taskKind = "rm"
+		case *maintenance.Maintenance:
+			taskKind = "maintenance"
+		}
+
+		var reporter *reporting.Reporter
+		if taskKind != "" {
+			reporter = reporting.NewReporter(true, repo, ctx.GetLogger())
+		} else {
+			reporter = reporting.NewReporter(false, repo, ctx.GetLogger())
+		}
+		reporter.TaskStart(taskKind, "@cli")
+		reporter.WithRepositoryName(storeConfig["location"])
+		reporter.WithRepository(repo)
+
+		var status int
+		var snapshotID objects.MAC
+		if _, ok := cmd.(*backup.Backup); ok {
+			subcommand := cmd.(*backup.Backup)
+			status, err, snapshotID = subcommand.DoBackup(ctx, repo)
+			if err == nil {
+				reporter.WithSnapshotID(snapshotID)
+			}
+		} else {
+			status, err = cmd.Execute(ctx, repo)
+		}
+
+		if status == 0 {
+			reporter.TaskDone()
+		} else if status == 1 {
+			reporter.TaskFailed(0, "error: %s", err)
+		} else {
+			reporter.TaskWarning("warning: %s", err)
+		}
 	} else {
 		status, err = agent.ExecuteRPC(ctx, name, cmd, storeConfig)
 		if err == agent.ErrRetryAgentless {

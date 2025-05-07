@@ -36,15 +36,18 @@ func TestExporter(t *testing.T) {
 
 	require.Equal(t, "/bucket", exporterInstance.Root())
 
+	data := []byte("test exporter s3")
+	datalen := int64(len(data))
+
 	// create a temporary file to backup later
-	err = os.WriteFile(tmpOriginDir+"/dummy.txt", []byte("test exporter s3"), 0644)
+	err = os.WriteFile(tmpOriginDir+"/dummy.txt", data, 0644)
 	require.NoError(t, err)
 
 	fpOrigin, err := os.Open(tmpOriginDir + "/dummy.txt")
 	require.NoError(t, err)
 	defer fpOrigin.Close()
 
-	err = exporterInstance.StoreFile("dummy.txt", fpOrigin)
+	err = exporterInstance.StoreFile("dummy.txt", fpOrigin, datalen)
 	require.NoError(t, err)
 
 	err = exporterInstance.CreateDirectory("/bucket/subdir")

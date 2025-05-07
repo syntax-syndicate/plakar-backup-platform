@@ -32,9 +32,17 @@ import (
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/backup"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/maintenance"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
+	syncSubcmd "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
+	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/plakar/reporting"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/scheduler"
 	"github.com/PlakarKorp/plakar/storage"
@@ -45,7 +53,8 @@ import (
 func init() {
 	subcommands.Register(func() subcommands.Subcommand { return &AgentStop{} },
 		subcommands.AgentSupport|subcommands.IgnoreVersion, "agent", "stop")
-	subcommands.Register(func() subcommands.Subcommand { return &Agent{} }, 0, "agent")
+	subcommands.Register(func() subcommands.Subcommand { return &Agent{} },
+		subcommands.BeforeRepositoryOpen, "agent")
 }
 
 func daemonize(argv []string) error {
@@ -137,6 +146,7 @@ func (cmd *AgentStop) Parse(ctx *appcontext.AppContext, args []string) error {
 
 func (cmd *AgentStop) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	log.Println("stopping")
+	syscall.Kill(os.Getpid(), syscall.SIGINT)
 	return 0, nil
 }
 
@@ -385,13 +395,52 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				eventsDone <- struct{}{}
 			}()
 
-			status, err := subcommand.Execute(clientContext, repo)
+			var taskKind string
+			switch subcommand.(type) {
+			case *backup.Backup:
+				taskKind = "backup"
+			case *check.Check:
+				taskKind = "check"
+			case *restore.Restore:
+				taskKind = "restore"
+			case *syncSubcmd.Sync:
+				taskKind = "sync"
+			case *rm.Rm:
+				taskKind = "rm"
+			case *maintenance.Maintenance:
+				taskKind = "maintenance"
+			}
+
+			var reporter *reporting.Reporter
+			if taskKind != "" {
+				reporter = reporting.NewReporter(true, repo, ctx.GetLogger())
+			} else {
+				reporter = reporting.NewReporter(false, repo, ctx.GetLogger())
+			}
+			reporter.TaskStart(taskKind, "@agent")
+			reporter.WithRepositoryName(storeConfig["location"])
+			reporter.WithRepository(repo)
+
+			var status int
+			var snapshotID objects.MAC
+			if _, ok := subcommand.(*backup.Backup); ok {
+				subcommand := subcommand.(*backup.Backup)
+				status, err, snapshotID = subcommand.DoBackup(clientContext, repo)
+				if err == nil {
+					reporter.WithSnapshotID(snapshotID)
+				}
+			} else {
+				status, err = subcommand.Execute(clientContext, repo)
+			}
 
 			if status == 0 {
+				reporter.TaskDone()
 				SuccessInc(name[0])
 			} else if status == 1 {
+				reporter.TaskFailed(0, "error: %s", err)
 				FailureInc(name[0])
 			} else {
+				reporter.TaskWarning("warning: %s", err)
 				WarningInc(name[0])
 			}
 
