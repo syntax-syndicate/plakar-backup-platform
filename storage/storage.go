@@ -52,7 +52,7 @@ var ErrInvalidMagic = fmt.Errorf("invalid magic")
 var ErrInvalidVersion = fmt.Errorf("invalid version")
 
 type Configuration struct {
-	Version      versioning.Version `msgpack:"-"`
+	Version      versioning.Version `msgpack:"-" json:"version"`
 	Timestamp    time.Time          `json:"timestamp"`
 	RepositoryID uuid.UUID          `json:"repository_id"`
 
