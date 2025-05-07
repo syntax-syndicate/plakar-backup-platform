@@ -4,44 +4,22 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	notionConst "github.com/PlakarKorp/plakar/snapshot/importer/notion"
 	"io"
 	"log"
 	"net/http"
 	"path"
 	"sync"
 
-	notionConst "github.com/PlakarKorp/plakar/snapshot/importer/notion"
-
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/snapshot/exporter"
 )
 
-// SafeLock is a simple mutex wrapper to ensure that the lock is released //TODO: move to a common package
-
-type SafeLock struct {
-	mu     sync.Mutex
-	locked bool
-}
-
-func (s *SafeLock) Lock() {
-	s.mu.Lock()
-	s.locked = true
-}
-
-func (s *SafeLock) Unlock() {
-	if s.locked {
-		s.locked = false
-		s.mu.Unlock()
-	}
-}
-
-// NotionExporter is an implementation of the Exporter interface for Notion
-
 type NotionExporter struct {
 	token  string
 	rootID string //TODO : change this to a user friendly name (e.g. "My Notion Page" instead of "1234567890abcdef")
-	SafeLock
+	sync.Mutex
 }
 
 func init() {
@@ -142,11 +120,9 @@ func (p *NotionExporter) StoreFile(pathname string, fp io.Reader, size int64) er
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Notion-Version", notionConst.NotionVersionHeader)
 
-	// Lock the mutex to ensure thread safety
 	p.Lock()
-	defer p.Unlock()
-
 	resp, err := http.DefaultClient.Do(req)
+	p.Unlock()
 	if err != nil {
 		return fmt.Errorf("failed to execute request: %w", err)
 	}
@@ -169,8 +145,6 @@ func (p *NotionExporter) StoreFile(pathname string, fp io.Reader, size int64) er
 		// end debug
 		return fmt.Errorf("failed to store file: status code %d", resp.StatusCode)
 	}
-
-	p.Unlock()
 
 	jsonData = map[string]interface{}{}
 	err = json.NewDecoder(resp.Body).Decode(&jsonData)
@@ -207,9 +181,8 @@ func (p *NotionExporter) StoreFile(pathname string, fp io.Reader, size int64) er
 		req.Header.Set("Notion-Version", notionConst.NotionVersionHeader)
 
 		p.Lock()
-		defer p.Unlock()
-
 		resp, err = http.DefaultClient.Do(req)
+		p.Unlock()
 		if err != nil {
 			return fmt.Errorf("failed to execute request: %w", err)
 		}
@@ -231,8 +204,6 @@ func (p *NotionExporter) StoreFile(pathname string, fp io.Reader, size int64) er
 			// end debug
 			return fmt.Errorf("failed to store file: status code %d", resp.StatusCode)
 		}
-
-		p.Unlock()
 	}
 
 	return nil
