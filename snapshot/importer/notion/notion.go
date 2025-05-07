@@ -19,7 +19,6 @@ package notion
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path"
 	"sync"
@@ -86,14 +85,6 @@ func (p *NotionImporter) Scan() (<-chan *importer.ScanResult, error) {
 
 func (p *NotionImporter) NewReader(pathname string) (io.ReadCloser, error) {
 	file := path.Base(path.Dir(pathname))
-	//debug
-	rd, err := NewNotionReader(p.token, file)
-	if rd == nil {
-		return nil, err
-	}
-	b, _ := io.ReadAll(rd)
-	log.Print(string(b))
-	//end debug
 	nRd, err := NewNotionReader(p.token, file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Notion reader: %w", err)
