@@ -299,6 +299,8 @@ func (s *Scheduler) maintenanceTask(task MaintenanceConfig) error {
 
 	maintenanceSubcommand := &maintenance.Maintenance{}
 	rmSubcommand := &rm.Rm{}
+	rmSubcommand.LocateOptions = utils.NewDefaultLocateOptions()
+	rmSubcommand.LocateOptions.Job = "maintenance"
 
 	var retention time.Duration
 	if task.Retention != "" {
