@@ -10,12 +10,12 @@ import (
 )
 
 type Configuration struct {
-	Algorithm  string
-	Level      int  // Compression level (-1 for default)
-	WindowSize int  // Window size for algorithms like zstd or Brotli
-	ChunkSize  int  // Chunk size for streaming compression
-	BlockSize  int  // Block size for block-based algorithms like bzip2
-	EnableCRC  bool // Enable/disable checksum (e.g., gzip CRC32, zstd)
+	Algorithm  string `json:"algorithm"`
+	Level      int    `json:"level"`       // Compression level (-1 for default)
+	WindowSize int    `json:"window_size"` // Window size for algorithms like zstd or Brotli
+	ChunkSize  int    `json:"chunk_size"`  // Chunk size for streaming compression
+	BlockSize  int    `json:"block_size"`  // Block size for block-based algorithms like bzip2
+	EnableCRC  bool   `json:"enable_CRC"`  // Enable/disable checksum (e.g., gzip CRC32, zstd)
 }
 
 func NewDefaultConfiguration() *Configuration {
