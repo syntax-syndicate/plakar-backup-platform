@@ -111,7 +111,7 @@ func Ui(repo *repository.Repository, addr string, opts *UiOptions) error {
 			return err
 		}
 	} else {
-		fmt.Println("launching webUI at", url)
+		fmt.Fprintf(repo.AppContext().Stdout, "launching webUI at %s\n", url)
 	}
 
 	var handler http.Handler = server
