@@ -112,7 +112,6 @@ func (s *Scheduler) backupTask(taskset Task, task BackupConfig) error {
 				goto close
 			} else {
 				reporter.WithSnapshotID(snapId)
-				fmt.Println(snapId)
 			}
 
 			if task.Retention != "" {
