@@ -12,8 +12,8 @@ import (
 const DEFAULT_HASHING_ALGORITHM = "BLAKE3"
 
 type Configuration struct {
-	Algorithm string // Hashing algorithm name (e.g., "SHA256", "BLAKE3")
-	Bits      uint32
+	Algorithm string `json:"algorithm"` // Hashing algorithm name (e.g., "SHA256", "BLAKE3")
+	Bits      uint32 `json:"bits"`
 }
 
 func NewDefaultConfiguration() *Configuration {

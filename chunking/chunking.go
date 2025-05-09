@@ -1,10 +1,10 @@
 package chunking
 
 type Configuration struct {
-	Algorithm  string // Content-defined chunking algorithm (e.g., "rolling-hash", "fastcdc")
-	MinSize    uint32 // Minimum chunk size
-	NormalSize uint32 // Expected (average) chunk size
-	MaxSize    uint32 // Maximum chunk size
+	Algorithm  string `json:"algorithm"`   // Content-defined chunking algorithm (e.g., "rolling-hash", "fastcdc")
+	MinSize    uint32 `json:"min_size"`    // Minimum chunk size
+	NormalSize uint32 `json:"normal_size"` // Expected (average) chunk size
+	MaxSize    uint32 `json:"max_size"`    // Maximum chunk size
 }
 
 func NewDefaultConfiguration() *Configuration {
