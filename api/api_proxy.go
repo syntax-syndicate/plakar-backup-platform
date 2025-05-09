@@ -55,14 +55,6 @@ func servicesProxy(w http.ResponseWriter, r *http.Request) error {
 	req.Header.Add("User-Agent", client)
 	req.Header.Add("X-Real-IP", r.RemoteAddr)
 
-	for name, values := range r.Header {
-		for _, v := range values {
-			if name != "Authorization" && name != "User-Agent" {
-				req.Header.Add(name, v)
-			}
-		}
-	}
-
 	// Send request using default client (or customize as needed)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
