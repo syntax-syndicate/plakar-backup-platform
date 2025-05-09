@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -527,33 +526,6 @@ func EntryPoint() int {
 		}
 	} else {
 		status, err = agent.ExecuteRPC(ctx, name, cmd, storeConfig)
-		if err == agent.ErrRetryAgentless {
-			err = nil
-			// Reopen using the agentless cache, and rebuild a repository
-			ctx.GetCache().Close()
-			cacheSubDir = "plakar-agentless"
-			cacheDir, err = utils.GetCacheDir(cacheSubDir)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: could not get cache directory: %s\n", flag.CommandLine.Name(), err)
-				return 1
-			}
-
-			ctx.CacheDir = cacheDir
-			ctx.SetCache(caching.NewManager(cacheDir))
-			defer ctx.GetCache().Close()
-
-			repo, err = repository.New(ctx, store, serializedConfig)
-			if err != nil {
-				if errors.Is(err, caching.ErrInUse) {
-					fmt.Fprintf(os.Stderr, "%s: the agentless cache is locked by another process. To run multiple processes concurrently, start `plakar agent` and run your command again.\n", flag.CommandLine.Name())
-				} else {
-					fmt.Fprintf(os.Stderr, "%s: failed to open repository: %s\n", flag.CommandLine.Name(), err)
-				}
-				return 1
-			}
-
-			status, err = cmd.Execute(ctx, repo)
-		}
 	}
 
 	t1 := time.Since(t0)
