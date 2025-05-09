@@ -113,20 +113,15 @@ func TokenAuthMiddleware(token string) func(http.Handler) http.Handler {
 }
 
 func apiInfo(w http.ResponseWriter, r *http.Request) error {
+	authenticated := false
 	configuration := lrepository.Configuration()
-	cache, err := lrepository.AppContext().GetCache().Repository(configuration.RepositoryID)
-	if err != nil {
-		return err
+	if cache, err := lrepository.AppContext().GetCache().Repository(configuration.RepositoryID); err == nil {
+		if authToken, err := cache.GetAuthToken(); err == nil && authToken != "" {
+			authenticated = true
+		}
 	}
-	authToken, _ := cache.GetAuthToken()
-	if err != nil {
-		//
-	}
-
-	authenticated := authToken != ""
 
 	res := &struct {
-		//AuthToken string `json:"auth_token"`
 		Authenticated bool   `json:"authenticated"`
 		Version       string `json:"version"`
 		Browsable     bool   `json:"browsable"`
