@@ -28,7 +28,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Login{} }, 0, "login")
+	subcommands.Register(func() subcommands.Subcommand { return &Login{} }, subcommands.AgentSupport, "login")
 }
 
 func (cmd *Login) Parse(ctx *appcontext.AppContext, args []string) error {
