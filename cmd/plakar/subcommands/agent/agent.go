@@ -51,8 +51,12 @@ import (
 )
 
 func init() {
+	subcommands.Register(func() subcommands.Subcommand { return &AgentRestart{} },
+		subcommands.AgentSupport|subcommands.IgnoreVersion, "agent", "restart")
 	subcommands.Register(func() subcommands.Subcommand { return &AgentStop{} },
 		subcommands.AgentSupport|subcommands.IgnoreVersion, "agent", "stop")
+	subcommands.Register(func() subcommands.Subcommand { return &Agent{} },
+		subcommands.BeforeRepositoryOpen, "agent", "start")
 	subcommands.Register(func() subcommands.Subcommand { return &Agent{} },
 		subcommands.BeforeRepositoryOpen, "agent")
 }
@@ -145,9 +149,39 @@ func (cmd *AgentStop) Parse(ctx *appcontext.AppContext, args []string) error {
 }
 
 func (cmd *AgentStop) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	log.Println("stopping")
 	syscall.Kill(os.Getpid(), syscall.SIGINT)
 	return 0, nil
+}
+
+type AgentRestart struct {
+	subcommands.SubcommandBase
+}
+
+func (cmd *AgentRestart) Parse(ctx *appcontext.AppContext, args []string) error {
+	flags := flag.NewFlagSet("agent restart", flag.ExitOnError)
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS]\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "\nOPTIONS:\n")
+		flags.PrintDefaults()
+	}
+	flags.Parse(args)
+
+	return nil
+}
+
+func (cmd *AgentRestart) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+	if err := restart(); err != nil {
+		return 1, fmt.Errorf("failed to restart agent: %w", err)
+	}
+	return 0, nil
+}
+
+func restart() error {
+	exePath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("cannot find executable path: %w", err)
+	}
+	return syscall.Exec(exePath, append([]string{exePath}, os.Args[1:]...), os.Environ())
 }
 
 type Agent struct {
