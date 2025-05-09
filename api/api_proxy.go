@@ -29,7 +29,7 @@ func servicesProxy(w http.ResponseWriter, r *http.Request) error {
 		RawQuery: r.URL.RawQuery,
 	})
 
-	fmt.Println("Proxying request to:", r.Method, targetURL.String())
+	//fmt.Println("Proxying request to:", r.Method, targetURL.String())
 
 	// Create new request to target
 	req, err := http.NewRequestWithContext(r.Context(), r.Method, targetURL.String(), r.Body)
