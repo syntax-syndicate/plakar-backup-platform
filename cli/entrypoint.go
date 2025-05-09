@@ -58,6 +58,7 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/server"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/services"
 	syncSubcmd "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ui"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/version"

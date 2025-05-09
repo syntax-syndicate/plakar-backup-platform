@@ -1,12 +1,15 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+
+	"github.com/PlakarKorp/plakar/services"
 )
 
 var SERVICES_ENDPOINT = "https://api.plakar.io"
@@ -66,4 +69,77 @@ func servicesProxy(w http.ResponseWriter, r *http.Request) error {
 
 	_, err = io.Copy(w, resp.Body)
 	return err
+}
+
+type AlertServiceConfiguration struct {
+	Enabled     bool `json:"enabled"`
+	EmailReport bool `json:"email_report"`
+}
+
+func servicesGetAlertingServiceConfiguration(w http.ResponseWriter, r *http.Request) error {
+	authToken := ""
+	configuration := lrepository.Configuration()
+	if cache, err := lrepository.AppContext().GetCache().Repository(configuration.RepositoryID); err == nil {
+		if tmp, err := cache.GetAuthToken(); err == nil && tmp != "" {
+			authToken = tmp
+		}
+	}
+
+	sc := services.NewServiceConnector(lrepository.AppContext(), authToken)
+	enabled, err := sc.GetServiceStatus("alerting")
+	if err != nil {
+		return err
+	}
+
+	config, err := sc.GetServiceConfiguration("alerting")
+	if err != nil {
+		return err
+	}
+
+	var alertConfig AlertServiceConfiguration
+	alertConfig.Enabled = enabled
+	if emailReport, ok := config["report.email"]; ok {
+		if emailReport == "true" {
+			alertConfig.EmailReport = true
+		} else {
+			alertConfig.EmailReport = false
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	return json.NewEncoder(w).Encode(alertConfig)
+}
+
+func servicesSetAlertingServiceConfiguration(w http.ResponseWriter, r *http.Request) error {
+	authToken := ""
+	configuration := lrepository.Configuration()
+	if cache, err := lrepository.AppContext().GetCache().Repository(configuration.RepositoryID); err == nil {
+		if tmp, err := cache.GetAuthToken(); err == nil && tmp != "" {
+			authToken = tmp
+		}
+	}
+
+	var alertConfig AlertServiceConfiguration
+	if err := json.NewDecoder(r.Body).Decode(&alertConfig); err != nil {
+		return err
+	}
+
+	sc := services.NewServiceConnector(lrepository.AppContext(), authToken)
+
+	err := sc.SetServiceStatus("alerting", alertConfig.Enabled)
+	if err != nil {
+		return err
+	}
+
+	err = sc.SetServiceConfiguration("alerting", map[string]string{
+		"report.email": fmt.Sprintf("%t", alertConfig.EmailReport),
+	})
+	if err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	return json.NewEncoder(w).Encode(alertConfig)
 }
