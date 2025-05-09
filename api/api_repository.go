@@ -338,5 +338,3 @@ func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 
 	return json.NewEncoder(w).Encode(items)
 }
-
-// XXXXX

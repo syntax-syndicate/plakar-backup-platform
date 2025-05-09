@@ -50,24 +50,20 @@ func servicesProxy(w http.ResponseWriter, r *http.Request) error {
 	req.Header.Add("User-Agent", client)
 	req.Header.Add("X-Real-IP", r.RemoteAddr)
 
-	// Send request using default client (or customize as needed)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
-	// Copy response headers
 	for name, values := range resp.Header {
 		for _, v := range values {
 			w.Header().Add(name, v)
 		}
 	}
 
-	// Write status code
 	w.WriteHeader(resp.StatusCode)
 
-	// Stream response body
 	_, err = io.Copy(w, resp.Body)
 	return err
 }
