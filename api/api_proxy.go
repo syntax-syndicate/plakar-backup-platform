@@ -44,13 +44,10 @@ func servicesProxy(w http.ResponseWriter, r *http.Request) error {
 		lrepository.AppContext().Architecture)
 
 	configuration := lrepository.Configuration()
-	cache, err := lrepository.AppContext().GetCache().Repository(configuration.RepositoryID)
-	if err != nil {
-		return err
-	}
-	authToken, err := cache.GetAuthToken()
-	if err == nil {
-		req.Header.Add("Authorization", "Bearer "+authToken)
+	if cache, err := lrepository.AppContext().GetCache().Repository(configuration.RepositoryID); err == nil {
+		if authToken, err := cache.GetAuthToken(); err == nil && authToken != "" {
+			req.Header.Add("Authorization", "Bearer "+authToken)
+		}
 	}
 	req.Header.Add("User-Agent", client)
 	req.Header.Add("X-Real-IP", r.RemoteAddr)
