@@ -44,11 +44,9 @@ func servicesProxy(w http.ResponseWriter, r *http.Request) error {
 		lrepository.AppContext().OperatingSystem,
 		lrepository.AppContext().Architecture)
 
-	configuration := lrepository.Configuration()
-	if cache, err := lrepository.AppContext().GetCache().Repository(configuration.RepositoryID); err == nil {
-		if authToken, err := cache.GetAuthToken(); err == nil && authToken != "" {
-			req.Header.Add("Authorization", "Bearer "+authToken)
-		}
+	authToken, _ := lrepository.AppContext().GetAuthToken(lrepository.Configuration().RepositoryID)
+	if authToken != "" {
+		req.Header.Add("Authorization", "Bearer "+authToken)
 	}
 	req.Header.Add("User-Agent", client)
 	req.Header.Add("X-Real-IP", r.RemoteAddr)
@@ -77,13 +75,7 @@ type AlertServiceConfiguration struct {
 }
 
 func servicesGetAlertingServiceConfiguration(w http.ResponseWriter, r *http.Request) error {
-	authToken := ""
-	configuration := lrepository.Configuration()
-	if cache, err := lrepository.AppContext().GetCache().Repository(configuration.RepositoryID); err == nil {
-		if tmp, err := cache.GetAuthToken(); err == nil && tmp != "" {
-			authToken = tmp
-		}
-	}
+	authToken, _ := lrepository.AppContext().GetAuthToken(lrepository.Configuration().RepositoryID)
 
 	sc := services.NewServiceConnector(lrepository.AppContext(), authToken)
 	enabled, err := sc.GetServiceStatus("alerting")
@@ -112,13 +104,7 @@ func servicesGetAlertingServiceConfiguration(w http.ResponseWriter, r *http.Requ
 }
 
 func servicesSetAlertingServiceConfiguration(w http.ResponseWriter, r *http.Request) error {
-	authToken := ""
-	configuration := lrepository.Configuration()
-	if cache, err := lrepository.AppContext().GetCache().Repository(configuration.RepositoryID); err == nil {
-		if tmp, err := cache.GetAuthToken(); err == nil && tmp != "" {
-			authToken = tmp
-		}
-	}
+	authToken, _ := lrepository.AppContext().GetAuthToken(lrepository.Configuration().RepositoryID)
 
 	var alertConfig AlertServiceConfiguration
 	if err := json.NewDecoder(r.Body).Decode(&alertConfig); err != nil {
