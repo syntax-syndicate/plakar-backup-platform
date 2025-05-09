@@ -507,9 +507,10 @@ func EntryPoint() int {
 
 		var status int
 		var snapshotID objects.MAC
+		var warning error
 		if _, ok := cmd.(*backup.Backup); ok {
 			subcommand := cmd.(*backup.Backup)
-			status, err, snapshotID = subcommand.DoBackup(ctx, repo)
+			status, err, snapshotID, warning = subcommand.DoBackup(ctx, repo)
 			if err == nil {
 				reporter.WithSnapshotID(snapshotID)
 			}
@@ -518,11 +519,13 @@ func EntryPoint() int {
 		}
 
 		if status == 0 {
-			reporter.TaskDone()
-		} else if status == 1 {
+			if warning != nil {
+				reporter.TaskWarning("warning: %s", warning)
+			} else {
+				reporter.TaskDone()
+			}
+		} else if err != nil {
 			reporter.TaskFailed(0, "error: %s", err)
-		} else {
-			reporter.TaskWarning("warning: %s", err)
 		}
 	} else {
 		status, err = agent.ExecuteRPC(ctx, name, cmd, storeConfig)

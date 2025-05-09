@@ -457,9 +457,10 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 
 			var status int
 			var snapshotID objects.MAC
+			var warning error
 			if _, ok := subcommand.(*backup.Backup); ok {
 				subcommand := subcommand.(*backup.Backup)
-				status, err, snapshotID = subcommand.DoBackup(clientContext, repo)
+				status, err, snapshotID, warning = subcommand.DoBackup(clientContext, repo)
 				if err == nil {
 					reporter.WithSnapshotID(snapshotID)
 				}
@@ -468,14 +469,16 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			}
 
 			if status == 0 {
-				reporter.TaskDone()
-				SuccessInc(name[0])
-			} else if status == 1 {
+				if warning != nil {
+					reporter.TaskWarning("warning: %s", warning)
+					WarningInc(name[0])
+				} else {
+					reporter.TaskDone()
+					SuccessInc(name[0])
+				}
+			} else if err != nil {
 				reporter.TaskFailed(0, "error: %s", err)
 				FailureInc(name[0])
-			} else {
-				reporter.TaskWarning("warning: %s", err)
-				WarningInc(name[0])
 			}
 
 			clientContext.Close()
