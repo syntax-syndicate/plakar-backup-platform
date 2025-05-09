@@ -25,6 +25,7 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/reporting"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/services"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/denisbrodbeck/machineid"
@@ -495,13 +496,20 @@ func EntryPoint() int {
 			taskKind = "maintenance"
 		}
 
-		var reporter *reporting.Reporter
-		if taskKind != "" {
-			reporter = reporting.NewReporter(true, repo, ctx.GetLogger())
+		doReport := true
+		authToken, err := ctx.GetAuthToken(repo.Configuration().RepositoryID)
+		if err != nil || authToken == "" {
+			doReport = false
 		} else {
-			reporter = reporting.NewReporter(false, repo, ctx.GetLogger())
+			sc := services.NewServiceConnector(ctx, authToken)
+			enabled, err := sc.GetServiceStatus("alerting")
+			if err != nil || !enabled || taskKind == "" {
+				doReport = false
+			}
 		}
-		reporter.TaskStart(taskKind, "@cli")
+
+		reporter := reporting.NewReporter(doReport, repo, ctx.GetLogger())
+		reporter.TaskStart(taskKind, "@agentless")
 		reporter.WithRepositoryName(storeConfig["location"])
 		reporter.WithRepository(repo)
 
