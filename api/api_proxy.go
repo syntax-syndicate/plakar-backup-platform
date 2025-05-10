@@ -124,6 +124,11 @@ func servicesSetAlertingServiceConfiguration(w http.ResponseWriter, r *http.Requ
 		return nil
 	}
 
+	if ldemo {
+		w.WriteHeader(http.StatusUnauthorized)
+		return nil
+	}
+
 	var alertConfig AlertServiceConfiguration
 	if err := json.NewDecoder(r.Body).Decode(&alertConfig); err != nil {
 		return err
