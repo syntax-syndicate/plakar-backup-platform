@@ -479,14 +479,11 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			if status == 0 {
 				if warning != nil {
 					reporter.TaskWarning("warning: %s", warning)
-					WarningInc(name[0])
 				} else {
 					reporter.TaskDone()
-					SuccessInc(name[0])
 				}
 			} else if err != nil {
 				reporter.TaskFailed(0, "error: %s", err)
-				FailureInc(name[0])
 			}
 
 			clientContext.Close()
