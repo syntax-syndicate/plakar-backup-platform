@@ -357,7 +357,7 @@ func (s *Store) DeletePackfile(mac objects.MAC) error {
 
 func (s *Store) GetLocks() ([]objects.MAC, error) {
 	prefix := s.realpath("locks/")
-	prefixSize := len(prefix) + 3 // prefix + len(%02x/) encoded
+	prefixSize := len(prefix)
 
 	ret := make([]objects.MAC, 0)
 	for object := range s.minioClient.ListObjects(s.ctx, s.bucketName, minio.ListObjectsOptions{
