@@ -24,11 +24,10 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 
 	"github.com/PlakarKorp/plakar/api"
+	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/repository"
 )
 
@@ -95,23 +94,14 @@ func Ui(repo *repository.Repository, addr string, opts *UiOptions) error {
 		url = fmt.Sprintf("http://%s?plakar_token=%s", addr, opts.Token)
 	}
 
-	var err error
 	if !opts.NoSpawn {
-		switch runtime.GOOS {
-		case "windows":
-			err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
-		case "darwin":
-			err = exec.Command("open", url).Start()
-		default: // "linux", "freebsd", "openbsd", "netbsd"
-			err = exec.Command("xdg-open", url).Start()
-		}
-		if err != nil {
+		if err := utils.BrowserTrySpawn(url); err != nil {
 			repo.Logger().Printf("failed to launch browser: %s", err)
 			repo.Logger().Printf("you can access the webUI at %s", url)
 			return err
 		}
 	} else {
-		fmt.Println("launching webUI at", url)
+		fmt.Fprintf(repo.AppContext().Stdout, "launching webUI at %s\n", url)
 	}
 
 	var handler http.Handler = server
@@ -131,7 +121,7 @@ func Ui(repo *repository.Repository, addr string, opts *UiOptions) error {
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
 		// Handle preflight OPTIONS request

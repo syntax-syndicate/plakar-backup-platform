@@ -7,6 +7,7 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/reporting"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/services"
 )
 
 type Scheduler struct {
@@ -72,7 +73,19 @@ func (s *Scheduler) Run() {
 }
 
 func (s *Scheduler) NewTaskReporter(repo *repository.Repository, taskType, taskName, repoName string) *reporting.Reporter {
-	reporter := reporting.NewReporter(s.config.Agent.Reporting, repo, s.ctx.GetLogger())
+	ctx := repo.AppContext()
+	doReport := true
+	authToken, err := ctx.GetAuthToken(repo.Configuration().RepositoryID)
+	if err != nil || authToken == "" {
+		doReport = false
+	} else {
+		sc := services.NewServiceConnector(ctx, authToken)
+		enabled, err := sc.GetServiceStatus("alerting")
+		if err != nil || !enabled {
+			doReport = false
+		}
+	}
+	reporter := reporting.NewReporter(doReport, repo, s.ctx.GetLogger())
 	reporter.TaskStart(taskType, taskName)
 	reporter.WithRepositoryName(repoName)
 	reporter.WithRepository(repo)
