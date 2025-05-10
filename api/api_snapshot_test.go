@@ -157,7 +157,7 @@ func _TestSnapshotHeader(t *testing.T) {
 
 			var noToken string
 			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, noToken)
+			SetupRoutes(mux, repo, noToken, false)
 
 			req, err := http.NewRequest("GET", fmt.Sprintf("/api/snapshot/%s", c.snapshotId), nil)
 			require.NoError(t, err, "creating request")
@@ -230,7 +230,7 @@ func TestSnapshotHeaderErrors(t *testing.T) {
 
 			var noToken string
 			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, noToken)
+			SetupRoutes(mux, repo, noToken, false)
 
 			req, err := http.NewRequest("GET", fmt.Sprintf("/api/snapshot/%s", c.snapshotId), nil)
 			require.NoError(t, err, "creating request")
@@ -288,7 +288,7 @@ func _TestSnapshotSign(t *testing.T) {
 
 			token := "test-token"
 			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, token)
+			SetupRoutes(mux, repo, token, false)
 
 			// retrieve a valid jwt token before calling the read
 			req, err := http.NewRequest("POST", fmt.Sprintf("/api/snapshot/reader-sign-url/%s", c.snapshotPath), nil)

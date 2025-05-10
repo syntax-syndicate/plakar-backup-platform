@@ -80,6 +80,11 @@ func servicesLoginEmail(w http.ResponseWriter, r *http.Request) error {
 }
 
 func servicesLogout(w http.ResponseWriter, r *http.Request) error {
+	if ldemo {
+		w.WriteHeader(http.StatusUnauthorized)
+		return nil
+	}
+
 	configuration := lrepository.Configuration()
 	if cache, err := lrepository.AppContext().GetCache().Repository(configuration.RepositoryID); err != nil {
 		return err

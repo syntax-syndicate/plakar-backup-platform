@@ -51,7 +51,7 @@ func _Test_RepositoryConfiguration(t *testing.T) {
 
 	var noToken string
 	mux := http.NewServeMux()
-	SetupRoutes(mux, repo, noToken)
+	SetupRoutes(mux, repo, noToken, false)
 
 	req, err := http.NewRequest("GET", "/api/repository/configuration", nil)
 	require.NoError(t, err, "creating request")
@@ -330,7 +330,7 @@ func _Test_RepositorySnapshots(t *testing.T) {
 
 			var noToken string
 			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, noToken)
+			SetupRoutes(mux, repo, noToken, false)
 
 			req, err := http.NewRequest("GET", "/api/repository/snapshots", nil)
 			require.NoError(t, err, "creating request")
@@ -429,7 +429,7 @@ func _Test_RepositorySnapshotsErrors(t *testing.T) {
 
 			var noToken string
 			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, noToken)
+			SetupRoutes(mux, repo, noToken, false)
 
 			req, err := http.NewRequest("GET", fmt.Sprintf("/api/repository/snapshots?%s", c.params), nil)
 			require.NoError(t, err, "creating request")
@@ -503,7 +503,7 @@ func _Test_RepositoryStates(t *testing.T) {
 
 			var noToken string
 			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, noToken)
+			SetupRoutes(mux, repo, noToken, false)
 
 			req, err := http.NewRequest("GET", "/api/repository/states", nil)
 			require.NoError(t, err, "creating request")
@@ -571,7 +571,7 @@ func _Test_RepositoryState(t *testing.T) {
 
 			var noToken string
 			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, noToken)
+			SetupRoutes(mux, repo, noToken, false)
 
 			req, err := http.NewRequest("GET", fmt.Sprintf("/api/repository/state/%s", c.stateId), nil)
 			require.NoError(t, err, "creating request")
@@ -644,7 +644,7 @@ func Test_RepositoryStateErrors(t *testing.T) {
 
 			var noToken string
 			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, noToken)
+			SetupRoutes(mux, repo, noToken, false)
 
 			req, err := http.NewRequest("GET", fmt.Sprintf("/api/repository/state/%s", c.stateId), nil)
 			require.NoError(t, err, "creating request")

@@ -17,6 +17,7 @@ import (
 var lstore storage.Store
 var lconfig storage.Configuration
 var lrepository *repository.Repository
+var ldemo bool
 
 type Item[T any] struct {
 	Item T `json:"item"`
@@ -133,10 +134,11 @@ func apiInfo(w http.ResponseWriter, r *http.Request) error {
 	return json.NewEncoder(w).Encode(res)
 }
 
-func SetupRoutes(server *http.ServeMux, repo *repository.Repository, token string) {
+func SetupRoutes(server *http.ServeMux, repo *repository.Repository, token string, demo bool) {
 	lstore = repo.Store()
 	lconfig = repo.Configuration()
 	lrepository = repo
+	ldemo = demo
 
 	authToken := TokenAuthMiddleware(token)
 	urlSigner := NewSnapshotReaderURLSigner(token)

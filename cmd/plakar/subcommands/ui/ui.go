@@ -46,6 +46,7 @@ func (cmd *Ui) Parse(ctx *appcontext.AppContext, args []string) error {
 	flags.BoolVar(&cmd.Cors, "cors", false, "enable CORS")
 	flags.BoolVar(&cmd.NoAuth, "no-auth", false, "don't use authentication")
 	flags.BoolVar(&cmd.NoSpawn, "no-spawn", false, "don't spawn browser")
+	flags.BoolVar(&cmd.DemoMode, "demo", false, "demo mode")
 	flags.Parse(args)
 
 	cmd.RepositorySecret = ctx.GetSecret()
@@ -56,17 +57,19 @@ func (cmd *Ui) Parse(ctx *appcontext.AppContext, args []string) error {
 type Ui struct {
 	subcommands.SubcommandBase
 
-	Addr    string
-	Cors    bool
-	NoAuth  bool
-	NoSpawn bool
+	Addr     string
+	Cors     bool
+	NoAuth   bool
+	NoSpawn  bool
+	DemoMode bool
 }
 
 func (cmd *Ui) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	ui_opts := v2.UiOptions{
-		NoSpawn: cmd.NoSpawn,
-		Cors:    cmd.Cors,
-		Token:   "",
+		NoSpawn:  cmd.NoSpawn,
+		Cors:     cmd.Cors,
+		Token:    "",
+		DemoMode: cmd.DemoMode,
 	}
 
 	if !cmd.NoAuth {

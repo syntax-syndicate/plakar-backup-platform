@@ -26,7 +26,7 @@ func TestNewRouter(t *testing.T) {
 	mux := http.NewServeMux()
 	// Make sure SetupRoutes doesn't panic, which happens when invalid routes
 	// are registered
-	SetupRoutes(mux, repo, token)
+	SetupRoutes(mux, repo, token, false)
 }
 
 func TestAuthMiddleware(t *testing.T) {
@@ -56,7 +56,7 @@ func TestAuthMiddleware(t *testing.T) {
 	}
 	token := "test-token"
 	mux := http.NewServeMux()
-	SetupRoutes(mux, repo, token)
+	SetupRoutes(mux, repo, token, false)
 
 	req, err := http.NewRequest("GET", "/api/info", nil)
 	if err != nil {
@@ -112,7 +112,7 @@ func Test_UnknownEndpoint(t *testing.T) {
 	}
 	token := ""
 	mux := http.NewServeMux()
-	SetupRoutes(mux, repo, token)
+	SetupRoutes(mux, repo, token, false)
 
 	req, err := http.NewRequest("GET", "/api/unknown_endpoint", nil)
 	if err != nil {
