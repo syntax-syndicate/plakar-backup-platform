@@ -65,7 +65,7 @@ func (p *StdioExporter) CreateDirectory(pathname string) error {
 	return nil
 }
 
-func (p *StdioExporter) StoreFile(pathname string, fp io.Reader) error {
+func (p *StdioExporter) StoreFile(pathname string, fp io.Reader, size int64) error {
 	_, err := io.Copy(p.w, fp)
 	return err
 }

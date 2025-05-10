@@ -45,9 +45,9 @@ type PackFileFooter struct {
 const FOOTER_SIZE = 56
 
 type Configuration struct {
-	MinSize uint64
-	AvgSize uint64
-	MaxSize uint64
+	MinSize uint64 `json:"min_size"`
+	AvgSize uint64 `json:"avg_size"`
+	MaxSize uint64 `json:"max_size"`
 }
 
 func NewDefaultConfiguration() *Configuration {

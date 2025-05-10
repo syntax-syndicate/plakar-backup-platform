@@ -67,7 +67,7 @@ func (p *SFTPExporter) CreateDirectory(pathname string) error {
 	return p.client.MkdirAll(pathname)
 }
 
-func (p *SFTPExporter) StoreFile(pathname string, fp io.Reader) error {
+func (p *SFTPExporter) StoreFile(pathname string, fp io.Reader, size int64) error {
 	f, err := p.client.Create(pathname)
 	if err != nil {
 		return err
