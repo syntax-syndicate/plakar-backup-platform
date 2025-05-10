@@ -19,28 +19,31 @@ Plakar's main strengths:
 - **Efficient**: more restore points, less storage, thanks to Kloset's unmatched deduplication and compression.
 - **Open Source and actively maintained**: open source forever and now maintained by [Plakar Korp](https://www.plakar.io)
 
-plakar provides useful features:
-- **Instant recovery**: Instantly mount large backups on any devices without full restoration.
-- **Distributed backup**: Kloset can be easily distributed to implement 3,2,1 rule or advanced strategies (push, pull, sync) across heterogeneous environments.
-- **Granular restore**: Restore a complete snapshot or only a subset of your data.
-- **Cross-storage restore**: Back up from one storage type (e.g., S3-compatible object store) and restore to another (e.g., file system)..
-- **Production safe-guarding**: Automatically adjusts backup speed to avoid impacting production workloads.
-- **Lock-free maintenance**: Perform garbage collection without interrupting backup or restore operations.
-- **Integrations**: back up and restore from and to any source (file systems, object stores, SaaS applications...) with the right integration.
-
 Simplicity and efficiency are plakar's main priorities.
 
 Our mission is to set a new standard for effortless secure data protection. 
 
 ## Plakar UI
 
-Plakar UI is embedded in Plakar.
+Plakar includes a built-in web-based user interface to **monitor, browse, and restore** your backups with ease.
 
-List your snapshots from anywhere:
+### 🖥️ Launch the UI
+
+You can start the interface from any machine with access to your backups:
+
+```
+$ plakar ui
+```
+
+### 📂 Snapshot Overview
+
+Quickly list all available snapshots and explore them:
 
 ![Snapshot browser](https://www.plakar.io/readme/snapshot-list.png)
 
-Browse your snapshots:
+### 🔍 Granular Browsing
+
+Navigate the contents of each snapshot to inspect, compare, or selectively restore files:
 
 ![Snapshot browser](https://www.plakar.io/readme/snapshot-browser.png)
 
@@ -71,6 +74,17 @@ $ plakar at /var/backups ui                                 # Start the UI
 $ plakar at /var/backups sync to @s3                        # Synchronise a backup repository to S3
 
 ```
+
+## Notable Capabilities
+
+- **Instant recovery**: Instantly mount large backups on any devices without full restoration.
+- **Distributed backup**: Kloset can be easily distributed to implement 3,2,1 rule or advanced strategies (push, pull, sync) across heterogeneous environments.
+- **Granular restore**: Restore a complete snapshot or only a subset of your data.
+- **Cross-storage restore**: Back up from one storage type (e.g., S3-compatible object store) and restore to another (e.g., file system)..
+- **Production safe-guarding**: Automatically adjusts backup speed to avoid impacting production workloads.
+- **Lock-free maintenance**: Perform garbage collection without interrupting backup or restore operations.
+- **Integrations**: back up and restore from and to any source (file systems, object stores, SaaS applications...) with the right integration.
+
 
 ## Documentation
 
