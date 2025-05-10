@@ -45,6 +45,7 @@ import (
 	"github.com/PlakarKorp/plakar/reporting"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/scheduler"
+	"github.com/PlakarKorp/plakar/services"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vmihailenco/msgpack/v5"
@@ -445,12 +446,19 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				taskKind = "maintenance"
 			}
 
-			var reporter *reporting.Reporter
-			if taskKind != "" {
-				reporter = reporting.NewReporter(true, repo, ctx.GetLogger())
+			doReport := true
+			authToken, err := clientContext.GetAuthToken(repo.Configuration().RepositoryID)
+			if err != nil || authToken == "" {
+				doReport = false
 			} else {
-				reporter = reporting.NewReporter(false, repo, ctx.GetLogger())
+				sc := services.NewServiceConnector(clientContext, authToken)
+				enabled, err := sc.GetServiceStatus("alerting")
+				if err != nil || !enabled || taskKind == "" {
+					doReport = false
+				}
 			}
+
+			reporter := reporting.NewReporter(doReport, repo, ctx.GetLogger())
 			reporter.TaskStart(taskKind, "@agent")
 			reporter.WithRepositoryName(storeConfig["location"])
 			reporter.WithRepository(repo)
