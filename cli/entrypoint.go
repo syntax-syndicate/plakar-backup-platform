@@ -480,6 +480,7 @@ func EntryPoint() int {
 
 	var status int
 	if opt_agentless || cmd.GetFlags()&subcommands.AgentSupport == 0 {
+		var lerr error
 		var taskKind string
 		switch cmd.(type) {
 		case *backup.Backup:
@@ -497,13 +498,14 @@ func EntryPoint() int {
 		}
 
 		doReport := true
-		authToken, err := ctx.GetAuthToken(repo.Configuration().RepositoryID)
-		if err != nil || authToken == "" {
+		authToken, lerr := ctx.GetAuthToken(repo.Configuration().RepositoryID)
+		if lerr != nil || authToken == "" {
 			doReport = false
 		} else {
 			sc := services.NewServiceConnector(ctx, authToken)
-			enabled, err := sc.GetServiceStatus("alerting")
-			if err != nil || !enabled || taskKind == "" {
+			if enabled, lerr := sc.GetServiceStatus("alerting"); lerr != nil {
+				doReport = false
+			} else if !enabled || taskKind == "" {
 				doReport = false
 			}
 		}
@@ -518,13 +520,14 @@ func EntryPoint() int {
 		var warning error
 		if _, ok := cmd.(*backup.Backup); ok {
 			subcommand := cmd.(*backup.Backup)
-			status, err, snapshotID, warning = subcommand.DoBackup(ctx, repo)
-			if err == nil {
+			status, lerr, snapshotID, warning = subcommand.DoBackup(ctx, repo)
+			if lerr == nil {
 				reporter.WithSnapshotID(snapshotID)
 			}
 		} else {
-			status, err = cmd.Execute(ctx, repo)
+			status, lerr = cmd.Execute(ctx, repo)
 		}
+		err = lerr
 
 		if status == 0 {
 			if warning != nil {
