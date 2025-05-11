@@ -46,6 +46,8 @@ type ScanRecord struct {
 	IsXattr            bool
 	XattrName          string
 	XattrType          objects.Attribute
+
+	Source int
 }
 
 type ScanError struct {

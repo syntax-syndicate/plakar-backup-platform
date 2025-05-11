@@ -2,6 +2,7 @@ package snapshot
 
 import (
 	"fmt"
+	"github.com/charmbracelet/log"
 	"io"
 	"math"
 	"mime"
@@ -19,6 +20,7 @@ import (
 	"github.com/PlakarKorp/plakar/resources"
 	"github.com/PlakarKorp/plakar/snapshot/header"
 	"github.com/PlakarKorp/plakar/snapshot/importer"
+	"github.com/PlakarKorp/plakar/snapshot/importer/multi"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/gobwas/glob"
@@ -293,16 +295,34 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	}
 	defer snap.Unlock(done)
 
-	snap.Header.GetSource(0).Importer.Origin = imp.Origin()
-	snap.Header.GetSource(0).Importer.Type = imp.Type()
+	//snap.Header.GetSource(0).Importer.Origin = imp.Origin()
+	//snap.Header.GetSource(0).Importer.Type = imp.Type()
+	//snap.Header.GetSource(0).Importer.Directory = imp.Root()
+
 	snap.Header.Tags = append(snap.Header.Tags, options.Tags...)
 
 	if options.Name == "" {
-		snap.Header.Name = imp.Root() + " @ " + snap.Header.GetSource(0).Importer.Origin
+		snap.Header.Name = imp.Root() + " @ " + imp.Origin()
 	} else {
 		snap.Header.Name = options.Name
 	}
-	snap.Header.GetSource(0).Importer.Directory = imp.Root()
+
+	//try casting the imp to a metaImporter
+	impList := []importer.Importer{imp}
+	if metaImp, ok := imp.(*multi.MultiImporter); ok {
+		impList = append(impList, metaImp.Importers...)
+	}
+
+	for len(snap.Header.Sources) < len(impList) {
+		snap.Header.Sources = append(snap.Header.Sources, header.NewSource())
+	}
+
+	for i, tmpImp := range impList {
+		log.Printf("Importer %d: %s\n", i, tmpImp.Type())
+		snap.Header.GetSource(i).Importer.Origin = tmpImp.Origin()
+		snap.Header.GetSource(i).Importer.Type = tmpImp.Type()
+		snap.Header.GetSource(i).Importer.Directory = tmpImp.Root()
+	}
 
 	backupCtx, err := snap.prepareBackup(imp, options)
 	if err != nil {
@@ -334,6 +354,11 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	if err != nil {
 		snap.repository.PackerManager.Wait()
 		return nil
+	}
+
+	//test thing to remove source 0 and shift the rest
+	if len(snap.Header.Sources) > 1 {
+		snap.Header.Sources = snap.Header.Sources[1:]
 	}
 
 	snap.Header.Duration = time.Since(beginTime)
@@ -372,9 +397,17 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 	var err error
 
 	if record.IsXattr {
-		rd, err = imp.NewExtendedAttributeReader(record.Pathname, record.XattrName)
+		if record.Source != 0 {
+			rd, err = imp.(*multi.MultiImporter).Importers[record.Source-1].NewExtendedAttributeReader(record.Pathname, record.XattrName)
+		} else {
+			rd, err = imp.NewExtendedAttributeReader(record.Pathname, record.XattrName)
+		}
 	} else {
-		rd, err = imp.NewReader(record.Pathname)
+		if record.Source != 0 {
+			rd, err = imp.(*multi.MultiImporter).Importers[record.Source-1].NewReader(record.Pathname)
+		} else {
+			rd, err = imp.NewReader(record.Pathname)
+		}
 	}
 
 	if err != nil {
