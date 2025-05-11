@@ -1,0 +1,122 @@
+package sftp
+
+import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/objects"
+	ptesting "github.com/PlakarKorp/plakar/testing"
+	"golang.org/x/crypto/ssh"
+)
+
+func TestExporter(t *testing.T) {
+	// Generate a keypair for the test
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed to generate private key: %v", err)
+	}
+	privBytes := x509.MarshalPKCS1PrivateKey(priv)
+	privPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: privBytes})
+	pub, err := ssh.NewPublicKey(&priv.PublicKey)
+	if err != nil {
+		t.Fatalf("Failed to generate public key: %v", err)
+	}
+
+	// Write private key to a temp file
+	keyFile, err := os.CreateTemp("", "sftp-exporter-key-*.pem")
+	if err != nil {
+		t.Fatalf("Failed to create temp key file: %v", err)
+	}
+	defer os.Remove(keyFile.Name())
+	if _, err := keyFile.Write(privPEM); err != nil {
+		t.Fatalf("Failed to write private key: %v", err)
+	}
+	keyFile.Close()
+
+	// Create a mock SFTP server that accepts the public key
+	server, err := ptesting.NewMockSFTPServer(pub)
+	if err != nil {
+		t.Fatalf("Failed to create mock server: %v", err)
+	}
+	defer server.Close()
+
+	// Create a temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "sftp-exporter-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create some test files
+	testFiles := map[string]string{
+		"file1.txt": "content1",
+		"file2.txt": "content2",
+	}
+
+	for name, content := range testFiles {
+		path := filepath.Join(tmpDir, name)
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatalf("Failed to create test file %s: %v", name, err)
+		}
+	}
+
+	// Create the exporter
+	appCtx := appcontext.NewAppContext()
+	exporter, err := NewSFTPExporter(appCtx, "sftp", map[string]string{
+		"location":                 server.Addr + "/",
+		"username":                 "test",
+		"identity":                 keyFile.Name(),
+		"insecure_ignore_host_key": "true",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create exporter: %v", err)
+	}
+	defer exporter.Close()
+
+	// Test root path
+	root := exporter.Root()
+	if root != "/" {
+		t.Errorf("Expected root path '/', got '%s'", root)
+	}
+
+	// Test creating directories
+	dirs := []string{"dir1", "dir2", "dir3"}
+	for _, dir := range dirs {
+		if err := exporter.CreateDirectory(dir); err != nil {
+			t.Errorf("Failed to create directory %s: %v", dir, err)
+		}
+	}
+
+	// Test storing files
+	for name, _ := range testFiles {
+		path := filepath.Join(tmpDir, name)
+		fp, err := os.Open(path)
+		if err != nil {
+			t.Fatalf("Failed to open file %s: %v", name, err)
+		}
+		defer fp.Close()
+
+		fileInfo, err := fp.Stat()
+		if err != nil {
+			t.Fatalf("Failed to stat file %s: %v", name, err)
+		}
+
+		if err := exporter.StoreFile(name, fp, fileInfo.Size()); err != nil {
+			t.Errorf("Failed to store file %s: %v", name, err)
+		}
+	}
+
+	// Test setting permissions
+	fileInfo := &objects.FileInfo{
+		Lmode: 0644,
+	}
+	if err := exporter.SetPermissions("file1.txt", fileInfo); err != nil {
+		t.Errorf("Failed to set permissions: %v", err)
+	}
+}
