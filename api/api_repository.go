@@ -31,9 +31,7 @@ type RepositoryInfoResponse struct {
 }
 
 func repositoryInfo(w http.ResponseWriter, r *http.Request) error {
-
 	configuration := lrepository.Configuration()
-
 	nSnapshots, logicalSize, err := snapshot.LogicalSize(lrepository)
 	if err != nil {
 		return fmt.Errorf("unable to calculate logical size: %w", err)

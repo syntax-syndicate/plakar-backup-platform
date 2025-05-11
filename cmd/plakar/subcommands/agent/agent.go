@@ -32,19 +32,32 @@ import (
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/backup"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/maintenance"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
+	syncSubcmd "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
+	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/plakar/reporting"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/scheduler"
+	"github.com/PlakarKorp/plakar/services"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
 func init() {
+	subcommands.Register(func() subcommands.Subcommand { return &AgentRestart{} },
+		subcommands.AgentSupport|subcommands.IgnoreVersion, "agent", "restart")
 	subcommands.Register(func() subcommands.Subcommand { return &AgentStop{} },
 		subcommands.AgentSupport|subcommands.IgnoreVersion, "agent", "stop")
+	subcommands.Register(func() subcommands.Subcommand { return &Agent{} },
+		subcommands.BeforeRepositoryOpen, "agent", "start")
 	subcommands.Register(func() subcommands.Subcommand { return &Agent{} },
 		subcommands.BeforeRepositoryOpen, "agent")
 }
@@ -137,8 +150,39 @@ func (cmd *AgentStop) Parse(ctx *appcontext.AppContext, args []string) error {
 }
 
 func (cmd *AgentStop) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	log.Println("stopping")
+	syscall.Kill(os.Getpid(), syscall.SIGINT)
 	return 0, nil
+}
+
+type AgentRestart struct {
+	subcommands.SubcommandBase
+}
+
+func (cmd *AgentRestart) Parse(ctx *appcontext.AppContext, args []string) error {
+	flags := flag.NewFlagSet("agent restart", flag.ExitOnError)
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS]\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "\nOPTIONS:\n")
+		flags.PrintDefaults()
+	}
+	flags.Parse(args)
+
+	return nil
+}
+
+func (cmd *AgentRestart) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+	if err := restart(); err != nil {
+		return 1, fmt.Errorf("failed to restart agent: %w", err)
+	}
+	return 0, nil
+}
+
+func restart() error {
+	exePath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("cannot find executable path: %w", err)
+	}
+	return syscall.Exec(exePath, append([]string{exePath}, os.Args[1:]...), os.Environ())
 }
 
 type Agent struct {
@@ -386,14 +430,60 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				eventsDone <- struct{}{}
 			}()
 
-			status, err := subcommand.Execute(clientContext, repo)
+			var taskKind string
+			switch subcommand.(type) {
+			case *backup.Backup:
+				taskKind = "backup"
+			case *check.Check:
+				taskKind = "check"
+			case *restore.Restore:
+				taskKind = "restore"
+			case *syncSubcmd.Sync:
+				taskKind = "sync"
+			case *rm.Rm:
+				taskKind = "rm"
+			case *maintenance.Maintenance:
+				taskKind = "maintenance"
+			}
+
+			doReport := true
+			authToken, err := clientContext.GetAuthToken(repo.Configuration().RepositoryID)
+			if err != nil || authToken == "" {
+				doReport = false
+			} else {
+				sc := services.NewServiceConnector(clientContext, authToken)
+				enabled, err := sc.GetServiceStatus("alerting")
+				if err != nil || !enabled || taskKind == "" {
+					doReport = false
+				}
+			}
+
+			reporter := reporting.NewReporter(doReport, repo, ctx.GetLogger())
+			reporter.TaskStart(taskKind, "@agent")
+			reporter.WithRepositoryName(storeConfig["location"])
+			reporter.WithRepository(repo)
+
+			var status int
+			var snapshotID objects.MAC
+			var warning error
+			if _, ok := subcommand.(*backup.Backup); ok {
+				subcommand := subcommand.(*backup.Backup)
+				status, err, snapshotID, warning = subcommand.DoBackup(clientContext, repo)
+				if err == nil {
+					reporter.WithSnapshotID(snapshotID)
+				}
+			} else {
+				status, err = subcommand.Execute(clientContext, repo)
+			}
 
 			if status == 0 {
-				SuccessInc(name[0])
-			} else if status == 1 {
-				FailureInc(name[0])
-			} else {
-				WarningInc(name[0])
+				if warning != nil {
+					reporter.TaskWarning("warning: %s", warning)
+				} else {
+					reporter.TaskDone()
+				}
+			} else if err != nil {
+				reporter.TaskFailed(0, "error: %s", err)
 			}
 
 			clientContext.Close()

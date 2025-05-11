@@ -17,6 +17,7 @@
 package check
 
 import (
+	"encoding/hex"
 	"flag"
 	"fmt"
 
@@ -92,12 +93,19 @@ func (cmd *Check) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 	} else {
 		for _, snapshotPath := range cmd.Snapshots {
 			prefix, path := utils.ParseSnapshotPath(snapshotPath)
+			if prefix != "" {
+				if _, err := hex.DecodeString(prefix); err != nil {
+					return 1, fmt.Errorf("invalid snapshot prefix: %s", prefix)
+				}
+			}
 
 			cmd.LocateOptions.Prefix = prefix
 			snapshotIDs, err := utils.LocateSnapshotIDs(repo, cmd.LocateOptions)
 			if err != nil {
+				fmt.Fprintln(ctx.Stderr, err)
 				return 1, err
 			}
+
 			for _, snapshotID := range snapshotIDs {
 				snapshots = append(snapshots, fmt.Sprintf("%x:%s", snapshotID, path))
 			}
@@ -137,6 +145,7 @@ func (cmd *Check) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 
 		if ok, err := snap.Check(pathname, opts); err != nil {
 			ctx.GetLogger().Warn("%s", err)
+			failures = true
 		} else if !ok {
 			failures = true
 		}
