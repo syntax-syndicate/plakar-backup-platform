@@ -99,38 +99,36 @@ func (s *Scheduler) backupTask(taskset Task, task BackupConfig) error {
 				time.Sleep(interval)
 			}
 
-			reporter := s.NewReporter(nil)
-			reporter.TaskStart("backup", taskset.Name)
-			reporter.WithRepositoryName(taskset.Repository)
 			repo, store, err := loadRepository(s.ctx, taskset.Repository)
 			if err != nil {
 				s.ctx.GetLogger().Error("Error loading repository: %s", err)
-				reporter.TaskFailed(1, "Error loading repository: %s", err)
 				continue
 			}
-			reporter = s.NewReporter(repo)
-			reporter.TaskStart("backup", taskset.Name)
-			reporter.WithRepositoryName(taskset.Repository)
-			reporter.WithRepository(repo)
+			reporter := s.NewTaskReporter(repo, "backup", taskset.Name, taskset.Repository)
 
-			if retval, err, snapId := backupSubcommand.DoBackup(s.ctx, repo); err != nil || retval != 0 {
+			var reportWarning error
+			if retval, err, snapId, warning := backupSubcommand.DoBackup(s.ctx, repo); err != nil || retval != 0 {
 				s.ctx.GetLogger().Error("Error creating backup: %s", err)
 				reporter.TaskFailed(1, "Error creating backup: retval=%d, err=%s", retval, err)
 				goto close
 			} else {
-				reporter.WithSnapshotID(repo, snapId)
-				fmt.Println(snapId)
+				reportWarning = warning
+				reporter.WithSnapshotID(snapId)
 			}
 
 			if task.Retention != "" {
 				rmSubcommand.LocateOptions.Before = time.Now().Add(-retention)
 				if retval, err := rmSubcommand.Execute(s.ctx, repo); err != nil || retval != 0 {
-					reporter.TaskWarning("Error removing obsolete backups: retval=%d, err=%s", retval, err)
 					s.ctx.GetLogger().Error("Error removing obsolete backups: %s", err)
+					reporter.TaskWarning("Error removing obsolete backups: retval=%d, err=%s", retval, err)
 					goto close
 				}
 			}
-			reporter.TaskDone()
+			if reportWarning != nil {
+				reporter.TaskWarning("Warning during backup: %s", reportWarning)
+			} else {
+				reporter.TaskDone()
+			}
 
 		close:
 			repo.Close()
@@ -167,21 +165,12 @@ func (s *Scheduler) checkTask(taskset Task, task CheckConfig) error {
 				time.Sleep(interval)
 			}
 
-			reporter := s.NewReporter(nil)
-			reporter.TaskStart("check", taskset.Name)
-			reporter.WithRepositoryName(taskset.Repository)
-
 			repo, store, err := loadRepository(s.ctx, taskset.Repository)
-
 			if err != nil {
 				s.ctx.GetLogger().Error("Error loading repository: %s", err)
-				reporter.TaskFailed(1, "Error loading repository: %s", err)
 				continue
 			}
-			reporter = s.NewReporter(repo)
-			reporter.TaskStart("check", taskset.Name)
-			reporter.WithRepositoryName(taskset.Repository)
-			reporter.WithRepository(repo)
+			reporter := s.NewTaskReporter(repo, "check", taskset.Name, taskset.Repository)
 
 			retval, err := checkSubcommand.Execute(s.ctx, repo)
 			if err != nil || retval != 0 {
@@ -224,20 +213,12 @@ func (s *Scheduler) restoreTask(taskset Task, task RestoreConfig) error {
 				time.Sleep(interval)
 			}
 
-			reporter := s.NewReporter(nil)
-			reporter.TaskStart("restore", taskset.Name)
-			reporter.WithRepositoryName(taskset.Repository)
-
 			repo, store, err := loadRepository(s.ctx, taskset.Repository)
 			if err != nil {
 				s.ctx.GetLogger().Error("Error loading repository: %s", err)
-				reporter.TaskFailed(1, "Error loading repository: %s", err)
 				continue
 			}
-			reporter = s.NewReporter(repo)
-			reporter.TaskStart("restore", taskset.Name)
-			reporter.WithRepositoryName(taskset.Repository)
-			reporter.WithRepository(repo)
+			reporter := s.NewTaskReporter(repo, "restore", taskset.Name, taskset.Repository)
 
 			retval, err := restoreSubcommand.Execute(s.ctx, repo)
 			if err != nil || retval != 0 {
@@ -296,12 +277,15 @@ func (s *Scheduler) syncTask(taskset Task, task SyncConfig) error {
 				s.ctx.GetLogger().Error("Error loading repository: %s", err)
 				continue
 			}
+			reporter := s.NewTaskReporter(repo, "sync", taskset.Name, taskset.Repository)
 
 			retval, err := syncSubcommand.Execute(s.ctx, repo)
 			if err != nil || retval != 0 {
 				s.ctx.GetLogger().Error("sync: %s", err)
+				reporter.TaskFailed(1, "Error executing sync: retval=%d, err=%s", retval, err)
 			} else {
 				s.ctx.GetLogger().Info("sync: synchronization succeeded")
+				reporter.TaskDone()
 			}
 
 			repo.Close()
@@ -320,6 +304,8 @@ func (s *Scheduler) maintenanceTask(task MaintenanceConfig) error {
 
 	maintenanceSubcommand := &maintenance.Maintenance{}
 	rmSubcommand := &rm.Rm{}
+	rmSubcommand.LocateOptions = utils.NewDefaultLocateOptions()
+	rmSubcommand.LocateOptions.Job = "maintenance"
 
 	var retention time.Duration
 	if task.Retention != "" {
@@ -345,10 +331,13 @@ func (s *Scheduler) maintenanceTask(task MaintenanceConfig) error {
 				s.ctx.GetLogger().Error("Error loading repository: %s", err)
 				continue
 			}
+			reporter := s.NewTaskReporter(repo, "maintenance", "maintenance", task.Repository)
 
 			retval, err := maintenanceSubcommand.Execute(s.ctx, repo)
 			if err != nil || retval != 0 {
 				s.ctx.GetLogger().Error("Error executing maintenance: %s", err)
+				reporter.TaskFailed(1, "Error executing maintenance: retval=%d, err=%s", retval, err)
+				goto close
 			} else {
 				s.ctx.GetLogger().Info("maintenance of repository %s succeeded", task.Repository)
 			}
@@ -358,11 +347,15 @@ func (s *Scheduler) maintenanceTask(task MaintenanceConfig) error {
 				retval, err = rmSubcommand.Execute(s.ctx, repo)
 				if err != nil || retval != 0 {
 					s.ctx.GetLogger().Error("Error removing obsolete backups: %s", err)
+					reporter.TaskWarning("Error removing obsolete backups: retval=%d, err=%s", retval, err)
+					goto close
 				} else {
 					s.ctx.GetLogger().Info("Retention purge succeeded")
 				}
 			}
+			reporter.TaskDone()
 
+		close:
 			repo.Close()
 			store.Close()
 		}

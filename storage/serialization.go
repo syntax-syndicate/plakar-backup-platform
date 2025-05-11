@@ -42,7 +42,7 @@ func newDeserializeReader(hasher hash.Hash, resourceType resources.Type, inner i
 	}
 
 	magic := buf[0:8]
-	if !bytes.Equal(magic, []byte("_PLAKAR_")) {
+	if !bytes.Equal(magic, []byte("_KLOSET_")) && !bytes.Equal(magic, []byte("_PLAKAR_")) {
 		return versioning.Version(0), nil, fmt.Errorf("invalid plakar magic: %s", magic)
 	}
 	parsedResourceType := resources.Type(binary.LittleEndian.Uint32(buf[8:12]))
@@ -139,7 +139,7 @@ type serializeReader struct {
 
 func newSerializeReader(hasher hash.Hash, resourceType resources.Type, version versioning.Version, inner io.Reader) *serializeReader {
 	header := make([]byte, STORAGE_HEADER_SIZE)
-	copy(header[0:8], []byte("_PLAKAR_"))
+	copy(header[0:8], []byte("_KLOSET_"))
 	binary.LittleEndian.PutUint32(header[8:12], uint32(resourceType))
 	binary.LittleEndian.PutUint32(header[12:16], uint32(version))
 

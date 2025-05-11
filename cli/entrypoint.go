@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -23,7 +22,10 @@ import (
 	"github.com/PlakarKorp/plakar/config"
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/logging"
+	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/plakar/reporting"
 	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/services"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/denisbrodbeck/machineid"
@@ -31,8 +33,10 @@ import (
 
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/agent"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/archive"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/backup"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/backup"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/cat"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/clone"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/config"
@@ -45,13 +49,17 @@ import (
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/locate"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/login"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ls"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/maintenance"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/maintenance"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/mount"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ptar"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/server"
-	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
+	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/services"
+	syncSubcmd "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ui"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/version"
 
@@ -472,36 +480,66 @@ func EntryPoint() int {
 
 	var status int
 	if opt_agentless || cmd.GetFlags()&subcommands.AgentSupport == 0 {
-		status, err = cmd.Execute(ctx, repo)
+		var lerr error
+		var taskKind string
+		switch cmd.(type) {
+		case *backup.Backup:
+			taskKind = "backup"
+		case *check.Check:
+			taskKind = "check"
+		case *restore.Restore:
+			taskKind = "restore"
+		case *syncSubcmd.Sync:
+			taskKind = "sync"
+		case *rm.Rm:
+			taskKind = "rm"
+		case *maintenance.Maintenance:
+			taskKind = "maintenance"
+		}
+
+		doReport := true
+		authToken, lerr := ctx.GetAuthToken(repo.Configuration().RepositoryID)
+		if lerr != nil || authToken == "" {
+			doReport = false
+		} else {
+			sc := services.NewServiceConnector(ctx, authToken)
+			if enabled, lerr := sc.GetServiceStatus("alerting"); lerr != nil {
+				doReport = false
+			} else if !enabled || taskKind == "" {
+				doReport = false
+			}
+		}
+
+		reporter := reporting.NewReporter(doReport, repo, ctx.GetLogger())
+		reporter.TaskStart(taskKind, "@agentless")
+		reporter.WithRepositoryName(storeConfig["location"])
+		reporter.WithRepository(repo)
+
+		var status int
+		var snapshotID objects.MAC
+		var warning error
+		if _, ok := cmd.(*backup.Backup); ok {
+			subcommand := cmd.(*backup.Backup)
+			status, lerr, snapshotID, warning = subcommand.DoBackup(ctx, repo)
+			if lerr == nil {
+				reporter.WithSnapshotID(snapshotID)
+			}
+		} else {
+			status, lerr = cmd.Execute(ctx, repo)
+		}
+		err = lerr
+
+		if status == 0 {
+			if warning != nil {
+				reporter.TaskWarning("warning: %s", warning)
+			} else {
+				reporter.TaskDone()
+			}
+		} else if err != nil {
+			reporter.TaskFailed(0, "error: %s", err)
+		}
 	} else {
 		status, err = agent.ExecuteRPC(ctx, name, cmd, storeConfig)
-		if err == agent.ErrRetryAgentless {
-			err = nil
-			// Reopen using the agentless cache, and rebuild a repository
-			ctx.GetCache().Close()
-			cacheSubDir = "plakar-agentless"
-			cacheDir, err = utils.GetCacheDir(cacheSubDir)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: could not get cache directory: %s\n", flag.CommandLine.Name(), err)
-				return 1
-			}
-
-			ctx.CacheDir = cacheDir
-			ctx.SetCache(caching.NewManager(cacheDir))
-			defer ctx.GetCache().Close()
-
-			repo, err = repository.New(ctx, store, serializedConfig)
-			if err != nil {
-				if errors.Is(err, caching.ErrInUse) {
-					fmt.Fprintf(os.Stderr, "%s: the agentless cache is locked by another process. To run multiple processes concurrently, start `plakar agent` and run your command again.\n", flag.CommandLine.Name())
-				} else {
-					fmt.Fprintf(os.Stderr, "%s: failed to open repository: %s\n", flag.CommandLine.Name(), err)
-				}
-				return 1
-			}
-
-			status, err = cmd.Execute(ctx, repo)
-		}
 	}
 
 	t1 := time.Since(t0)

@@ -18,6 +18,7 @@ type Emitter interface {
 }
 
 type Reporter struct {
+	repository        *repository.Repository
 	logger            *logging.Logger
 	emitter           Emitter
 	currentTask       *ReportTask
@@ -65,6 +66,7 @@ func NewReporter(reporting bool, repository *repository.Repository, logger *logg
 	}
 
 	return &Reporter{
+		repository: repository,
 		logger:  logger,
 		emitter: emitter,
 	}
@@ -92,12 +94,13 @@ func (reporter *Reporter) WithRepositoryName(name string) {
 }
 
 func (reporter *Reporter) WithRepository(repository *repository.Repository) {
+	reporter.repository = repository
 	configuration := repository.Configuration()
 	reporter.currentRepository.Storage = configuration
 }
 
-func (reporter *Reporter) WithSnapshotID(repository *repository.Repository, snapshotId objects.MAC) {
-	snap, err := snapshot.Load(repository, snapshotId)
+func (reporter *Reporter) WithSnapshotID(snapshotId objects.MAC) {
+	snap, err := snapshot.Load(reporter.repository, snapshotId)
 	if err != nil {
 		reporter.logger.Warn("failed to load snapshot: %s", err)
 		return

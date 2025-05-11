@@ -138,7 +138,6 @@ func (p *FTPImporter) walkDir(root string, results chan<- string, wg *sync.WaitG
 func (p *FTPImporter) Scan() (<-chan *importer.ScanResult, error) {
 	client, err := connectToFTP(p.host, "", "")
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 	p.client = client
