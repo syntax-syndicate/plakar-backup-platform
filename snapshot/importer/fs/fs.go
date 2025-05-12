@@ -76,19 +76,17 @@ func (p *FSImporter) Type() string {
 }
 
 func (p *FSImporter) Scan() (<-chan *importer.ScanResult, error) {
+	realp, err := p.realpathFollow(p.rootDir)
+	if err != nil {
+		return nil, err
+	}
+
 	results := make(chan *importer.ScanResult, 1000)
-	go p.walkDir_walker(results, p.rootDir, 256)
+	go p.walkDir_walker(results, p.rootDir, realp, 256)
 	return results, nil
 }
 
-func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir string, numWorkers int) {
-	real, err := f.realpathFollow(rootDir)
-	if err != nil {
-		results <- importer.NewScanError(rootDir, err)
-		close(results)
-		return
-	}
-
+func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir, realp string, numWorkers int) {
 	jobs := make(chan string, 1000) // Buffered channel to feed paths to workers
 	var wg sync.WaitGroup
 	for range numWorkers {
@@ -97,13 +95,13 @@ func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir
 	}
 
 	// Add prefix directories first
-	walkDir_addPrefixDirectories(real, jobs, results)
-	if real != rootDir {
+	walkDir_addPrefixDirectories(realp, jobs, results)
+	if realp != rootDir {
 		jobs <- rootDir
 		walkDir_addPrefixDirectories(rootDir, jobs, results)
 	}
 
-	err = filepath.WalkDir(real, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(realp, func(path string, d fs.DirEntry, err error) error {
 		if f.ctx.Err() != nil {
 			return err
 		}
@@ -116,7 +114,7 @@ func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir
 		return nil
 	})
 	if err != nil {
-		results <- importer.NewScanError(real, err)
+		results <- importer.NewScanError(realp, err)
 	}
 
 	close(jobs)

@@ -151,7 +151,7 @@ func parseconfig(home string, params map[string]string, endpoint *url.URL) (*con
 				}
 			}
 		}
-		return ""
+		return ret
 	}
 
 	strict := params["insecure_ignore_host_key"] == "true"

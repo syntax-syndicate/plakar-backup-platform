@@ -58,7 +58,7 @@ func TestParseCmdHelpDefault(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 
 	// create a storage
-	r, err := bfs.NewStore(ctx, map[string]string{"location": "fs://" + tmpRepoDir})
+	r, err := bfs.NewStore(ctx, "fs", map[string]string{"location": tmpRepoDir})
 	require.NotNil(t, r)
 	require.NoError(t, err)
 	config := storage.NewConfiguration()
@@ -154,7 +154,7 @@ func TestParseCmdHelpCommand(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 
 	// create a storage
-	r, err := bfs.NewStore(ctx, map[string]string{"location": "fs://" + tmpRepoDir})
+	r, err := bfs.NewStore(ctx, "fs", map[string]string{"location": tmpRepoDir})
 	require.NotNil(t, r)
 	require.NoError(t, err)
 	config := storage.NewConfiguration()

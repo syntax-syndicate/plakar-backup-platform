@@ -23,6 +23,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -141,7 +142,7 @@ type Store interface {
 	Close() error
 }
 
-type StoreFn func(*appcontext.AppContext, map[string]string) (Store, error)
+type StoreFn func(*appcontext.AppContext, string, map[string]string) (Store, error)
 
 var backends = location.New[StoreFn]("fs")
 
@@ -163,11 +164,17 @@ func New(ctx *appcontext.AppContext, storeConfig map[string]string) (Store, erro
 		return nil, fmt.Errorf("missing location")
 	}
 
-	proto, _, backend, ok := backends.Lookup(location)
-	if ok {
-		return backend(ctx, storeConfig)
+	proto, location, backend, ok := backends.Lookup(location)
+	if !ok {
+		return nil, fmt.Errorf("backend '%s' does not exist", proto)
 	}
-	return nil, fmt.Errorf("backend '%s' does not exist", proto)
+
+	if proto == "fs" && !filepath.IsAbs(location) {
+		location = filepath.Join(ctx.CWD, location)
+	}
+
+	storeConfig["location"] = location
+	return backend(ctx, proto, storeConfig)
 }
 
 func Open(ctx *appcontext.AppContext, storeConfig map[string]string) (Store, []byte, error) {

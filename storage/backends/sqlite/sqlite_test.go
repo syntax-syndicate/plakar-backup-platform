@@ -23,13 +23,13 @@ func TestDatabaseBackend(t *testing.T) {
 		os.Remove("/tmp/testdb.db")
 	})
 	// create a repository
-	repo, err := NewStore(ctx, map[string]string{"location": "sqlite:///tmp/testdb.db"})
+	repo, err := NewStore(ctx, "sqlite", map[string]string{"location": "/tmp/testdb.db"})
 	if err != nil {
 		t.Fatal("error creating repository", err)
 	}
 
 	location := repo.Location()
-	require.Equal(t, "sqlite:///tmp/testdb.db", location)
+	require.Equal(t, "/tmp/testdb.db", location)
 
 	config := storage.NewConfiguration()
 	serializedConfig, err := config.ToBytes()
