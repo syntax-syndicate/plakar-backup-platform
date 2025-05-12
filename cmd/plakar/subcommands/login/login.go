@@ -28,7 +28,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Login{} }, 0, "login")
+	subcommands.Register(func() subcommands.Subcommand { return &Login{} }, subcommands.AgentSupport, "login")
 }
 
 func (cmd *Login) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -78,7 +78,7 @@ type Login struct {
 func (cmd *Login) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	var err error
 
-	flow, err := utils.NewLoginFlow(ctx, repo.Configuration().RepositoryID)
+	flow, err := utils.NewLoginFlow(ctx, repo.Configuration().RepositoryID, cmd.NoSpawn)
 	if err != nil {
 		return 1, err
 	}
@@ -86,9 +86,9 @@ func (cmd *Login) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 
 	var token string
 	if cmd.Github {
-		token, err = flow.Run("github", map[string]string{})
+		token, err = flow.Run("github", map[string]string{"repository_id": repo.Configuration().RepositoryID.String()})
 	} else if cmd.Email != "" {
-		token, err = flow.Run("email", map[string]string{"email": cmd.Email})
+		token, err = flow.Run("email", map[string]string{"email": cmd.Email, "repository_id": repo.Configuration().RepositoryID.String()})
 	} else {
 		return 1, fmt.Errorf("invalid login method")
 	}

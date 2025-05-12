@@ -21,6 +21,7 @@ type CheckOptions struct {
 }
 
 var (
+	ErrRootCorrupted   = errors.New("root corrupted")
 	ErrObjectMissing   = errors.New("object is missing")
 	ErrObjectCorrupted = errors.New("object corrupted")
 	ErrChunkMissing    = errors.New("chunk is missing")
@@ -137,64 +138,48 @@ func checkObject(snap *Snapshot, fileEntry *vfs.Entry, fast bool) error {
 	return nil
 }
 
-func snapshotCheckPath(snap *Snapshot, opts *CheckOptions, wg *errgroup.Group) func(entrypath string, e *vfs.Entry, err error) error {
-	return func(entrypath string, e *vfs.Entry, err error) error {
-		if err != nil {
-			snap.Event(events.PathErrorEvent(snap.Header.Identifier, entrypath, err.Error()))
-			return err
+func checkEntry(snap *Snapshot, opts *CheckOptions, entrypath string, e *vfs.Entry, wg *errgroup.Group) error {
+	entryMAC := e.MAC
+	entryStatus, err := snap.checkCache.GetVFSEntryStatus(entryMAC)
+	if err != nil {
+		return err
+	}
+	if entryStatus != nil {
+		if len(entryStatus) != 0 {
+			return fmt.Errorf("%s", string(entryStatus))
 		}
-
-		if err := snap.AppContext().Err(); err != nil {
-			return err
-		}
-
-		entryMAC := e.MAC
-		entryStatus, err := snap.checkCache.GetVFSEntryStatus(entryMAC)
-		if err != nil {
-			return err
-		}
-		if entryStatus != nil {
-			if len(entryStatus) == 0 {
-				return nil
-			} else {
-				return fmt.Errorf("%s", string(entryStatus))
-			}
-		}
-
-		snap.Event(events.PathEvent(snap.Header.Identifier, entrypath))
-
-		if e.Stat().Mode().IsDir() {
-			snap.Event(events.DirectoryEvent(snap.Header.Identifier, entrypath))
-			snap.Event(events.DirectoryOKEvent(snap.Header.Identifier, entrypath))
-			snap.checkCache.PutVFSEntryStatus(entryMAC, []byte(""))
-			return nil
-		}
-
-		if !e.Stat().Mode().IsRegular() {
-			snap.checkCache.PutVFSEntryStatus(entryMAC, []byte(""))
-			return nil
-		}
-
-		snap.Event(events.FileEvent(snap.Header.Identifier, entrypath))
-
-		wg.Go(func() error {
-			err := checkObject(snap, e, opts.FastCheck)
-			if err != nil {
-				snap.Event(events.FileCorruptedEvent(snap.Header.Identifier, entrypath))
-				snap.checkCache.PutVFSEntryStatus(entryMAC, []byte(err.Error()))
-
-				// don't stop at the first error; we
-				// need to process all the entries to
-				// report all the findings.
-				return nil
-			}
-
-			snap.Event(events.FileOKEvent(snap.Header.Identifier, entrypath, e.Size()))
-			snap.checkCache.PutVFSEntryStatus(entryMAC, []byte(""))
-			return nil
-		})
 		return nil
 	}
+
+	snap.Event(events.PathEvent(snap.Header.Identifier, entrypath))
+
+	if e.Stat().Mode().IsDir() {
+		snap.Event(events.DirectoryEvent(snap.Header.Identifier, entrypath))
+		snap.Event(events.DirectoryOKEvent(snap.Header.Identifier, entrypath))
+		snap.checkCache.PutVFSEntryStatus(entryMAC, []byte(""))
+		return nil
+	}
+
+	if !e.Stat().Mode().IsRegular() {
+		snap.checkCache.PutVFSEntryStatus(entryMAC, []byte(""))
+		return nil
+	}
+
+	snap.Event(events.FileEvent(snap.Header.Identifier, entrypath))
+
+	wg.Go(func() error {
+		err := checkObject(snap, e, opts.FastCheck)
+		if err != nil {
+			snap.Event(events.FileCorruptedEvent(snap.Header.Identifier, entrypath))
+			snap.checkCache.PutVFSEntryStatus(entryMAC, []byte(err.Error()))
+			return err
+		}
+
+		snap.Event(events.FileOKEvent(snap.Header.Identifier, entrypath, e.Size()))
+		snap.checkCache.PutVFSEntryStatus(entryMAC, []byte(""))
+		return nil
+	})
+	return nil
 }
 
 func (snap *Snapshot) processSource(source *header.Source, pathname string, opts *CheckOptions) error {
@@ -224,7 +209,26 @@ func (snap *Snapshot) processSource(source *header.Source, pathname string, opts
 	wg := new(errgroup.Group)
 	wg.SetLimit(int(maxConcurrency))
 
-	err = fs.WalkDir(pathname, snapshotCheckPath(snap, opts, wg))
+	var failed bool
+	err = fs.WalkDir(pathname, func(entrypath string, e *vfs.Entry, err error) error {
+		if err != nil {
+			snap.Event(events.PathErrorEvent(snap.Header.Identifier, entrypath, err.Error()))
+			return err
+		}
+
+		if err := snap.AppContext().Err(); err != nil {
+			return err
+		}
+
+		if err := checkEntry(snap, opts, entrypath, e, wg); err != nil {
+			// don't stop at the first error; we need to
+			// process all the entries to report all the
+			// findings.
+			failed = true
+		}
+
+		return nil
+	})
 	if err != nil {
 		snap.checkCache.PutVFSStatus(source.VFS.Root, []byte(err.Error()))
 		return err
@@ -232,6 +236,11 @@ func (snap *Snapshot) processSource(source *header.Source, pathname string, opts
 	if err := wg.Wait(); err != nil {
 		snap.checkCache.PutVFSStatus(source.VFS.Root, []byte(err.Error()))
 		return err
+	}
+	if failed {
+		snap.checkCache.PutVFSStatus(snap.Header.GetSource(0).VFS.Root,
+			[]byte(ErrRootCorrupted.Error()))
+		return ErrRootCorrupted
 	}
 
 	snap.checkCache.PutVFSStatus(source.VFS.Root, []byte(""))
