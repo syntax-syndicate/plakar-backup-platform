@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -90,7 +91,8 @@ func (s *Store) connect(addr string) error {
 }
 
 func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
-	err := s.connect(s.location)
+	location := strings.TrimPrefix(s.location, "sqlite://")
+	err := s.connect(location)
 	if err != nil {
 		return err
 	}
@@ -149,7 +151,8 @@ func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
 }
 
 func (s *Store) Open(ctx *appcontext.AppContext) ([]byte, error) {
-	err := s.connect(s.location)
+	location := strings.TrimPrefix(s.location, "sqlite://")
+	err := s.connect(location)
 	if err != nil {
 		return nil, err
 	}
