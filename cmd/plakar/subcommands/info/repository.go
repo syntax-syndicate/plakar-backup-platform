@@ -13,7 +13,6 @@ import (
 
 type InfoRepository struct {
 	subcommands.SubcommandBase
-	RepositorySecret []byte
 }
 
 func (cmd *InfoRepository) Parse(ctx *appcontext.AppContext, args []string) error {
