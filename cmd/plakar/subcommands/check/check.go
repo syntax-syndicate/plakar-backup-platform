@@ -143,10 +143,8 @@ func (cmd *Check) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 			}
 		}
 
-		if ok, err := snap.Check(pathname, opts); err != nil {
+		if err := snap.Check(pathname, opts); err != nil {
 			ctx.GetLogger().Warn("%s", err)
-			failures = true
-		} else if !ok {
 			failures = true
 		}
 
