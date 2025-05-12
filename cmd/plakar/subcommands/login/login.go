@@ -86,9 +86,9 @@ func (cmd *Login) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 
 	var token string
 	if cmd.Github {
-		token, err = flow.Run("github", map[string]string{})
+		token, err = flow.Run("github", map[string]string{"repository_id": repo.Configuration().RepositoryID.String()})
 	} else if cmd.Email != "" {
-		token, err = flow.Run("email", map[string]string{"email": cmd.Email})
+		token, err = flow.Run("email", map[string]string{"email": cmd.Email, "repository_id": repo.Configuration().RepositoryID.String()})
 	} else {
 		return 1, fmt.Errorf("invalid login method")
 	}

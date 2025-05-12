@@ -30,6 +30,7 @@ func servicesLoginGithub(w http.ResponseWriter, r *http.Request) error {
 
 	parameters := make(map[string]string)
 	parameters["redirect"] = req.Redirect
+	parameters["repository_id"] = lrepository.Configuration().RepositoryID.String()
 
 	lf, err := utils.NewLoginFlow(lrepository.AppContext(), lrepository.Configuration().RepositoryID, true)
 	if err != nil {
@@ -60,6 +61,7 @@ func servicesLoginEmail(w http.ResponseWriter, r *http.Request) error {
 	parameters := make(map[string]string)
 	parameters["email"] = req.Email
 	parameters["redirect"] = req.Redirect
+	parameters["repository_id"] = lrepository.Configuration().RepositoryID.String()
 
 	lf, err := utils.NewLoginFlow(lrepository.AppContext(), lrepository.Configuration().RepositoryID, true)
 	if err != nil {

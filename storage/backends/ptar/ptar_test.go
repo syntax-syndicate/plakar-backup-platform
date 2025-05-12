@@ -27,13 +27,13 @@ func TestPtarBackend(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 
 	// create a repository
-	repo, err := NewStore(ctx, map[string]string{"location": "ptar://" + tmpRepoDir})
+	repo, err := NewStore(ctx, "ptar", map[string]string{"location": tmpRepoDir})
 	if err != nil {
 		t.Fatal("error creating repository", err)
 	}
 
 	location := repo.Location()
-	require.Equal(t, "ptar://"+tmpRepoDir, location)
+	require.Equal(t, tmpRepoDir, location)
 
 	config := storage.NewConfiguration()
 	serializedConfig, err := config.ToBytes()
