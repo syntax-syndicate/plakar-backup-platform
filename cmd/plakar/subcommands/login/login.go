@@ -96,9 +96,7 @@ func (cmd *Login) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 		return 1, err
 	}
 
-	if cache, err := ctx.GetCache().Repository(repo.Configuration().RepositoryID); err != nil {
-		return 1, fmt.Errorf("failed to get repository cache: %w", err)
-	} else if err := cache.PutAuthToken(token); err != nil {
+	if err := ctx.GetCookies().PutAuthToken(token); err != nil {
 		return 1, fmt.Errorf("failed to store token in cache: %w", err)
 	}
 

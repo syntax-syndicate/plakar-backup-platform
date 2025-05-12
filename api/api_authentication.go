@@ -82,12 +82,8 @@ func servicesLoginEmail(w http.ResponseWriter, r *http.Request) error {
 }
 
 func servicesLogout(w http.ResponseWriter, r *http.Request) error {
-	configuration := lrepository.Configuration()
-	if cache, err := lrepository.AppContext().GetCache().Repository(configuration.RepositoryID); err != nil {
-		return err
-	} else if exists := cache.HasAuthToken(); !exists {
-		return nil
-	} else {
-		return cache.DeleteAuthToken()
+	if lrepository.AppContext().GetCookies().HasAuthToken() {
+		return lrepository.AppContext().GetCookies().DeleteAuthToken()
 	}
+	return nil
 }
