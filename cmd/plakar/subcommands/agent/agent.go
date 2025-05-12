@@ -330,7 +330,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					return
 				}
 				select {
-				case <-clientContext.Context.Done():
+				case <-clientContext.Done():
 					return
 				default:
 					mu.Lock()
@@ -486,9 +486,6 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				reporter.TaskFailed(0, "error: %s", err)
 			}
 
-			clientContext.Close()
-			<-eventsDone
-
 			errStr := ""
 			if err != nil {
 				errStr = err.Error()
@@ -498,6 +495,10 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				ExitCode: status,
 				Err:      errStr,
 			})
+
+			clientContext.Close()
+			<-eventsDone
+
 		}(conn)
 	}
 }
