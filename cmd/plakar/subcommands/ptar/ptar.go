@@ -231,7 +231,7 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		return 1, err
 	}
 
-	st, err := storage.Create(ctx, map[string]string{"location": repo.Location()}, wrappedConfig)
+	st, err := storage.Create(ctx, map[string]string{"location": "ptar://" + repo.Location()}, wrappedConfig)
 	if err != nil {
 		return 1, err
 	}
