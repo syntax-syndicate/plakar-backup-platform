@@ -172,8 +172,9 @@ func New(ctx *appcontext.AppContext, storeConfig map[string]string) (Store, erro
 	if proto == "fs" && !filepath.IsAbs(location) {
 		location = filepath.Join(ctx.CWD, location)
 		storeConfig["location"] = "fs://" + location
+	} else {
+		storeConfig["location"] = proto + "://" + location
 	}
-
 	return backend(ctx, proto, storeConfig)
 }
 
