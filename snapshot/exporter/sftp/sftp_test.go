@@ -1,10 +1,6 @@
 package sftp
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,35 +8,11 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
 	ptesting "github.com/PlakarKorp/plakar/testing"
-	"golang.org/x/crypto/ssh"
 )
 
 func TestExporter(t *testing.T) {
-	// Generate a keypair for the test
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatalf("Failed to generate private key: %v", err)
-	}
-	privBytes := x509.MarshalPKCS1PrivateKey(priv)
-	privPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: privBytes})
-	pub, err := ssh.NewPublicKey(&priv.PublicKey)
-	if err != nil {
-		t.Fatalf("Failed to generate public key: %v", err)
-	}
-
-	// Write private key to a temp file
-	keyFile, err := os.CreateTemp("", "sftp-exporter-key-*.pem")
-	if err != nil {
-		t.Fatalf("Failed to create temp key file: %v", err)
-	}
-	defer os.Remove(keyFile.Name())
-	if _, err := keyFile.Write(privPEM); err != nil {
-		t.Fatalf("Failed to write private key: %v", err)
-	}
-	keyFile.Close()
-
 	// Create a mock SFTP server that accepts the public key
-	server, err := ptesting.NewMockSFTPServer(pub)
+	server, err := ptesting.NewMockSFTPServer(t)
 	if err != nil {
 		t.Fatalf("Failed to create mock server: %v", err)
 	}
@@ -71,7 +43,7 @@ func TestExporter(t *testing.T) {
 	exporter, err := NewSFTPExporter(appCtx, "sftp", map[string]string{
 		"location":                 server.Addr + "/",
 		"username":                 "test",
-		"identity":                 keyFile.Name(),
+		"identity":                 server.KeyFile,
 		"insecure_ignore_host_key": "true",
 	})
 	if err != nil {

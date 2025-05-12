@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"testing"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -20,9 +21,33 @@ type MockSFTPServer struct {
 	config  *ssh.ServerConfig
 	rootDir string
 	pubKey  ssh.PublicKey
+	KeyFile string
 }
 
-func NewMockSFTPServer(pubKey ssh.PublicKey) (*MockSFTPServer, error) {
+func NewMockSFTPServer(t *testing.T) (*MockSFTPServer, error) {
+	// Generate a keypair for the test
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate private key: %v", err)
+	}
+	privBytes := x509.MarshalPKCS1PrivateKey(priv)
+	privPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: privBytes})
+	pubKey, err := ssh.NewPublicKey(&priv.PublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate public key: %v", err)
+	}
+
+	// Write private key to a temp file
+	keyFile, err := os.CreateTemp("", "sftp-exporter-key-*.pem")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp key file: %v", err)
+	}
+	t.Cleanup(func() { os.Remove(keyFile.Name()) })
+	if _, err := keyFile.Write(privPEM); err != nil {
+		return nil, fmt.Errorf("failed to write private key: %v", err)
+	}
+	keyFile.Close()
+
 	// Create a temporary directory for the server
 	rootDir, err := os.MkdirTemp("", "sftp-server-*")
 	if err != nil {
@@ -66,6 +91,7 @@ func NewMockSFTPServer(pubKey ssh.PublicKey) (*MockSFTPServer, error) {
 		config:  config,
 		rootDir: rootDir,
 		pubKey:  pubKey,
+		KeyFile: keyFile.Name(),
 	}
 	go server.serve(listener)
 	return server, nil
