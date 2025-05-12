@@ -142,7 +142,7 @@ type Store interface {
 	Close() error
 }
 
-type StoreFn func(*appcontext.AppContext, map[string]string) (Store, error)
+type StoreFn func(*appcontext.AppContext, string, map[string]string) (Store, error)
 
 var backends = location.New[StoreFn]("fs")
 
@@ -174,7 +174,7 @@ func New(ctx *appcontext.AppContext, storeConfig map[string]string) (Store, erro
 	}
 
 	storeConfig["location"] = location
-	return backend(ctx, storeConfig)
+	return backend(ctx, proto, storeConfig)
 }
 
 func Open(ctx *appcontext.AppContext, storeConfig map[string]string) (Store, []byte, error) {

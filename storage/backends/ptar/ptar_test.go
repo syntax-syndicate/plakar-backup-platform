@@ -27,7 +27,7 @@ func TestPtarBackend(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 
 	// create a repository
-	repo, err := NewStore(ctx, map[string]string{"location": tmpRepoDir})
+	repo, err := NewStore(ctx, "ptar", map[string]string{"location": tmpRepoDir})
 	if err != nil {
 		t.Fatal("error creating repository", err)
 	}
