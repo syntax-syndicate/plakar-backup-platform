@@ -122,10 +122,12 @@ func apiInfo(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	res := &struct {
+		RepositoryId  string `json:"repository_id"`
 		Authenticated bool   `json:"authenticated"`
 		Version       string `json:"version"`
 		Browsable     bool   `json:"browsable"`
 	}{
+		RepositoryId:  configuration.RepositoryID.String(),
 		Authenticated: authenticated,
 		Version:       utils.GetVersion(),
 		Browsable:     lrepository.Store().Mode()&storage.ModeRead != 0,
