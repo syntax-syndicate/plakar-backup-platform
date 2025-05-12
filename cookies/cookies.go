@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/google/uuid"
 )
 
 const COOKIES_VERSION = "1.0.0"
@@ -51,4 +54,20 @@ func (c *Manager) DeleteAuthToken() error {
 
 func (c *Manager) PutAuthToken(token string) error {
 	return os.WriteFile(filepath.Join(c.cookiesDir, ".auth-token"), []byte(token), 0600)
+}
+
+func (c *Manager) HasRepositoryCookie(repositoryId uuid.UUID, name string) bool {
+	name = strings.ReplaceAll(name, "/", "_")
+	_, err := os.Stat(filepath.Join(c.cookiesDir, repositoryId.String(), name))
+	return err == nil
+}
+
+func (c *Manager) PutRepositoryCookie(repositoryId uuid.UUID, name string) error {
+	err := os.MkdirAll(filepath.Join(c.cookiesDir, repositoryId.String()), 0700)
+	if err != nil {
+		return err
+	}
+	name = strings.ReplaceAll(name, "/", "_")
+	_, err = os.Create(filepath.Join(c.cookiesDir, name))
+	return err
 }

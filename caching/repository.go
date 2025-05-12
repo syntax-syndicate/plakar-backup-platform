@@ -5,7 +5,6 @@ import (
 	"iter"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/resources"
@@ -35,18 +34,6 @@ func newRepositoryCache(cacheManager *Manager, repositoryID uuid.UUID) (*_Reposi
 		cookiesDir:  cookiesDir,
 		PebbleCache: db,
 	}, nil
-}
-
-func (c *_RepositoryCache) HasCookie(name string) bool {
-	name = strings.ReplaceAll(name, "/", "_")
-	_, err := os.Stat(filepath.Join(c.cookiesDir, name))
-	return err == nil
-}
-
-func (c *_RepositoryCache) PutCookie(name string) error {
-	name = strings.ReplaceAll(name, "/", "_")
-	_, err := os.Create(filepath.Join(c.cookiesDir, name))
-	return err
 }
 
 func (c *_RepositoryCache) PutState(stateID objects.MAC, data []byte) error {
