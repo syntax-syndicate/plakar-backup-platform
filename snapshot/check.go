@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/PlakarKorp/plakar/snapshot/header"
 	"hash"
+	"log"
 
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/objects"
@@ -195,28 +197,23 @@ func snapshotCheckPath(snap *Snapshot, opts *CheckOptions, wg *errgroup.Group) f
 	}
 }
 
-func (snap *Snapshot) Check(pathname string, opts *CheckOptions) (bool, error) {
-	snap.Event(events.StartEvent())
-	defer snap.Event(events.DoneEvent())
-
-	vfsStatus, err := snap.checkCache.GetVFSStatus(snap.Header.GetSource(0).VFS.Root)
+func (snap *Snapshot) processSource(source *header.Source, pathname string, opts *CheckOptions) error {
+	vfsStatus, err := snap.checkCache.GetVFSStatus(source.VFS.Root)
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	// if vfsStatus is nil, we've never seen this vfs and we have
-	// to process it.  It is zero if it's fine, or an error
-	// otherwise.
+	// If vfsStatus is nil, we've never seen this vfs and we have to process it.
 	if vfsStatus != nil {
 		if len(vfsStatus) != 0 {
-			return false, fmt.Errorf("%s", string(vfsStatus))
+			return fmt.Errorf("%s", string(vfsStatus))
 		}
-		return true, nil
+		return nil
 	}
 
 	fs, err := snap.Filesystem()
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	maxConcurrency := opts.MaxConcurrency
@@ -229,15 +226,28 @@ func (snap *Snapshot) Check(pathname string, opts *CheckOptions) (bool, error) {
 
 	err = fs.WalkDir(pathname, snapshotCheckPath(snap, opts, wg))
 	if err != nil {
-		snap.checkCache.PutVFSStatus(snap.Header.GetSource(0).VFS.Root, []byte(err.Error()))
-		return false, err
+		snap.checkCache.PutVFSStatus(source.VFS.Root, []byte(err.Error()))
+		return err
 	}
 	if err := wg.Wait(); err != nil {
-		snap.checkCache.PutVFSStatus(snap.Header.GetSource(0).VFS.Root, []byte(err.Error()))
-		return false, err
+		snap.checkCache.PutVFSStatus(source.VFS.Root, []byte(err.Error()))
+		return err
 	}
 
-	snap.checkCache.PutVFSStatus(snap.Header.GetSource(0).VFS.Root, []byte(""))
+	snap.checkCache.PutVFSStatus(source.VFS.Root, []byte(""))
+	return nil
+}
+
+func (snap *Snapshot) Check(pathname string, opts *CheckOptions) (bool, error) {
+	snap.Event(events.StartEvent())
+	defer snap.Event(events.DoneEvent())
+
+	for _, source := range snap.Header.Sources {
+		log.Print(source.Importer.Directory)
+		if err := snap.processSource(&source, pathname, opts); err != nil {
+			return false, err
+		}
+	}
 	return true, nil
 }
 
