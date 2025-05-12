@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/syslog"
 	"net"
 	"net/http"
 	"os"
@@ -125,6 +126,12 @@ func (cmd *Agent) Parse(ctx *appcontext.AppContext, args []string) error {
 			return err
 		}
 		ctx.GetLogger().SetOutput(f)
+	} else {
+		sysW, err := syslog.New(syslog.LOG_INFO|syslog.LOG_LOCAL0, "my-app")
+		if err != nil {
+			return err
+		}
+		ctx.GetLogger().SetOutput(sysW)
 	}
 
 	cmd.socketPath = filepath.Join(ctx.CacheDir, "agent.sock")
