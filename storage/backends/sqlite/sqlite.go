@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"path/filepath"
 	"strings"
 	"sync"
 
@@ -54,10 +53,6 @@ func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]s
 	}
 
 	location := storeConfig["location"]
-	if !filepath.IsAbs(location) {
-		location = filepath.Join(ctx.CWD, location)
-	}
-
 	return &Store{
 		backend:  proto,
 		location: location,
