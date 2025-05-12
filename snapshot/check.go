@@ -238,8 +238,7 @@ func (snap *Snapshot) processSource(source *header.Source, pathname string, opts
 		return err
 	}
 	if failed {
-		snap.checkCache.PutVFSStatus(snap.Header.GetSource(0).VFS.Root,
-			[]byte(ErrRootCorrupted.Error()))
+		snap.checkCache.PutVFSStatus(source.VFS.Root, []byte(ErrRootCorrupted.Error()))
 		return ErrRootCorrupted
 	}
 
@@ -247,17 +246,17 @@ func (snap *Snapshot) processSource(source *header.Source, pathname string, opts
 	return nil
 }
 
-func (snap *Snapshot) Check(pathname string, opts *CheckOptions) (bool, error) {
+func (snap *Snapshot) Check(pathname string, opts *CheckOptions) error {
 	snap.Event(events.StartEvent())
 	defer snap.Event(events.DoneEvent())
 
 	for _, source := range snap.Header.Sources {
 		log.Print(source.Importer.Directory)
 		if err := snap.processSource(&source, pathname, opts); err != nil {
-			return false, err
+			return err
 		}
 	}
-	return true, nil
+	return nil
 }
 
 /**/
