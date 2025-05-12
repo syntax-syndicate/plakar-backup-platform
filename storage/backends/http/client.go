@@ -39,9 +39,9 @@ func init() {
 	storage.Register(NewStore, "http", "https")
 }
 
-func NewStore(ctx *appcontext.AppContext, storeConfig map[string]string) (storage.Store, error) {
+func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]string) (storage.Store, error) {
 	return &Store{
-		location: storeConfig["location"],
+		location: proto + "://" + storeConfig["location"],
 	}, nil
 }
 

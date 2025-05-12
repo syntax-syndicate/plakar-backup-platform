@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/PlakarKorp/plakar/api"
@@ -228,7 +229,7 @@ func TestHttpBackend(t *testing.T) {
 	defer ctx.Close()
 
 	// create a repository
-	repo, err := NewStore(ctx, map[string]string{"location": ts.URL})
+	repo, err := NewStore(ctx, "http", map[string]string{"location": strings.TrimPrefix(ts.URL, "http://")})
 	if err != nil {
 		t.Fatal("error creating repository", err)
 	}

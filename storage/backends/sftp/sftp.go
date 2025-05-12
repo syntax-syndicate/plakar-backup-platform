@@ -49,13 +49,13 @@ func init() {
 	storage.Register(NewStore, "sftp")
 }
 
-func NewStore(ctx *appcontext.AppContext, storeConfig map[string]string) (storage.Store, error) {
+func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]string) (storage.Store, error) {
 	location := storeConfig["location"]
 	if location == "" {
 		return nil, fmt.Errorf("missing location")
 	}
 
-	parsed, err := url.Parse(location)
+	parsed, err := url.Parse(proto + "://" + location)
 	if err != nil {
 		return nil, err
 	}
