@@ -63,6 +63,7 @@ func (cmd *Login) Parse(ctx *appcontext.AppContext, args []string) error {
 	cmd.Github = opt_github
 	cmd.Email = opt_email
 	cmd.NoSpawn = opt_nospawn
+	cmd.RepositorySecret = ctx.GetSecret()
 
 	return nil
 }
