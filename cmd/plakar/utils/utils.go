@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/mail"
 	"os"
 	"path"
 	"path/filepath"
@@ -343,4 +344,18 @@ func SanitizeText(input string) string {
 	}
 
 	return sb.String()
+}
+
+func ValidateEmail(email string) (string, error) {
+	if email == "" {
+		return "", errors.New("email cannot be empty")
+	}
+	mail, err := mail.ParseAddress(email)
+	if err != nil {
+		return "", fmt.Errorf("invalid email address: %w", err)
+	}
+	if mail.Address != email {
+		return "", fmt.Errorf("invalid email address: %w", err)
+	}
+	return mail.Address, nil
 }
