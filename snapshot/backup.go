@@ -201,8 +201,10 @@ func (snap *Builder) importerJob(backupCtx *BackupContext, options *BackupOption
 						atomic.AddUint64(&size, uint64(record.FileInfo.Size()))
 					}
 					// if snapshot root is a file, then reset to the parent directory
-					if snap.Header.GetSource(0).Importer.Directory == record.Pathname {
-						snap.Header.GetSource(0).Importer.Directory = filepath.Dir(record.Pathname)
+					for i := range snap.Header.Sources {
+						if snap.Header.GetSource(i).Importer.Directory == record.Pathname {
+							snap.Header.GetSource(i).Importer.Directory = filepath.Dir(record.Pathname)
+						}
 					}
 				}
 			}(_record)
@@ -307,8 +309,9 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 		snap.Header.Name = options.Name
 	}
 
+	impList := []importer.Importer{imp} //this should be the list of all importers in the multiImporter
+
 	//try casting the imp to a metaImporter
-	impList := []importer.Importer{imp}
 	if metaImp, ok := imp.(*multi.MultiImporter); ok {
 		impList = append(impList, metaImp.Importers...)
 	}
@@ -318,7 +321,7 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	}
 
 	for i, tmpImp := range impList {
-		log.Printf("Importer %d: %s\n", i, tmpImp.Type())
+		log.Printf("Importer %d: type, origin, root: %s, %s, %s", i, tmpImp.Type(), tmpImp.Origin(), tmpImp.Root())
 		snap.Header.GetSource(i).Importer.Origin = tmpImp.Origin()
 		snap.Header.GetSource(i).Importer.Type = tmpImp.Type()
 		snap.Header.GetSource(i).Importer.Directory = tmpImp.Root()
@@ -356,11 +359,17 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 		return nil
 	}
 
-	//test thing to remove source 0 and shift the rest
+	//remove the first source, as it is the one that specifies the multiImporter
+	//without it, we would have: multi, fs, ftp
+	//with it, we would have: fs, ftp
+	//this is a workaround for the fact that we don't have a way to specify the
+	//multiImporter in the header
 	if len(snap.Header.Sources) > 1 {
 		snap.Header.Sources = snap.Header.Sources[1:]
 	}
 
+	//snap.persistTrees should return list of vfsHeader, rootSummary and indexes so for now
+	//we just use the first one, its hackish but it works
 	snap.Header.Duration = time.Since(beginTime)
 	snap.Header.GetSource(0).VFS = *vfsHeader
 	snap.Header.GetSource(0).Summary = *rootSummary
@@ -399,12 +408,14 @@ func (snap *Builder) chunkify(imp importer.Importer, record *importer.ScanRecord
 	if record.IsXattr {
 		if record.Source != 0 {
 			rd, err = imp.(*multi.MultiImporter).Importers[record.Source-1].NewExtendedAttributeReader(record.Pathname, record.XattrName)
+			//return nil, -1, fmt.Errorf("xattr not supported for multi importer")
 		} else {
 			rd, err = imp.NewExtendedAttributeReader(record.Pathname, record.XattrName)
 		}
 	} else {
 		if record.Source != 0 {
 			rd, err = imp.(*multi.MultiImporter).Importers[record.Source-1].NewReader(record.Pathname)
+			//return nil, -1, fmt.Errorf("xattr not supported for multi importer")
 		} else {
 			rd, err = imp.NewReader(record.Pathname)
 		}
