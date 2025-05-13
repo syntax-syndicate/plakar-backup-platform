@@ -106,17 +106,31 @@ func (cmd *Ls) list_snapshots(ctx *appcontext.AppContext, repo *repository.Repos
 			fmt.Fprintf(ctx.Stdout, "%s %10s%10s%10s %s\n",
 				snap.Header.Timestamp.UTC().Format(time.RFC3339),
 				hex.EncodeToString(snap.Header.GetIndexShortID()),
-				humanize.Bytes(snap.Header.GetSource(0).Summary.Directory.Size+snap.Header.GetSource(0).Summary.Below.Size),
+				//humanize.Bytes(snap.Header.GetSource(0).Summary.Directory.Size+snap.Header.GetSource(0).Summary.Below.Size),
+				humanize.Bytes(func() uint64 {
+					tSize := uint64(0)
+					for i := range snap.Header.Sources {
+						tSize += snap.Header.GetSource(i).Summary.Directory.Size + snap.Header.GetSource(i).Summary.Below.Size
+					}
+					return tSize
+				}()),
 				snap.Header.Duration.Round(time.Second),
-				utils.SanitizeText(snap.Header.GetSource(0).Importer.Directory))
+				utils.SanitizeText(snap.Header.GetSource(0).Importer.Directory)) //TODO: look at this
 		} else {
 			indexID := snap.Header.GetIndexID()
 			fmt.Fprintf(ctx.Stdout, "%s %3s%10s%10s %s\n",
 				snap.Header.Timestamp.UTC().Format(time.RFC3339),
 				hex.EncodeToString(indexID[:]),
-				humanize.Bytes(snap.Header.GetSource(0).Summary.Directory.Size+snap.Header.GetSource(0).Summary.Below.Size),
+				//humanize.Bytes(snap.Header.GetSource(0).Summary.Directory.Size+snap.Header.GetSource(0).Summary.Below.Size),
+				humanize.Bytes(func() uint64 {
+					tSize := uint64(0)
+					for i := range snap.Header.Sources {
+						tSize += snap.Header.GetSource(i).Summary.Directory.Size + snap.Header.GetSource(i).Summary.Below.Size
+					}
+					return tSize
+				}()),
 				snap.Header.Duration.Round(time.Second),
-				utils.SanitizeText(snap.Header.GetSource(0).Importer.Directory))
+				utils.SanitizeText(snap.Header.GetSource(0).Importer.Directory)) //TODO: look at this
 		}
 
 		snap.Close()
