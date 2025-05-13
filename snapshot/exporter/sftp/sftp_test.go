@@ -41,7 +41,7 @@ func TestExporter(t *testing.T) {
 	// Create the exporter
 	appCtx := appcontext.NewAppContext()
 	exporter, err := NewSFTPExporter(appCtx, "sftp", map[string]string{
-		"location":                 server.Addr + "/",
+		"location":                 "sftp://" + server.Addr + "/",
 		"username":                 "test",
 		"identity":                 server.KeyFile,
 		"insecure_ignore_host_key": "true",

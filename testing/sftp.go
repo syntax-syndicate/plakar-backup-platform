@@ -23,7 +23,6 @@ type MockSFTPServer struct {
 	pubKey   ssh.PublicKey
 	KeyFile  string
 	listener net.Listener
-	done     chan struct{}
 }
 
 func NewMockSFTPServer(t *testing.T) (*MockSFTPServer, error) {
@@ -95,31 +94,18 @@ func NewMockSFTPServer(t *testing.T) (*MockSFTPServer, error) {
 		pubKey:   pubKey,
 		KeyFile:  keyFile.Name(),
 		listener: listener,
-		done:     make(chan struct{}),
 	}
 	go server.serve(listener)
 	return server, nil
 }
 
 func (s *MockSFTPServer) serve(listener net.Listener) {
-	defer listener.Close()
 	for {
-		select {
-		case <-s.done:
+		conn, err := listener.Accept()
+		if err != nil {
 			return
-		default:
-			conn, err := listener.Accept()
-			if err != nil {
-				select {
-				case <-s.done:
-					return // Server is shutting down
-				default:
-					// Unexpected error
-					continue
-				}
-			}
-			go s.handleConnection(conn)
 		}
+		go s.handleConnection(conn)
 	}
 }
 
@@ -173,7 +159,6 @@ func (s *MockSFTPServer) handleSFTP(channel ssh.Channel) {
 }
 
 func (s *MockSFTPServer) Close() {
-	close(s.done) // Signal goroutines to stop
 	if s.listener != nil {
 		s.listener.Close() // Close the listener to unblock Accept()
 	}
