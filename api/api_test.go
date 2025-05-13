@@ -10,6 +10,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/caching"
+	"github.com/PlakarKorp/plakar/cookies"
 	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
@@ -47,6 +48,10 @@ func TestAuthMiddleware(t *testing.T) {
 	defer cache.Close()
 	ctx.SetCache(cache)
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
+
+	cookies := cookies.NewManager("/tmp/test_plakar")
+	ctx.SetCookies(cookies)
+	ctx.Client = "plakar-test/1.0.0"
 
 	lstore, err := storage.Create(ctx, map[string]string{"location": "mock:///test/location"}, wrappedConfig)
 	require.NoError(t, err)
@@ -103,6 +108,10 @@ func Test_UnknownEndpoint(t *testing.T) {
 	defer cache.Close()
 	ctx.SetCache(cache)
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
+
+	cookies := cookies.NewManager("/tmp/test_plakar")
+	ctx.SetCookies(cookies)
+	ctx.Client = "plakar-test/1.0.0"
 
 	lstore, err := storage.Create(ctx, map[string]string{"location": "mock:///test/location"}, wrappedConfig)
 	require.NoError(t, err)
