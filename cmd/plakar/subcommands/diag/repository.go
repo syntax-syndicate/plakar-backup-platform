@@ -113,7 +113,10 @@ func (cmd *DiagRepository) Execute(ctx *appcontext.AppContext, repo *repository.
 		if err != nil {
 			return 1, err
 		}
-		totalSize += snap.Header.GetSource(0).Summary.Directory.Size + snap.Header.GetSource(0).Summary.Below.Size
+		totalSize = uint64(0)
+		for i := 0; i < len(snap.Header.Sources); i++ {
+			totalSize += snap.Header.GetSource(i).Summary.Directory.Size + snap.Header.GetSource(i).Summary.Below.Size
+		}
 		snap.Close()
 	}
 	fmt.Fprintf(ctx.Stdout, "Size: %s (%d bytes)\n", humanize.Bytes(totalSize), totalSize)
