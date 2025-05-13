@@ -227,19 +227,13 @@ func (cmd *Backup) DoBackup(ctx *appcontext.AppContext, repo *repository.Reposit
 	}
 
 	totalSize := snap.Header.GetSource(0).Summary.Directory.Size + snap.Header.GetSource(0).Summary.Below.Size
-	savings := float64(totalSize-uint64(snap.Repository().WBytes())) / float64(totalSize) * 100
 
-	if uint64(snap.Repository().RBytes()) > totalSize {
-		savings = 0
-	}
-
-	ctx.GetLogger().Info("backup: created %s snapshot %x of size %s in %s (wrote %s, saved %0.2f%%)",
+	ctx.GetLogger().Info("backup: created %s snapshot %x of size %s in %s (wrote %s)",
 		"unsigned",
 		snap.Header.GetIndexShortID(),
 		humanize.Bytes(totalSize),
 		snap.Header.Duration,
 		humanize.Bytes(uint64(snap.Repository().WBytes())),
-		savings,
 	)
 
 	totalErrors := uint64(0)
