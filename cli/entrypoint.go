@@ -366,61 +366,51 @@ func EntryPoint() int {
 		return retval
 	}
 
+	var store storage.Store
+	var repo *repository.Repository
+
 	// create is a special case, it operates without a repository...
 	// but needs a repository location to store the new repository
 	if cmd.GetFlags()&subcommands.BeforeRepositoryWithStorage != 0 {
-		repo, err := repository.Inexistent(ctx, storeConfig)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-			return 1
-		}
-		defer repo.Close()
-
-		if err := cmd.Parse(ctx, args); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-			return 1
-		}
-
-		retval, err := cmd.Execute(ctx, repo)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-		}
-		return retval
-	}
-
-	store, serializedConfig, err := storage.Open(ctx, storeConfig)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: failed to open the repository at %s: %s\n", flag.CommandLine.Name(), storeConfig["location"], err)
-		fmt.Fprintln(os.Stderr, "To specify an alternative repository, please use \"plakar at <location> <command>\".")
-		return 1
-	}
-
-	repoConfig, err := storage.NewConfigurationFromWrappedBytes(serializedConfig)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-		return 1
-	}
-
-	if repoConfig.Version != versioning.FromString(storage.VERSION) {
-		fmt.Fprintf(os.Stderr, "%s: incompatible repository version: %s != %s\n",
-			flag.CommandLine.Name(), repoConfig.Version, storage.VERSION)
-		return 1
-	}
-
-	setupEncryption(ctx, repoConfig, storeConfig)
-
-	var repo *repository.Repository
-	if opt_agentless {
-		repo, err = repository.New(ctx, store, serializedConfig)
+		repo, err = repository.Inexistent(ctx, storeConfig)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
 		}
 	} else {
-		repo, err = repository.NewNoRebuild(ctx, store, serializedConfig)
+		store, serializedConfig, err := storage.Open(ctx, storeConfig)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: failed to open the repository at %s: %s\n", flag.CommandLine.Name(), storeConfig["location"], err)
+			fmt.Fprintln(os.Stderr, "To specify an alternative repository, please use \"plakar at <location> <command>\".")
+			return 1
+		}
+
+		repoConfig, err := storage.NewConfigurationFromWrappedBytes(serializedConfig)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
+		}
+
+		if repoConfig.Version != versioning.FromString(storage.VERSION) {
+			fmt.Fprintf(os.Stderr, "%s: incompatible repository version: %s != %s\n",
+				flag.CommandLine.Name(), repoConfig.Version, storage.VERSION)
+			return 1
+		}
+
+		setupEncryption(ctx, repoConfig, storeConfig)
+
+		if opt_agentless {
+			repo, err = repository.New(ctx, store, serializedConfig)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+				return 1
+			}
+		} else {
+			repo, err = repository.NewNoRebuild(ctx, store, serializedConfig)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+				return 1
+			}
 		}
 	}
 
@@ -511,9 +501,11 @@ func EntryPoint() int {
 		logger.Warn("could not close repository: %s", err)
 	}
 
-	err = store.Close()
-	if err != nil {
-		logger.Warn("could not close repository: %s", err)
+	if store != nil {
+		err = store.Close()
+		if err != nil {
+			logger.Warn("could not close repository: %s", err)
+		}
 	}
 
 	ctx.Close()
