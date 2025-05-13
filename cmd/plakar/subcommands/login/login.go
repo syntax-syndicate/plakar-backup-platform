@@ -80,6 +80,14 @@ type Login struct {
 func (cmd *Login) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	var err error
 
+	if cmd.Email != "" {
+		if addr, err := utils.ValidateEmail(cmd.Email); err != nil {
+			return 1, fmt.Errorf("invalid email address: %w", err)
+		} else {
+			cmd.Email = addr
+		}
+	}
+
 	flow, err := utils.NewLoginFlow(ctx, repo.Configuration().RepositoryID, cmd.NoSpawn)
 	if err != nil {
 		return 1, err
