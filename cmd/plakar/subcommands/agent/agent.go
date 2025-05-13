@@ -303,6 +303,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				return nil
 			}
 			ctx.GetLogger().Warn("failed to accept connection: %v", err)
+			return err
 		}
 
 		wg.Add(1)
