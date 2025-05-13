@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
@@ -50,7 +51,7 @@ func NewStdioExporter(appCtx *appcontext.AppContext, name string, config map[str
 	}
 
 	return &StdioExporter{
-		filePath: config["location"],
+		filePath: strings.TrimPrefix(config["location"], name+"://"),
 		appCtx:   appCtx,
 		w:        w,
 	}, nil

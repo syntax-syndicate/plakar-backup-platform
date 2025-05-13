@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"path"
 	"strconv"
 	"strings"
 
@@ -55,19 +54,7 @@ func init() {
 	storage.Register(NewStore, "s3")
 }
 
-func connect(location *url.URL, useSsl bool, accessKeyID, secretAccessKey string) (*minio.Client, error) {
-	endpoint := location.Host
-
-	// Initialize minio client object.
-	return minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
-		Secure: useSsl,
-	})
-}
-
 func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]string) (storage.Store, error) {
-	target := proto + "://" + storeConfig["location"]
-
 	var accessKey string
 	if value, ok := storeConfig["access_key"]; !ok {
 		return nil, fmt.Errorf("missing access_key")
@@ -99,30 +86,13 @@ func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]s
 		}
 	}
 
-	parsed, err := url.Parse(target)
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := connect(parsed, useSsl, accessKey, secretAccessKey)
-	if err != nil {
-		return nil, err
-	}
-
-	atoms := strings.Split(parsed.RequestURI()[1:], "/")
-	bucket := atoms[0]
-	scanDir := path.Clean("/" + strings.Join(atoms[1:], "/"))
-
 	return &Store{
-		location:        proto + "://" + storeConfig["location"],
+		location:        storeConfig["location"],
 		accessKey:       accessKey,
 		secretAccessKey: secretAccessKey,
 		useSsl:          useSsl,
 		storageClass:    storageClass,
-		minioClient:     conn,
 		ctx:             ctx,
-		bucketName:      bucket,
-		prefixDir:       scanDir,
 
 		putObjectOptions: minio.PutObjectOptions{
 			// Some providers (eg. BlackBlaze) return the error
@@ -142,7 +112,39 @@ func (s *Store) realpath(path string) string {
 	return s.prefixDir + path
 }
 
+func (s *Store) connect(location *url.URL) error {
+	endpoint := location.Host
+	useSSL := s.useSsl
+
+	// Initialize minio client object.
+	minioClient, err := minio.New(endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(s.accessKey, s.secretAccessKey, ""),
+		Secure: useSSL,
+	})
+	if err != nil {
+		return fmt.Errorf("create minio client: %w", err)
+	}
+
+	s.minioClient = minioClient
+	return nil
+}
+
 func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
+	parsed, err := url.Parse(s.location)
+	if err != nil {
+		return fmt.Errorf("parse location: %w", err)
+	}
+
+	err = s.connect(parsed)
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+
+	s.bucketName, s.prefixDir, _ = strings.Cut(parsed.RequestURI()[1:], "/")
+	if s.prefixDir != "" && !strings.HasSuffix(s.prefixDir, "/") {
+		s.prefixDir += "/"
+	}
+
 	exists, err := s.minioClient.BucketExists(s.ctx, s.bucketName)
 	if err != nil {
 		return fmt.Errorf("check if bucket exists: %w", err)
@@ -182,6 +184,21 @@ func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
 }
 
 func (s *Store) Open(ctx *appcontext.AppContext) ([]byte, error) {
+	parsed, err := url.Parse(s.location)
+	if err != nil {
+		return nil, fmt.Errorf("parse location: %w", err)
+	}
+
+	err = s.connect(parsed)
+	if err != nil {
+		return nil, fmt.Errorf("connect: %w", err)
+	}
+
+	s.bucketName, s.prefixDir, _ = strings.Cut(parsed.RequestURI()[1:], "/")
+	if s.prefixDir != "" && !strings.HasSuffix(s.prefixDir, "/") {
+		s.prefixDir += "/"
+	}
+
 	exists, err := s.minioClient.BucketExists(s.ctx, s.bucketName)
 	if err != nil {
 		return nil, fmt.Errorf("error checking if bucket exists: %w", err)

@@ -10,6 +10,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/caching"
+	"github.com/PlakarKorp/plakar/cookies"
 	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
@@ -82,6 +83,10 @@ func TestParseCmdHelpDefault(t *testing.T) {
 	// create a repository
 	cache := caching.NewManager(tmpCacheDir)
 	ctx.SetCache(cache)
+
+	cookies := cookies.NewManager(tmpCacheDir)
+	ctx.SetCookies(cookies)
+	ctx.Client = "plakar-test/1.0.0"
 
 	// Create a new logger
 	logger := logging.NewLogger(bytes.NewBuffer(nil), bytes.NewBuffer(nil))
@@ -178,6 +183,10 @@ func TestParseCmdHelpCommand(t *testing.T) {
 	// create a repository
 	cache := caching.NewManager(tmpCacheDir)
 	ctx.SetCache(cache)
+
+	cookies := cookies.NewManager(tmpCacheDir)
+	ctx.SetCookies(cookies)
+	ctx.Client = "plakar-test/1.0.0"
 
 	// Create a new logger
 	logger := logging.NewLogger(bytes.NewBuffer(nil), bytes.NewBuffer(nil))

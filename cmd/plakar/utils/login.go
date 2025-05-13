@@ -214,8 +214,7 @@ func (flow *loginFlow) handleGithubResponseUI(resp *http.Response) (string, erro
 	go func() {
 		token, _ := flow.Poll(respData.PollID, 10, time.Second*5, func() {})
 		if token != "" {
-			if cache, err := flow.appCtx.GetCache().Repository(flow.repositoryID); err != nil {
-			} else if err := cache.PutAuthToken(token); err != nil {
+			if err := flow.appCtx.GetCookies().PutAuthToken(token); err != nil {
 			}
 		}
 
@@ -235,8 +234,7 @@ func (flow *loginFlow) handleEmailResponseUI(resp *http.Response) (string, error
 	go func() {
 		token, _ := flow.Poll(respData.PollID, 10, time.Second*5, func() {})
 		if token != "" {
-			if cache, err := flow.appCtx.GetCache().Repository(flow.repositoryID); err != nil {
-			} else if err := cache.PutAuthToken(token); err != nil {
+			if err := flow.appCtx.GetCookies().PutAuthToken(token); err != nil {
 			}
 		}
 	}()
