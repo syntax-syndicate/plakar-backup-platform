@@ -337,6 +337,23 @@ func EntryPoint() int {
 		return 1
 	}
 
+	// these commands need to be ran before the repository is opened
+	if cmd.GetFlags()&subcommands.BeforeRepositoryOpen != 0 {
+		if at {
+			log.Fatalf("%s: %s command cannot be used with 'at' parameter.",
+				flag.CommandLine.Name(), strings.Join(name, " "))
+		}
+		if err := cmd.Parse(ctx, args); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+			return 1
+		}
+		retval, err := cmd.Execute(ctx, nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+		}
+		return retval
+	}
+
 	// create is a special case, it operates without a repository...
 	// but needs a repository location to store the new repository
 	if cmd.GetFlags()&subcommands.BeforeRepositoryWithStorage != 0 {
@@ -353,23 +370,6 @@ func EntryPoint() int {
 		}
 
 		retval, err := cmd.Execute(ctx, repo)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-		}
-		return retval
-	}
-
-	// these commands need to be ran before the repository is opened
-	if cmd.GetFlags()&subcommands.BeforeRepositoryOpen != 0 {
-		if at {
-			log.Fatalf("%s: %s command cannot be used with 'at' parameter.",
-				flag.CommandLine.Name(), strings.Join(name, " "))
-		}
-		if err := cmd.Parse(ctx, args); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-			return 1
-		}
-		retval, err := cmd.Execute(ctx, nil)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		}
