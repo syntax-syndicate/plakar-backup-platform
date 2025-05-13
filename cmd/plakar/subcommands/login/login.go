@@ -53,7 +53,8 @@ func (cmd *Login) Parse(ctx *appcontext.AppContext, args []string) error {
 	}
 
 	if !opt_github && opt_email == "" {
-		return fmt.Errorf("specify either -github or -email")
+		fmt.Println("no provided login method, defaulting to GitHub")
+		opt_github = true
 	}
 
 	if opt_nospawn && !opt_github {
@@ -78,6 +79,14 @@ type Login struct {
 
 func (cmd *Login) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	var err error
+
+	if cmd.Email != "" {
+		if addr, err := utils.ValidateEmail(cmd.Email); err != nil {
+			return 1, fmt.Errorf("invalid email address: %w", err)
+		} else {
+			cmd.Email = addr
+		}
+	}
 
 	flow, err := utils.NewLoginFlow(ctx, repo.Configuration().RepositoryID, cmd.NoSpawn)
 	if err != nil {
