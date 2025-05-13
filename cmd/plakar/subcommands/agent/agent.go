@@ -21,7 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
+	"log/syslog"
 	"net"
 	"net/http"
 	"os"
@@ -125,11 +125,18 @@ func (cmd *Agent) Parse(ctx *appcontext.AppContext, args []string) error {
 			return err
 		}
 		ctx.GetLogger().SetOutput(f)
+	} else if !opt_foreground {
+		w, err := syslog.New(syslog.LOG_INFO|syslog.LOG_LOCAL0, "plakar")
+		if err != nil {
+			return err
+		}
+		ctx.GetLogger().SetOutput(w)
 	}
 
 	cmd.socketPath = filepath.Join(ctx.CacheDir, "agent.sock")
 	cmd.schedConfig = schedConfig
 
+	ctx.GetLogger().Info("Plakar agent up")
 	return nil
 }
 
@@ -233,7 +240,7 @@ func (cmd *Agent) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 	if err := cmd.ListenAndServe(ctx); err != nil {
 		return 1, err
 	}
-	log.Println("Server gracefully stopped")
+	ctx.GetLogger().Info("Server gracefully stopped")
 	return 0, nil
 }
 
@@ -295,12 +302,13 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			if opErr, ok := err.(*net.OpError); ok && opErr.Err.Error() == "use of closed network connection" {
 				return nil
 			}
-			return fmt.Errorf("failed to accept connection: %w", err)
+			ctx.GetLogger().Warn("failed to accept connection: %v", err)
 		}
 
 		wg.Add(1)
 
 		go func(_conn net.Conn) {
+
 			defer _conn.Close()
 			defer wg.Done()
 
@@ -336,6 +344,7 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 					mu.Lock()
 					if err := encoder.Encode(&packet); err != nil {
 						encodingErrorOccurred = true
+						ctx.GetLogger().Warn("client write error: %v", err)
 					}
 					mu.Unlock()
 				}
@@ -374,10 +383,11 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 			name, storeConfig, request, err := subcommands.DecodeRPC(decoder)
 			if err != nil {
 				if isDisconnectError(err) {
-					fmt.Fprintf(os.Stderr, "Client disconnected during initial request\n")
+					ctx.GetLogger().Warn("client disconnected during initial request")
 					return
 				}
-				fmt.Fprintf(os.Stderr, "%s\n", err)
+				ctx.GetLogger().Warn("Failed to decode RPC: %v", err)
+				fmt.Fprintf(clientContext.Stderr, "%s\n", err)
 				return
 			}
 
@@ -389,25 +399,31 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 
 			subcommand, _, _ := subcommands.Lookup(name)
 			if subcommand == nil {
-				fmt.Fprintf(os.Stderr, "unknown command received %s\n", name)
+				ctx.GetLogger().Warn("unknown command received: %s", name)
+				fmt.Fprintf(clientContext.Stderr, "unknown command received %s\n", name)
 				return
 			}
 			if err := msgpack.Unmarshal(request, &subcommand); err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to decode client request: %s\n", err)
+				ctx.GetLogger().Warn("Failed to decode client request: %v", err)
+				fmt.Fprintf(clientContext.Stderr, "Failed to decode client request: %s\n", err)
 				return
 			}
+
+			ctx.GetLogger().Info("%s on %s", name, storeConfig["location"])
 
 			clientContext.SetSecret(subcommand.GetRepositorySecret())
 			store, serializedConfig, err := storage.Open(ctx, storeConfig)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to open storage: %s\n", err)
+				ctx.GetLogger().Warn("Failed to open storage: %v", err)
+				fmt.Fprintf(clientContext.Stderr, "Failed to open storage: %s\n", err)
 				return
 			}
 			defer store.Close()
 
 			repo, err := repository.New(clientContext, store, serializedConfig)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to open repository: %s\n", err)
+				ctx.GetLogger().Warn("Failed to open repository: %v", err)
+				fmt.Fprintf(clientContext.Stderr, "Failed to open repository: %s\n", err)
 				return
 			}
 			defer repo.Close()
@@ -418,7 +434,8 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 				for evt := range eventsChan {
 					serialized, err := events.Serialize(evt)
 					if err != nil {
-						fmt.Fprintf(os.Stderr, "Failed to serialize event: %s\n", err)
+						ctx.GetLogger().Warn("Failed to serialize event: %v", err)
+						fmt.Fprintf(clientContext.Stderr, "Failed to serialize event: %s\n", err)
 						return
 					}
 					// Send the event to the client
