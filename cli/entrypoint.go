@@ -213,14 +213,6 @@ func EntryPoint() int {
 	ctx.SetCache(caching.NewManager(cacheDir))
 	defer ctx.GetCache().Close()
 
-	c := make(chan os.Signal, 1)
-	go func() {
-		<-c
-		fmt.Fprintf(os.Stderr, "%s: Interrupting, it might take a while...\n", flag.CommandLine.Name())
-		ctx.Cancel()
-	}()
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-
 	// best effort check if security or reliability fix have been issued
 	_, noCriticalChecks := os.LookupEnv("PLAKAR_NO_CRITICAL_CHECKS")
 	if noCriticalChecks {
@@ -409,6 +401,14 @@ func EntryPoint() int {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		return 1
 	}
+
+	c := make(chan os.Signal, 1)
+	go func() {
+		<-c
+		fmt.Fprintf(os.Stderr, "%s: Interrupting, it might take a while...\n", flag.CommandLine.Name())
+		ctx.Cancel()
+	}()
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 	var status int
 
