@@ -422,11 +422,6 @@ func EntryPoint() int {
 		return 1
 	}
 
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-		return 1
-	}
-
 	var status int
 	if opt_agentless || cmd.GetFlags()&subcommands.AgentSupport == 0 {
 		var lerr error
