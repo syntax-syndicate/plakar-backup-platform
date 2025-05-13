@@ -32,6 +32,9 @@ import (
 type NotionImporter struct {
 	token  string
 	rootID string // TODO: take a look at this
+
+	notionChan chan notionRecord
+	nReader    int
 }
 
 func init() {
@@ -44,8 +47,9 @@ func NewNotionImporter(appCtx *appcontext.AppContext, name string, config map[st
 		return nil, fmt.Errorf("missing token in config")
 	}
 	return &NotionImporter{
-		token:  token,
-		rootID: "/",
+		token:      token,
+		rootID:     "/",
+		notionChan: make(chan notionRecord, 1000),
 	}, nil
 }
 
@@ -76,6 +80,35 @@ func (p *NotionImporter) Scan() (<-chan *importer.ScanResult, error) {
 			return
 		}
 	}()
+
+	// WIP:
+	// the goal of this second go routine is to keep track of the number of readers,
+	// and process the records from the readers as they are being read.
+	// the main problem is that we need to be sure that all readers are done
+	// before we close the results channel.
+	// this is a bit tricky because we don't know how many readers there will be,
+	// because:
+	// 1. the scan records above should finish to be processed first.
+	// 2. the routine below coould create new readers too, reapeating the problem.
+	// main question is:
+	// 1. how do we know when all readers are done? (p.nReader == 0 is not enough,
+	//	  is the last reader done, or not even started?)
+	// 2. how do we know when all records are processed?
+	var wg2 sync.WaitGroup
+	wg2.Add(1)
+	go func() {
+		defer wg2.Done()
+
+		for {
+			record := <-p.notionChan
+			if record.EOF == true {
+				p.nReader--
+				continue
+			}
+			// do something with the record
+		}
+	}()
+
 	go func() {
 		wg.Wait()
 		close(results)
@@ -84,8 +117,9 @@ func (p *NotionImporter) Scan() (<-chan *importer.ScanResult, error) {
 }
 
 func (p *NotionImporter) NewReader(pathname string) (io.ReadCloser, error) {
+	p.nReader++
 	file := path.Base(path.Dir(pathname))
-	nRd, err := NewNotionReader(p.token, file)
+	nRd, err := NewNotionReader(p.token, file, p.notionChan)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Notion reader: %w", err)
 	}
