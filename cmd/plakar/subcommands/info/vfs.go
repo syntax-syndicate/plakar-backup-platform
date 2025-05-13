@@ -3,6 +3,7 @@ package info
 import (
 	"flag"
 	"fmt"
+	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"path"
 	"time"
 
@@ -39,16 +40,24 @@ func (cmd *InfoVFS) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 		return 1, err
 	}
 	defer snap1.Close()
-
-	fs, err := snap1.Filesystem()
-	if err != nil {
-		return 1, err
-	}
-
 	pathname = path.Clean(pathname)
-	entry, err := fs.GetEntry(pathname)
-	if err != nil {
-		return 1, err
+
+	var entry *vfs.Entry
+	var fs *vfs.Filesystem
+	for i, _ := range snap1.Header.Sources {
+		fs, err = snap1.Filesystem(i)
+		if err != nil {
+			continue
+		}
+
+		entry, err = fs.GetEntry(pathname)
+		if err != nil {
+			continue
+		}
+		break
+	}
+	if entry == nil {
+		return 1, fmt.Errorf("could not find entry %s", pathname)
 	}
 
 	if entry.Stat().Mode().IsDir() {

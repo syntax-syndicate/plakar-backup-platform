@@ -82,14 +82,16 @@ func (cmd *Digest) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 			continue
 		}
 
-		fs, err := snap.Filesystem()
-		if err != nil {
-			snap.Close()
-			continue
-		}
+		for i := range snap.Header.Sources {
+			fs, err := snap.Filesystem(i)
+			if err != nil {
+				snap.Close()
+				continue
+			}
 
-		cmd.displayDigests(ctx, fs, repo, snap, pathname)
-		snap.Close()
+			cmd.displayDigests(ctx, fs, repo, snap, pathname)
+			snap.Close()
+		}
 	}
 
 	return 0, nil

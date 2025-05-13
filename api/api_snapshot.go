@@ -96,7 +96,7 @@ func snapshotReader(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	fs, err := snap.Filesystem()
+	fs, err := snap.Filesystem(0) //TODO: support multiple filesystems (iterate on all filesystems to find the file)
 	if err != nil {
 		return err
 	}
@@ -281,7 +281,7 @@ func snapshotVFSBrowse(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	fs, err := snap.Filesystem()
+	fs, err := snap.Filesystem(0) //TODO: support multiple filesystems
 	if err != nil {
 		return err
 	}
@@ -328,7 +328,7 @@ func snapshotVFSChildren(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	fs, err := snap.Filesystem()
+	fs, err := snap.Filesystem(0) //TODO: support multiple filesystems
 	if err != nil {
 		return err
 	}
@@ -427,7 +427,7 @@ func snapshotVFSChunks(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	fs, err := snap.Filesystem()
+	fs, err := snap.Filesystem(0) //TODO: support multiple filesystems
 	if err != nil {
 		return err
 	}
@@ -566,7 +566,7 @@ func snapshotVFSErrors(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	fs, err := snap.Filesystem()
+	fs, err := snap.Filesystem(0) //TODO: support multiple filesystems
 	if err != nil {
 		return err
 	}

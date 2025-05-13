@@ -41,7 +41,7 @@ func (cmd *DiagErrors) Execute(ctx *appcontext.AppContext, repo *repository.Repo
 	}
 	defer snap.Close()
 
-	fs, err := snap.Filesystem()
+	fs, err := snap.Filesystem(0) // TODO: handle multiple sources
 	if err != nil {
 		return 1, err
 	}

@@ -131,67 +131,73 @@ func (cmd *Ls) list_snapshot(ctx *appcontext.AppContext, repo *repository.Reposi
 	}
 	defer snap.Close()
 
-	pvfs, err := snap.Filesystem()
-	if err != nil {
-		return err
-	}
-
-	resolved := false
-	return pvfs.WalkDir(pathname, func(path string, d *vfs.Entry, err error) error {
+	for idx, _ := range snap.Header.Sources {
+		pvfs, err := snap.Filesystem(idx)
 		if err != nil {
 			return err
 		}
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if !resolved {
-			// pathname might point to a symlink, so we
-			// have to deal with physical vs logical path
-			// in here.  This makes sure we fetch the
-			// right physical path and do our logic on it.
-			resolved = true
-			pathname = d.Path()
-		}
-		if d.IsDir() && path == pathname {
+
+		resolved := false
+		err = pvfs.WalkDir(pathname, func(path string, d *vfs.Entry, err error) error {
+			if err != nil {
+				return err
+			}
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if !resolved {
+				// pathname might point to a symlink, so we
+				// have to deal with physical vs logical path
+				// in here. This makes sure we fetch the
+				// right physical path and do our logic on it.
+				resolved = true
+				pathname = d.Path()
+			}
+			if d.IsDir() && path == pathname {
+				return nil
+			}
+
+			sb, err := d.Info()
+			if err != nil {
+				return err
+			}
+
+			var username, groupname string
+			if finfo, ok := sb.Sys().(objects.FileInfo); ok {
+				pwUserLookup, err := user.LookupId(fmt.Sprintf("%d", finfo.Uid()))
+				username = fmt.Sprintf("%d", finfo.Uid())
+				if err == nil {
+					username = pwUserLookup.Username
+				}
+
+				grGroupLookup, err := user.LookupGroupId(fmt.Sprintf("%d", finfo.Gid()))
+				groupname = fmt.Sprintf("%d", finfo.Gid())
+				if err == nil {
+					groupname = grGroupLookup.Name
+				}
+			}
+
+			entryname := path
+			if !recursive {
+				entryname = d.Name()
+			}
+
+			fmt.Fprintf(ctx.Stdout, "%s %s % 8s % 8s % 8s %s\n",
+				sb.ModTime().UTC().Format(time.RFC3339),
+				sb.Mode(),
+				username,
+				groupname,
+				humanize.Bytes(uint64(sb.Size())),
+				utils.SanitizeText(entryname))
+
+			if !recursive && pathname != path && sb.IsDir() {
+				return fs.SkipDir
+			}
 			return nil
-		}
-
-		sb, err := d.Info()
+		})
 		if err != nil {
 			return err
 		}
-
-		var username, groupname string
-		if finfo, ok := sb.Sys().(objects.FileInfo); ok {
-			pwUserLookup, err := user.LookupId(fmt.Sprintf("%d", finfo.Uid()))
-			username = fmt.Sprintf("%d", finfo.Uid())
-			if err == nil {
-				username = pwUserLookup.Username
-			}
-
-			grGroupLookup, err := user.LookupGroupId(fmt.Sprintf("%d", finfo.Gid()))
-			groupname = fmt.Sprintf("%d", finfo.Gid())
-			if err == nil {
-				groupname = grGroupLookup.Name
-			}
-		}
-
-		entryname := path
-		if !recursive {
-			entryname = d.Name()
-		}
-
-		fmt.Fprintf(ctx.Stdout, "%s %s % 8s % 8s % 8s %s\n",
-			sb.ModTime().UTC().Format(time.RFC3339),
-			sb.Mode(),
-			username,
-			groupname,
-			humanize.Bytes(uint64(sb.Size())),
-			utils.SanitizeText(entryname))
-
-		if !recursive && pathname != path && sb.IsDir() {
-			return fs.SkipDir
-		}
-		return nil
-	})
+	}
+	return nil
 }

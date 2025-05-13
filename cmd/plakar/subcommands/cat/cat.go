@@ -21,6 +21,7 @@ import (
 	"compress/gzip"
 	"flag"
 	"fmt"
+	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"io"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -83,21 +84,26 @@ func (cmd *Cat) Execute(ctx *appcontext.AppContext, repo *repository.Repository)
 			continue
 		}
 
-		fs, err := snap.Filesystem()
-		if err != nil {
-			ctx.GetLogger().Error("cat: %s: %s", pathname, err)
-			errors++
-			snap.Close()
-			continue
-		}
+		var entry *vfs.Entry
+		var fs *vfs.Filesystem
+		for i, _ := range snap.Header.Sources {
+			fs, err = snap.Filesystem(i)
+			if err != nil {
+				ctx.GetLogger().Error("cat: %s: %s", pathname, err)
+				errors++
+				snap.Close()
+				continue
+			}
 
-		entry, err := fs.GetEntry(pathname)
+			entry, err = fs.GetEntry(pathname)
 
-		if err != nil {
-			ctx.GetLogger().Error("cat: %s: no such file", pathname)
-			errors++
-			snap.Close()
-			continue
+			if err != nil {
+				ctx.GetLogger().Error("cat: %s: no such file", pathname)
+				errors++
+				snap.Close()
+				continue
+			}
+			break
 		}
 
 		if !entry.Stat().Mode().IsRegular() {

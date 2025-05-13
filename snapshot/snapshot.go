@@ -139,7 +139,7 @@ func getPackfileForBlobWithError(snap *Snapshot, res resources.Type, mac objects
 }
 
 func (snap *Snapshot) ListPackfiles() (iter.Seq2[objects.MAC, error], error) {
-	pvfs, err := snap.Filesystem()
+	pvfs, err := snap.Filesystem(0) // TODO: handle multiple sources
 	if err != nil {
 		return nil, err
 	}

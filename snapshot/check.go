@@ -182,7 +182,7 @@ func checkEntry(snap *Snapshot, opts *CheckOptions, entrypath string, e *vfs.Ent
 	return nil
 }
 
-func (snap *Snapshot) processSource(source *header.Source, pathname string, opts *CheckOptions) error {
+func (snap *Snapshot) processSource(idx int, source *header.Source, pathname string, opts *CheckOptions) error {
 	vfsStatus, err := snap.checkCache.GetVFSStatus(source.VFS.Root)
 	if err != nil {
 		return err
@@ -196,7 +196,7 @@ func (snap *Snapshot) processSource(source *header.Source, pathname string, opts
 		return nil
 	}
 
-	fs, err := snap.Filesystem()
+	fs, err := snap.Filesystem(idx)
 	if err != nil {
 		return err
 	}
@@ -250,9 +250,9 @@ func (snap *Snapshot) Check(pathname string, opts *CheckOptions) error {
 	snap.Event(events.StartEvent())
 	defer snap.Event(events.DoneEvent())
 
-	for _, source := range snap.Header.Sources {
+	for i, source := range snap.Header.Sources {
 		log.Print(source.Importer.Directory)
-		if err := snap.processSource(&source, pathname, opts); err != nil {
+		if err := snap.processSource(i, &source, pathname, opts); err != nil {
 			return err
 		}
 	}

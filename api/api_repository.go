@@ -271,14 +271,21 @@ func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 			continue
 		}
 
-		pvfs, err := snap.Filesystem()
-		if err != nil {
-			snap.Close()
-			continue
-		}
+		var entry *vfs.Entry
+		var pvfs *vfs.Filesystem
+		for i, _ := range snap.Header.Sources {
+			pvfs, err = snap.Filesystem(i)
+			if err != nil {
+				continue
+			}
 
-		entry, err := pvfs.GetEntry(resource)
-		if err != nil {
+			entry, err = pvfs.GetEntry(resource)
+			if err != nil {
+				continue
+			}
+			break
+		}
+		if entry == nil {
 			snap.Close()
 			continue
 		}

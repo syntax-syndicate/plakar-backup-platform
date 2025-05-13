@@ -47,7 +47,7 @@ func (d *Dir) Attr(ctx context.Context, a *fuse.Attr) error {
 		if err != nil {
 			return err
 		}
-		snapfs, err := snap.Filesystem()
+		snapfs, err := snap.Filesystem(0) // TODO: use the correct vfs index
 		if err != nil {
 			return err
 		}

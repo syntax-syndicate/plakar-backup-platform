@@ -86,37 +86,39 @@ func (cmd *Locate) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 			return 1, fmt.Errorf("locate: could not get snapshot: %w", err)
 		}
 
-		fs, err := snap.Filesystem()
-		if err != nil {
-			snap.Close()
-			return 1, fmt.Errorf("locate: could not get filesystem: %w", err)
-		}
-		for pathname, err := range fs.Pathnames() {
+		for i := range snap.Header.Sources {
+			fs, err := snap.Filesystem(i)
 			if err != nil {
 				snap.Close()
-				return 1, fmt.Errorf("locate: could not get pathname: %w", err)
+				return 1, fmt.Errorf("locate: could not get filesystem: %w", err)
 			}
-
-			if err := ctx.Err(); err != nil {
-				return 1, err
-			}
-
-			for _, pattern := range cmd.Patterns {
-				matched := false
-				if path.Base(pathname) == pattern {
-					matched = true
+			for pathname, err := range fs.Pathnames() {
+				if err != nil {
+					snap.Close()
+					return 1, fmt.Errorf("locate: could not get pathname: %w", err)
 				}
-				if !matched {
-					matched, err := path.Match(pattern, path.Base(pathname))
-					if err != nil {
-						snap.Close()
-						return 1, fmt.Errorf("locate: could not match pattern: %w", err)
+
+				if err := ctx.Err(); err != nil {
+					return 1, err
+				}
+
+				for _, pattern := range cmd.Patterns {
+					matched := false
+					if path.Base(pathname) == pattern {
+						matched = true
 					}
 					if !matched {
-						continue
+						matched, err := path.Match(pattern, path.Base(pathname))
+						if err != nil {
+							snap.Close()
+							return 1, fmt.Errorf("locate: could not match pattern: %w", err)
+						}
+						if !matched {
+							continue
+						}
 					}
+					fmt.Fprintf(ctx.Stdout, "%x:%s\n", snap.Header.Identifier[0:4], utils.SanitizeText(pathname))
 				}
-				fmt.Fprintf(ctx.Stdout, "%x:%s\n", snap.Header.Identifier[0:4], utils.SanitizeText(pathname))
 			}
 		}
 		snap.Close()

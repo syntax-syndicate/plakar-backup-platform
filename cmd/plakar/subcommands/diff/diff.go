@@ -110,17 +110,19 @@ func (cmd *Diff) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 }
 
 func diff_filesystems(ctx *appcontext.AppContext, snap1 *snapshot.Snapshot, snap2 *snapshot.Snapshot) (string, error) {
-	vfs1, err := snap1.Filesystem()
+	var i int
+	i = 0 // TODO: iterate over all filesystems
+	vfs1, err := snap1.Filesystem(i)
 	if err != nil {
 		return "", err
 	}
 
-	vfs2, err := snap2.Filesystem()
+	vfs2, err := snap2.Filesystem(i)
 	if err != nil {
 		return "", err
 	}
 
-	var f1, f2 *vfs.Entry
+	var f1, f2 *vfs.Entry // f1 and f2 could be []*vfs.Entry ?
 	if f1, err = vfs1.GetEntry("/"); err != nil {
 		return "", err
 	}
@@ -128,21 +130,23 @@ func diff_filesystems(ctx *appcontext.AppContext, snap1 *snapshot.Snapshot, snap
 		return "", err
 	}
 
-	return diff_directories(ctx, f1, f2)
+	return diff_directories(ctx, f1, f2) // TODO: implement diff_directories with multiple filesystems to compare
 }
 
 func diff_pathnames(ctx *appcontext.AppContext, snap1 *snapshot.Snapshot, pathname1 string, snap2 *snapshot.Snapshot, pathname2 string) (string, error) {
-	vfs1, err := snap1.Filesystem()
+	var i int
+	i = 0 // TODO: iterate over all filesystems
+	vfs1, err := snap1.Filesystem(i)
 	if err != nil {
 		return "", err
 	}
 
-	vfs2, err := snap2.Filesystem()
+	vfs2, err := snap2.Filesystem(i)
 	if err != nil {
 		return "", err
 	}
 
-	var f1, f2 *vfs.Entry
+	var f1, f2 *vfs.Entry // f1 and f2 could be []*vfs.Entry ?
 	if f1, err = vfs1.GetEntry(pathname1); err != nil {
 		return "", err
 	}
@@ -151,14 +155,14 @@ func diff_pathnames(ctx *appcontext.AppContext, snap1 *snapshot.Snapshot, pathna
 	}
 
 	if f1.Stat().IsDir() && f2.Stat().IsDir() {
-		return diff_directories(ctx, f1, f2)
+		return diff_directories(ctx, f1, f2) // TODO: implement diff_directories with multiple filesystems to compare
 	}
 
 	if f1.Stat().IsDir() || f2.Stat().IsDir() {
 		return "", fmt.Errorf("can't diff different file types")
 	}
 
-	return diff_files(ctx, snap1, f1, snap2, f2)
+	return diff_files(ctx, snap1, f1, snap2, f2) // TODO: diff_files could handle []*vfs.Entry (?)
 }
 
 func diff_directories(_ *appcontext.AppContext, _ *vfs.Entry, _ *vfs.Entry) (string, error) {
