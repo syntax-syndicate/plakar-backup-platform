@@ -103,7 +103,7 @@ func repositorySnapshots(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 
-		if importerType != "" && strings.ToLower(snap.Header.GetSource(0).Importer.Type) != strings.ToLower(importerType) {
+		if importerType != "" && strings.ToLower(snap.Header.GetSource(0).Importer.Type) != strings.ToLower(importerType) { // TODO: handle multiple sources
 			snap.Close()
 			continue
 		}
@@ -185,7 +185,9 @@ func repositoryImporterTypes(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return err
 		}
-		importerTypesMap[strings.ToLower(snap.Header.GetSource(0).Importer.Type)] = struct{}{}
+		for _, source := range snap.Header.Sources {
+			importerTypesMap[strings.ToLower(source.Importer.Type)] = struct{}{}
+		}
 	}
 
 	importerTypes := make([]string, 0, len(importerTypesMap))
