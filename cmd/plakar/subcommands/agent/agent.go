@@ -126,7 +126,7 @@ func (cmd *Agent) Parse(ctx *appcontext.AppContext, args []string) error {
 		}
 		ctx.GetLogger().SetOutput(f)
 	} else if !opt_foreground {
-		w, err := syslog.New(syslog.LOG_INFO|syslog.LOG_LOCAL0, "plakar")
+		w, err := syslog.New(syslog.LOG_INFO|syslog.LOG_USER, "plakar")
 		if err != nil {
 			return err
 		}
