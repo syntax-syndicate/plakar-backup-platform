@@ -121,7 +121,7 @@ func (cmd *Sync) Parse(ctx *appcontext.AppContext, args []string) error {
 
 	peerCtx := appcontext.NewAppContextFrom(ctx)
 	peerCtx.SetSecret(peerSecret)
-	_, err = repository.New(peerCtx, peerStore, peerStoreSerializedConfig)
+	_, err = repository.NewNoRebuild(peerCtx, peerStore, peerStoreSerializedConfig)
 	if err != nil {
 		return err
 	}

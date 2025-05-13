@@ -12,6 +12,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/caching"
+	"github.com/PlakarKorp/plakar/cookies"
 	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
@@ -48,6 +49,10 @@ func _Test_RepositoryConfiguration(t *testing.T) {
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
 	repo, err := repository.New(ctx, lstore, wrappedConfig)
 	require.NoError(t, err, "creating repository")
+
+	cookies := cookies.NewManager("/tmp/test_plakar")
+	ctx.SetCookies(cookies)
+	ctx.Client = "plakar-test/1.0.0"
 
 	var noToken string
 	mux := http.NewServeMux()
@@ -323,6 +328,10 @@ func _Test_RepositorySnapshots(t *testing.T) {
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
 
+			cookies := cookies.NewManager("/tmp/test_plakar")
+			ctx.SetCookies(cookies)
+			ctx.Client = "plakar-test/1.0.0"
+
 			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
 			require.NoError(t, err, "creating storage")
 			repo, err := repository.New(ctx, lstore, wrappedConfig)
@@ -422,6 +431,10 @@ func _Test_RepositorySnapshotsErrors(t *testing.T) {
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
 
+			cookies := cookies.NewManager("/tmp/test_plakar")
+			ctx.SetCookies(cookies)
+			ctx.Client = "plakar-test/1.0.0"
+
 			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
 			require.NoError(t, err, "creating storage")
 			repo, err := repository.New(ctx, lstore, wrappedConfig)
@@ -496,6 +509,10 @@ func _Test_RepositoryStates(t *testing.T) {
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
 
+			cookies := cookies.NewManager("/tmp/test_plakar")
+			ctx.SetCookies(cookies)
+			ctx.Client = "plakar-test/1.0.0"
+
 			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
 			require.NoError(t, err, "creating storage")
 			repo, err := repository.New(ctx, lstore, wrappedConfig)
@@ -563,6 +580,10 @@ func _Test_RepositoryState(t *testing.T) {
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
+
+			cookies := cookies.NewManager("/tmp/test_plakar")
+			ctx.SetCookies(cookies)
+			ctx.Client = "plakar-test/1.0.0"
 
 			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
 			require.NoError(t, err, "creating storage")
@@ -636,6 +657,10 @@ func Test_RepositoryStateErrors(t *testing.T) {
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
+
+			cookies := cookies.NewManager("/tmp/test_plakar")
+			ctx.SetCookies(cookies)
+			ctx.Client = "plakar-test/1.0.0"
 
 			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
 			require.NoError(t, err, "creating storage")

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	_ "github.com/PlakarKorp/plakar/storage/backends/fs"
+	_ "github.com/PlakarKorp/plakar/storage/backends/ptar"
 	ptesting "github.com/PlakarKorp/plakar/testing"
 	"github.com/stretchr/testify/require"
 )
