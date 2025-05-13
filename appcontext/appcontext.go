@@ -68,9 +68,6 @@ func NewAppContext() *AppContext {
 func NewAppContextFrom(template *AppContext) *AppContext {
 	ctx := *template
 	ctx.events = events.New()
-	if template.cookies == nil {
-		ctx.cookies = cookies.NewManager(template.CacheDir)
-	}
 	ctx.Context, ctx.Cancel = context.WithCancel(template.Context)
 	return &ctx
 }
