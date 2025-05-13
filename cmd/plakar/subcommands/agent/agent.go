@@ -307,218 +307,235 @@ func (cmd *Agent) ListenAndServe(ctx *appcontext.AppContext) error {
 		}
 
 		wg.Add(1)
-
-		go func(_conn net.Conn) {
-
-			defer _conn.Close()
-			defer wg.Done()
-
-			mu := sync.Mutex{}
-
-			var encodingErrorOccurred bool
-			encoder := msgpack.NewEncoder(_conn)
-			decoder := msgpack.NewDecoder(_conn)
-
-			clientContext := appcontext.NewAppContextFrom(ctx)
-			defer clientContext.Close()
-
-			// handshake
-			var (
-				clientvers []byte
-				ourvers    = []byte(utils.GetVersion())
-			)
-			if err := decoder.Decode(&clientvers); err != nil {
-				return
-			}
-			if err := encoder.Encode(ourvers); err != nil {
-				return
-			}
-
-			write := func(packet agent.Packet) {
-				if encodingErrorOccurred {
-					return
-				}
-				select {
-				case <-clientContext.Done():
-					return
-				default:
-					mu.Lock()
-					if err := encoder.Encode(&packet); err != nil {
-						encodingErrorOccurred = true
-						ctx.GetLogger().Warn("client write error: %v", err)
-					}
-					mu.Unlock()
-				}
-			}
-			read := func(v interface{}) (interface{}, error) {
-				if err := decoder.Decode(v); err != nil {
-					if isDisconnectError(err) {
-						clientContext.Close()
-					}
-					return nil, err
-				}
-				return v, nil
-			}
-
-			processStdout := func(data string) {
-				write(agent.Packet{
-					Type: "stdout",
-					Data: []byte(data),
-				})
-			}
-
-			processStderr := func(data string) {
-				write(agent.Packet{
-					Type: "stderr",
-					Data: []byte(data),
-				})
-			}
-
-			clientContext.Stdout = &CustomWriter{processFunc: processStdout}
-			clientContext.Stderr = &CustomWriter{processFunc: processStderr}
-
-			logger := logging.NewLogger(clientContext.Stdout, clientContext.Stderr)
-			logger.EnableInfo()
-			clientContext.SetLogger(logger)
-
-			name, storeConfig, request, err := subcommands.DecodeRPC(decoder)
-			if err != nil {
-				if isDisconnectError(err) {
-					ctx.GetLogger().Warn("client disconnected during initial request")
-					return
-				}
-				ctx.GetLogger().Warn("Failed to decode RPC: %v", err)
-				fmt.Fprintf(clientContext.Stderr, "%s\n", err)
-				return
-			}
-
-			// Attempt another decode to detect client disconnection during processing
-			go func() {
-				var tmp interface{}
-				read(&tmp)
-			}()
-
-			subcommand, _, _ := subcommands.Lookup(name)
-			if subcommand == nil {
-				ctx.GetLogger().Warn("unknown command received: %s", name)
-				fmt.Fprintf(clientContext.Stderr, "unknown command received %s\n", name)
-				return
-			}
-			if err := msgpack.Unmarshal(request, &subcommand); err != nil {
-				ctx.GetLogger().Warn("Failed to decode client request: %v", err)
-				fmt.Fprintf(clientContext.Stderr, "Failed to decode client request: %s\n", err)
-				return
-			}
-
-			ctx.GetLogger().Info("%s on %s", name, storeConfig["location"])
-
-			clientContext.SetSecret(subcommand.GetRepositorySecret())
-			store, serializedConfig, err := storage.Open(ctx, storeConfig)
-			if err != nil {
-				ctx.GetLogger().Warn("Failed to open storage: %v", err)
-				fmt.Fprintf(clientContext.Stderr, "Failed to open storage: %s\n", err)
-				return
-			}
-			defer store.Close()
-
-			repo, err := repository.New(clientContext, store, serializedConfig)
-			if err != nil {
-				ctx.GetLogger().Warn("Failed to open repository: %v", err)
-				fmt.Fprintf(clientContext.Stderr, "Failed to open repository: %s\n", err)
-				return
-			}
-			defer repo.Close()
-
-			eventsDone := make(chan struct{})
-			eventsChan := clientContext.Events().Listen()
-			go func() {
-				for evt := range eventsChan {
-					serialized, err := events.Serialize(evt)
-					if err != nil {
-						ctx.GetLogger().Warn("Failed to serialize event: %v", err)
-						fmt.Fprintf(clientContext.Stderr, "Failed to serialize event: %s\n", err)
-						return
-					}
-					// Send the event to the client
-					write(agent.Packet{
-						Type: "event",
-						Data: serialized,
-					})
-				}
-				eventsDone <- struct{}{}
-			}()
-
-			var taskKind string
-			switch subcommand.(type) {
-			case *backup.Backup:
-				taskKind = "backup"
-			case *check.Check:
-				taskKind = "check"
-			case *restore.Restore:
-				taskKind = "restore"
-			case *syncSubcmd.Sync:
-				taskKind = "sync"
-			case *rm.Rm:
-				taskKind = "rm"
-			case *maintenance.Maintenance:
-				taskKind = "maintenance"
-			}
-
-			doReport := true
-			authToken, err := clientContext.GetAuthToken(repo.Configuration().RepositoryID)
-			if err != nil || authToken == "" {
-				doReport = false
-			} else {
-				sc := services.NewServiceConnector(clientContext, authToken)
-				enabled, err := sc.GetServiceStatus("alerting")
-				if err != nil || !enabled || taskKind == "" {
-					doReport = false
-				}
-			}
-
-			reporter := reporting.NewReporter(doReport, repo, ctx.GetLogger())
-			reporter.TaskStart(taskKind, "@agent")
-			reporter.WithRepositoryName(storeConfig["location"])
-			reporter.WithRepository(repo)
-
-			var status int
-			var snapshotID objects.MAC
-			var warning error
-			if _, ok := subcommand.(*backup.Backup); ok {
-				subcommand := subcommand.(*backup.Backup)
-				status, err, snapshotID, warning = subcommand.DoBackup(clientContext, repo)
-				if err == nil {
-					reporter.WithSnapshotID(snapshotID)
-				}
-			} else {
-				status, err = subcommand.Execute(clientContext, repo)
-			}
-
-			if status == 0 {
-				if warning != nil {
-					reporter.TaskWarning("warning: %s", warning)
-				} else {
-					reporter.TaskDone()
-				}
-			} else if err != nil {
-				reporter.TaskFailed(0, "error: %s", err)
-			}
-
-			errStr := ""
-			if err != nil {
-				errStr = err.Error()
-			}
-			write(agent.Packet{
-				Type:     "exit",
-				ExitCode: status,
-				Err:      errStr,
-			})
-
-			clientContext.Close()
-			<-eventsDone
-
-		}(conn)
+		go handleClient(ctx, &wg, conn)
 	}
+}
+
+func handleClient(ctx *appcontext.AppContext, wg *sync.WaitGroup, conn net.Conn) {
+	defer conn.Close()
+	defer wg.Done()
+
+	mu := sync.Mutex{}
+
+	var encodingErrorOccurred bool
+	encoder := msgpack.NewEncoder(conn)
+	decoder := msgpack.NewDecoder(conn)
+
+	clientContext := appcontext.NewAppContextFrom(ctx)
+	defer clientContext.Close()
+
+	// handshake
+	var (
+		clientvers []byte
+		ourvers    = []byte(utils.GetVersion())
+	)
+	if err := decoder.Decode(&clientvers); err != nil {
+		return
+	}
+	if err := encoder.Encode(ourvers); err != nil {
+		return
+	}
+
+	write := func(packet agent.Packet) {
+		if encodingErrorOccurred {
+			return
+		}
+		select {
+		case <-clientContext.Done():
+			return
+		default:
+			mu.Lock()
+			if err := encoder.Encode(&packet); err != nil {
+				encodingErrorOccurred = true
+				ctx.GetLogger().Warn("client write error: %v", err)
+			}
+			mu.Unlock()
+		}
+	}
+	read := func(v interface{}) (interface{}, error) {
+		if err := decoder.Decode(v); err != nil {
+			if isDisconnectError(err) {
+				clientContext.Close()
+			}
+			return nil, err
+		}
+		return v, nil
+	}
+
+	processStdout := func(data string) {
+		write(agent.Packet{
+			Type: "stdout",
+			Data: []byte(data),
+		})
+	}
+
+	processStderr := func(data string) {
+		write(agent.Packet{
+			Type: "stderr",
+			Data: []byte(data),
+		})
+	}
+
+	clientContext.Stdout = &CustomWriter{processFunc: processStdout}
+	clientContext.Stderr = &CustomWriter{processFunc: processStderr}
+
+	logger := logging.NewLogger(clientContext.Stdout, clientContext.Stderr)
+	logger.EnableInfo()
+	clientContext.SetLogger(logger)
+
+	name, storeConfig, request, err := subcommands.DecodeRPC(decoder)
+	if err != nil {
+		if isDisconnectError(err) {
+			ctx.GetLogger().Warn("client disconnected during initial request")
+			return
+		}
+		ctx.GetLogger().Warn("Failed to decode RPC: %v", err)
+		fmt.Fprintf(clientContext.Stderr, "%s\n", err)
+		return
+	}
+
+	// Attempt another decode to detect client disconnection during processing
+	go func() {
+		var tmp interface{}
+		read(&tmp)
+	}()
+
+	subcommand, _, _ := subcommands.Lookup(name)
+	if subcommand == nil {
+		ctx.GetLogger().Warn("unknown command received: %s", name)
+		fmt.Fprintf(clientContext.Stderr, "unknown command received %s\n", name)
+		return
+	}
+	if err := msgpack.Unmarshal(request, &subcommand); err != nil {
+		ctx.GetLogger().Warn("Failed to decode client request: %v", err)
+		fmt.Fprintf(clientContext.Stderr, "Failed to decode client request: %s\n", err)
+		return
+	}
+
+	ctx.GetLogger().Info("%s on %s", name, storeConfig["location"])
+
+	var store storage.Store
+	var repo *repository.Repository
+
+	if subcommand.GetFlags()&subcommands.BeforeRepositoryOpen != 0 {
+		// nop
+	} else if subcommand.GetFlags()&subcommands.BeforeRepositoryWithStorage != 0 {
+		repo, err = repository.Inexistent(clientContext, storeConfig)
+		if err != nil {
+			ctx.GetLogger().Warn("Failed to open raw storage: %v", err)
+			fmt.Fprintf(clientContext.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+			return
+		}
+		defer repo.Close()
+	} else {
+		var serializedConfig []byte
+		clientContext.SetSecret(subcommand.GetRepositorySecret())
+		store, serializedConfig, err = storage.Open(clientContext, storeConfig)
+		if err != nil {
+			ctx.GetLogger().Warn("Failed to open storage: %v", err)
+			fmt.Fprintf(clientContext.Stderr, "Failed to open storage: %s\n", err)
+			return
+		}
+		defer store.Close()
+
+		repo, err = repository.New(clientContext, store, serializedConfig)
+		if err != nil {
+			ctx.GetLogger().Warn("Failed to open repository: %v", err)
+			fmt.Fprintf(clientContext.Stderr, "Failed to open repository: %s\n", err)
+			return
+		}
+		defer repo.Close()
+	}
+
+	eventsDone := make(chan struct{})
+	eventsChan := clientContext.Events().Listen()
+	go func() {
+		for evt := range eventsChan {
+			serialized, err := events.Serialize(evt)
+			if err != nil {
+				ctx.GetLogger().Warn("Failed to serialize event: %v", err)
+				fmt.Fprintf(clientContext.Stderr, "Failed to serialize event: %s\n", err)
+				return
+			}
+			// Send the event to the client
+			write(agent.Packet{
+				Type: "event",
+				Data: serialized,
+			})
+		}
+		eventsDone <- struct{}{}
+	}()
+
+	var taskKind string
+	switch subcommand.(type) {
+	case *backup.Backup:
+		taskKind = "backup"
+	case *check.Check:
+		taskKind = "check"
+	case *restore.Restore:
+		taskKind = "restore"
+	case *syncSubcmd.Sync:
+		taskKind = "sync"
+	case *rm.Rm:
+		taskKind = "rm"
+	case *maintenance.Maintenance:
+		taskKind = "maintenance"
+	}
+
+	var doReport bool
+	if repo != nil && taskKind != "" {
+		authToken, err := clientContext.GetAuthToken(repo.Configuration().RepositoryID)
+		if err == nil && authToken != "" {
+			sc := services.NewServiceConnector(clientContext, authToken)
+			enabled, err := sc.GetServiceStatus("alerting")
+			if err == nil && enabled {
+				doReport = true
+			}
+		}
+	}
+
+	reporter := reporting.NewReporter(doReport, repo, ctx.GetLogger())
+	reporter.TaskStart(taskKind, "@agent")
+	reporter.WithRepositoryName(storeConfig["location"])
+	if repo != nil {
+		reporter.WithRepository(repo)
+	}
+
+	var status int
+	var snapshotID objects.MAC
+	var warning error
+	if _, ok := subcommand.(*backup.Backup); ok {
+		subcommand := subcommand.(*backup.Backup)
+		status, err, snapshotID, warning = subcommand.DoBackup(clientContext, repo)
+		if err == nil {
+			reporter.WithSnapshotID(snapshotID)
+		}
+	} else {
+		status, err = subcommand.Execute(clientContext, repo)
+	}
+
+	if status == 0 {
+		if warning != nil {
+			reporter.TaskWarning("warning: %s", warning)
+		} else {
+			reporter.TaskDone()
+		}
+	} else if err != nil {
+		reporter.TaskFailed(0, "error: %s", err)
+	}
+
+	errStr := ""
+	if err != nil {
+		errStr = err.Error()
+	}
+	write(agent.Packet{
+		Type:     "exit",
+		ExitCode: status,
+		Err:      errStr,
+	})
+
+	clientContext.Close()
+	<-eventsDone
 }
 
 type CustomWriter struct {
