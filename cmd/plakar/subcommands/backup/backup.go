@@ -226,7 +226,10 @@ func (cmd *Backup) DoBackup(ctx *appcontext.AppContext, repo *repository.Reposit
 		}
 	}
 
-	totalSize := snap.Header.GetSource(0).Summary.Directory.Size + snap.Header.GetSource(0).Summary.Below.Size
+	totalSize := uint64(0)
+	for i := 0; i < len(snap.Header.Sources); i++ {
+		totalSize += snap.Header.GetSource(i).Summary.Directory.Size + snap.Header.GetSource(i).Summary.Below.Size
+	}
 	savings := float64(totalSize-uint64(snap.Repository().WBytes())) / float64(totalSize) * 100
 
 	if uint64(snap.Repository().RBytes()) > totalSize {
