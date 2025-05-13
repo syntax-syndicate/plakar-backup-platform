@@ -30,6 +30,9 @@ func (cmd *AgentTasksStop) Execute(ctx *appcontext.AppContext, repo *repository.
 		return 1, fmt.Errorf("agent not started")
 	}
 
+	agentContextSingleton.mtx.Lock()
+	defer agentContextSingleton.mtx.Unlock()
+
 	if agentContextSingleton.schedulerState&AGENT_SCHEDULER_RUNNING == 0 {
 		return 1, fmt.Errorf("agent scheduler not running")
 	}
@@ -39,5 +42,6 @@ func (cmd *AgentTasksStop) Execute(ctx *appcontext.AppContext, repo *repository.
 	agentContextSingleton.schedulerState = AGENT_SCHEDULER_STOPPED
 	fmt.Fprintf(ctx.Stderr, "done !\n")
 	agentContextSingleton.schedulerCtx = nil
+
 	return 0, nil
 }

@@ -53,15 +53,15 @@ import (
 
 func init() {
 	subcommands.Register(func() subcommands.Subcommand { return &AgentTasksConfigure{} },
-		subcommands.AgentSupport, "agent", "tasks", "configure")
+		subcommands.AgentSupport|subcommands.BeforeRepositoryOpen, "agent", "tasks", "configure")
 	subcommands.Register(func() subcommands.Subcommand { return &AgentTasksStart{} },
-		subcommands.AgentSupport, "agent", "tasks", "start")
+		subcommands.AgentSupport|subcommands.BeforeRepositoryOpen, "agent", "tasks", "start")
 	subcommands.Register(func() subcommands.Subcommand { return &AgentTasksStop{} },
-		subcommands.AgentSupport, "agent", "tasks", "stop")
+		subcommands.AgentSupport|subcommands.BeforeRepositoryOpen, "agent", "tasks", "stop")
 	subcommands.Register(func() subcommands.Subcommand { return &AgentRestart{} },
-		subcommands.AgentSupport|subcommands.IgnoreVersion, "agent", "restart")
+		subcommands.AgentSupport|subcommands.BeforeRepositoryOpen|subcommands.IgnoreVersion, "agent", "restart")
 	subcommands.Register(func() subcommands.Subcommand { return &AgentStop{} },
-		subcommands.AgentSupport|subcommands.IgnoreVersion, "agent", "stop")
+		subcommands.AgentSupport|subcommands.BeforeRepositoryOpen|subcommands.IgnoreVersion, "agent", "stop")
 	subcommands.Register(func() subcommands.Subcommand { return &Agent{} },
 		subcommands.BeforeRepositoryOpen, "agent", "start")
 	subcommands.Register(func() subcommands.Subcommand { return &Agent{} },
@@ -148,6 +148,7 @@ type AgentContext struct {
 	schedulerCtx    *appcontext.AppContext
 	schedulerConfig *scheduler.Configuration
 	schedulerState  schedulerState
+	mtx             sync.Mutex
 }
 
 type AgentStop struct {

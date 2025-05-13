@@ -31,6 +31,9 @@ func (cmd *AgentTasksStart) Execute(ctx *appcontext.AppContext, repo *repository
 		return 1, fmt.Errorf("agent not started")
 	}
 
+	agentContextSingleton.mtx.Lock()
+	defer agentContextSingleton.mtx.Unlock()
+
 	if agentContextSingleton.schedulerConfig == nil {
 		return 1, fmt.Errorf("agent scheduler does not have a configuration")
 	}
@@ -41,9 +44,7 @@ func (cmd *AgentTasksStart) Execute(ctx *appcontext.AppContext, repo *repository
 
 	// this needs to execute in the agent context, not the client context
 	agentContextSingleton.schedulerCtx = appcontext.NewAppContextFrom(agentContextSingleton.agentCtx)
-	go func() {
-		scheduler.NewScheduler(agentContextSingleton.schedulerCtx, agentContextSingleton.schedulerConfig).Run()
-	}()
+	go scheduler.NewScheduler(agentContextSingleton.schedulerCtx, agentContextSingleton.schedulerConfig).Run()
 
 	agentContextSingleton.schedulerState = AGENT_SCHEDULER_RUNNING
 	return 0, nil
