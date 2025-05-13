@@ -431,16 +431,15 @@ func EntryPoint() int {
 			taskKind = "maintenance"
 		}
 
-		doReport := true
-		authToken, lerr := ctx.GetAuthToken(repo.Configuration().RepositoryID)
-		if lerr != nil || authToken == "" {
-			doReport = false
-		} else {
-			sc := services.NewServiceConnector(ctx, authToken)
-			if enabled, lerr := sc.GetServiceStatus("alerting"); lerr != nil {
-				doReport = false
-			} else if !enabled || taskKind == "" {
-				doReport = false
+		var doReport bool
+		if taskKind != "" {
+			authToken, err := ctx.GetAuthToken(repo.Configuration().RepositoryID)
+			if err == nil && authToken != "" {
+				sc := services.NewServiceConnector(ctx, authToken)
+				enabled, err := sc.GetServiceStatus("alerting")
+				if err == nil && enabled {
+					doReport = true
+				}
 			}
 		}
 
