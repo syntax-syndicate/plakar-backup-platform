@@ -350,28 +350,17 @@ func EntryPoint() int {
 	}
 
 	// these commands need to be ran before the repository is opened
+
+	var store storage.Store
+	var repo *repository.Repository
+
 	if cmd.GetFlags()&subcommands.BeforeRepositoryOpen != 0 {
 		if at {
 			log.Fatalf("%s: %s command cannot be used with 'at' parameter.",
 				flag.CommandLine.Name(), strings.Join(name, " "))
 		}
-		if err := cmd.Parse(ctx, args); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-			return 1
-		}
-		retval, err := cmd.Execute(ctx, nil)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-		}
-		return retval
-	}
-
-	var store storage.Store
-	var repo *repository.Repository
-
-	// create is a special case, it operates without a repository...
-	// but needs a repository location to store the new repository
-	if cmd.GetFlags()&subcommands.BeforeRepositoryWithStorage != 0 {
+		// store and repo can stay nil
+	} else if cmd.GetFlags()&subcommands.BeforeRepositoryWithStorage != 0 {
 		repo, err = repository.Inexistent(ctx, storeConfig)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
@@ -415,7 +404,6 @@ func EntryPoint() int {
 		}
 	}
 
-	// commands below all operate on an open repository
 	t0 := time.Now()
 	if err := cmd.Parse(ctx, args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
@@ -423,7 +411,9 @@ func EntryPoint() int {
 	}
 
 	var status int
-	if opt_agentless || cmd.GetFlags()&subcommands.AgentSupport == 0 {
+
+	runWithoutAgent := opt_agentless || cmd.GetFlags()&subcommands.AgentSupport == 0
+	if repo != nil && runWithoutAgent {
 		var lerr error
 		var taskKind string
 		switch cmd.(type) {
@@ -482,6 +472,8 @@ func EntryPoint() int {
 		} else if err != nil {
 			reporter.TaskFailed(0, "error: %s", err)
 		}
+	} else if runWithoutAgent {
+		status, err = cmd.Execute(ctx, repo)
 	} else {
 		status, err = agent.ExecuteRPC(ctx, name, cmd, storeConfig)
 	}
@@ -492,9 +484,11 @@ func EntryPoint() int {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), utils.SanitizeText(err.Error()))
 	}
 
-	err = repo.Close()
-	if err != nil {
-		logger.Warn("could not close repository: %s", err)
+	if repo != nil {
+		err = repo.Close()
+		if err != nil {
+			logger.Warn("could not close repository: %s", err)
+		}
 	}
 
 	if store != nil {
