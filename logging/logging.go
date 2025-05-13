@@ -48,6 +48,16 @@ func (l *Logger) SetOutput(w io.Writer) {
 	l.traceLogger.SetOutput(w)
 }
 
+func (l *Logger) SetSyslogOutput(w io.Writer) {
+	l.stdoutLogger = log.NewWithOptions(w, log.Options{Prefix: "stdout"})
+	l.stderrLogger = log.NewWithOptions(w, log.Options{Prefix: "stderr"})
+	l.infoLogger = log.NewWithOptions(w, log.Options{Level: log.InfoLevel, Prefix: "info"})
+	l.warnLogger = log.NewWithOptions(w, log.Options{Level: log.WarnLevel, Prefix: "warn"})
+	l.debugLogger = log.NewWithOptions(w, log.Options{Level: log.DebugLevel, Prefix: "debug"})
+	l.traceLogger = log.NewWithOptions(w, log.Options{Level: log.DebugLevel, Prefix: "trace"})
+	l.errorLogger = log.NewWithOptions(w, log.Options{Level: log.ErrorLevel, Prefix: "error"})
+}
+
 func (l *Logger) Printf(format string, args ...interface{}) {
 	l.infoLogger.Printf(format, args...)
 }

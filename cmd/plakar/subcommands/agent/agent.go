@@ -130,7 +130,7 @@ func (cmd *Agent) Parse(ctx *appcontext.AppContext, args []string) error {
 		if err != nil {
 			return err
 		}
-		ctx.GetLogger().SetOutput(w)
+		ctx.GetLogger().SetSyslogOutput(w)
 	}
 
 	cmd.socketPath = filepath.Join(ctx.CacheDir, "agent.sock")
