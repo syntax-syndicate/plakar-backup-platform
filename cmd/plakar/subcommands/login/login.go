@@ -53,7 +53,8 @@ func (cmd *Login) Parse(ctx *appcontext.AppContext, args []string) error {
 	}
 
 	if !opt_github && opt_email == "" {
-		return fmt.Errorf("specify either -github or -email")
+		fmt.Println("no provided login method, defaulting to GitHub")
+		opt_github = true
 	}
 
 	if opt_nospawn && !opt_github {
