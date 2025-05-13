@@ -20,6 +20,7 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/config"
+	"github.com/PlakarKorp/plakar/cookies"
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/objects"
@@ -188,7 +189,18 @@ func EntryPoint() int {
 		opt_agentless = true
 	}
 
+	// default cachedir
 	cacheSubDir := "plakar"
+
+	cookiesDir, err := utils.GetCacheDir(cacheSubDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: could not get cookies directory: %s\n", flag.CommandLine.Name(), err)
+		return 1
+	}
+	ctx.CookiesDir = cookiesDir
+	ctx.SetCookies(cookies.NewManager(cookiesDir))
+	defer ctx.GetCookies().Close()
+
 	if opt_agentless {
 		cacheSubDir = "plakar-agentless"
 	}
