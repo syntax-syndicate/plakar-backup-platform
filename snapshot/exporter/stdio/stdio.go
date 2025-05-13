@@ -34,8 +34,8 @@ type StdioExporter struct {
 }
 
 func init() {
-	exporter.Register("stdout", NewStdioExporter)
-	exporter.Register("stderr", NewStdioExporter)
+	//exporter.Register("stdout", NewStdioExporter)
+	//exporter.Register("stderr", NewStdioExporter)
 }
 
 func NewStdioExporter(appCtx *appcontext.AppContext, name string, config map[string]string) (exporter.Exporter, error) {
