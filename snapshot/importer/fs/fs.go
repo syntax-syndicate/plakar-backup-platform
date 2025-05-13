@@ -26,6 +26,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -48,16 +49,17 @@ func init() {
 
 func NewFSImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
 	location := config["location"]
+	rootDir := strings.TrimPrefix(location, "fs://")
 
-	if !path.IsAbs(location) {
+	if !path.IsAbs(rootDir) {
 		return nil, fmt.Errorf("not an absolute path %s", location)
 	}
 
-	location = path.Clean(location)
+	rootDir = path.Clean(rootDir)
 
 	return &FSImporter{
 		ctx:       appCtx,
-		rootDir:   location,
+		rootDir:   rootDir,
 		uidToName: make(map[uint64]string),
 		gidToName: make(map[uint64]string),
 	}, nil

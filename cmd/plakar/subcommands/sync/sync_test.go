@@ -105,7 +105,10 @@ func TestExecuteCmdSyncWithEncryption(t *testing.T) {
 	peerRepo := ptesting.GenerateRepository(t, bufOut, bufErr, &passphrase)
 
 	// need to recreate configuration to store passphrase on peer repo
-	opt_configfile := filepath.Join(peerRepo.Location(), "plakar.yml")
+	fmt.Println("peerRepo", peerRepo.Location())
+	opt_configfile := filepath.Join(strings.TrimPrefix(peerRepo.Location(), "fs://"), "plakar.yml")
+	fmt.Println("opt_configfile", opt_configfile)
+
 	cfg, err := config.LoadOrCreate(opt_configfile)
 	require.NoError(t, err)
 	ctx.Config = cfg

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -28,7 +27,7 @@ func TestS3Backend(t *testing.T) {
 
 	// create a repository
 	repo, err := NewStore(ctx, "s3", map[string]string{
-		"location":          strings.TrimPrefix(ts.URL, "http://") + "/testbucket",
+		"location":          ts.URL + "/testbucket",
 		"access_key":        "",
 		"secret_access_key": "",
 		"use_tls":           "false",
@@ -39,7 +38,7 @@ func TestS3Backend(t *testing.T) {
 
 	location := repo.Location()
 	fmt.Println(location)
-	require.Equal(t, strings.Replace(ts.URL, "http", "s3", 1)+"/testbucket", location)
+	require.Equal(t, ts.URL+"/testbucket", location)
 
 	config := storage.NewConfiguration()
 	serializedConfig, err := config.ToBytes()

@@ -23,7 +23,7 @@ func TestNewStore(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if store.Location() != "/test/location" {
+	if store.Location() != "mock:///test/location" {
 		t.Errorf("expected location to be '/test/location', got %v", store.Location())
 	}
 
@@ -73,7 +73,7 @@ func TestOpenStore(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if store.Location() != "/test/location" {
+	if store.Location() != "mock:///test/location" {
 		t.Errorf("expected location to be '/test/location', got %v", store.Location())
 	}
 
@@ -129,7 +129,7 @@ func TestNew(t *testing.T) {
 				t.Fatalf("expected no error, got %v", err)
 			}
 
-			if store.Location() != "/test/location" {
+			if store.Location() != location {
 				t.Errorf("expected location to be '%s', got %v", location, store.Location())
 			}
 		})
@@ -158,7 +158,7 @@ func TestNew(t *testing.T) {
 			t.Fatalf("expected no error, got %v", err)
 		}
 
-		if store.Location() != "dummy" {
+		if store.Location() != "fs://dummy" {
 			t.Errorf("expected location to be '%s', got %v", "dummy", store.Location())
 		}
 	})
