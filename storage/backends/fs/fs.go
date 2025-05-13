@@ -127,7 +127,8 @@ func (s *Store) Mode() storage.Mode {
 
 func (s *Store) Size() int64 {
 	var size int64
-	_ = filepath.WalkDir(s.Location(), func(_ string, d fs.DirEntry, err error) error {
+	location := strings.TrimPrefix(s.Location(), "fs://")
+	_ = filepath.WalkDir(location, func(_ string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
