@@ -378,7 +378,8 @@ func EntryPoint() int {
 			return 1
 		}
 	} else {
-		store, serializedConfig, err := storage.Open(ctx, storeConfig)
+		var serializedConfig []byte
+		store, serializedConfig, err = storage.Open(ctx, storeConfig)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: failed to open the repository at %s: %s\n", flag.CommandLine.Name(), storeConfig["location"], err)
 			fmt.Fprintln(os.Stderr, "To specify an alternative repository, please use \"plakar at <location> <command>\".")
