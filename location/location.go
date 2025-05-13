@@ -58,10 +58,7 @@ func (l *Location[T]) Lookup(uri string) (proto, location string, item T, ok boo
 			if i != 0 && strings.HasPrefix(uri[i:], ":") {
 				proto = uri[:i]
 				location = uri[i+1:]
-
-				if strings.HasPrefix(location, "//") {
-					location = location[2:]
-				}
+				location = strings.TrimPrefix(location, "//")
 			}
 			break
 		}

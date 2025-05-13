@@ -50,11 +50,11 @@ func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]s
 }
 
 func (s *Store) Location() string {
-	return strings.TrimPrefix(s.location, "fs://")
+	return s.location
 }
 
 func (s *Store) Path(args ...string) string {
-	root := s.Location()
+	root := strings.TrimPrefix(s.Location(), "fs://")
 
 	args = append(args, "")
 	copy(args[1:], args)

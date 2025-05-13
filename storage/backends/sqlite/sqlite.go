@@ -21,7 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -53,10 +53,6 @@ func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]s
 	}
 
 	location := storeConfig["location"]
-	if !filepath.IsAbs(location) {
-		location = filepath.Join(ctx.CWD, location)
-	}
-
 	return &Store{
 		backend:  proto,
 		location: location,
@@ -90,7 +86,8 @@ func (s *Store) connect(addr string) error {
 }
 
 func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
-	err := s.connect(s.location)
+	location := strings.TrimPrefix(s.location, "sqlite://")
+	err := s.connect(location)
 	if err != nil {
 		return err
 	}
@@ -149,7 +146,8 @@ func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
 }
 
 func (s *Store) Open(ctx *appcontext.AppContext) ([]byte, error) {
-	err := s.connect(s.location)
+	location := strings.TrimPrefix(s.location, "sqlite://")
+	err := s.connect(location)
 	if err != nil {
 		return nil, err
 	}

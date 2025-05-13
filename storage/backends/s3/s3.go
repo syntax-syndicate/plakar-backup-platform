@@ -66,7 +66,7 @@ func connect(location *url.URL, useSsl bool, accessKeyID, secretAccessKey string
 }
 
 func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]string) (storage.Store, error) {
-	target := proto + "://" + storeConfig["location"]
+	target := storeConfig["location"]
 
 	var accessKey string
 	if value, ok := storeConfig["access_key"]; !ok {
@@ -114,7 +114,7 @@ func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]s
 	scanDir := path.Clean("/" + strings.Join(atoms[1:], "/"))
 
 	return &Store{
-		location:        proto + "://" + storeConfig["location"],
+		location:        storeConfig["location"],
 		accessKey:       accessKey,
 		secretAccessKey: secretAccessKey,
 		useSsl:          useSsl,

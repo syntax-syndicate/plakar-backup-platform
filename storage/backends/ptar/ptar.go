@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
@@ -69,7 +70,8 @@ func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
 	s.config = config
 	s.mode = storage.ModeRead | storage.ModeWrite
 
-	fp, err := os.OpenFile(s.location, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+	location := strings.TrimPrefix(s.location, "ptar://")
+	fp, err := os.OpenFile(location, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		return err
 	}
@@ -92,7 +94,8 @@ func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
 func (s *Store) Open(ctx *appcontext.AppContext) ([]byte, error) {
 	s.mode = storage.ModeRead
 
-	fp, err := os.Open(s.location)
+	location := strings.TrimPrefix(s.location, "ptar://")
+	fp, err := os.Open(location)
 	if err != nil {
 		return nil, err
 	}
