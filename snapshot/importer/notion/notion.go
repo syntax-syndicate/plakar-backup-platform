@@ -101,7 +101,7 @@ func (p *NotionImporter) GetExtendedAttributes(pathname string) ([]importer.Exte
 }
 
 func (p *NotionImporter) Close() error {
-	// Nothing to close for now
+	ClearNodeTree()
 	return nil
 }
 

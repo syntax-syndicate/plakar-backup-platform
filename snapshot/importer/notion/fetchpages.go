@@ -177,3 +177,8 @@ func GetPathToRoot(node *PageNode) string {
 
 	return "/" + strings.Join(path, "/")
 }
+
+func ClearNodeTree() {
+	nodeMap = make(map[string]*PageNode)
+	waitingChildren = make(map[string][]*PageNode)
+}
