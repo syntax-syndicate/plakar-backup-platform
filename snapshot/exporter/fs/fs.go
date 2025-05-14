@@ -77,6 +77,9 @@ func (p *FSExporter) SetPermissions(pathname string, fileinfo *objects.FileInfo)
 			return err
 		}
 	}
+	if err := os.Chtimes(pathname, fileinfo.ModTime(), fileinfo.ModTime()); err != nil {
+		return err
+	}
 	return nil
 }
 
