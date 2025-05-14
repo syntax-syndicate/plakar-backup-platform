@@ -126,7 +126,7 @@ func (cmd *Sync) Parse(ctx *appcontext.AppContext, args []string) error {
 		return err
 	}
 
-	cmd.SourceRepositorySecret = ctx.GetSecret()
+	cmd.RepositorySecret = ctx.GetSecret()
 	cmd.PeerRepositoryLocation = peerRepositoryPath
 	cmd.PeerRepositorySecret = peerSecret
 	cmd.Direction = direction
@@ -137,7 +137,6 @@ func (cmd *Sync) Parse(ctx *appcontext.AppContext, args []string) error {
 type Sync struct {
 	subcommands.SubcommandBase
 
-	SourceRepositorySecret []byte
 	PeerRepositoryLocation string
 	PeerRepositorySecret   []byte
 
