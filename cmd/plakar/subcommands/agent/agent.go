@@ -424,7 +424,7 @@ func handleClient(ctx *appcontext.AppContext, wg *sync.WaitGroup, conn net.Conn)
 	}
 	clientContext.GetLogger().EnableTracing(subcommand.GetLogTraces())
 
-	clientContext.GetLogger().Info("%s on %s", name, storeConfig["location"])
+	ctx.GetLogger().Info("%s on %s", name, storeConfig["location"])
 
 	var store storage.Store
 	var repo *repository.Repository

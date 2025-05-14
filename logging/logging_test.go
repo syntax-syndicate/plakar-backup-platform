@@ -83,7 +83,7 @@ func TestLogger(t *testing.T) {
 
 	// Test EnableTrace
 	logger.EnableTracing("subsystem")
-	if logger.EnabledTracing != "" {
+	if logger.EnabledTracing == "" {
 		t.Errorf("EnableTrace did not enable tracing")
 	}
 	if _, ok := logger.traceSubsystems["subsystem"]; !ok {
