@@ -42,7 +42,7 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Ptar{} }, subcommands.BeforeRepositoryWithStorage, "ptar")
+	subcommands.Register(func() subcommands.Subcommand { return &Ptar{} }, subcommands.AgentSupport|subcommands.BeforeRepositoryWithStorage, "ptar")
 }
 
 func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -64,7 +64,7 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 	flags.Parse(args)
 
 	if len(opt_sync) > 0 && flags.NArg() > 0 {
-		return fmt.Errorf("%s: can't specify source directories in sync mode.", flag.CommandLine.Name())
+		return fmt.Errorf("%s: can't specify source directories in sync mode", flag.CommandLine.Name())
 	}
 
 	var peerSecret []byte
@@ -117,7 +117,7 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 
 		peerCtx := appcontext.NewAppContextFrom(ctx)
 		peerCtx.SetSecret(peerSecret)
-		_, err = repository.New(peerCtx, peerStore, peerStoreSerializedConfig)
+		_, err = repository.NewNoRebuild(peerCtx, peerStore, peerStoreSerializedConfig)
 		if err != nil {
 			return err
 		}
