@@ -25,7 +25,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -126,7 +125,7 @@ func (p *S3Importer) scanRecursive(prefix string, result chan *importer.ScanResu
 				0700,
 				object.LastModified,
 				1,
-				atomic.AddUint64(&p.ino, 1),
+				0,
 				0,
 				0,
 				0,
@@ -148,7 +147,7 @@ func (p *S3Importer) scanRecursive(prefix string, result chan *importer.ScanResu
 		0700|os.ModeDir,
 		time.Now(),
 		0,
-		atomic.AddUint64(&p.ino, 1),
+		0,
 		0,
 		0,
 		0,
