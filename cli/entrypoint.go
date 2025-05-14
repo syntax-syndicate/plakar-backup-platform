@@ -333,7 +333,7 @@ func EntryPoint() int {
 		logger.EnableInfo()
 	}
 	if opt_trace != "" {
-		logger.EnableTrace(opt_trace)
+		logger.EnableTracing(opt_trace)
 	}
 
 	ctx.SetLogger(logger)

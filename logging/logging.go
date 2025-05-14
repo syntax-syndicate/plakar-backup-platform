@@ -10,8 +10,8 @@ import (
 )
 
 type Logger struct {
-	enableInfo        bool
-	enableTracing     bool
+	EnabledInfo       bool
+	EnabledTracing    string
 	mutraceSubsystems sync.Mutex
 	traceSubsystems   map[string]bool
 	stdoutLogger      *log.Logger
@@ -25,8 +25,8 @@ type Logger struct {
 
 func NewLogger(stdout io.Writer, stderr io.Writer) *Logger {
 	return &Logger{
-		enableInfo:      false,
-		enableTracing:   false,
+		EnabledInfo:     false,
+		EnabledTracing:  "",
 		stdoutLogger:    log.NewWithOptions(stdout, log.Options{}),
 		stderrLogger:    log.NewWithOptions(stderr, log.Options{}),
 		infoLogger:      log.NewWithOptions(stdout, log.Options{Level: log.InfoLevel, Prefix: "info", TimeFormat: time.RFC3339}),
@@ -71,7 +71,7 @@ func (l *Logger) Stderr(format string, args ...interface{}) {
 }
 
 func (l *Logger) Info(format string, args ...interface{}) {
-	if l.enableInfo {
+	if l.EnabledInfo {
 		l.infoLogger.Printf(format, args...)
 	}
 }
@@ -89,7 +89,7 @@ func (l *Logger) Debug(format string, args ...interface{}) {
 }
 
 func (l *Logger) Trace(subsystem string, format string, args ...interface{}) {
-	if l.enableTracing {
+	if l.EnabledTracing != "" {
 		l.mutraceSubsystems.Lock()
 		_, exists := l.traceSubsystems[subsystem]
 		if !exists {
@@ -103,11 +103,11 @@ func (l *Logger) Trace(subsystem string, format string, args ...interface{}) {
 }
 
 func (l *Logger) EnableInfo() {
-	l.enableInfo = true
+	l.EnabledInfo = true
 }
 
-func (l *Logger) EnableTrace(traces string) {
-	l.enableTracing = true
+func (l *Logger) EnableTracing(traces string) {
+	l.EnabledTracing = traces
 	l.traceSubsystems = make(map[string]bool)
 	for _, subsystem := range strings.Split(traces, ",") {
 		l.traceSubsystems[subsystem] = true
