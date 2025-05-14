@@ -44,18 +44,10 @@ func NewReporter(reporting bool, repository *repository.Repository, logger *logg
 
 		var token string
 
-		if repository != nil {
-			cacheInstance, err := repository.AppContext().GetCache().Repository(repository.Configuration().RepositoryID)
-			if err != nil {
-				logger.Warn("cannot get cache instance")
-			} else {
-				if cacheInstance.HasAuthToken() {
-					token, err = cacheInstance.GetAuthToken()
-					if err != nil {
-						logger.Warn("cannot get auth token")
-					}
-				}
-			}
+		cookies := repository.AppContext().GetCookies()
+		token, err := cookies.GetAuthToken()
+		if err != nil {
+			logger.Warn("cannot get auth token")
 		}
 
 		emitter = &HttpEmitter{
@@ -67,8 +59,8 @@ func NewReporter(reporting bool, repository *repository.Repository, logger *logg
 
 	return &Reporter{
 		repository: repository,
-		logger:  logger,
-		emitter: emitter,
+		logger:     logger,
+		emitter:    emitter,
 	}
 }
 

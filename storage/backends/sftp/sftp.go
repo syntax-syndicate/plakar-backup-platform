@@ -55,7 +55,7 @@ func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]s
 		return nil, fmt.Errorf("missing location")
 	}
 
-	parsed, err := url.Parse(proto + "://" + location)
+	parsed, err := url.Parse(location)
 	if err != nil {
 		return nil, err
 	}
@@ -71,10 +71,7 @@ func (s *Store) Location() string {
 }
 
 func (s *Store) Path(args ...string) string {
-	root := s.Location()
-	if strings.HasPrefix(root, "sftp://") {
-		root = root[7:]
-	}
+	root := strings.TrimPrefix(s.Location(), "sftp://")
 	atoms := strings.Split(root, "/")
 	if len(atoms) == 0 {
 		return "/"

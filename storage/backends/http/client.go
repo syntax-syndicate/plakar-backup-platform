@@ -41,7 +41,7 @@ func init() {
 
 func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]string) (storage.Store, error) {
 	return &Store{
-		location: proto + "://" + storeConfig["location"],
+		location: storeConfig["location"],
 	}, nil
 }
 

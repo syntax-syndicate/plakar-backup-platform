@@ -9,6 +9,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/caching"
+	"github.com/PlakarKorp/plakar/cookies"
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/logging"
@@ -33,10 +34,15 @@ func GenerateRepository(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer
 		os.RemoveAll(tmpRepoDirRoot)
 	})
 
+	cookies := cookies.NewManager(tmpCacheDir)
+
 	ctx := appcontext.NewAppContext()
+	ctx.SetCookies(cookies)
+
+	ctx.Client = "plakar-test/1.0.0"
 
 	// create a storage
-	r, err := bfs.NewStore(ctx, "fs", map[string]string{"location": tmpRepoDir})
+	r, err := bfs.NewStore(ctx, "fs", map[string]string{"location": "fs://" + tmpRepoDir})
 	require.NotNil(t, r)
 	require.NoError(t, err)
 	config := storage.NewConfiguration()
@@ -118,7 +124,11 @@ func GenerateRepositoryWithoutConfig(t *testing.T, bufout *bytes.Buffer, buferr 
 		os.RemoveAll(tmpRepoDirRoot)
 	})
 
+	cookies := cookies.NewManager(tmpCacheDir)
+
 	ctx := appcontext.NewAppContext()
+	ctx.SetCookies(cookies)
+	ctx.Client = "plakar-test/1.0.0"
 	ctx.MaxConcurrency = 1
 
 	// create a storage
