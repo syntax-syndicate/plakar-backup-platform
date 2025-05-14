@@ -228,6 +228,8 @@ func (snap *Builder) importerJob(backupCtx *BackupContext, options *BackupOption
 func (snap *Builder) flushDeltaState(bc *BackupContext) {
 	for {
 		select {
+		case <-snap.repository.AppContext().Done():
+			return
 		case <-bc.flushEnd:
 			// End of backup we push the last and final State. No need to take any locks at this point.
 			err := snap.repository.CommitTransaction(bc.stateId)
