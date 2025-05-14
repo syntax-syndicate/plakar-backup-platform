@@ -23,6 +23,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -52,15 +53,15 @@ var ErrInvalidMagic = fmt.Errorf("invalid magic")
 var ErrInvalidVersion = fmt.Errorf("invalid version")
 
 type Configuration struct {
-	Version      versioning.Version `msgpack:"-"`
-	Timestamp    time.Time
-	RepositoryID uuid.UUID
+	Version      versioning.Version `msgpack:"-" json:"version"`
+	Timestamp    time.Time          `json:"timestamp"`
+	RepositoryID uuid.UUID          `json:"repository_id"`
 
-	Packfile    packfile.Configuration
-	Chunking    chunking.Configuration
-	Hashing     hashing.Configuration
-	Compression *compression.Configuration
-	Encryption  *encryption.Configuration
+	Packfile    packfile.Configuration     `json:"packfile"`
+	Chunking    chunking.Configuration     `json:"chunking"`
+	Hashing     hashing.Configuration      `json:"hashing"`
+	Compression *compression.Configuration `json:"compression"`
+	Encryption  *encryption.Configuration  `json:"encryption"`
 }
 
 func NewConfiguration() *Configuration {
@@ -141,7 +142,7 @@ type Store interface {
 	Close() error
 }
 
-type StoreFn func(*appcontext.AppContext, map[string]string) (Store, error)
+type StoreFn func(*appcontext.AppContext, string, map[string]string) (Store, error)
 
 var backends = location.New[StoreFn]("fs")
 
@@ -163,11 +164,18 @@ func New(ctx *appcontext.AppContext, storeConfig map[string]string) (Store, erro
 		return nil, fmt.Errorf("missing location")
 	}
 
-	proto, _, backend, ok := backends.Lookup(location)
-	if ok {
-		return backend(ctx, storeConfig)
+	proto, location, backend, ok := backends.Lookup(location)
+	if !ok {
+		return nil, fmt.Errorf("backend '%s' does not exist", proto)
 	}
-	return nil, fmt.Errorf("backend '%s' does not exist", proto)
+
+	if proto == "fs" && !filepath.IsAbs(location) {
+		location = filepath.Join(ctx.CWD, location)
+		storeConfig["location"] = "fs://" + location
+	} else {
+		storeConfig["location"] = proto + "://" + location
+	}
+	return backend(ctx, proto, storeConfig)
 }
 
 func Open(ctx *appcontext.AppContext, storeConfig map[string]string) (Store, []byte, error) {

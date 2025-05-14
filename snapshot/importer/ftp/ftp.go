@@ -53,7 +53,7 @@ func connectToFTP(host, username, password string) (*goftp.Client, error) {
 }
 
 func NewFTPImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
-	target := name + "://" + config["location"]
+	target := config["location"]
 
 	parsed, err := url.Parse(target)
 	if err != nil {
@@ -138,7 +138,6 @@ func (p *FTPImporter) walkDir(root string, results chan<- string, wg *sync.WaitG
 func (p *FTPImporter) Scan() (<-chan *importer.ScanResult, error) {
 	client, err := connectToFTP(p.host, "", "")
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 	p.client = client

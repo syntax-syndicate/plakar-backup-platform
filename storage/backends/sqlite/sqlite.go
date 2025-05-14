@@ -47,9 +47,15 @@ func init() {
 	storage.Register(NewStore, "sqlite")
 }
 
-func NewStore(ctx *appcontext.AppContext, storeConfig map[string]string) (storage.Store, error) {
+func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]string) (storage.Store, error) {
+	if proto != "sqlite" {
+		return nil, fmt.Errorf("unsupported database backend: %s", proto)
+	}
+
+	location := storeConfig["location"]
 	return &Store{
-		location: storeConfig["location"],
+		backend:  proto,
+		location: location,
 	}, nil
 }
 
@@ -58,15 +64,7 @@ func (s *Store) Location() string {
 }
 
 func (s *Store) connect(addr string) error {
-	var connectionString string
-	if strings.HasPrefix(addr, "sqlite://") {
-		s.backend = "sqlite"
-		connectionString = addr[9:]
-	} else {
-		return fmt.Errorf("unsupported database backend: %s", addr)
-	}
-
-	conn, err := sql.Open(s.backend, connectionString)
+	conn, err := sql.Open(s.backend, addr)
 	if err != nil {
 		return err
 	}
@@ -88,7 +86,8 @@ func (s *Store) connect(addr string) error {
 }
 
 func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
-	err := s.connect(s.location)
+	location := strings.TrimPrefix(s.location, "sqlite://")
+	err := s.connect(location)
 	if err != nil {
 		return err
 	}
@@ -147,7 +146,8 @@ func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
 }
 
 func (s *Store) Open(ctx *appcontext.AppContext) ([]byte, error) {
-	err := s.connect(s.location)
+	location := strings.TrimPrefix(s.location, "sqlite://")
+	err := s.connect(location)
 	if err != nil {
 		return nil, err
 	}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/config"
+	"github.com/PlakarKorp/plakar/cookies"
 	"github.com/PlakarKorp/plakar/encryption/keypair"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
@@ -15,11 +16,12 @@ import (
 )
 
 type AppContext struct {
-	events *events.Receiver `msgpack:"-"`
-	cache  *caching.Manager `msgpack:"-"`
-	logger *logging.Logger  `msgpack:"-"`
-	secret []byte           `msgpack:"-"`
-	Config *config.Config   `msgpack:"-"`
+	events  *events.Receiver `msgpack:"-"`
+	cache   *caching.Manager `msgpack:"-"`
+	cookies *cookies.Manager `msgpack:"-"`
+	logger  *logging.Logger  `msgpack:"-"`
+	secret  []byte           `msgpack:"-"`
+	Config  *config.Config   `msgpack:"-"`
 
 	Context context.Context    `msgpack:"-"`
 	Cancel  context.CancelFunc `msgpack:"-"`
@@ -34,6 +36,7 @@ type AppContext struct {
 	CommandLine string
 	MachineID   string
 	KeyFromFile string
+	CookiesDir  string
 	CacheDir    string
 	KeyringDir  string
 
@@ -102,6 +105,14 @@ func (c *AppContext) GetCache() *caching.Manager {
 	return c.cache
 }
 
+func (c *AppContext) SetCookies(cacheManager *cookies.Manager) {
+	c.cookies = cacheManager
+}
+
+func (c *AppContext) GetCookies() *cookies.Manager {
+	return c.cookies
+}
+
 func (c *AppContext) SetLogger(logger *logging.Logger) {
 	c.logger = logger
 }
@@ -116,4 +127,12 @@ func (c *AppContext) SetSecret(secret []byte) {
 
 func (c *AppContext) GetSecret() []byte {
 	return c.secret
+}
+
+func (c *AppContext) GetAuthToken(repository uuid.UUID) (string, error) {
+	if authToken, err := c.cookies.GetAuthToken(); err != nil {
+		return "", err
+	} else {
+		return authToken, nil
+	}
 }

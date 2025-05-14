@@ -147,14 +147,9 @@ func New(ctx *appcontext.AppContext, store storage.Store, config []byte) (*Repos
 		return nil, err
 	}
 
-	cacheInstance, err := r.AppContext().GetCache().Repository(r.Configuration().RepositoryID)
-	if err != nil {
-		return nil, err
-	}
-
 	clientVersion := r.appContext.Client
-	if !cacheInstance.HasCookie(clientVersion) {
-		if err := cacheInstance.PutCookie(clientVersion); err != nil {
+	if !r.appContext.GetCookies().HasRepositoryCookie(r.configuration.RepositoryID, clientVersion) {
+		if err := r.appContext.GetCookies().PutRepositoryCookie(r.configuration.RepositoryID, clientVersion); err != nil {
 			return nil, err
 		}
 	}

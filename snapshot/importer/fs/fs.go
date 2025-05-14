@@ -26,6 +26,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -48,16 +49,17 @@ func init() {
 
 func NewFSImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
 	location := config["location"]
+	rootDir := strings.TrimPrefix(location, "fs://")
 
-	if !path.IsAbs(location) {
+	if !path.IsAbs(rootDir) {
 		return nil, fmt.Errorf("not an absolute path %s", location)
 	}
 
-	location = path.Clean(location)
+	rootDir = path.Clean(rootDir)
 
 	return &FSImporter{
 		ctx:       appCtx,
-		rootDir:   location,
+		rootDir:   rootDir,
 		uidToName: make(map[uint64]string),
 		gidToName: make(map[uint64]string),
 	}, nil
@@ -76,18 +78,17 @@ func (p *FSImporter) Type() string {
 }
 
 func (p *FSImporter) Scan() (<-chan *importer.ScanResult, error) {
+	realp, err := p.realpathFollow(p.rootDir)
+	if err != nil {
+		return nil, err
+	}
+
 	results := make(chan *importer.ScanResult, 1000)
-	go p.walkDir_walker(results, p.rootDir, 256)
+	go p.walkDir_walker(results, p.rootDir, realp, 256)
 	return results, nil
 }
 
-func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir string, numWorkers int) {
-	real, err := f.realpathFollow(rootDir)
-	if err != nil {
-		results <- importer.NewScanError(rootDir, err)
-		return
-	}
-
+func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir, realp string, numWorkers int) {
 	jobs := make(chan string, 1000) // Buffered channel to feed paths to workers
 	var wg sync.WaitGroup
 	for range numWorkers {
@@ -96,13 +97,13 @@ func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir
 	}
 
 	// Add prefix directories first
-	walkDir_addPrefixDirectories(real, jobs, results)
-	if real != rootDir {
+	walkDir_addPrefixDirectories(realp, jobs, results)
+	if realp != rootDir {
 		jobs <- rootDir
 		walkDir_addPrefixDirectories(rootDir, jobs, results)
 	}
 
-	err = filepath.WalkDir(real, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(realp, func(path string, d fs.DirEntry, err error) error {
 		if f.ctx.Err() != nil {
 			return err
 		}
@@ -115,7 +116,7 @@ func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir
 		return nil
 	})
 	if err != nil {
-		results <- importer.NewScanError(real, err)
+		results <- importer.NewScanError(realp, err)
 	}
 
 	close(jobs)

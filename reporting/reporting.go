@@ -18,6 +18,7 @@ type Emitter interface {
 }
 
 type Reporter struct {
+	repository        *repository.Repository
 	logger            *logging.Logger
 	emitter           Emitter
 	currentTask       *ReportTask
@@ -25,7 +26,7 @@ type Reporter struct {
 	currentSnapshot   *ReportSnapshot
 }
 
-func NewReporter(reporting bool, logger *logging.Logger) *Reporter {
+func NewReporter(reporting bool, repository *repository.Repository, logger *logging.Logger) *Reporter {
 	if logger == nil {
 		logger = logging.NewLogger(os.Stdout, os.Stderr)
 	}
@@ -41,16 +42,25 @@ func NewReporter(reporting bool, logger *logging.Logger) *Reporter {
 			url = PLAKAR_API_URL
 		}
 
+		var token string
+
+		cookies := repository.AppContext().GetCookies()
+		token, err := cookies.GetAuthToken()
+		if err != nil {
+			logger.Warn("cannot get auth token")
+		}
+
 		emitter = &HttpEmitter{
 			url:   url,
-			token: os.Getenv("PLAKAR_API_TOKEN"),
+			token: token,
 			retry: 3,
 		}
 	}
 
 	return &Reporter{
-		logger:  logger,
-		emitter: emitter,
+		repository: repository,
+		logger:     logger,
+		emitter:    emitter,
 	}
 }
 
@@ -76,12 +86,13 @@ func (reporter *Reporter) WithRepositoryName(name string) {
 }
 
 func (reporter *Reporter) WithRepository(repository *repository.Repository) {
+	reporter.repository = repository
 	configuration := repository.Configuration()
 	reporter.currentRepository.Storage = configuration
 }
 
-func (reporter *Reporter) WithSnapshotID(repository *repository.Repository, snapshotId objects.MAC) {
-	snap, err := snapshot.Load(repository, snapshotId)
+func (reporter *Reporter) WithSnapshotID(snapshotId objects.MAC) {
+	snap, err := snapshot.Load(reporter.repository, snapshotId)
 	if err != nil {
 		reporter.logger.Warn("failed to load snapshot: %s", err)
 		return

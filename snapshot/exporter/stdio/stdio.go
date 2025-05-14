@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/objects"
@@ -33,8 +34,8 @@ type StdioExporter struct {
 }
 
 func init() {
-	exporter.Register("stdout", NewStdioExporter)
-	exporter.Register("stderr", NewStdioExporter)
+	//exporter.Register("stdout", NewStdioExporter)
+	//exporter.Register("stderr", NewStdioExporter)
 }
 
 func NewStdioExporter(appCtx *appcontext.AppContext, name string, config map[string]string) (exporter.Exporter, error) {
@@ -50,7 +51,7 @@ func NewStdioExporter(appCtx *appcontext.AppContext, name string, config map[str
 	}
 
 	return &StdioExporter{
-		filePath: config["location"],
+		filePath: strings.TrimPrefix(config["location"], name+"://"),
 		appCtx:   appCtx,
 		w:        w,
 	}, nil
