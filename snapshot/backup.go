@@ -353,11 +353,18 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	}
 
 	/* tree builders */
-	vfsHeader, rootSummary, indexes, err := snap.persistTrees(backupCtx)
-	if err != nil {
-		snap.repository.PackerManager.Wait()
-		return nil
+	for i := range snap.Header.Sources {
+		backupCtx.imp = impList[i]
+		vfsHeader, rootSummary, indexes, err := snap.persistTrees(backupCtx)
+		if err != nil {
+			snap.repository.PackerManager.Wait()
+			return nil
+		}
+		snap.Header.GetSource(i).VFS = *vfsHeader
+		snap.Header.GetSource(i).Summary = *rootSummary
+		snap.Header.GetSource(i).Indexes = indexes
 	}
+	//TODO: smart merging the vfs, summary and indexes in case of multiImporter with multiple sources of the same type and common root
 
 	//remove the first source, as it is the one that specifies the multiImporter
 	//without it, we would have: multi, fs, ftp
@@ -371,9 +378,9 @@ func (snap *Builder) Backup(imp importer.Importer, options *BackupOptions) error
 	//snap.persistTrees should return list of vfsHeader, rootSummary and indexes so for now
 	//we just use the first one, its hackish but it works
 	snap.Header.Duration = time.Since(beginTime)
-	snap.Header.GetSource(0).VFS = *vfsHeader
-	snap.Header.GetSource(0).Summary = *rootSummary
-	snap.Header.GetSource(0).Indexes = indexes
+	//snap.Header.GetSource(0).VFS = *vfsHeader
+	//snap.Header.GetSource(0).Summary = *rootSummary
+	//snap.Header.GetSource(0).Indexes = indexes
 
 	return snap.Commit(backupCtx, !options.NoCommit)
 }
