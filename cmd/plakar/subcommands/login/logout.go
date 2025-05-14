@@ -46,12 +46,8 @@ type Logout struct {
 }
 
 func (cmd *Logout) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	if cache, err := ctx.GetCache().Repository(repo.Configuration().RepositoryID); err != nil {
-		return 1, fmt.Errorf("failed to get repository cache: %w", err)
-	} else if !cache.HasAuthToken() {
-		return 1, fmt.Errorf("not logged in")
-	} else if err := cache.DeleteAuthToken(); err != nil {
-		return 1, fmt.Errorf("could not log out: %w", err)
+	if repo.AppContext().GetCookies().HasAuthToken() {
+		repo.AppContext().GetCookies().DeleteAuthToken()
 	}
 	return 0, nil
 }

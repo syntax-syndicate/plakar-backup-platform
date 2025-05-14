@@ -26,7 +26,7 @@ func TestS3Backend(t *testing.T) {
 	defer ts.Close()
 
 	// create a repository
-	repo, err := NewStore(ctx, map[string]string{
+	repo, err := NewStore(ctx, "s3", map[string]string{
 		"location":          ts.URL + "/testbucket",
 		"access_key":        "",
 		"secret_access_key": "",

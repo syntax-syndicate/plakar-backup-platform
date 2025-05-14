@@ -20,6 +20,7 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/config"
+	"github.com/PlakarKorp/plakar/cookies"
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/objects"
@@ -142,6 +143,8 @@ func EntryPoint() int {
 	var opt_quiet bool
 	var opt_keyfile string
 	var opt_agentless bool
+	var opt_enableSecurityCheck bool
+	var opt_disableSecurityCheck bool
 
 	flag.StringVar(&opt_configfile, "config", opt_configDefault, "configuration file")
 	flag.IntVar(&opt_cpuCount, "cpu", opt_cpuDefault, "limit the number of usable cores")
@@ -154,6 +157,8 @@ func EntryPoint() int {
 	flag.BoolVar(&opt_quiet, "quiet", false, "no output except errors")
 	flag.StringVar(&opt_keyfile, "keyfile", "", "use passphrase from key file when prompted")
 	flag.BoolVar(&opt_agentless, "no-agent", false, "run without agent")
+	flag.BoolVar(&opt_enableSecurityCheck, "enable-security-check", false, "enable update check")
+	flag.BoolVar(&opt_disableSecurityCheck, "disable-security-check", false, "disable update check")
 
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [OPTIONS] [at REPOSITORY] COMMAND [COMMAND_OPTIONS]...\n", flag.CommandLine.Name())
@@ -188,7 +193,18 @@ func EntryPoint() int {
 		opt_agentless = true
 	}
 
+	// default cachedir
 	cacheSubDir := "plakar"
+
+	cookiesDir, err := utils.GetCacheDir(cacheSubDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: could not get cookies directory: %s\n", flag.CommandLine.Name(), err)
+		return 1
+	}
+	ctx.CookiesDir = cookiesDir
+	ctx.SetCookies(cookies.NewManager(cookiesDir))
+	defer ctx.GetCookies().Close()
+
 	if opt_agentless {
 		cacheSubDir = "plakar-agentless"
 	}
@@ -201,17 +217,42 @@ func EntryPoint() int {
 	ctx.SetCache(caching.NewManager(cacheDir))
 	defer ctx.GetCache().Close()
 
-	c := make(chan os.Signal, 1)
-	go func() {
-		<-c
-		fmt.Fprintf(os.Stderr, "%s: Interrupting, it might take a while...\n", flag.CommandLine.Name())
-		ctx.Cancel()
-	}()
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	if opt_disableSecurityCheck {
+		ctx.GetCookies().SetDisabledSecurityCheck()
+		fmt.Fprintln(ctx.Stdout, "security check disabled !")
+		return 1
+	} else {
+		opt_disableSecurityCheck = ctx.GetCookies().IsDisabledSecurityCheck()
+	}
+
+	if opt_enableSecurityCheck {
+		ctx.GetCookies().RemoveDisabledSecurityCheck()
+		fmt.Fprintln(ctx.Stdout, "security check enabled !")
+		return 1
+	}
+
+	if firstRun := ctx.GetCookies().IsFirstRun(); firstRun {
+		ctx.GetCookies().SetFirstRun()
+		if !opt_disableSecurityCheck {
+			fmt.Fprintln(ctx.Stdout, "Welcome to plakar !")
+			fmt.Fprintln(ctx.Stdout, "")
+			fmt.Fprintln(ctx.Stdout, "By default, plakar checks for security updates on the releases feed once every 24h.")
+			fmt.Fprintln(ctx.Stdout, "It will notify you if there are important updates that you need to install.")
+			fmt.Fprintln(ctx.Stdout, "")
+			fmt.Fprintln(ctx.Stdout, "If you prefer to watch yourself, you can disable this permanently by running:")
+			fmt.Fprintln(ctx.Stdout, "")
+			fmt.Fprintln(ctx.Stdout, "\tplakar -disable-security-check")
+			fmt.Fprintln(ctx.Stdout, "")
+			fmt.Fprintln(ctx.Stdout, "If you change your mind, run:")
+			fmt.Fprintln(ctx.Stdout, "")
+			fmt.Fprintln(ctx.Stdout, "\tplakar -enable-security-check")
+			fmt.Fprintln(ctx.Stdout, "")
+			fmt.Fprintln(ctx.Stdout, "EOT")
+		}
+	}
 
 	// best effort check if security or reliability fix have been issued
-	_, noCriticalChecks := os.LookupEnv("PLAKAR_NO_CRITICAL_CHECKS")
-	if noCriticalChecks {
+	if opt_disableSecurityCheck {
 		if rus, err := utils.CheckUpdate(ctx.CacheDir); err == nil {
 			if rus.SecurityFix || rus.ReliabilityFix {
 				concerns := ""
@@ -292,7 +333,7 @@ func EntryPoint() int {
 		logger.EnableInfo()
 	}
 	if opt_trace != "" {
-		logger.EnableTrace(opt_trace)
+		logger.EnableTracing(opt_trace)
 	}
 
 	ctx.SetLogger(logger)
@@ -337,149 +378,79 @@ func EntryPoint() int {
 		return 1
 	}
 
-	// create is a special case, it operates without a repository...
-	// but needs a repository location to store the new repository
-	if cmd.GetFlags()&subcommands.BeforeRepositoryWithStorage != 0 {
-		repo, err := repository.Inexistent(ctx, storeConfig)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-			return 1
-		}
-		defer repo.Close()
-
-		if err := cmd.Parse(ctx, args); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-			return 1
-		}
-
-		retval, err := cmd.Execute(ctx, repo)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-		}
-		return retval
-	}
-
 	// these commands need to be ran before the repository is opened
+
+	var store storage.Store
+	var repo *repository.Repository
+
 	if cmd.GetFlags()&subcommands.BeforeRepositoryOpen != 0 {
 		if at {
 			log.Fatalf("%s: %s command cannot be used with 'at' parameter.",
 				flag.CommandLine.Name(), strings.Join(name, " "))
 		}
-		if err := cmd.Parse(ctx, args); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-			return 1
-		}
-		retval, err := cmd.Execute(ctx, nil)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-		}
-		return retval
-	}
-
-	store, serializedConfig, err := storage.Open(ctx, storeConfig)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: failed to open the repository at %s: %s\n", flag.CommandLine.Name(), storeConfig["location"], err)
-		fmt.Fprintln(os.Stderr, "To specify an alternative repository, please use \"plakar at <location> <command>\".")
-		return 1
-	}
-
-	repoConfig, err := storage.NewConfigurationFromWrappedBytes(serializedConfig)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-		return 1
-	}
-
-	if repoConfig.Version != versioning.FromString(storage.VERSION) {
-		fmt.Fprintf(os.Stderr, "%s: incompatible repository version: %s != %s\n",
-			flag.CommandLine.Name(), repoConfig.Version, storage.VERSION)
-		return 1
-	}
-
-	var secret []byte
-	if repoConfig.Encryption != nil {
-		derived := false
-		envPassphrase := os.Getenv("PLAKAR_PASSPHRASE")
-		if ctx.KeyFromFile == "" {
-			if passphrase, ok := storeConfig["passphrase"]; ok {
-				key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, []byte(passphrase))
-				if err == nil {
-					if encryption.VerifyCanary(repoConfig.Encryption, key) {
-						secret = key
-						derived = true
-					}
-				}
-			} else {
-				for attempts := 0; attempts < 3; attempts++ {
-					var passphrase []byte
-					if envPassphrase == "" {
-						passphrase, err = utils.GetPassphrase("repository")
-						if err != nil {
-							break
-						}
-					} else {
-						passphrase = []byte(envPassphrase)
-					}
-
-					key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, passphrase)
-					if err != nil {
-						continue
-					}
-					if !encryption.VerifyCanary(repoConfig.Encryption, key) {
-						if envPassphrase != "" {
-							break
-						}
-						continue
-					}
-					secret = key
-					derived = true
-					break
-				}
-			}
-		} else {
-			key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, []byte(ctx.KeyFromFile))
-			if err == nil {
-				if encryption.VerifyCanary(repoConfig.Encryption, key) {
-					secret = key
-					derived = true
-				}
-			}
-		}
-		if !derived {
-			fmt.Fprintf(os.Stderr, "%s: could not derive secret\n", flag.CommandLine.Name())
-			os.Exit(1)
-		}
-		ctx.SetSecret(secret)
-	}
-
-	var repo *repository.Repository
-	if opt_agentless {
-		repo, err = repository.New(ctx, store, serializedConfig)
+		// store and repo can stay nil
+	} else if cmd.GetFlags()&subcommands.BeforeRepositoryWithStorage != 0 {
+		repo, err = repository.Inexistent(ctx, storeConfig)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
 		}
 	} else {
-		repo, err = repository.NewNoRebuild(ctx, store, serializedConfig)
+		var serializedConfig []byte
+		store, serializedConfig, err = storage.Open(ctx, storeConfig)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: failed to open the repository at %s: %s\n", flag.CommandLine.Name(), storeConfig["location"], err)
+			fmt.Fprintln(os.Stderr, "To specify an alternative repository, please use \"plakar at <location> <command>\".")
+			return 1
+		}
+
+		repoConfig, err := storage.NewConfigurationFromWrappedBytes(serializedConfig)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
 		}
+
+		if repoConfig.Version != versioning.FromString(storage.VERSION) {
+			fmt.Fprintf(os.Stderr, "%s: incompatible repository version: %s != %s\n",
+				flag.CommandLine.Name(), repoConfig.Version, storage.VERSION)
+			return 1
+		}
+
+		setupEncryption(ctx, repoConfig, storeConfig)
+
+		if opt_agentless {
+			repo, err = repository.New(ctx, store, serializedConfig)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+				return 1
+			}
+		} else {
+			repo, err = repository.NewNoRebuild(ctx, store, serializedConfig)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+				return 1
+			}
+		}
 	}
 
-	// commands below all operate on an open repository
 	t0 := time.Now()
 	if err := cmd.Parse(ctx, args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 		return 1
 	}
 
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
-		return 1
-	}
+	c := make(chan os.Signal, 1)
+	go func() {
+		<-c
+		fmt.Fprintf(os.Stderr, "%s: Interrupting, it might take a while...\n", flag.CommandLine.Name())
+		ctx.Cancel()
+	}()
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 	var status int
-	if opt_agentless || cmd.GetFlags()&subcommands.AgentSupport == 0 {
+
+	runWithoutAgent := opt_agentless || cmd.GetFlags()&subcommands.AgentSupport == 0
+	if repo != nil && runWithoutAgent {
 		var lerr error
 		var taskKind string
 		switch cmd.(type) {
@@ -497,16 +468,15 @@ func EntryPoint() int {
 			taskKind = "maintenance"
 		}
 
-		doReport := true
-		authToken, lerr := ctx.GetAuthToken(repo.Configuration().RepositoryID)
-		if lerr != nil || authToken == "" {
-			doReport = false
-		} else {
-			sc := services.NewServiceConnector(ctx, authToken)
-			if enabled, lerr := sc.GetServiceStatus("alerting"); lerr != nil {
-				doReport = false
-			} else if !enabled || taskKind == "" {
-				doReport = false
+		var doReport bool
+		if taskKind != "" {
+			authToken, err := ctx.GetAuthToken(repo.Configuration().RepositoryID)
+			if err == nil && authToken != "" {
+				sc := services.NewServiceConnector(ctx, authToken)
+				enabled, err := sc.GetServiceStatus("alerting")
+				if err == nil && enabled {
+					doReport = true
+				}
 			}
 		}
 
@@ -538,6 +508,8 @@ func EntryPoint() int {
 		} else if err != nil {
 			reporter.TaskFailed(0, "error: %s", err)
 		}
+	} else if runWithoutAgent {
+		status, err = cmd.Execute(ctx, repo)
 	} else {
 		status, err = agent.ExecuteRPC(ctx, name, cmd, storeConfig)
 	}
@@ -548,14 +520,18 @@ func EntryPoint() int {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), utils.SanitizeText(err.Error()))
 	}
 
-	err = repo.Close()
-	if err != nil {
-		logger.Warn("could not close repository: %s", err)
+	if repo != nil {
+		err = repo.Close()
+		if err != nil {
+			logger.Warn("could not close repository: %s", err)
+		}
 	}
 
-	err = store.Close()
-	if err != nil {
-		logger.Warn("could not close repository: %s", err)
+	if store != nil {
+		err = store.Close()
+		if err != nil {
+			logger.Warn("could not close repository: %s", err)
+		}
 	}
 
 	ctx.Close()
@@ -578,4 +554,69 @@ func EntryPoint() int {
 	}
 
 	return status
+}
+
+func setupEncryption(ctx *appcontext.AppContext, repoConfig *storage.Configuration, storeConfig map[string]string) {
+
+	if repoConfig.Encryption == nil {
+		return
+	}
+
+	var err error
+	var secret []byte
+
+	derived := false
+	envPassphrase := os.Getenv("PLAKAR_PASSPHRASE")
+	if ctx.KeyFromFile == "" {
+		if passphrase, ok := storeConfig["passphrase"]; ok {
+			key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, []byte(passphrase))
+			if err == nil {
+				if encryption.VerifyCanary(repoConfig.Encryption, key) {
+					secret = key
+					derived = true
+				}
+			}
+		} else {
+			for attempts := 0; attempts < 3; attempts++ {
+				var passphrase []byte
+				if envPassphrase == "" {
+					passphrase, err = utils.GetPassphrase("repository")
+					if err != nil {
+						break
+					}
+				} else {
+					passphrase = []byte(envPassphrase)
+				}
+
+				key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, passphrase)
+				if err != nil {
+					continue
+				}
+				if !encryption.VerifyCanary(repoConfig.Encryption, key) {
+					if envPassphrase != "" {
+						break
+					}
+					continue
+				}
+				secret = key
+				derived = true
+				break
+			}
+		}
+	} else {
+		key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, []byte(ctx.KeyFromFile))
+		if err == nil {
+			if encryption.VerifyCanary(repoConfig.Encryption, key) {
+				secret = key
+				derived = true
+			}
+		}
+	}
+
+	if !derived {
+		fmt.Fprintf(os.Stderr, "%s: could not derive secret\n", flag.CommandLine.Name())
+		os.Exit(1)
+	}
+
+	ctx.SetSecret(secret)
 }

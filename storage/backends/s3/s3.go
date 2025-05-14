@@ -54,7 +54,7 @@ func init() {
 	storage.Register(NewStore, "s3")
 }
 
-func NewStore(ctx *appcontext.AppContext, storeConfig map[string]string) (storage.Store, error) {
+func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]string) (storage.Store, error) {
 	var accessKey string
 	if value, ok := storeConfig["access_key"]; !ok {
 		return nil, fmt.Errorf("missing access_key")

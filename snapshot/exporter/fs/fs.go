@@ -36,16 +36,8 @@ func init() {
 
 func NewFSExporter(appCtx *appcontext.AppContext, name string, config map[string]string) (exporter.Exporter, error) {
 	return &FSExporter{
-		rootDir: config["location"],
+		rootDir: strings.TrimPrefix(config["location"], "fs://"),
 	}, nil
-}
-
-func (p *FSExporter) Begin(config string) error {
-	if strings.HasPrefix(config, "fs://") {
-		config = config[4:]
-	}
-	p.rootDir = config // duplicate for now, config might change later
-	return nil
 }
 
 func (p *FSExporter) Root() string {

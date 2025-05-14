@@ -56,7 +56,7 @@ func init() {
 	storage.Register(NewStore, "ptar")
 }
 
-func NewStore(ctx *appcontext.AppContext, storeConfig map[string]string) (storage.Store, error) {
+func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]string) (storage.Store, error) {
 	return &Store{
 		location: storeConfig["location"],
 	}, nil
@@ -71,10 +71,6 @@ func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
 	s.mode = storage.ModeRead | storage.ModeWrite
 
 	location := strings.TrimPrefix(s.location, "ptar://")
-	if location == "" {
-		return storage.ErrInvalidLocation
-	}
-
 	fp, err := os.OpenFile(location, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		return err
@@ -99,10 +95,6 @@ func (s *Store) Open(ctx *appcontext.AppContext) ([]byte, error) {
 	s.mode = storage.ModeRead
 
 	location := strings.TrimPrefix(s.location, "ptar://")
-	if location == "" {
-		return nil, storage.ErrInvalidLocation
-	}
-
 	fp, err := os.Open(location)
 	if err != nil {
 		return nil, err
