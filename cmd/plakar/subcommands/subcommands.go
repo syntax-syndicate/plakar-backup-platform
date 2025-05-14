@@ -27,11 +27,20 @@ type Subcommand interface {
 	GetRepositorySecret() []byte
 	GetFlags() CommandFlags
 	setFlags(CommandFlags)
+
+	GetLogInfo() bool
+	SetLogInfo(bool)
+	GetLogTraces() string
+	SetLogTraces(string)
 }
 
 type SubcommandBase struct {
 	RepositorySecret []byte
 	Flags            CommandFlags
+
+	// XXX - rework that post-release
+	LogInfo   bool
+	LogTraces string
 }
 
 func (cmd *SubcommandBase) setFlags(flags CommandFlags) {
@@ -40,6 +49,22 @@ func (cmd *SubcommandBase) setFlags(flags CommandFlags) {
 
 func (cmd *SubcommandBase) GetFlags() CommandFlags {
 	return cmd.Flags
+}
+
+func (cmd *SubcommandBase) GetLogInfo() bool {
+	return cmd.LogInfo
+}
+
+func (cmd *SubcommandBase) GetLogTraces() string {
+	return cmd.LogTraces
+}
+
+func (cmd *SubcommandBase) SetLogInfo(v bool) {
+	cmd.LogInfo = v
+}
+
+func (cmd *SubcommandBase) SetLogTraces(traces string) {
+	cmd.LogTraces = traces
 }
 
 func (cmd *SubcommandBase) GetRepositorySecret() []byte {

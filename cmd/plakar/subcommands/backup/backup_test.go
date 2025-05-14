@@ -10,6 +10,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/caching"
+	"github.com/PlakarKorp/plakar/cookies"
 	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
@@ -57,7 +58,7 @@ func generateFixtures(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 	ctx := appcontext.NewAppContext()
 
 	// create a storage
-	r, err := bfs.NewStore(ctx, map[string]string{"location": "fs://" + tmpRepoDir})
+	r, err := bfs.NewStore(ctx, "fs", map[string]string{"location": tmpRepoDir})
 	require.NotNil(t, r)
 	require.NoError(t, err)
 	config := storage.NewConfiguration()
@@ -81,6 +82,10 @@ func generateFixtures(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 	// create a repository
 	cache := caching.NewManager(tmpCacheDir)
 	ctx.SetCache(cache)
+
+	cookies := cookies.NewManager(tmpCacheDir)
+	ctx.SetCookies(cookies)
+	ctx.Client = "plakar-test/1.0.0"
 
 	// Create a new logger
 	logger := logging.NewLogger(bufOut, bufErr)

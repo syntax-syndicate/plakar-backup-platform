@@ -57,8 +57,10 @@ func NewExporter(ctx *appcontext.AppContext, config map[string]string) (Exporter
 
 	if proto == "fs" && !filepath.IsAbs(location) {
 		location = filepath.Join(ctx.CWD, location)
+		config["location"] = "fs://" + location
+	} else {
+		config["location"] = proto + "://" + location
 	}
 
-	config["location"] = location
 	return backend(ctx, proto, config)
 }

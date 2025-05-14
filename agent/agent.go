@@ -31,8 +31,7 @@ type Client struct {
 }
 
 var (
-	ErrRetryAgentless = errors.New("Failed to connect to agent, retry agentless")
-	ErrWrongVersion   = errors.New("agent has a different version")
+	ErrWrongVersion = errors.New("agent has a different version, did you restart after update?")
 )
 
 func ExecuteRPC(ctx *appcontext.AppContext, name []string, cmd subcommands.Subcommand, storeConfig map[string]string) (int, error) {
@@ -41,8 +40,7 @@ func ExecuteRPC(ctx *appcontext.AppContext, name []string, cmd subcommands.Subco
 		if errors.Is(err, ErrWrongVersion) {
 			ctx.GetLogger().Warn("%v", err)
 		}
-		ctx.GetLogger().Warn("failed to connect to agent, falling back to -no-agent")
-		return 1, ErrRetryAgentless
+		return 1, err
 	}
 	defer client.Close()
 
@@ -60,7 +58,10 @@ func ExecuteRPC(ctx *appcontext.AppContext, name []string, cmd subcommands.Subco
 func NewClient(socketPath string, ignoreVersion bool) (*Client, error) {
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to daemon: %w", err)
+		if _, ok := err.(*net.OpError); ok {
+			return nil, fmt.Errorf("agent is not running, please start it with `plakar agent`")
+		}
+		return nil, fmt.Errorf("failed to connect to daemon: %w %T", err, err)
 	}
 	encoder := msgpack.NewEncoder(conn)
 	decoder := msgpack.NewDecoder(conn)
@@ -101,6 +102,9 @@ func (c *Client) SendCommand(ctx *appcontext.AppContext, name []string, cmd subc
 	if cmd.GetFlags()&subcommands.AgentSupport == 0 {
 		return 1, fmt.Errorf("command %v doesn't support execution through agent", strings.Join(name, " "))
 	}
+
+	cmd.SetLogInfo(ctx.GetLogger().EnabledInfo)
+	cmd.SetLogTraces(ctx.GetLogger().EnabledTracing)
 
 	if err := subcommands.EncodeRPC(c.enc, name, cmd, storeConfig); err != nil {
 		return 1, err

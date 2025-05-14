@@ -37,11 +37,12 @@ type StdioImporter struct {
 }
 
 func init() {
-	importer.Register("stdin", NewStdioImporter)
+	//importer.Register("stdin", NewStdioImporter)
 }
 
 func NewStdioImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
 	location := config["location"]
+	location = strings.TrimPrefix(location, "stdin://")
 	if !strings.HasPrefix(location, "/") {
 		location = "/" + location
 	}

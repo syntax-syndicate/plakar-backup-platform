@@ -13,6 +13,7 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ls"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
+	"github.com/PlakarKorp/plakar/cookies"
 	"github.com/PlakarKorp/plakar/logging"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
@@ -53,6 +54,10 @@ func initContext(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer) (*app
 	cache := caching.NewManager(tmpCacheDir)
 	ctx.SetCache(cache)
 	ctx.MaxConcurrency = 1
+
+	cookies := cookies.NewManager("/tmp/test_plakar")
+	ctx.SetCookies(cookies)
+	ctx.Client = "plakar-test/1.0.0"
 
 	var logger *logging.Logger
 	if bufout == nil || buferr == nil {

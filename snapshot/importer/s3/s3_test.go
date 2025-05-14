@@ -32,7 +32,7 @@ func TestS3Importer(t *testing.T) {
 	ts := httptest.NewServer(faker.Server())
 	defer ts.Close()
 
-	tmpImportBucket := ts.Listener.Addr().String() + "/bucket"
+	tmpImportBucket := "s3://" + ts.Listener.Addr().String() + "/bucket"
 
 	backend.CreateBucket("bucket")
 	_, err = backend.PutObject("bucket", "dummy.txt", nil, fpOrigin, 16)

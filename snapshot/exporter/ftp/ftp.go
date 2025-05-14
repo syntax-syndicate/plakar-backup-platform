@@ -51,7 +51,7 @@ func init() {
 }
 
 func NewFTPExporter(appCtx *appcontext.AppContext, name string, config map[string]string) (exporter.Exporter, error) {
-	target := name + "://" + config["location"]
+	target := config["location"]
 
 	parsed, err := url.Parse(target)
 	if err != nil {

@@ -40,7 +40,7 @@ func init() {
 func NewSFTPImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
 	var err error
 
-	target := name + "://" + config["location"]
+	target := config["location"]
 
 	parsed, err := url.Parse(target)
 	if err != nil {
