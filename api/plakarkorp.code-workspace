@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../backend.plakar.io"
+		},
+		{
+			"path": "../../plakar-ui"
+		},
+		{
+			"path": "../../../PlakarIAC/provisioning"
+		},
+		{
+			"path": "../../plakar.io"
+		},
+		{
+			"path": "../../go-kloset-sdk"
+		}
+	],
+	"settings": {}
+}
