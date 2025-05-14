@@ -29,11 +29,11 @@ func NewLogger(stdout io.Writer, stderr io.Writer) *Logger {
 		enableTracing:   false,
 		stdoutLogger:    log.NewWithOptions(stdout, log.Options{}),
 		stderrLogger:    log.NewWithOptions(stderr, log.Options{}),
-		infoLogger:      log.NewWithOptions(stdout, log.Options{ReportTimestamp: true, Level: log.InfoLevel, Prefix: "info", TimeFormat: time.RFC3339}),
-		warnLogger:      log.NewWithOptions(stderr, log.Options{ReportTimestamp: true, Level: log.WarnLevel, Prefix: "warn", TimeFormat: time.RFC3339}),
-		debugLogger:     log.NewWithOptions(stdout, log.Options{ReportTimestamp: true, Level: log.DebugLevel, Prefix: "debug", TimeFormat: time.RFC3339}),
-		traceLogger:     log.NewWithOptions(stdout, log.Options{ReportTimestamp: true, Level: log.DebugLevel, Prefix: "trace", TimeFormat: time.RFC3339}),
-		errorLogger:     log.NewWithOptions(stderr, log.Options{ReportTimestamp: true, Level: log.ErrorLevel, Prefix: "error", TimeFormat: time.RFC3339}),
+		infoLogger:      log.NewWithOptions(stdout, log.Options{Level: log.InfoLevel, Prefix: "info", TimeFormat: time.RFC3339}),
+		warnLogger:      log.NewWithOptions(stderr, log.Options{Level: log.WarnLevel, Prefix: "warn", TimeFormat: time.RFC3339}),
+		debugLogger:     log.NewWithOptions(stdout, log.Options{Level: log.DebugLevel, Prefix: "debug", TimeFormat: time.RFC3339}),
+		traceLogger:     log.NewWithOptions(stdout, log.Options{Level: log.DebugLevel, Prefix: "trace", TimeFormat: time.RFC3339}),
+		errorLogger:     log.NewWithOptions(stderr, log.Options{Level: log.ErrorLevel, Prefix: "error", TimeFormat: time.RFC3339}),
 		traceSubsystems: make(map[string]bool),
 	}
 }

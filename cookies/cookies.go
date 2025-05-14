@@ -71,3 +71,34 @@ func (c *Manager) PutRepositoryCookie(repositoryId uuid.UUID, name string) error
 	_, err = os.Create(filepath.Join(c.cookiesDir, name))
 	return err
 }
+
+func (c *Manager) IsFirstRun() bool {
+	_, err := os.Stat(filepath.Join(c.cookiesDir, ".first-run"))
+	if os.IsNotExist(err) {
+		return true
+	} else if err != nil {
+		return false
+	}
+	return false
+}
+
+func (c *Manager) SetFirstRun() error {
+	return os.WriteFile(filepath.Join(c.cookiesDir, ".first-run"), []byte{}, 0600)
+}
+
+func (c *Manager) IsDisabledSecurityCheck() bool {
+	_, err := os.Stat(filepath.Join(c.cookiesDir, ".disabled-security-check"))
+	if os.IsNotExist(err) {
+		return false
+	} else {
+		return true
+	}
+}
+
+func (c *Manager) SetDisabledSecurityCheck() error {
+	return os.WriteFile(filepath.Join(c.cookiesDir, ".disabled-security-check"), []byte{}, 0600)
+}
+
+func (c *Manager) RemoveDisabledSecurityCheck() error {
+	return os.Remove(filepath.Join(c.cookiesDir, ".disabled-security-check"))
+}

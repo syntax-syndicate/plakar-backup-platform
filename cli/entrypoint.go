@@ -143,6 +143,8 @@ func EntryPoint() int {
 	var opt_quiet bool
 	var opt_keyfile string
 	var opt_agentless bool
+	var opt_enableSecurityCheck bool
+	var opt_disableSecurityCheck bool
 
 	flag.StringVar(&opt_configfile, "config", opt_configDefault, "configuration file")
 	flag.IntVar(&opt_cpuCount, "cpu", opt_cpuDefault, "limit the number of usable cores")
@@ -155,6 +157,8 @@ func EntryPoint() int {
 	flag.BoolVar(&opt_quiet, "quiet", false, "no output except errors")
 	flag.StringVar(&opt_keyfile, "keyfile", "", "use passphrase from key file when prompted")
 	flag.BoolVar(&opt_agentless, "no-agent", false, "run without agent")
+	flag.BoolVar(&opt_enableSecurityCheck, "enable-security-check", false, "enable update check")
+	flag.BoolVar(&opt_disableSecurityCheck, "disable-security-check", false, "disable update check")
 
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [OPTIONS] [at REPOSITORY] COMMAND [COMMAND_OPTIONS]...\n", flag.CommandLine.Name())
@@ -213,9 +217,42 @@ func EntryPoint() int {
 	ctx.SetCache(caching.NewManager(cacheDir))
 	defer ctx.GetCache().Close()
 
+	if opt_disableSecurityCheck {
+		ctx.GetCookies().SetDisabledSecurityCheck()
+		fmt.Fprintln(ctx.Stdout, "security check disabled !")
+		return 1
+	} else {
+		opt_disableSecurityCheck = ctx.GetCookies().IsDisabledSecurityCheck()
+	}
+
+	if opt_enableSecurityCheck {
+		ctx.GetCookies().RemoveDisabledSecurityCheck()
+		fmt.Fprintln(ctx.Stdout, "security check enabled !")
+		return 1
+	}
+
+	if firstRun := ctx.GetCookies().IsFirstRun(); firstRun {
+		ctx.GetCookies().SetFirstRun()
+		if !opt_disableSecurityCheck {
+			fmt.Fprintln(ctx.Stdout, "Welcome to plakar !")
+			fmt.Fprintln(ctx.Stdout, "")
+			fmt.Fprintln(ctx.Stdout, "By default, plakar checks for security updates on the releases feed once every 24h.")
+			fmt.Fprintln(ctx.Stdout, "It will notify you if there are important updates that you need to install.")
+			fmt.Fprintln(ctx.Stdout, "")
+			fmt.Fprintln(ctx.Stdout, "If you prefer to watch yourself, you can disable this permanently by running:")
+			fmt.Fprintln(ctx.Stdout, "")
+			fmt.Fprintln(ctx.Stdout, "\tplakar -disable-security-check")
+			fmt.Fprintln(ctx.Stdout, "")
+			fmt.Fprintln(ctx.Stdout, "If you change your mind, run:")
+			fmt.Fprintln(ctx.Stdout, "")
+			fmt.Fprintln(ctx.Stdout, "\tplakar -enable-security-check")
+			fmt.Fprintln(ctx.Stdout, "")
+			fmt.Fprintln(ctx.Stdout, "EOT")
+		}
+	}
+
 	// best effort check if security or reliability fix have been issued
-	_, noCriticalChecks := os.LookupEnv("PLAKAR_NO_CRITICAL_CHECKS")
-	if noCriticalChecks {
+	if opt_disableSecurityCheck {
 		if rus, err := utils.CheckUpdate(ctx.CacheDir); err == nil {
 			if rus.SecurityFix || rus.ReliabilityFix {
 				concerns := ""
