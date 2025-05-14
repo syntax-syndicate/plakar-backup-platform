@@ -266,7 +266,7 @@ func OpenSnapshotByPath(repo *repository.Repository, snapshotPath string) (*snap
 	if strings.HasPrefix(pathname, "/") {
 		snapRoot = pathname
 	} else {
-		snapRoot = path.Clean(path.Join(snap.Header.GetSource(0).Importer.Directory, pathname))
+		snapRoot = path.Clean(path.Join(snap.Header.GetSource(0).Importer.Directory, pathname)) //TODO: handle multi source (maybe add idx to the path, or as parameter (that wuold cause a lot of changes in the code))
 	}
 	return snap, path.Clean(snapRoot), err
 }

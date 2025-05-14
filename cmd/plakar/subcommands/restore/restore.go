@@ -19,6 +19,7 @@ package restore
 import (
 	"flag"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -184,12 +185,16 @@ func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 		if err != nil {
 			return 1, err
 		}
-		opts.Strip = snap.Header.GetSource(0).Importer.Directory
+		for _, source := range snap.Header.Sources {
 
-		err = snap.Restore(exporterInstance, exporterInstance.Root(), pathname, opts)
+			opts.Strip = source.Importer.Directory
+			log.Printf("restoring %s:%s to %s\n", snap.Header.GetIndexShortID(), pathname, cmd.Target)
 
-		if err != nil {
-			return 1, err
+			err = snap.Restore(exporterInstance, exporterInstance.Root(), pathname, opts)
+
+			if err != nil {
+				return 1, err //maybe we should continue on error and return a list of errors ?
+			}
 		}
 		ctx.GetLogger().Info("restore: restoration of %x:%s at %s completed successfully",
 			snap.Header.GetIndexShortID(),
