@@ -419,6 +419,11 @@ func handleClient(ctx *appcontext.AppContext, wg *sync.WaitGroup, conn net.Conn)
 		return
 	}
 
+	if subcommand.GetLogInfo() {
+		clientContext.GetLogger().EnableInfo()
+	}
+	clientContext.GetLogger().EnableTracing(subcommand.GetLogTraces())
+
 	ctx.GetLogger().Info("%s on %s", name, storeConfig["location"])
 
 	var store storage.Store
@@ -429,7 +434,7 @@ func handleClient(ctx *appcontext.AppContext, wg *sync.WaitGroup, conn net.Conn)
 	} else if subcommand.GetFlags()&subcommands.BeforeRepositoryWithStorage != 0 {
 		repo, err = repository.Inexistent(clientContext, storeConfig)
 		if err != nil {
-			ctx.GetLogger().Warn("Failed to open raw storage: %v", err)
+			clientContext.GetLogger().Warn("Failed to open raw storage: %v", err)
 			fmt.Fprintf(clientContext.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return
 		}
@@ -439,7 +444,7 @@ func handleClient(ctx *appcontext.AppContext, wg *sync.WaitGroup, conn net.Conn)
 		clientContext.SetSecret(subcommand.GetRepositorySecret())
 		store, serializedConfig, err = storage.Open(clientContext, storeConfig)
 		if err != nil {
-			ctx.GetLogger().Warn("Failed to open storage: %v", err)
+			clientContext.GetLogger().Warn("Failed to open storage: %v", err)
 			fmt.Fprintf(clientContext.Stderr, "Failed to open storage: %s\n", err)
 			return
 		}
@@ -447,7 +452,7 @@ func handleClient(ctx *appcontext.AppContext, wg *sync.WaitGroup, conn net.Conn)
 
 		repo, err = repository.New(clientContext, store, serializedConfig)
 		if err != nil {
-			ctx.GetLogger().Warn("Failed to open repository: %v", err)
+			clientContext.GetLogger().Warn("Failed to open repository: %v", err)
 			fmt.Fprintf(clientContext.Stderr, "Failed to open repository: %s\n", err)
 			return
 		}
@@ -460,7 +465,7 @@ func handleClient(ctx *appcontext.AppContext, wg *sync.WaitGroup, conn net.Conn)
 		for evt := range eventsChan {
 			serialized, err := events.Serialize(evt)
 			if err != nil {
-				ctx.GetLogger().Warn("Failed to serialize event: %v", err)
+				clientContext.GetLogger().Warn("Failed to serialize event: %v", err)
 				fmt.Fprintf(clientContext.Stderr, "Failed to serialize event: %s\n", err)
 				return
 			}

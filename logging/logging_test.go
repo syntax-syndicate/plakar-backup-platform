@@ -63,7 +63,7 @@ func TestLogger(t *testing.T) {
 
 	// Test EnableInfo
 	logger.EnableInfo()
-	if !logger.enableInfo {
+	if !logger.EnabledInfo {
 		t.Errorf("EnableInfo did not enable info logging")
 	}
 
@@ -82,8 +82,8 @@ func TestLogger(t *testing.T) {
 	bufOut.Reset()
 
 	// Test EnableTrace
-	logger.EnableTrace("subsystem")
-	if !logger.enableTracing {
+	logger.EnableTracing("subsystem")
+	if logger.EnabledTracing == "" {
 		t.Errorf("EnableTrace did not enable tracing")
 	}
 	if _, ok := logger.traceSubsystems["subsystem"]; !ok {
@@ -102,7 +102,7 @@ func TestLogger(t *testing.T) {
 	if bufOut.String() != "" {
 		t.Errorf("Trace should not produce output")
 	}
-	logger.EnableTrace("all")
+	logger.EnableTracing("all")
 	logger.Trace("unknown", "Test message")
 	if bufOut.String() != "trace: unknown: Test message\n" {
 		t.Errorf("Trace did not produce expected output")
