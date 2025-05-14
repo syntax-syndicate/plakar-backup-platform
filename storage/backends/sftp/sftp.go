@@ -49,7 +49,7 @@ func init() {
 	storage.Register(NewStore, "sftp")
 }
 
-func NewStore(ctx *appcontext.AppContext, storeConfig map[string]string) (storage.Store, error) {
+func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]string) (storage.Store, error) {
 	location := storeConfig["location"]
 	if location == "" {
 		return nil, fmt.Errorf("missing location")
@@ -71,10 +71,7 @@ func (s *Store) Location() string {
 }
 
 func (s *Store) Path(args ...string) string {
-	root := s.Location()
-	if strings.HasPrefix(root, "sftp://") {
-		root = root[7:]
-	}
+	root := strings.TrimPrefix(s.Location(), "sftp://")
 	atoms := strings.Split(root, "/")
 	if len(atoms) == 0 {
 		return "/"

@@ -5,7 +5,6 @@ import (
 	"iter"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/resources"
@@ -35,42 +34,6 @@ func newRepositoryCache(cacheManager *Manager, repositoryID uuid.UUID) (*_Reposi
 		cookiesDir:  cookiesDir,
 		PebbleCache: db,
 	}, nil
-}
-
-func (c *_RepositoryCache) GetAuthToken() (string, error) {
-	data, err := os.ReadFile(filepath.Join(c.cookiesDir, ".auth-token"))
-	if err != nil {
-		return "", err
-	}
-	if len(data) == 0 {
-		return "", fmt.Errorf("no auth token found")
-	}
-	return string(data), nil
-}
-
-func (c *_RepositoryCache) HasAuthToken() bool {
-	_, err := os.Stat(filepath.Join(c.cookiesDir, ".auth-token"))
-	return err == nil
-}
-
-func (c *_RepositoryCache) DeleteAuthToken() error {
-	return os.Remove(filepath.Join(c.cookiesDir, ".auth-token"))
-}
-
-func (c *_RepositoryCache) PutAuthToken(token string) error {
-	return os.WriteFile(filepath.Join(c.cookiesDir, ".auth-token"), []byte(token), 0600)
-}
-
-func (c *_RepositoryCache) HasCookie(name string) bool {
-	name = strings.ReplaceAll(name, "/", "_")
-	_, err := os.Stat(filepath.Join(c.cookiesDir, name))
-	return err == nil
-}
-
-func (c *_RepositoryCache) PutCookie(name string) error {
-	name = strings.ReplaceAll(name, "/", "_")
-	_, err := os.Create(filepath.Join(c.cookiesDir, name))
-	return err
 }
 
 func (c *_RepositoryCache) PutState(stateID objects.MAC, data []byte) error {

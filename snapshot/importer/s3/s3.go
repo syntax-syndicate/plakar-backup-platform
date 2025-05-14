@@ -21,6 +21,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -61,7 +62,7 @@ func connect(location *url.URL, useSsl bool, accessKeyID, secretAccessKey string
 }
 
 func NewS3Importer(ctx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
-	target := name + "://" + config["location"]
+	target := config["location"]
 
 	var accessKey string
 	if tmp, ok := config["access_key"]; !ok {
@@ -152,7 +153,7 @@ func (p *S3Importer) scanRecursive(prefix string, result chan *importer.ScanResu
 		0,
 		0,
 	)
-	result <- importer.NewScanRecord("/"+prefix, "", fi, nil)
+	result <- importer.NewScanRecord(path.Clean("/"+prefix), "", fi, nil)
 }
 
 func (p *S3Importer) Scan() (<-chan *importer.ScanResult, error) {

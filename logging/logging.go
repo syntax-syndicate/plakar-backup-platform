@@ -10,8 +10,8 @@ import (
 )
 
 type Logger struct {
-	enableInfo        bool
-	enableTracing     bool
+	EnabledInfo       bool
+	EnabledTracing    string
 	mutraceSubsystems sync.Mutex
 	traceSubsystems   map[string]bool
 	stdoutLogger      *log.Logger
@@ -25,15 +25,15 @@ type Logger struct {
 
 func NewLogger(stdout io.Writer, stderr io.Writer) *Logger {
 	return &Logger{
-		enableInfo:      false,
-		enableTracing:   false,
+		EnabledInfo:     false,
+		EnabledTracing:  "",
 		stdoutLogger:    log.NewWithOptions(stdout, log.Options{}),
 		stderrLogger:    log.NewWithOptions(stderr, log.Options{}),
-		infoLogger:      log.NewWithOptions(stdout, log.Options{ReportTimestamp: true, Level: log.InfoLevel, Prefix: "info", TimeFormat: time.RFC3339}),
-		warnLogger:      log.NewWithOptions(stderr, log.Options{ReportTimestamp: true, Level: log.WarnLevel, Prefix: "warn", TimeFormat: time.RFC3339}),
-		debugLogger:     log.NewWithOptions(stdout, log.Options{ReportTimestamp: true, Level: log.DebugLevel, Prefix: "debug", TimeFormat: time.RFC3339}),
-		traceLogger:     log.NewWithOptions(stdout, log.Options{ReportTimestamp: true, Level: log.DebugLevel, Prefix: "trace", TimeFormat: time.RFC3339}),
-		errorLogger:     log.NewWithOptions(stderr, log.Options{ReportTimestamp: true, Level: log.ErrorLevel, Prefix: "error", TimeFormat: time.RFC3339}),
+		infoLogger:      log.NewWithOptions(stdout, log.Options{Level: log.InfoLevel, Prefix: "info", TimeFormat: time.RFC3339}),
+		warnLogger:      log.NewWithOptions(stderr, log.Options{Level: log.WarnLevel, Prefix: "warn", TimeFormat: time.RFC3339}),
+		debugLogger:     log.NewWithOptions(stdout, log.Options{Level: log.DebugLevel, Prefix: "debug", TimeFormat: time.RFC3339}),
+		traceLogger:     log.NewWithOptions(stdout, log.Options{Level: log.DebugLevel, Prefix: "trace", TimeFormat: time.RFC3339}),
+		errorLogger:     log.NewWithOptions(stderr, log.Options{Level: log.ErrorLevel, Prefix: "error", TimeFormat: time.RFC3339}),
 		traceSubsystems: make(map[string]bool),
 	}
 }
@@ -46,6 +46,16 @@ func (l *Logger) SetOutput(w io.Writer) {
 	l.errorLogger.SetOutput(w)
 	l.debugLogger.SetOutput(w)
 	l.traceLogger.SetOutput(w)
+}
+
+func (l *Logger) SetSyslogOutput(w io.Writer) {
+	l.stdoutLogger = log.NewWithOptions(w, log.Options{Prefix: "stdout"})
+	l.stderrLogger = log.NewWithOptions(w, log.Options{Prefix: "stderr"})
+	l.infoLogger = log.NewWithOptions(w, log.Options{Level: log.InfoLevel, Prefix: "info"})
+	l.warnLogger = log.NewWithOptions(w, log.Options{Level: log.WarnLevel, Prefix: "warn"})
+	l.debugLogger = log.NewWithOptions(w, log.Options{Level: log.DebugLevel, Prefix: "debug"})
+	l.traceLogger = log.NewWithOptions(w, log.Options{Level: log.DebugLevel, Prefix: "trace"})
+	l.errorLogger = log.NewWithOptions(w, log.Options{Level: log.ErrorLevel, Prefix: "error"})
 }
 
 func (l *Logger) Printf(format string, args ...interface{}) {
@@ -61,7 +71,7 @@ func (l *Logger) Stderr(format string, args ...interface{}) {
 }
 
 func (l *Logger) Info(format string, args ...interface{}) {
-	if l.enableInfo {
+	if l.EnabledInfo {
 		l.infoLogger.Printf(format, args...)
 	}
 }
@@ -79,7 +89,7 @@ func (l *Logger) Debug(format string, args ...interface{}) {
 }
 
 func (l *Logger) Trace(subsystem string, format string, args ...interface{}) {
-	if l.enableTracing {
+	if l.EnabledTracing != "" {
 		l.mutraceSubsystems.Lock()
 		_, exists := l.traceSubsystems[subsystem]
 		if !exists {
@@ -93,11 +103,11 @@ func (l *Logger) Trace(subsystem string, format string, args ...interface{}) {
 }
 
 func (l *Logger) EnableInfo() {
-	l.enableInfo = true
+	l.EnabledInfo = true
 }
 
-func (l *Logger) EnableTrace(traces string) {
-	l.enableTracing = true
+func (l *Logger) EnableTracing(traces string) {
+	l.EnabledTracing = traces
 	l.traceSubsystems = make(map[string]bool)
 	for _, subsystem := range strings.Split(traces, ",") {
 		l.traceSubsystems[subsystem] = true

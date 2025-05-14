@@ -40,7 +40,7 @@ func init() {
 func NewSFTPExporter(appCtx *appcontext.AppContext, name string, config map[string]string) (exporter.Exporter, error) {
 	var err error
 
-	target := name + "://" + config["location"]
+	target := config["location"]
 
 	parsed, err := url.Parse(target)
 	if err != nil {
