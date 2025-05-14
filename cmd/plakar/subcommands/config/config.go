@@ -22,10 +22,13 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/agent"
 	"github.com/PlakarKorp/plakar/repository"
 )
 
 func init() {
+	subcommands.Register(func() subcommands.Subcommand { return &agent.AgentRestart{} },
+		subcommands.AgentSupport|subcommands.BeforeRepositoryOpen|subcommands.IgnoreVersion, "config", "reload")
 	subcommands.Register(func() subcommands.Subcommand { return &ConfigCmd{} },
 		subcommands.BeforeRepositoryOpen, "config")
 }
