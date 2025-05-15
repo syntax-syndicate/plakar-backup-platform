@@ -126,7 +126,7 @@ func (cmd *Sync) Parse(ctx *appcontext.AppContext, args []string) error {
 		return err
 	}
 
-	cmd.SourceRepositorySecret = ctx.GetSecret()
+	cmd.RepositorySecret = ctx.GetSecret()
 	cmd.PeerRepositoryLocation = peerRepositoryPath
 	cmd.PeerRepositorySecret = peerSecret
 	cmd.Direction = direction
@@ -137,7 +137,6 @@ func (cmd *Sync) Parse(ctx *appcontext.AppContext, args []string) error {
 type Sync struct {
 	subcommands.SubcommandBase
 
-	SourceRepositorySecret []byte
 	PeerRepositoryLocation string
 	PeerRepositorySecret   []byte
 
@@ -219,7 +218,7 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 			return 1, err
 		}
 
-		err := synchronize(srcRepository, dstRepository, snapshotID)
+		err := synchronize(ctx, srcRepository, dstRepository, snapshotID)
 		if err != nil {
 			ctx.GetLogger().Error("failed to synchronize snapshot %x from source repository %s: %s",
 				snapshotID[:4], srcRepository.Location(), err)
@@ -243,7 +242,7 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 			if err := ctx.Err(); err != nil {
 				return 1, err
 			}
-			err := synchronize(dstRepository, srcRepository, snapshotID)
+			err := synchronize(ctx, dstRepository, srcRepository, snapshotID)
 			if err != nil {
 				ctx.GetLogger().Error("failed to synchronize snapshot %x from peer repository %s: %s",
 					snapshotID[:4], dstRepository.Location(), err)
@@ -268,7 +267,8 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	return 0, nil
 }
 
-func synchronize(srcRepository, dstRepository *repository.Repository, snapshotID objects.MAC) error {
+func synchronize(ctx *appcontext.AppContext, srcRepository, dstRepository *repository.Repository, snapshotID objects.MAC) error {
+	ctx.GetLogger().Info("Synchronizing snapshot %x from %s to %s", snapshotID, srcRepository.Location(), dstRepository.Location())
 	srcSnapshot, err := snapshot.Load(srcRepository, snapshotID)
 	if err != nil {
 		return err
@@ -288,5 +288,8 @@ func synchronize(srcRepository, dstRepository *repository.Repository, snapshotID
 		return err
 	}
 
-	return dstSnapshot.Commit(nil, true)
+	err = dstSnapshot.Commit(nil, true)
+
+	ctx.GetLogger().Info("Synchronization of %x finished", snapshotID)
+	return err
 }

@@ -228,6 +228,8 @@ func (snap *Builder) importerJob(backupCtx *BackupContext, options *BackupOption
 func (snap *Builder) flushDeltaState(bc *BackupContext) {
 	for {
 		select {
+		case <-snap.repository.AppContext().Done():
+			return
 		case <-bc.flushEnd:
 			// End of backup we push the last and final State. No need to take any locks at this point.
 			err := snap.repository.CommitTransaction(bc.stateId)
@@ -652,28 +654,30 @@ func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importe
 	var cachedFileEntryMAC objects.MAC
 
 	// Check if the file entry and underlying objects are already in the cache
-	if data, err := vfsCache.GetFilename(record.Pathname); err != nil {
-		snap.Logger().Warn("VFS CACHE: Error getting filename: %v", err)
-	} else if data != nil {
-		cachedFileEntry, err = vfs.EntryFromBytes(data)
-		if err != nil {
-			snap.Logger().Warn("VFS CACHE: Error unmarshaling filename: %v", err)
-		} else {
-			cachedFileEntryMAC = snap.repository.ComputeMAC(data)
-			if (record.FileInfo.Size() == -1 && cachedFileEntry.Stat().EqualIgnoreSize(&record.FileInfo)) || cachedFileEntry.Stat().Equal(&record.FileInfo) {
-				fileEntry = cachedFileEntry
-				if fileEntry.FileInfo.Mode().IsRegular() {
-					data, err := vfsCache.GetObject(cachedFileEntry.Object)
-					if err != nil {
-						snap.Logger().Warn("VFS CACHE: Error getting object: %v", err)
-					} else if data != nil {
-						cachedObject, err := objects.NewObjectFromBytes(data)
+	if !record.IsXattr {
+		if data, err := vfsCache.GetFilename(record.Pathname); err != nil {
+			snap.Logger().Warn("VFS CACHE: Error getting filename: %v", err)
+		} else if data != nil {
+			cachedFileEntry, err = vfs.EntryFromBytes(data)
+			if err != nil {
+				snap.Logger().Warn("VFS CACHE: Error unmarshaling filename: %v", err)
+			} else {
+				cachedFileEntryMAC = snap.repository.ComputeMAC(data)
+				if (record.FileInfo.Size() == -1 && cachedFileEntry.Stat().EqualIgnoreSize(&record.FileInfo)) || cachedFileEntry.Stat().Equal(&record.FileInfo) {
+					fileEntry = cachedFileEntry
+					if fileEntry.FileInfo.Mode().IsRegular() {
+						data, err := vfsCache.GetObject(cachedFileEntry.Object)
 						if err != nil {
-							snap.Logger().Warn("VFS CACHE: Error unmarshaling object: %v", err)
-						} else {
-							object = cachedObject
-							objectMAC = snap.repository.ComputeMAC(data)
-							objectSerialized = data
+							snap.Logger().Warn("VFS CACHE: Error getting object: %v", err)
+						} else if data != nil {
+							cachedObject, err := objects.NewObjectFromBytes(data)
+							if err != nil {
+								snap.Logger().Warn("VFS CACHE: Error unmarshaling object: %v", err)
+							} else {
+								object = cachedObject
+								objectMAC = snap.repository.ComputeMAC(data)
+								objectSerialized = data
+							}
 						}
 					}
 				}
@@ -698,8 +702,11 @@ func (snap *Builder) processFileRecord(backupCtx *BackupContext, record *importe
 				return err
 			}
 			objectMAC = snap.repository.ComputeMAC(objectSerialized)
-			if err := vfsCache.PutObject(objectMAC, objectSerialized); err != nil {
-				return err
+
+			if !record.IsXattr {
+				if err := vfsCache.PutObject(objectMAC, objectSerialized); err != nil {
+					return err
+				}
 			}
 
 			if err := snap.repository.PutBlob(resources.RT_OBJECT, objectMAC, objectSerialized); err != nil {
