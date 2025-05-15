@@ -159,6 +159,7 @@ func (p *NotionImporter) Scan() (<-chan *importer.ScanResult, error) {
 				fInfo.Lmode = 0
 				fInfo.Lname = "test.json" //TODO: this should "content.json"
 				results <- importer.NewScanRecord(record.pathTo+"/"+b.ID+"/"+fInfo.Lname, "", fInfo, nil)
+				p.nReader++
 			}
 		}
 	}()
@@ -171,8 +172,6 @@ func (p *NotionImporter) Scan() (<-chan *importer.ScanResult, error) {
 }
 
 func (p *NotionImporter) NewReader(pathname string) (io.ReadCloser, error) {
-	p.nReader++
-
 	isBlock := false
 	if path.Base(pathname) == "test.json" {
 		isBlock = true

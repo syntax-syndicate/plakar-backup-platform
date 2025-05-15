@@ -83,7 +83,7 @@ func (p *NotionImporter) fetchAllPages(cursor string, results chan<- *importer.S
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		AddPagesToTree(response.Results, results)
+		AddPagesToTree(response.Results, results, &(p.nReader))
 	}()
 
 	if response.HasMore {
@@ -104,7 +104,7 @@ type PageNode struct {
 var nodeMap = make(map[string]*PageNode)           // PageID -> PageNode
 var waitingChildren = make(map[string][]*PageNode) // ParentID -> []*PageNode
 
-func AddPagesToTree(pages []Page, results chan<- *importer.ScanResult) {
+func AddPagesToTree(pages []Page, results chan<- *importer.ScanResult, nReader *int) {
 	for _, page := range pages {
 		id := page.ID
 		parentID := page.Parent.PageID
@@ -120,7 +120,7 @@ func AddPagesToTree(pages []Page, results chan<- *importer.ScanResult) {
 
 		// Determine if it's a root node
 		if parentID == "" {
-			propagateConnectionToRoot(node, results)
+			propagateConnectionToRoot(node, results, nReader)
 		} else {
 			if parent, ok := nodeMap[parentID]; ok {
 				// Attach to parent
@@ -129,7 +129,7 @@ func AddPagesToTree(pages []Page, results chan<- *importer.ScanResult) {
 
 				// Propagate connection if parent is already connected to root
 				if parent.ConnectedToRoot {
-					propagateConnectionToRoot(node, results)
+					propagateConnectionToRoot(node, results, nReader)
 				}
 			} else {
 				// Parent not yet known; defer
@@ -145,7 +145,7 @@ func AddPagesToTree(pages []Page, results chan<- *importer.ScanResult) {
 
 				// Propagate root connection if current node is connected
 				if node.ConnectedToRoot {
-					propagateConnectionToRoot(child, results)
+					propagateConnectionToRoot(child, results, nReader)
 				}
 			}
 			delete(waitingChildren, id)
@@ -153,15 +153,16 @@ func AddPagesToTree(pages []Page, results chan<- *importer.ScanResult) {
 	}
 }
 
-func propagateConnectionToRoot(node *PageNode, results chan<- *importer.ScanResult) {
+func propagateConnectionToRoot(node *PageNode, results chan<- *importer.ScanResult, nReader *int) {
 	if node.ConnectedToRoot {
 		return
 	}
 	node.ConnectedToRoot = true
 	results <- importer.NewScanRecord(GetPathToRoot(node), "", objects.NewFileInfo(node.Page.ID, 0, os.ModeDir, time.Time{}, 0, 0, 0, 0, 0), nil)
 	results <- importer.NewScanRecord(GetPathToRoot(node)+"/content.json", "", objects.NewFileInfo("content.json", 0, 0, time.Time{}, 0, 0, 0, 0, 0), nil)
+	*nReader++
 	for _, child := range node.Children {
-		propagateConnectionToRoot(child, results)
+		propagateConnectionToRoot(child, results, nReader)
 	}
 }
 
