@@ -111,7 +111,7 @@ func (fileinfo *FileInfo) Equal(fi *FileInfo) bool {
 	return fileinfo.Lname == fi.Lname &&
 		fileinfo.Lsize == fi.Lsize &&
 		fileinfo.Lmode == fi.Lmode &&
-		fileinfo.LmodTime == fi.LmodTime &&
+		fileinfo.LmodTime.Equal(fi.LmodTime) &&
 		fileinfo.Ldev == fi.Ldev &&
 		fileinfo.Lino == fi.Lino &&
 		fileinfo.Luid == fi.Luid &&
@@ -122,7 +122,7 @@ func (fileinfo *FileInfo) Equal(fi *FileInfo) bool {
 func (fileinfo *FileInfo) EqualIgnoreSize(fi *FileInfo) bool {
 	return fileinfo.Lname == fi.Lname &&
 		fileinfo.Lmode == fi.Lmode &&
-		fileinfo.LmodTime == fi.LmodTime &&
+		fileinfo.LmodTime.Equal(fi.LmodTime) &&
 		fileinfo.Ldev == fi.Ldev &&
 		fileinfo.Lino == fi.Lino &&
 		fileinfo.Luid == fi.Luid &&

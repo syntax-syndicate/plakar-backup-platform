@@ -68,38 +68,42 @@ func NewPackerManager(ctx *appcontext.AppContext, storageConfiguration *storage.
 }
 
 func (mgr *packerManager) Run() error {
-	packerResultChan := make(chan *packfile.PackFile, runtime.NumCPU())
+	concurrency := runtime.NumCPU()*2 + 1
+
+	packerResultChan := make(chan *packfile.PackFile, concurrency)
 
 	flusherGroup, _ := errgroup.WithContext(context.TODO())
-	flusherGroup.Go(func() error {
-		for pfile := range packerResultChan {
-			if pfile == nil || pfile.Size() == 0 {
-				continue
-			}
-
-			mgr.AddPadding(pfile, int(mgr.storageConf.Chunking.MinSize))
-
-			if err := mgr.flush(pfile); err != nil {
-				err = fmt.Errorf("failed to flush packer: %w", err)
-				for range packerResultChan {
+	for range concurrency {
+		flusherGroup.Go(func() error {
+			for pfile := range packerResultChan {
+				if pfile == nil || pfile.Size() == 0 {
+					continue
 				}
 
-				return err
-			}
+				mgr.AddPadding(pfile, int(mgr.storageConf.Chunking.MinSize))
 
-			for _, record := range pfile.Index {
-				mgr.inflightMACs[record.Type].Delete(record.MAC)
+				if err := mgr.flush(pfile); err != nil {
+					err = fmt.Errorf("failed to flush packer: %w", err)
+					for range packerResultChan {
+					}
+
+					return err
+				}
+
+				for _, record := range pfile.Index {
+					mgr.inflightMACs[record.Type].Delete(record.MAC)
+				}
 			}
-		}
-		return nil
-	})
+			return nil
+		})
+	}
 
 	// This needs to be context.Background (OR TODO for that matter), because
 	// it's a real worked / background task it's not tied to the backup
 	// pipeline and as such we might have valid packerManager.Put() happening
 	// while this background task was ripped under our feet.
 	workerGroup, workerCtx := errgroup.WithContext(context.TODO())
-	for i := 0; i < runtime.NumCPU(); i++ {
+	for range concurrency {
 		workerGroup.Go(func() error {
 			var pfile *packfile.PackFile
 
