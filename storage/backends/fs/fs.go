@@ -43,18 +43,18 @@ func init() {
 	storage.Register(NewStore, "fs")
 }
 
-func NewStore(ctx *appcontext.AppContext, storeConfig map[string]string) (storage.Store, error) {
+func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]string) (storage.Store, error) {
 	return &Store{
 		location: storeConfig["location"],
 	}, nil
 }
 
 func (s *Store) Location() string {
-	return strings.TrimPrefix(s.location, "fs://")
+	return s.location
 }
 
 func (s *Store) Path(args ...string) string {
-	root := s.Location()
+	root := strings.TrimPrefix(s.Location(), "fs://")
 
 	args = append(args, "")
 	copy(args[1:], args)
@@ -127,7 +127,8 @@ func (s *Store) Mode() storage.Mode {
 
 func (s *Store) Size() int64 {
 	var size int64
-	_ = filepath.WalkDir(s.Location(), func(_ string, d fs.DirEntry, err error) error {
+	location := strings.TrimPrefix(s.Location(), "fs://")
+	_ = filepath.WalkDir(location, func(_ string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

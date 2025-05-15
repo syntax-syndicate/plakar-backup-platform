@@ -52,7 +52,7 @@ func connect(location *url.URL, useSsl bool, accessKeyID, secretAccessKey string
 }
 
 func NewS3Exporter(ctx *appcontext.AppContext, name string, config map[string]string) (exporter.Exporter, error) {
-	target := name + "://" + config["location"]
+	target := config["location"]
 	var accessKey string
 	if tmp, ok := config["access_key"]; !ok {
 		return nil, fmt.Errorf("missing access_key")

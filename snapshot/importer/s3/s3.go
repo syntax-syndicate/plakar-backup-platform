@@ -21,10 +21,10 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -61,7 +61,7 @@ func connect(location *url.URL, useSsl bool, accessKeyID, secretAccessKey string
 }
 
 func NewS3Importer(ctx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
-	target := name + "://" + config["location"]
+	target := config["location"]
 
 	var accessKey string
 	if tmp, ok := config["access_key"]; !ok {
@@ -125,7 +125,7 @@ func (p *S3Importer) scanRecursive(prefix string, result chan *importer.ScanResu
 				0700,
 				object.LastModified,
 				1,
-				atomic.AddUint64(&p.ino, 1),
+				0,
 				0,
 				0,
 				0,
@@ -147,12 +147,12 @@ func (p *S3Importer) scanRecursive(prefix string, result chan *importer.ScanResu
 		0700|os.ModeDir,
 		time.Now(),
 		0,
-		atomic.AddUint64(&p.ino, 1),
+		0,
 		0,
 		0,
 		0,
 	)
-	result <- importer.NewScanRecord("/"+prefix, "", fi, nil)
+	result <- importer.NewScanRecord(path.Clean("/"+prefix), "", fi, nil)
 }
 
 func (p *S3Importer) Scan() (<-chan *importer.ScanResult, error) {

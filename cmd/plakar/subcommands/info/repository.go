@@ -13,7 +13,6 @@ import (
 
 type InfoRepository struct {
 	subcommands.SubcommandBase
-	RepositorySecret []byte
 }
 
 func (cmd *InfoRepository) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -111,25 +110,6 @@ func (cmd *InfoRepository) Execute(ctx *appcontext.AppContext, repo *repository.
 
 	fmt.Fprintf(ctx.Stdout, "Storage size: %s (%d bytes)\n", humanize.Bytes(uint64(storageSize)), uint64(storageSize))
 	fmt.Fprintf(ctx.Stdout, "Logical size: %s (%d bytes)\n", humanize.Bytes(uint64(logicalSize)), logicalSize)
-
-	efficiency := float64(0)
-	if storageSize == -1 || logicalSize == 0 {
-		efficiency = -1
-	} else {
-		usagePercent := (float64(storageSize) / float64(logicalSize)) * 100
-		if usagePercent <= 100 {
-			savings := 100 - usagePercent
-			efficiency = savings
-		} else {
-			increase := usagePercent - 100
-			if increase > 100 {
-				efficiency = -1
-			} else {
-				efficiency = -1 * increase
-			}
-		}
-	}
-	fmt.Fprintf(ctx.Stdout, "Storage efficiency: %.2f%%\n", efficiency)
 
 	return 0, nil
 }

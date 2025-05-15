@@ -65,9 +65,7 @@ type Services struct {
 }
 
 func (cmd *Services) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	if cache, err := ctx.GetCache().Repository(repo.Configuration().RepositoryID); err != nil {
-		return 1, err
-	} else if authToken, err := cache.GetAuthToken(); err != nil {
+	if authToken, err := ctx.GetCookies().GetAuthToken(); err != nil {
 		return 1, err
 	} else if authToken == "" {
 		return 1, fmt.Errorf("access to services requires login, please run `plakar login`")

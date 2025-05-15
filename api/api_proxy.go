@@ -77,6 +77,15 @@ type AlertServiceConfiguration struct {
 func servicesGetAlertingServiceConfiguration(w http.ResponseWriter, r *http.Request) error {
 	authToken, _ := lrepository.AppContext().GetAuthToken(lrepository.Configuration().RepositoryID)
 
+	if authToken == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error":   "authorization_error",
+			"message": "Authorization required",
+		})
+		return nil
+	}
+
 	sc := services.NewServiceConnector(lrepository.AppContext(), authToken)
 	enabled, err := sc.GetServiceStatus("alerting")
 	if err != nil {
@@ -105,6 +114,15 @@ func servicesGetAlertingServiceConfiguration(w http.ResponseWriter, r *http.Requ
 
 func servicesSetAlertingServiceConfiguration(w http.ResponseWriter, r *http.Request) error {
 	authToken, _ := lrepository.AppContext().GetAuthToken(lrepository.Configuration().RepositoryID)
+
+	if authToken == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error":   "authorization_error",
+			"message": "Authorization required",
+		})
+		return nil
+	}
 
 	var alertConfig AlertServiceConfiguration
 	if err := json.NewDecoder(r.Body).Decode(&alertConfig); err != nil {
