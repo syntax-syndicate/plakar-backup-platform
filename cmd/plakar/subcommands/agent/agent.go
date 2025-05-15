@@ -32,21 +32,14 @@ import (
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/backup"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/maintenance"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
-	syncSubcmd "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/events"
 	"github.com/PlakarKorp/plakar/logging"
-	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/reporting"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/scheduler"
-	"github.com/PlakarKorp/plakar/services"
 	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/plakar/task"
+
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -478,63 +471,7 @@ func handleClient(ctx *appcontext.AppContext, wg *sync.WaitGroup, conn net.Conn)
 		eventsDone <- struct{}{}
 	}()
 
-	var taskKind string
-	switch subcommand.(type) {
-	case *backup.Backup:
-		taskKind = "backup"
-	case *check.Check:
-		taskKind = "check"
-	case *restore.Restore:
-		taskKind = "restore"
-	case *syncSubcmd.Sync:
-		taskKind = "sync"
-	case *rm.Rm:
-		taskKind = "rm"
-	case *maintenance.Maintenance:
-		taskKind = "maintenance"
-	}
-
-	var doReport bool
-	if repo != nil && taskKind != "" {
-		authToken, err := clientContext.GetAuthToken(repo.Configuration().RepositoryID)
-		if err == nil && authToken != "" {
-			sc := services.NewServiceConnector(clientContext, authToken)
-			enabled, err := sc.GetServiceStatus("alerting")
-			if err == nil && enabled {
-				doReport = true
-			}
-		}
-	}
-
-	reporter := reporting.NewReporter(doReport, repo, ctx.GetLogger())
-	reporter.TaskStart(taskKind, "@agent")
-	reporter.WithRepositoryName(storeConfig["location"])
-	if repo != nil {
-		reporter.WithRepository(repo)
-	}
-
-	var status int
-	var snapshotID objects.MAC
-	var warning error
-	if _, ok := subcommand.(*backup.Backup); ok {
-		subcommand := subcommand.(*backup.Backup)
-		status, err, snapshotID, warning = subcommand.DoBackup(clientContext, repo)
-		if err == nil {
-			reporter.WithSnapshotID(snapshotID)
-		}
-	} else {
-		status, err = subcommand.Execute(clientContext, repo)
-	}
-
-	if status == 0 {
-		if warning != nil {
-			reporter.TaskWarning("warning: %s", warning)
-		} else {
-			reporter.TaskDone()
-		}
-	} else if err != nil {
-		reporter.TaskFailed(0, "error: %s", err)
-	}
+	status, err := task.RunCommand(clientContext, subcommand, repo, "@agent")
 
 	errStr := ""
 	if err != nil {

@@ -23,21 +23,16 @@ import (
 	"github.com/PlakarKorp/plakar/cookies"
 	"github.com/PlakarKorp/plakar/encryption"
 	"github.com/PlakarKorp/plakar/logging"
-	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/reporting"
 	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/services"
 	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/plakar/task"
 	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/denisbrodbeck/machineid"
 	"github.com/google/uuid"
 
-	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/agent"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/archive"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/backup"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/backup"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/cat"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/clone"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/config"
@@ -50,17 +45,13 @@ import (
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/locate"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/login"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ls"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/maintenance"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/maintenance"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/mount"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ptar"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/server"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/services"
-	syncSubcmd "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ui"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/version"
 
@@ -451,65 +442,7 @@ func EntryPoint() int {
 
 	runWithoutAgent := opt_agentless || cmd.GetFlags()&subcommands.AgentSupport == 0
 	if repo != nil && runWithoutAgent {
-		var lerr error
-		var taskKind string
-		switch cmd.(type) {
-		case *backup.Backup:
-			taskKind = "backup"
-		case *check.Check:
-			taskKind = "check"
-		case *restore.Restore:
-			taskKind = "restore"
-		case *syncSubcmd.Sync:
-			taskKind = "sync"
-		case *rm.Rm:
-			taskKind = "rm"
-		case *maintenance.Maintenance:
-			taskKind = "maintenance"
-		}
-
-		var doReport bool
-		if taskKind != "" {
-			authToken, err := ctx.GetAuthToken(repo.Configuration().RepositoryID)
-			if err == nil && authToken != "" {
-				sc := services.NewServiceConnector(ctx, authToken)
-				enabled, err := sc.GetServiceStatus("alerting")
-				if err == nil && enabled {
-					doReport = true
-				}
-			}
-		}
-
-		reporter := reporting.NewReporter(doReport, repo, ctx.GetLogger())
-		reporter.TaskStart(taskKind, "@agentless")
-		reporter.WithRepositoryName(storeConfig["location"])
-		reporter.WithRepository(repo)
-
-		var status int
-		var snapshotID objects.MAC
-		var warning error
-		if _, ok := cmd.(*backup.Backup); ok {
-			subcommand := cmd.(*backup.Backup)
-			status, lerr, snapshotID, warning = subcommand.DoBackup(ctx, repo)
-			if lerr == nil {
-				reporter.WithSnapshotID(snapshotID)
-			}
-		} else {
-			status, lerr = cmd.Execute(ctx, repo)
-		}
-		err = lerr
-
-		if status == 0 {
-			if warning != nil {
-				reporter.TaskWarning("warning: %s", warning)
-			} else {
-				reporter.TaskDone()
-			}
-		} else if err != nil {
-			reporter.TaskFailed(0, "error: %s", err)
-		}
-	} else if runWithoutAgent {
-		status, err = cmd.Execute(ctx, repo)
+		status, err = task.RunCommand(ctx, cmd, repo, "@agentless")
 	} else {
 		status, err = agent.ExecuteRPC(ctx, name, cmd, storeConfig)
 	}
