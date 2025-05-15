@@ -6,12 +6,12 @@ plakar provides an intuitive, powerful, and scalable backup solution.
 
 Plakar goes beyond file-level backups. It captures application data with its full context.
 
-Data and context are stored using [Kloset](http://localhost:1313/posts/2025-04-29/kloset-the-immutable-data-store/), an open-source, immutable data store that enables the implementation of advanced data protection scenarios.
+Data and context are stored using [Kloset](https://plakar.io/posts/2025-04-29/kloset-the-immutable-data-store/), an open-source, immutable data store that enables the implementation of advanced data protection scenarios.
 
 Plakar's main strengths:
 - **Effortless**: Easy to use, clean default. Check out our [quick start guide](https://docs.plakar.io/en/quickstart/).
-- **Secure**: Provide audited end-to-end encryption for data and metadata. See our latest [crypto audit report](http://localhost:1313/docs/audits/).
-- **Reliable**: Backups are stored in Kloset, an open-source immutable data store. Learn more about [Kloset](http://localhost:1313/posts/2025-04-29/kloset-the-immutable-data-store/).
+- **Secure**: Provide audited end-to-end encryption for data and metadata. See our latest [crypto audit report](https://plakar.io/docs/audits/).
+- **Reliable**: Backups are stored in Kloset, an open-source immutable data store. Learn more about [Kloset](https://plakar.io/posts/2025-04-29/kloset-the-immutable-data-store/).
 - **Vertically scalable**: Backup and restore very large datasets with limited RAM usage.
 - **Horizontally scalable**: Support high concurrency and multiple backups type in a single Kloset.
 - **Browsable**: Browse, sort, search, and compare backups using the Plakar UI.
