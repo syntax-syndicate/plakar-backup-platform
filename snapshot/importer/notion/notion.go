@@ -126,6 +126,7 @@ func (p *NotionImporter) Scan() (<-chan *importer.ScanResult, error) {
 			type block struct {
 				ID          string `json:"id"`
 				HasChildren bool   `json:"has_children"`
+				Type        string `json:"type"`
 			}
 			var b block
 			if err := json.Unmarshal(record.Block, &b); err != nil {
@@ -133,7 +134,7 @@ func (p *NotionImporter) Scan() (<-chan *importer.ScanResult, error) {
 				continue
 			}
 			log.Printf("block: %s, %b", b.ID, b.HasChildren)
-			if b.HasChildren {
+			if b.HasChildren && b.Type != "child_page" {
 				fInfo := objects.NewFileInfo(
 					b.ID,
 					0,
