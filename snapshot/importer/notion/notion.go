@@ -17,8 +17,10 @@
 package notion
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path"
 	"sync"
@@ -94,23 +96,75 @@ func (p *NotionImporter) Scan() (<-chan *importer.ScanResult, error) {
 	// 1. how do we know when all readers are done? (p.nReader == 0 is not enough,
 	//	  is the last reader done, or not even started?)
 	// 2. how do we know when all records are processed?
+	log.Printf("version: %d", 1)
+
+	log.Println("waiting for scan to finish")
+
+	done := make(chan struct{}, 1)
+	done <- struct{}{}
+	go func() {
+		wg.Wait()
+		<-done
+		close(done)
+	}()
+
+	log.Println("done routine started")
+
 	var wg2 sync.WaitGroup
 	wg2.Add(1)
 	go func() {
 		defer wg2.Done()
 
 		for {
+			log.Println("waiting for record")
+			if len(done) == 0 {
+				log.Println("is done ?")
+				// all scan are done, check if there are any readers left
+				if p.nReader == 0 && len(results) == 0 && len(p.notionChan) == 0 { //technically, not concurrently safe (condition can be true at a non-wanted time)
+					log.Println("all done")
+					return
+				}
+				time.Sleep(1 * time.Second)
+			}
+			log.Printf("nReader: %d", p.nReader)
 			record := <-p.notionChan
 			if record.EOF == true {
 				p.nReader--
 				continue
 			}
 			// do something with the record
+			type block struct {
+				ID          string `json:"id"`
+				HasChildren bool   `json:"has_children"`
+			}
+			var b block
+			if err := json.Unmarshal(record.Block, &b); err != nil {
+				results <- importer.NewScanError("", err)
+				continue
+			}
+			log.Printf("block: %s, %b", b.ID, b.HasChildren)
+			if b.HasChildren {
+				fInfo := objects.NewFileInfo(
+					b.ID,
+					0,
+					os.ModeDir,
+					time.Time{},
+					0,
+					0,
+					0,
+					0,
+					0,
+				)
+				results <- importer.NewScanRecord(record.pathTo+"/"+b.ID, "", fInfo, nil)
+				fInfo.Lmode = 0
+				fInfo.Lname = "test.json" //TODO: this should "content.json"
+				results <- importer.NewScanRecord(record.pathTo+"/"+b.ID+"/"+fInfo.Lname, "", fInfo, nil)
+			}
 		}
 	}()
 
 	go func() {
-		wg.Wait()
+		wg2.Wait()
 		close(results)
 	}()
 	return results, nil
@@ -118,8 +172,14 @@ func (p *NotionImporter) Scan() (<-chan *importer.ScanResult, error) {
 
 func (p *NotionImporter) NewReader(pathname string) (io.ReadCloser, error) {
 	p.nReader++
+
+	isBlock := false
+	if path.Base(pathname) == "test.json" {
+		isBlock = true
+	}
+
 	file := path.Base(path.Dir(pathname))
-	nRd, err := NewNotionReader(p.token, file, p.notionChan)
+	nRd, err := NewNotionReader(p.token, file, path.Dir(pathname), isBlock, p.notionChan)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Notion reader: %w", err)
 	}

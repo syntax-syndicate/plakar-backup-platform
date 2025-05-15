@@ -77,6 +77,15 @@ func (p *NotionExporter) StoreFile(pathname string, fp io.Reader, size int64) er
 			log.Printf("page ID %s not found in map", parentID)
 			return fmt.Errorf("page ID %s not found in map", parentID)
 		}
+	} else if parent["type"] == "block_id" {
+		// Replace the block_id with the new one
+		blockID := parent["block_id"].(string)
+		if id, ok := pageIDMap[blockID]; ok {
+			parent["block_id"] = id
+		} else {
+			log.Printf("block ID %s not found in map", blockID)
+			return fmt.Errorf("block ID %s not found in map", blockID)
+		}
 	} else { //TODO: add database parent type
 		return fmt.Errorf("invalid parent type: %s", parent["type"])
 	}
@@ -214,5 +223,6 @@ func (p *NotionExporter) SetPermissions(pathname string, fileinfo *objects.FileI
 }
 
 func (p *NotionExporter) Close() error {
+	pageIDMap = map[string]string{}
 	return nil
 }

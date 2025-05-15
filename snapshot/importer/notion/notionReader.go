@@ -18,6 +18,8 @@ type NotionReader struct {
 	buf             *bytes.Buffer
 	token           string
 	pageID          string
+	path            string
+	isBlock         bool
 	cursor          string
 	done            bool
 	blockOpen       bool
@@ -27,8 +29,9 @@ type NotionReader struct {
 }
 
 type notionRecord struct {
-	Block json.RawMessage
-	EOF   bool
+	Block  json.RawMessage
+	pathTo string
+	EOF    bool
 }
 
 type BlockResponse struct {
@@ -37,17 +40,23 @@ type BlockResponse struct {
 	NextCursor string            `json:"next_cursor"`
 }
 
-func NewNotionReader(token, pageID string, recordChan chan<- notionRecord) (*NotionReader, error) {
+func NewNotionReader(token, pageID, path string, isBlock bool, recordChan chan<- notionRecord) (*NotionReader, error) {
 	nRd := &NotionReader{
 		buf:             new(bytes.Buffer),
 		token:           token,
 		pageID:          pageID,
+		path:            path,
+		isBlock:         isBlock,
 		cursor:          "",
 		done:            false,
 		blockOpen:       false,
 		first:           true,
 		wroteFirstBlock: false,
 		recordChan:      recordChan,
+	}
+	if isBlock {
+		nRd.buf.WriteString("{\"children\":[")
+		return nRd, nil
 	}
 	pageHeader, err := nRd.fetchPageHeader()
 	if err != nil {
@@ -119,7 +128,7 @@ func (nr *NotionReader) Read(p []byte) (int, error) {
 
 		// Send each block as a notionRecord to the channel
 		for _, block := range blockResp.Results {
-			nr.recordChan <- notionRecord{Block: block, EOF: false}
+			nr.recordChan <- notionRecord{Block: block, EOF: false, pathTo: nr.path}
 		}
 
 		if !blockResp.HasMore {
