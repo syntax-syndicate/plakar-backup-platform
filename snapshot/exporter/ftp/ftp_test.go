@@ -41,7 +41,7 @@ func TestExporter(t *testing.T) {
 	// Create the exporter
 	appCtx := appcontext.NewAppContext()
 	exporter, err := NewFTPExporter(appCtx, "ftp", map[string]string{
-		"location": server.Addr + "/",
+		"location": "ftp://" + server.Addr + "/",
 		"username": "test",
 		"password": "test",
 	})
