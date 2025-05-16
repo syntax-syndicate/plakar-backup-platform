@@ -28,7 +28,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 	"unicode"
 
@@ -152,9 +151,9 @@ func CheckUpdate(cachedir string) (update ReleaseUpdateSummary, err error) {
 	return
 }
 
-func GetPassphrase(prefix string) ([]byte, error) {
-	fmt.Fprintf(os.Stderr, "%s passphrase: ", prefix)
-	passphrase, err := term.ReadPassword(int(syscall.Stdin))
+func readpassphrase(in, out *os.File, prefix string) ([]byte, error) {
+	fmt.Fprint(out, prefix)
+	passphrase, err := term.ReadPassword(int(in.Fd()))
 	fmt.Fprintf(os.Stderr, "\n")
 	if err != nil {
 		return nil, err
@@ -162,10 +161,30 @@ func GetPassphrase(prefix string) ([]byte, error) {
 	return passphrase, nil
 }
 
+func GetPassphrase(prefix string) ([]byte, error) {
+	var in, out = os.Stdin, os.Stderr
+
+	// use the tty for I/O if possible
+	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+	if err == nil {
+		in, out = tty, tty
+		defer tty.Close()
+	}
+
+	return readpassphrase(in, out, prefix+" passphrase: ")
+}
+
 func GetPassphraseConfirm(prefix string, minEntropyBits float64) ([]byte, error) {
-	fmt.Fprintf(os.Stderr, "%s passphrase: ", prefix)
-	passphrase1, err := term.ReadPassword(int(syscall.Stdin))
-	fmt.Fprintf(os.Stderr, "\n")
+	var in, out = os.Stdin, os.Stderr
+
+	// use the tty for I/O if possible
+	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+	if err == nil {
+		in, out = tty, tty
+		defer tty.Close()
+	}
+
+	passphrase1, err := readpassphrase(in, out, prefix+" passphrase: ")
 	if err != nil {
 		return nil, err
 	}
@@ -176,9 +195,7 @@ func GetPassphraseConfirm(prefix string, minEntropyBits float64) ([]byte, error)
 		return nil, fmt.Errorf("passphrase is too weak: %s", err)
 	}
 
-	fmt.Fprintf(os.Stderr, "%s passphrase (confirm): ", prefix)
-	passphrase2, err := term.ReadPassword(int(syscall.Stdin))
-	fmt.Fprintf(os.Stderr, "\n")
+	passphrase2, err := readpassphrase(in, out, prefix+" passphrase (confirm): ")
 	if err != nil {
 		return nil, err
 	}
