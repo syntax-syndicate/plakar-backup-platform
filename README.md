@@ -1,17 +1,25 @@
 # plakar - Effortless backup
 
+## Plakar V1.0.1 released
+
+We are proud to announce the release of Plakar v1.0.1, our first stable and production-ready version.
+
+This release marks the transition of Plakar from an experimental engine to a mature, extensible platform ready for real-world usage in both personal and enterprise contexts.
+
+Technical blog post: [Here](https://www.plakar.io/posts/2025-05-01/introducing-plakar-v1.0-to-redefine-open-source-data-protection-with-3m-funding/)
+
 ## Introduction
 
 plakar provides an intuitive, powerful, and scalable backup solution.
 
 Plakar goes beyond file-level backups. It captures application data with its full context.
 
-Data and context are stored using [Kloset](https://plakar.io/posts/2025-04-29/kloset-the-immutable-data-store/), an open-source, immutable data store that enables the implementation of advanced data protection scenarios.
+Data and context are stored using [Kloset](https://www.plakar.io/posts/2025-04-29/kloset-the-immutable-data-store/), an open-source, immutable data store that enables the implementation of advanced data protection scenarios.
 
 Plakar's main strengths:
 - **Effortless**: Easy to use, clean default. Check out our [quick start guide](https://docs.plakar.io/en/quickstart/).
-- **Secure**: Provide audited end-to-end encryption for data and metadata. See our latest [crypto audit report](https://plakar.io/docs/audits/).
-- **Reliable**: Backups are stored in Kloset, an open-source immutable data store. Learn more about [Kloset](https://plakar.io/posts/2025-04-29/kloset-the-immutable-data-store/).
+- **Secure**: Provide audited end-to-end encryption for data and metadata. See our latest [crypto audit report](https://www.plakar.io/docs/audits/).
+- **Reliable**: Backups are stored in Kloset, an open-source immutable data store. Learn more about [Kloset](https://www.plakar.io/posts/2025-04-29/kloset-the-immutable-data-store/).
 - **Vertically scalable**: Backup and restore very large datasets with limited RAM usage.
 - **Horizontally scalable**: Support high concurrency and multiple backups type in a single Kloset.
 - **Browsable**: Browse, sort, search, and compare backups using the Plakar UI.
@@ -94,9 +102,3 @@ you can read the documentation available at https://docs.plakar.io
 ## Community
 
 You can join our very active [Discord](https://discord.gg/uuegtnF2Q5) to discuss the project !
-
-## Warning
-
-plakar is currently in beta and **NOT** production ready yet but it is most definitely stable enough to be tested by others.
-
-Feel free to give it a try, give feedback on what you like/dislike and report bugs.
