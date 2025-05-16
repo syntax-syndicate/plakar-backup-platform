@@ -5,12 +5,21 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/pprof"
+	"strings"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/btree"
-	"github.com/PlakarKorp/plakar/snapshot/importer/fs"
+	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
+	"github.com/PlakarKorp/plakar/config"
+	"github.com/PlakarKorp/plakar/snapshot/importer"
+	_ "github.com/PlakarKorp/plakar/snapshot/importer/fs"
+	_ "github.com/PlakarKorp/plakar/snapshot/importer/ftp"
+	_ "github.com/PlakarKorp/plakar/snapshot/importer/s3"
+	_ "github.com/PlakarKorp/plakar/snapshot/importer/sftp"
+	_ "github.com/PlakarKorp/plakar/snapshot/importer/stdio"
 	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/cockroachdb/pebble/v2"
 	"github.com/vmihailenco/msgpack/v5"
@@ -24,6 +33,16 @@ type pebbleStore struct {
 	counter int
 	db      *pebble.DB
 }
+
+var (
+	verify  bool
+	xattr   bool
+	dbpath  string
+	order   int
+	dot     string
+	memprof string
+	cpuprof string
+)
 
 func (l *pebbleStore) Get(i int) (*Node, error) {
 	key := fmt.Sprintf("%d", i)
@@ -59,15 +78,6 @@ func (l *pebbleStore) Put(node *Node) (int, error) {
 }
 
 func main() {
-	var (
-		verify  bool
-		xattr   bool
-		dbpath  string
-		order   int
-		dot     string
-		memprof string
-		cpuprof string
-	)
 	flag.BoolVar(&verify, "verify", false, `Whether to verify the tree at the end`)
 	flag.BoolVar(&xattr, "xattr", false, `get xattr for all the files as well`)
 	flag.StringVar(&dbpath, "dbpath", "/tmp/pebble", `Path to the pebble db directory; use "memory" for an in-memory btree`)
@@ -78,8 +88,10 @@ func main() {
 	flag.Parse()
 
 	if flag.NArg() != 1 {
-		log.Fatal("Missig directory to import")
+		log.Fatal("Missing directory to import")
 	}
+
+	location := flag.Arg(0)
 
 	if cpuprof != "" {
 		f, err := os.Create(cpuprof)
@@ -105,6 +117,27 @@ func main() {
 		}
 	}
 
+	cdir, err := utils.GetConfigDir("plakar")
+	if err != nil {
+		log.Fatal("failed to get plakar config dir: ", err)
+	}
+
+	config, err := config.LoadOrCreate(filepath.Join(cdir, "plakar.yml"))
+	if err != nil {
+		log.Fatal("could not load config file: ", err)
+	}
+
+	var importerSource map[string]string
+	if strings.HasPrefix(location, "@") {
+		var ok bool
+		importerSource, ok = config.GetRemote(location[1:])
+		if !ok {
+			log.Fatal("could not load remote: ", location[1:])
+		}
+	} else {
+		importerSource = map[string]string{"location": location}
+	}
+
 	var store btree.Storer[string, int, empty]
 	if dbpath == "memory" {
 		store = &btree.InMemoryStore[string, empty]{}
@@ -126,14 +159,20 @@ func main() {
 		log.Fatal("Failed to create the btree:", err)
 	}
 
-	imp, err := fs.NewFSImporter(appcontext.NewAppContext(), "fs", map[string]string{"location": flag.Arg(0)})
+	imp, err := importer.NewImporter(appcontext.NewAppContext(), importerSource)
 	if err != nil {
 		log.Fatal("new fs importer failed:", err)
 	}
 
+	if err := doScan(imp, idx); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func doScan(imp importer.Importer, idx *btree.BTree[string, int, empty]) error {
 	scan, err := imp.Scan()
 	if err != nil {
-		log.Fatal("fs scan failed:", err)
+		return fmt.Errorf("fs scan failed: %s", err)
 	}
 
 	var items uint64
@@ -146,20 +185,20 @@ func main() {
 		case record.Record != nil:
 			path := record.Record.Pathname
 			if err := idx.Insert(path, empty{}); err != nil && err != btree.ErrExists {
-				log.Fatalf("failed to insert %s: %v", path, err)
+				return fmt.Errorf("failed to insert %s: %v", path, err)
 			}
 			items++
 
 			if xattr && record.Record.IsXattr {
 				rd, err := imp.NewExtendedAttributeReader(path, record.Record.XattrName)
 				if err != nil {
-					log.Fatalln("failed to get xattr for", path, "due to", err)
+					return fmt.Errorf("failed to get xattr for %s due to %s", path, err)
 				}
 				rd.Close()
 				log.Println(path, "found xattr named", record.Record.XattrName)
 			}
 		default:
-			log.Fatalln("got unknown scanrecord", record)
+			return fmt.Errorf("got unknown scanrecord %v", record)
 		}
 	}
 	log.Println("scan finished.", items, "items scanned")
@@ -176,7 +215,9 @@ func main() {
 
 	if verify {
 		if err := idx.Verify(); err != nil {
-			log.Fatalln("verify failed:", err)
+			return fmt.Errorf("verify failed: %s", err)
 		}
 	}
+
+	return nil
 }
