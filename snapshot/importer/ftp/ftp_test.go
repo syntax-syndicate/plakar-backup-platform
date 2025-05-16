@@ -31,7 +31,7 @@ func TestImporter(t *testing.T) {
 	// Create the importer
 	appCtx := appcontext.NewAppContext()
 	importer, err := NewFTPImporter(appCtx, "ftp", map[string]string{
-		"location": server.Addr + "/",
+		"location": "ftp://" + server.Addr + "/",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create importer: %v", err)
