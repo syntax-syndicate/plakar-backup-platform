@@ -441,7 +441,7 @@ func EntryPoint() int {
 	var status int
 
 	runWithoutAgent := opt_agentless || cmd.GetFlags()&subcommands.AgentSupport == 0
-	if repo != nil && runWithoutAgent {
+	if runWithoutAgent {
 		status, err = task.RunCommand(ctx, cmd, repo, "@agentless")
 	} else {
 		status, err = agent.ExecuteRPC(ctx, name, cmd, storeConfig)
