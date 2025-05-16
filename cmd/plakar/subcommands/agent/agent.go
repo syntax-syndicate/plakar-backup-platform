@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -424,7 +425,7 @@ func handleClient(ctx *appcontext.AppContext, wg *sync.WaitGroup, conn net.Conn)
 	}
 	clientContext.GetLogger().EnableTracing(subcommand.GetLogTraces())
 
-	ctx.GetLogger().Info("%s on %s", name, storeConfig["location"])
+	ctx.GetLogger().Info("%s at %s", strings.Join(name, " "), storeConfig["location"])
 
 	var store storage.Store
 	var repo *repository.Repository
