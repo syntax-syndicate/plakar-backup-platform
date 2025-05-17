@@ -96,6 +96,7 @@ func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 	}
 
 	var hasher hash.Hash
+	var mnemonic string
 	if !cmd.NoEncryption {
 		storageConfiguration.Encryption = encryption.NewDefaultConfiguration()
 
@@ -135,6 +136,21 @@ func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		}
 		storageConfiguration.Encryption.Canary = canary
 		hasher = hashing.GetMACHasher(storage.DEFAULT_HASHING_ALGORITHM, key)
+
+		mnemonic, err = utils.GenerateMnemonic(key)
+		if err != nil {
+			return 1, err
+		}
+
+		recoveredSecret, err := utils.RecoverSecret(mnemonic)
+		if err != nil {
+			return 1, err
+		}
+
+		if len(recoveredSecret) != len(key) {
+			return 1, fmt.Errorf("recovered secret length does not match key length")
+		}
+
 	} else {
 		storageConfiguration.Encryption = nil
 		hasher = hashing.GetHasher(storage.DEFAULT_HASHING_ALGORITHM)
@@ -158,5 +174,53 @@ func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 		return 1, err
 	}
 
+	if mnemonic != "" {
+		fmt.Println()
+		fmt.Printf("WARNING: repository is strongly encrypted, data can't be recovered in case of passphrase loss.\n")
+		fmt.Println()
+		fmt.Printf("Make sure to backup the following list of words to a safe place (paper in a safe, vault, ...):\n")
+		fmt.Println()
+		printInColumns(mnemonic, 4)
+		fmt.Println()
+		fmt.Printf("Should your forget your passphrase, these can be used to save the day.\n")
+		fmt.Printf("They can be used to derive the master key, make sure no one has access to them.\n")
+		fmt.Println()
+	}
+
 	return 0, nil
+}
+
+func printInColumns(mnemonic string, cols int) {
+	words := strings.Fields(mnemonic)
+	n := len(words)
+	// compute rows (round up)
+	rows := (n + cols - 1) / cols
+
+	// figure out max width per column
+	widths := make([]int, cols)
+	for c := 0; c < cols; c++ {
+		for r := 0; r < rows; r++ {
+			idx := r + rows*c
+			if idx >= n {
+				break
+			}
+			if l := len(words[idx]); l > widths[c] {
+				widths[c] = l
+			}
+		}
+	}
+
+	// print row by row
+	for r := 0; r < rows; r++ {
+		for c := 0; c < cols; c++ {
+			idx := r + rows*c
+			if idx >= n {
+				// no word in this spot
+				continue
+			}
+			// %-*s pads to widths[c], then add 2 spaces between columns
+			fmt.Printf("\t%-*s  ", widths[c], words[idx])
+		}
+		fmt.Println()
+	}
 }
