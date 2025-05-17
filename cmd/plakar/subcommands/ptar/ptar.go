@@ -39,19 +39,21 @@ import (
 	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/PlakarKorp/plakar/storage"
 	"github.com/PlakarKorp/plakar/versioning"
+	"github.com/google/uuid"
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Ptar{} }, subcommands.AgentSupport|subcommands.BeforeRepositoryWithStorage, "ptar")
+	subcommands.Register(func() subcommands.Subcommand { return &Ptar{} }, subcommands.BeforeRepositoryWithStorage, "ptar")
 }
 
 func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 	var opt_sync string
 
+	cmd.KlosetUUID = uuid.Must(uuid.NewRandom())
+
 	flags := flag.NewFlagSet("ptar", flag.ExitOnError)
 	flags.Usage = func() {
-		fmt.Fprintf(flags.Output(), "Usage: plakar [at /path/to/repository] %s [OPTIONS]\n", flags.Name())
-		fmt.Fprintf(flags.Output(), "       plakar [at @REPOSITORY] %s [OPTIONS]\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "Usage: plakar %s [OPTIONS] file.ptar [FILES]\n", flags.Name())
 		fmt.Fprintf(flags.Output(), "\nOPTIONS:\n")
 		flags.PrintDefaults()
 	}
@@ -61,7 +63,12 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 	flags.BoolVar(&cmd.NoEncryption, "no-encryption", false, "disable transparent encryption")
 	flags.BoolVar(&cmd.NoCompression, "no-compression", false, "disable transparent compression")
 	flags.StringVar(&opt_sync, "sync-from", "", "create a ptar archive from an existing repository")
+	flags.StringVar(&cmd.KlosetPath, "to", fmt.Sprintf("%s.ptar", cmd.KlosetUUID), "ptar archive location")
 	flags.Parse(args)
+
+	if flags.NArg() < 1 {
+		return fmt.Errorf("%s: at least one source is needed", flag.CommandLine.Name())
+	}
 
 	if len(opt_sync) > 0 && flags.NArg() > 0 {
 		return fmt.Errorf("%s: can't specify source directories in sync mode", flag.CommandLine.Name())
@@ -141,6 +148,9 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 type Ptar struct {
 	subcommands.SubcommandBase
 
+	KlosetPath string
+	KlosetUUID uuid.UUID
+
 	AllowWeak     bool
 	Hashing       string
 	NoEncryption  bool
@@ -152,6 +162,8 @@ type Ptar struct {
 
 func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	storageConfiguration := storage.NewConfiguration()
+	storageConfiguration.RepositoryID = cmd.KlosetUUID
+
 	if cmd.NoCompression {
 		storageConfiguration.Compression = nil
 	} else {
@@ -181,7 +193,7 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 				passphrase = []byte(envPassphrase)
 			} else {
 				for attempt := 0; attempt < 3; attempt++ {
-					tmp, err := utils.GetPassphraseConfirm("repository", minEntropBits)
+					tmp, err := utils.GetPassphraseConfirm("ptar", minEntropBits)
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "%s\n", err)
 						continue
@@ -231,7 +243,7 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		return 1, err
 	}
 
-	st, err := storage.Create(ctx, map[string]string{"location": repo.Location()}, wrappedConfig)
+	st, err := storage.Create(ctx, map[string]string{"location": "ptar:" + cmd.KlosetPath}, wrappedConfig)
 	if err != nil {
 		return 1, err
 	}
