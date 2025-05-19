@@ -28,7 +28,7 @@ import (
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/kloset/snapshot"
 	"github.com/PlakarKorp/kloset/snapshot/importer"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/dustin/go-humanize"
 	"github.com/gobwas/glob"
 )

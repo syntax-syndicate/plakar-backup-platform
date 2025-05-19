@@ -12,7 +12,7 @@ import (
 
 	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/events"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/utils"
 	"github.com/vmihailenco/msgpack/v5"
 )

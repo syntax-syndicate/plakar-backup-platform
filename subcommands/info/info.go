@@ -17,7 +17,7 @@
 package info
 
 import (
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/subcommands"
 )
 
 func init() {

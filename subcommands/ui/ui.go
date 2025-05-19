@@ -25,7 +25,7 @@ import (
 
 	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/repository"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/subcommands"
 	v2 "github.com/PlakarKorp/plakar/ui/v2"
 	"github.com/google/uuid"
 )

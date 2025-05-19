@@ -22,8 +22,8 @@ import (
 
 	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/repository"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/server/httpd"
+	"github.com/PlakarKorp/plakar/subcommands"
 )
 
 func init() {

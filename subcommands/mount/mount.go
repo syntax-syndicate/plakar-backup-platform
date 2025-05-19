@@ -21,7 +21,7 @@ import (
 	"fmt"
 
 	"github.com/PlakarKorp/kloset/appcontext"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/subcommands"
 )
 
 func init() {

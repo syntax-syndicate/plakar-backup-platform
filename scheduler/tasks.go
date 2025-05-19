@@ -9,12 +9,12 @@ import (
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/kloset/storage"
 	"github.com/PlakarKorp/kloset/versioning"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/backup"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/maintenance"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
-	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
+	"github.com/PlakarKorp/plakar/subcommands/backup"
+	"github.com/PlakarKorp/plakar/subcommands/check"
+	"github.com/PlakarKorp/plakar/subcommands/maintenance"
+	"github.com/PlakarKorp/plakar/subcommands/restore"
+	"github.com/PlakarKorp/plakar/subcommands/rm"
+	"github.com/PlakarKorp/plakar/subcommands/sync"
 	"github.com/PlakarKorp/plakar/utils"
 )
 
