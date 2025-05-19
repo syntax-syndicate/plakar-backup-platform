@@ -55,25 +55,14 @@ import (
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ui"
 	_ "github.com/PlakarKorp/plakar/cmd/plakar/subcommands/version"
 
-	_ "github.com/PlakarKorp/plakar/connectors/fs/storage"
-	_ "github.com/PlakarKorp/plakar/connectors/http/storage"
-	_ "github.com/PlakarKorp/plakar/connectors/null/storage"
-	_ "github.com/PlakarKorp/plakar/connectors/ptar/storage"
-	_ "github.com/PlakarKorp/plakar/connectors/s3/storage"
-	_ "github.com/PlakarKorp/plakar/connectors/sftp/storage"
-	_ "github.com/PlakarKorp/plakar/connectors/sqlite/storage"
-
-	_ "github.com/PlakarKorp/plakar/snapshot/importer/fs"
-	_ "github.com/PlakarKorp/plakar/snapshot/importer/ftp"
-	_ "github.com/PlakarKorp/plakar/snapshot/importer/s3"
-	_ "github.com/PlakarKorp/plakar/snapshot/importer/sftp"
-	_ "github.com/PlakarKorp/plakar/snapshot/importer/stdio"
-
-	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
-	_ "github.com/PlakarKorp/plakar/snapshot/exporter/ftp"
-	_ "github.com/PlakarKorp/plakar/snapshot/exporter/s3"
-	_ "github.com/PlakarKorp/plakar/snapshot/exporter/sftp"
-	_ "github.com/PlakarKorp/plakar/snapshot/exporter/stdio"
+	_ "github.com/PlakarKorp/plakar/connectors/fs"
+	_ "github.com/PlakarKorp/plakar/connectors/ftp"
+	_ "github.com/PlakarKorp/plakar/connectors/http"
+	_ "github.com/PlakarKorp/plakar/connectors/ptar"
+	_ "github.com/PlakarKorp/plakar/connectors/s3"
+	_ "github.com/PlakarKorp/plakar/connectors/sftp"
+	_ "github.com/PlakarKorp/plakar/connectors/sqlite"
+	_ "github.com/PlakarKorp/plakar/connectors/stdio"
 
 	_ "github.com/PlakarKorp/plakar/classifier/backend/noop"
 )
