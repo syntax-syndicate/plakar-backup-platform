@@ -6,9 +6,9 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/kloset/repository"
 	_ "github.com/PlakarKorp/plakar/connectors/fs/storage"
-	"github.com/PlakarKorp/plakar/repository"
 	"github.com/creack/pty"
 	"github.com/stretchr/testify/require"
 )

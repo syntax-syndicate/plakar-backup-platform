@@ -10,8 +10,10 @@ import (
 	"runtime/pprof"
 	"strings"
 
-	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/btree"
+	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/kloset/btree"
+	"github.com/PlakarKorp/kloset/snapshot/importer"
+	"github.com/PlakarKorp/kloset/snapshot/vfs"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/config"
 	_ "github.com/PlakarKorp/plakar/connectors/fs/importer"
@@ -19,8 +21,6 @@ import (
 	_ "github.com/PlakarKorp/plakar/connectors/s3/importer"
 	_ "github.com/PlakarKorp/plakar/connectors/sftp/importer"
 	_ "github.com/PlakarKorp/plakar/connectors/stdio/importer"
-	"github.com/PlakarKorp/plakar/snapshot/importer"
-	"github.com/PlakarKorp/plakar/snapshot/vfs"
 	"github.com/cockroachdb/pebble/v2"
 	"github.com/vmihailenco/msgpack/v5"
 )

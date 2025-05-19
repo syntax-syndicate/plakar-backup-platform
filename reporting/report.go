@@ -3,8 +3,8 @@ package reporting
 import (
 	"time"
 
-	"github.com/PlakarKorp/plakar/snapshot/header"
-	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/kloset/snapshot/header"
+	"github.com/PlakarKorp/kloset/storage"
 )
 
 type TaskStatus string

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/repository"
 	"github.com/stretchr/testify/require"
 )
 

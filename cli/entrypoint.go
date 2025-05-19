@@ -14,19 +14,19 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/kloset/caching"
+	"github.com/PlakarKorp/kloset/config"
+	"github.com/PlakarKorp/kloset/cookies"
+	"github.com/PlakarKorp/kloset/encryption"
+	"github.com/PlakarKorp/kloset/logging"
+	"github.com/PlakarKorp/kloset/repository"
+	"github.com/PlakarKorp/kloset/storage"
+	"github.com/PlakarKorp/kloset/versioning"
 	"github.com/PlakarKorp/plakar/agent"
-	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/caching"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/config"
-	"github.com/PlakarKorp/plakar/cookies"
-	"github.com/PlakarKorp/plakar/encryption"
-	"github.com/PlakarKorp/plakar/logging"
-	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/storage"
 	"github.com/PlakarKorp/plakar/task"
-	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/denisbrodbeck/machineid"
 	"github.com/google/uuid"
 
@@ -63,8 +63,6 @@ import (
 	_ "github.com/PlakarKorp/plakar/connectors/sftp"
 	_ "github.com/PlakarKorp/plakar/connectors/sqlite"
 	_ "github.com/PlakarKorp/plakar/connectors/stdio"
-
-	_ "github.com/PlakarKorp/plakar/classifier/backend/noop"
 )
 
 func EntryPoint() int {

@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/config"
-	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/kloset/config"
+	"github.com/PlakarKorp/kloset/repository"
 	"github.com/stretchr/testify/require"
 )
 

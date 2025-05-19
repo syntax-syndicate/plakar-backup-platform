@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/PlakarKorp/kloset/repository"
+	"github.com/PlakarKorp/kloset/snapshot"
 	"github.com/PlakarKorp/plakar/config"
 	_ "github.com/PlakarKorp/plakar/connectors/fs/exporter"
-	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/snapshot"
 	ptesting "github.com/PlakarKorp/plakar/testing"
 	"github.com/stretchr/testify/require"
 )

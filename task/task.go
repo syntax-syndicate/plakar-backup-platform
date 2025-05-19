@@ -1,8 +1,9 @@
 package task
 
-
 import (
-	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/kloset/objects"
+	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/backup"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/check"
@@ -10,12 +11,9 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
-	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/reporting"
-	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/services"
 )
-
 
 func RunCommand(ctx *appcontext.AppContext, cmd subcommands.Subcommand, repo *repository.Repository, taskName string) (int, error) {
 

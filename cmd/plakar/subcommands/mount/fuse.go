@@ -22,9 +22,9 @@ package mount
 import (
 	"fmt"
 
-	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/plakar/plakarfs"
-	"github.com/PlakarKorp/plakar/repository"
 	"github.com/anacrolix/fuse"
 	"github.com/anacrolix/fuse/fs"
 )

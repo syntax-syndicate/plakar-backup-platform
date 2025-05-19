@@ -21,9 +21,9 @@ import (
 	"io"
 	"net/url"
 
-	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/kloset/snapshot/importer"
 	plakarsftp "github.com/PlakarKorp/plakar/sftp"
-	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/pkg/sftp"
 )
 

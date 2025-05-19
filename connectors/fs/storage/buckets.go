@@ -24,7 +24,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/kloset/objects"
 )
 
 type Buckets struct {
