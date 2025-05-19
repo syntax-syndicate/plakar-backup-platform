@@ -101,9 +101,9 @@ func (cmd *Create) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 
 		var passphrase []byte
 
-		envPassphrase := os.Getenv("PLAKAR_PASSPHRASE")
+		envPassphrase, ok := os.LookupEnv("PLAKAR_PASSPHRASE")
 		if ctx.KeyFromFile == "" {
-			if envPassphrase != "" {
+			if ok {
 				passphrase = []byte(envPassphrase)
 			} else {
 				for attempt := 0; attempt < 3; attempt++ {
