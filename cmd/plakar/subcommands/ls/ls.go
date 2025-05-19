@@ -30,7 +30,7 @@ import (
 	"github.com/PlakarKorp/kloset/snapshot"
 	"github.com/PlakarKorp/kloset/snapshot/vfs"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
+	"github.com/PlakarKorp/plakar/utils"
 	"github.com/dustin/go-humanize"
 )
 

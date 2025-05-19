@@ -25,8 +25,8 @@ import (
 	"github.com/PlakarKorp/kloset/versioning"
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	"github.com/PlakarKorp/plakar/task"
+	"github.com/PlakarKorp/plakar/utils"
 	"github.com/denisbrodbeck/machineid"
 	"github.com/google/uuid"
 

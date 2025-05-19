@@ -16,8 +16,8 @@ import (
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/ls"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	ptesting "github.com/PlakarKorp/plakar/testing"
+	"github.com/PlakarKorp/plakar/utils"
 	"github.com/stretchr/testify/require"
 )
 

@@ -34,7 +34,7 @@ import (
 	"github.com/PlakarKorp/kloset/storage"
 	"github.com/PlakarKorp/kloset/versioning"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
+	"github.com/PlakarKorp/plakar/utils"
 )
 
 func init() {

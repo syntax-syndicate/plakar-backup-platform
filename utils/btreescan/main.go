@@ -15,12 +15,12 @@ import (
 	"github.com/PlakarKorp/kloset/config"
 	"github.com/PlakarKorp/kloset/snapshot/importer"
 	"github.com/PlakarKorp/kloset/snapshot/vfs"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
 	_ "github.com/PlakarKorp/plakar/connectors/fs/importer"
 	_ "github.com/PlakarKorp/plakar/connectors/ftp/importer"
 	_ "github.com/PlakarKorp/plakar/connectors/s3/importer"
 	_ "github.com/PlakarKorp/plakar/connectors/sftp/importer"
 	_ "github.com/PlakarKorp/plakar/connectors/stdio/importer"
+	"github.com/PlakarKorp/plakar/utils"
 	"github.com/cockroachdb/pebble/v2"
 	"github.com/vmihailenco/msgpack/v5"
 )

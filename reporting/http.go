@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/PlakarKorp/kloset/logging"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
+	"github.com/PlakarKorp/plakar/utils"
 )
 
 type HttpEmitter struct {

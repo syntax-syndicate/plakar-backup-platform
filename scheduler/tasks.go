@@ -15,7 +15,7 @@ import (
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/restore"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/rm"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands/sync"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
+	"github.com/PlakarKorp/plakar/utils"
 )
 
 func loadRepository(newCtx *appcontext.AppContext, name string) (*repository.Repository, storage.Store, error) {

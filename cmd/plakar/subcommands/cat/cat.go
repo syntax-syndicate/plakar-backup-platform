@@ -26,7 +26,7 @@ import (
 	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/plakar/cmd/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
+	"github.com/PlakarKorp/plakar/utils"
 	"github.com/alecthomas/chroma/formatters"
 	"github.com/alecthomas/chroma/lexers"
 	"github.com/alecthomas/chroma/styles"
