@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
+	_ "github.com/PlakarKorp/plakar/connectors/fs/exporter"
 	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/network"
 	"github.com/PlakarKorp/plakar/resources"
-	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
 	"github.com/PlakarKorp/plakar/storage"
 	ptesting "github.com/PlakarKorp/plakar/testing"
 	"github.com/PlakarKorp/plakar/versioning"

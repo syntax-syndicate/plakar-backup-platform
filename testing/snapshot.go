@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	_ "github.com/PlakarKorp/plakar/snapshot/importer/fs"
+	_ "github.com/PlakarKorp/plakar/connectors/fs/importer"
 
 	"github.com/PlakarKorp/plakar/objects"
 	"github.com/PlakarKorp/plakar/repository"
