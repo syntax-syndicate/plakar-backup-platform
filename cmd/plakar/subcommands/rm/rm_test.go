@@ -7,9 +7,9 @@ import (
 	"os"
 	"testing"
 
+	_ "github.com/PlakarKorp/plakar/connectors/fs/exporter"
 	"github.com/PlakarKorp/plakar/repository"
 	"github.com/PlakarKorp/plakar/snapshot"
-	_ "github.com/PlakarKorp/plakar/snapshot/exporter/fs"
 	ptesting "github.com/PlakarKorp/plakar/testing"
 	"github.com/stretchr/testify/require"
 )
