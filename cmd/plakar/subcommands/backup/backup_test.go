@@ -10,6 +10,7 @@ import (
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/caching"
+	bfs "github.com/PlakarKorp/plakar/connectors/fs/storage"
 	"github.com/PlakarKorp/plakar/cookies"
 	"github.com/PlakarKorp/plakar/hashing"
 	"github.com/PlakarKorp/plakar/logging"
@@ -17,7 +18,6 @@ import (
 	"github.com/PlakarKorp/plakar/resources"
 	_ "github.com/PlakarKorp/plakar/snapshot/importer/fs"
 	"github.com/PlakarKorp/plakar/storage"
-	bfs "github.com/PlakarKorp/plakar/storage/backends/fs"
 	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/stretchr/testify/require"
 )
