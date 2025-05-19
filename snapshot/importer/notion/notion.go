@@ -184,8 +184,8 @@ func (p *NotionImporter) NewReader(pathname string) (io.ReadCloser, error) {
 	var rd io.Reader
 	var err error
 
-	if name == "header.json" {
-		rd, err = NewNotionReaderHeader(p.token, id)
+	if name == "file.json" {
+		rd, err = NewNotionReaderFile(p.token, id, path.Dir(pathname), p.notionChan)
 	} else if name == "blocks.json" {
 		rd, err = NewNotionReaderBlocks(p.token, id, path.Dir(pathname), p.notionChan)
 	} else if name == "content.json" {

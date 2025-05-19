@@ -40,44 +40,6 @@ type BlockResponse struct {
 	NextCursor string            `json:"next_cursor"`
 }
 
-func NewNotionReader(token, pageID, path string, isBlock bool, recordChan chan<- notionRecord) (*NotionReader, error) {
-	nRd := &NotionReader{
-		buf:             new(bytes.Buffer),
-		token:           token,
-		pageID:          pageID,
-		path:            path,
-		isBlock:         isBlock,
-		cursor:          "",
-		done:            false,
-		blockOpen:       false,
-		first:           true,
-		wroteFirstBlock: false,
-		recordChan:      recordChan,
-	}
-	if isBlock {
-		nRd.buf.WriteString("{\"children\":[")
-		return nRd, nil
-	}
-	pageHeader, err := nRd.fetchPageHeader()
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch page header: %w", err)
-	}
-	var mapp map[string]interface{}
-	if err = json.Unmarshal(*pageHeader, &mapp); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal page header: %w", err)
-	}
-	delete(mapp, "request_id")
-	b, err := json.Marshal(mapp)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal page header: %w", err)
-	}
-	nRd.buf.Write(b)
-	// Remove the last brace to add the childrens array
-	nRd.buf.Truncate(nRd.buf.Len() - 1)
-	nRd.buf.WriteString(",\"children\":[")
-	return nRd, nil
-}
-
 func fetchFromURL[T any](url, token string) (*T, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -98,78 +60,6 @@ func fetchFromURL[T any](url, token string) (*T, error) {
 	}
 
 	return &result, nil
-}
-
-func (nr *NotionReader) fetchPageHeader() (*json.RawMessage, error) {
-	url := fmt.Sprintf("%s/pages/%s", NotionURL, nr.pageID)
-	return fetchFromURL[json.RawMessage](url, nr.token)
-}
-
-func (nr *NotionReader) fetchBlocks() (*BlockResponse, error) {
-	url := fmt.Sprintf("%s/blocks/%s/children?page_size=%d", NotionURL, nr.pageID, PageSize)
-	if nr.cursor != "" {
-		url += fmt.Sprintf("&start_cursor=%s", nr.cursor)
-	}
-	return fetchFromURL[BlockResponse](url, nr.token)
-}
-
-func (nr *NotionReader) Read(p []byte) (int, error) {
-	for nr.buf.Len() < len(p) && !nr.done {
-		if nr.first {
-			nr.openJSONArray()
-		}
-
-		blockResp, err := nr.fetchBlocks()
-		if err != nil {
-			return 0, fmt.Errorf("failed to fetch blocks: %w", err)
-		}
-
-		nr.writeBlocksToBuffer(blockResp.Results)
-
-		// Send each block as a notionRecord to the channel
-		for _, block := range blockResp.Results {
-			nr.recordChan <- notionRecord{Block: block, EOF: false, pathTo: nr.path}
-		}
-
-		if !blockResp.HasMore {
-			nr.done = true
-			// Send EOF record to indicate completion
-			nr.recordChan <- notionRecord{EOF: true}
-		} else {
-			nr.cursor = blockResp.NextCursor
-		}
-	}
-
-	if nr.done && nr.blockOpen {
-		nr.closeJSONArray()
-	}
-
-	n, err := nr.buf.Read(p)
-	if n == 0 && nr.done {
-		return 0, io.EOF
-	}
-	return n, err
-}
-
-func (nr *NotionReader) openJSONArray() {
-	nr.blockOpen = true
-	nr.first = false
-}
-
-func (nr *NotionReader) closeJSONArray() {
-	// Close the array and add the last brace that was removed
-	nr.buf.Write([]byte("]}"))
-	nr.blockOpen = false
-}
-
-func (nr *NotionReader) writeBlocksToBuffer(blocks []json.RawMessage) {
-	for _, block := range blocks {
-		if nr.wroteFirstBlock {
-			nr.buf.WriteByte(',')
-		}
-		nr.buf.Write(block)
-		nr.wroteFirstBlock = true
-	}
 }
 
 //---------------
@@ -315,4 +205,54 @@ func (nr *NotionReaderBlocks) writeBlocksToBuffer(blocks []json.RawMessage) {
 		nr.buf.Write(block)
 		nr.wroteFirstBlock = true
 	}
+}
+
+type notionReaderFile struct {
+	headerReader *NotionReaderHeader
+	blockReader  *NotionReaderBlocks
+}
+
+// NewNotionReaderFile creates a new notionReaderFile instance
+func NewNotionReaderFile(token, pageID, path string, recordChan chan<- notionRecord) (*notionReaderFile, error) {
+	// Create the header reader
+	headerReader, err := NewNotionReaderHeader(token, pageID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create NotionReaderHeader: %w", err)
+	}
+	//remove the closing bracket from the header and add the 'children' key
+	headerReader.buf.Truncate(headerReader.buf.Len() - 1)
+	headerReader.buf.WriteString(",\"children\":")
+
+	// Create the block reader
+	blockReader, err := NewNotionReaderBlocks(token, pageID, path, recordChan)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create NotionReaderBlocks: %w", err)
+	}
+
+	return &notionReaderFile{
+		headerReader: headerReader,
+		blockReader:  blockReader,
+	}, nil
+}
+
+// Read reads from the header first, then falls back to the block reader
+func (nrf *notionReaderFile) Read(p []byte) (int, error) {
+	// Attempt to read from the header reader
+	n, err := nrf.headerReader.Read(p)
+	if n > 0 || err != io.EOF {
+		return n, err
+	}
+
+	// Fallback to the block reader
+	n, err = nrf.blockReader.Read(p)
+	if n > 0 || err != io.EOF {
+		return n, err
+	}
+
+	if err == io.EOF {
+		p[0] = '}'
+		return 1, io.EOF
+	}
+
+	return 0, err
 }
