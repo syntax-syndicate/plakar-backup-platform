@@ -104,6 +104,9 @@ func (cmd *Agent) Parse(ctx *appcontext.AppContext, args []string) error {
 	flags.BoolVar(&opt_foreground, "foreground", false, "run in foreground")
 	flags.StringVar(&opt_logfile, "log", "", "log file")
 	flags.Parse(args)
+	if flags.NArg() != 0 {
+		return fmt.Errorf("too many arguments")
+	}
 
 	if !opt_foreground && os.Getenv("REEXEC") == "" {
 		err := daemonize(os.Args)
@@ -157,6 +160,9 @@ func (cmd *AgentStop) Parse(ctx *appcontext.AppContext, args []string) error {
 		flags.PrintDefaults()
 	}
 	flags.Parse(args)
+	if flags.NArg() != 0 {
+		return fmt.Errorf("too many arguments")
+	}
 
 	return nil
 }
@@ -178,6 +184,9 @@ func (cmd *AgentRestart) Parse(ctx *appcontext.AppContext, args []string) error 
 		flags.PrintDefaults()
 	}
 	flags.Parse(args)
+	if flags.NArg() != 0 {
+		return fmt.Errorf("too many arguments")
+	}
 
 	return nil
 }

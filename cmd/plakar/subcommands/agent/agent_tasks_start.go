@@ -22,6 +22,9 @@ func (cmd *AgentTasksStart) Parse(ctx *appcontext.AppContext, args []string) err
 		flags.PrintDefaults()
 	}
 	flags.Parse(args)
+	if flags.NArg() != 0 {
+		return fmt.Errorf("too many arguments")
+	}
 
 	return nil
 }
