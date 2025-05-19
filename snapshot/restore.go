@@ -2,6 +2,7 @@ package snapshot
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"strings"
@@ -25,6 +26,7 @@ type restoreContext struct {
 
 func snapshotRestorePath(snap *Snapshot, exp exporter.Exporter, target string, opts *RestoreOptions, restoreContext *restoreContext, wg *sync.WaitGroup) func(entrypath string, e *vfs.Entry, err error) error {
 	return func(entrypath string, e *vfs.Entry, err error) error {
+		log.Print(entrypath)
 		if err != nil {
 			snap.Event(events.PathErrorEvent(snap.Header.Identifier, entrypath, err.Error()))
 			return err
@@ -127,11 +129,11 @@ func (snap *Snapshot) Restore(exp exporter.Exporter, base string, pathname strin
 		return err
 	}
 
-	//maxConcurrency := opts.MaxConcurrency
-	//if maxConcurrency == 0 {
-	//	maxConcurrency = uint64(snap.AppContext().MaxConcurrency)
-	//}
-	maxConcurrency := 1
+	maxConcurrency := opts.MaxConcurrency
+	if maxConcurrency == 0 {
+		maxConcurrency = uint64(snap.AppContext().MaxConcurrency)
+	}
+	//maxConcurrency := 1
 
 	restoreContext := &restoreContext{
 		hardlinks:      make(map[string]string),
@@ -147,6 +149,8 @@ func (snap *Snapshot) Restore(exp exporter.Exporter, base string, pathname strin
 
 	wg := sync.WaitGroup{}
 	defer wg.Wait()
+
+	log.Printf("NotionExporter: restoring %s", base)
 
 	return fs.WalkDir(pathname, snapshotRestorePath(snap, exp, base, opts, restoreContext, &wg))
 }

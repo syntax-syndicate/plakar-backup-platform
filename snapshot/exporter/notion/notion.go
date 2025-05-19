@@ -4,22 +4,24 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/plakar/snapshot/exporter"
 	notionConst "github.com/PlakarKorp/plakar/snapshot/importer/notion"
 	"io"
 	"log"
 	"net/http"
 	"path"
+	"path/filepath"
 	"sync"
-
-	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/snapshot/exporter"
+	"time"
 )
 
 type NotionExporter struct {
 	token  string
 	rootID string //TODO : change this to a user friendly name (e.g. "My Notion Page" instead of "1234567890abcdef")
 	sync.Mutex
+	mapMutex sync.RWMutex // Added RWMutex for protecting pageIDMap
 }
 
 func init() {
@@ -35,6 +37,9 @@ func NewNotionExporter(appCtx *appcontext.AppContext, name string, config map[st
 	if !ok {
 		return nil, fmt.Errorf("missing rootID in config")
 	}
+
+	log.Printf("NotionExporter: token: %s, rootID: %s", token, rootID)
+
 	return &NotionExporter{
 		token:  token,
 		rootID: rootID, //rootID must be an existing page ID, this is the page where the files will be exported
@@ -50,78 +55,104 @@ func (p *NotionExporter) CreateDirectory(pathname string) error {
 	return nil
 }
 
+func (p *NotionExporter) SetPermissions(pathname string, fileinfo *objects.FileInfo) error {
+	return nil
+}
+
 var pageIDMap = map[string]string{}
 
-func (p *NotionExporter) StoreFile(pathname string, fp io.Reader, size int64) error {
+func (p *NotionExporter) Close() error {
+	pageIDMap = map[string]string{}
+	return nil
+}
 
-	var jsonData map[string]interface{}
-	err := json.NewDecoder(fp).Decode(&jsonData)
+func DebugResponse(resp *http.Response) {
+	// debug
+	log.Printf("failed to upload file: %d", resp.StatusCode)
+	// Read the response body for more details
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal JSON: %w", err)
+		return
 	}
-
-	// Link the new page to the root page with new page ID
-	if parent, ok := jsonData["parent"].(map[string]interface{}); ok && parent["type"] == "workspace" {
-		// Link top-level pages to the root page
-		delete(jsonData, "parent")
-		jsonData["parent"] = map[string]interface{}{
-			"type":    "page_id",
-			"page_id": p.rootID,
-		}
-	} else if parent["type"] == "page_id" {
-		// Replace the page_id with the new one
-		parentID := parent["page_id"].(string)
-		if id, ok := pageIDMap[parentID]; ok {
-			parent["page_id"] = id
-		} else {
-			log.Printf("page ID %s not found in map", parentID)
-			return fmt.Errorf("page ID %s not found in map", parentID)
-		}
-	} else if parent["type"] == "block_id" {
-		// Replace the block_id with the new one
-		blockID := parent["block_id"].(string)
-		if id, ok := pageIDMap[blockID]; ok {
-			parent["block_id"] = id
-		} else {
-			log.Printf("block ID %s not found in map", blockID)
-			return fmt.Errorf("block ID %s not found in map", blockID)
-		}
-	} else { //TODO: add database parent type
-		return fmt.Errorf("invalid parent type: %s", parent["type"])
-	}
-
-	var children []map[string]interface{}
-	if c, ok := jsonData["children"].([]interface{}); ok {
-		for _, child := range c {
-			if childMap, ok := child.(map[string]interface{}); ok {
-				children = append(children, childMap)
-			}
-		}
-	} else {
-		return fmt.Errorf("invalid type for children: %T", jsonData["children"])
-	}
-
-	newChildren := make([]map[string]interface{}, 0)
-	for _, child := range children {
-		newChild := make(map[string]interface{})
-		newChild["object"] = child["object"]
-		newChild["type"] = child["type"]
-		newChild[newChild["type"].(string)] = child[child["type"].(string)]
-		newChildren = append(newChildren, newChild)
-	}
-
-	jsonData["children"] = []interface{}{} // Clear the children array to handle it separately
-
-	// Marshal the modified JSON data back to bytes
-	data, err := json.Marshal(jsonData)
+	var prettyJSON bytes.Buffer
+	err = json.Indent(&prettyJSON, b, "", "\t")
 	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %w", err)
+		return
+	}
+	log.Printf("Error response: %s\n", prettyJSON.String())
+	// end
+}
+
+func (p *NotionExporter) AddBlock(payload []byte, pageID string) (string, error) {
+	url := fmt.Sprintf("%s/blocks/%s/children", notionConst.NotionURL, pageID)
+	req, err := http.NewRequest("PATCH", url, io.NopCloser(bytes.NewReader(payload)))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+p.token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Notion-Version", notionConst.NotionVersionHeader)
+
+	p.Lock()
+	resp, err := http.DefaultClient.Do(req)
+	p.Unlock()
+	if err != nil {
+		log.Printf(url)
+		DebugResponse(resp)
+		return "", fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		DebugResponse(resp)
+		return "", fmt.Errorf("failed to store file: status code %d", resp.StatusCode)
 	}
 
-	//----------
+	jsonData := map[string]any{}
+	err = json.NewDecoder(resp.Body).Decode(&jsonData)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+	blockID := jsonData["results"].([]any)[0].(map[string]any)["id"].(string)
+	return blockID, nil
+}
 
+func (p *NotionExporter) PostPage(payload []byte) (string, error) {
 	url := fmt.Sprintf("%s/pages", notionConst.NotionURL)
-	req, err := http.NewRequest("POST", url, io.NopCloser(bytes.NewReader(data)))
+	req, err := http.NewRequest("POST", url, io.NopCloser(bytes.NewReader(payload)))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+p.token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Notion-Version", notionConst.NotionVersionHeader)
+
+	p.Lock()
+	resp, err := http.DefaultClient.Do(req)
+	p.Unlock()
+	if err != nil {
+		return "", fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf(url)
+		DebugResponse(resp)
+		return "", fmt.Errorf("failed to store file: status code %d", resp.StatusCode)
+	}
+
+	jsonData := map[string]any{}
+	err = json.NewDecoder(resp.Body).Decode(&jsonData)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return jsonData["id"].(string), nil
+}
+
+func (p *NotionExporter) PatchPage(payload []byte, pageID string) error {
+	url := fmt.Sprintf("%s/pages/%s", notionConst.NotionURL, pageID)
+	req, err := http.NewRequest("PATCH", url, io.NopCloser(bytes.NewReader(payload)))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -138,91 +169,164 @@ func (p *NotionExporter) StoreFile(pathname string, fp io.Reader, size int64) er
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		// debug
-		log.Printf("failed to upload file: %d", resp.StatusCode)
-		// Read the response body for more details
-		b, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return fmt.Errorf("failed to read response body: %w", err)
-		}
-		var prettyJSON bytes.Buffer
-		err = json.Indent(&prettyJSON, b, "", "\t")
-		if err != nil {
-			return fmt.Errorf("failed to format error response: %w", err)
-		}
-		log.Printf("Error response: %s\n", prettyJSON.String())
-		// end debug
+		log.Printf(url)
+		DebugResponse(resp)
 		return fmt.Errorf("failed to store file: status code %d", resp.StatusCode)
 	}
 
-	jsonData = map[string]interface{}{}
-	err = json.NewDecoder(resp.Body).Decode(&jsonData)
-	if err != nil {
-		return fmt.Errorf("failed to decode response: %w", err)
-	}
+	return nil
+}
 
-	newPageID := jsonData["id"].(string)
-	pageIDMap[path.Base(path.Dir(pathname))] = newPageID
+// StoreFile2 is a temporary function to handle files in notion, it will replace StoreFile.
+// StoreFile is outdated and will be removed in the future
+func (p *NotionExporter) StoreFile(pathname string, fp io.Reader, size int64) error {
 
-	//=============
+	filetype := filepath.Base(pathname)
+	OldID := path.Base(path.Dir(pathname))
 
-	for _, child := range newChildren {
-		if child["type"] == "child_page" {
-			continue //TODO: add support for child pages
+	if filetype == "content.json" { //POST empty pages to the root page
+
+		var jsonData []map[string]any
+		err := json.NewDecoder(fp).Decode(&jsonData)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal JSON: %w", err)
 		}
-		var payload = map[string]interface{}{
-			"children": []interface{}{
-				child,
-			},
+
+		// Create a new page for each entry in the JSON array
+		for _, entry := range jsonData {
+			payload := map[string]any{
+				"parent": map[string]any{
+					"type":    "page_id",
+					"page_id": p.rootID,
+				},
+				"properties": map[string]any{},
+				"children":   []any{},
+			}
+
+			data, err := json.Marshal(payload)
+			if err != nil {
+				return fmt.Errorf("failed to marshal JSON: %w", err)
+			}
+
+			pageID, err := p.PostPage(data)
+			if err != nil {
+				return fmt.Errorf("failed to post page: %w", err)
+			}
+
+			p.mapMutex.Lock()
+			pageIDMap[entry["id"].(string)] = pageID
+			p.mapMutex.Unlock()
 		}
-		data, err = json.Marshal(payload)
+
+	} else if filetype == "header.json" { //PATCH header to the page OldID
+		newID := func() string {
+			timeout := time.After(5 * time.Second)
+			for {
+				select {
+				case <-timeout:
+					return "" // Timeout reached
+				default:
+					p.mapMutex.RLock()
+					id, ok := pageIDMap[OldID]
+					p.mapMutex.RUnlock()
+					if ok {
+						return id
+					}
+				}
+			}
+		}()
+		if newID == "" {
+			return fmt.Errorf("failed to find new ID for page %s", OldID)
+		}
+
+		var jsonData map[string]any
+		err := json.NewDecoder(fp).Decode(&jsonData)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal JSON: %w", err)
+		}
+		jsonData2 := map[string]any{
+			"properties": jsonData["properties"],
+			"icon":       jsonData["icon"],
+			"cover":      jsonData["cover"],
+		}
+		payload, err := json.Marshal(jsonData2)
 		if err != nil {
 			return fmt.Errorf("failed to marshal JSON: %w", err)
 		}
-
-		url = fmt.Sprintf("%s/blocks/%s/children", notionConst.NotionURL, newPageID)
-		req, err = http.NewRequest("PATCH", url, io.NopCloser(bytes.NewReader(data)))
+		err = p.PatchPage(payload, newID)
 		if err != nil {
-			return fmt.Errorf("failed to create request: %w", err)
+			return fmt.Errorf("failed to patch page: %w", err)
 		}
-		req.Header.Set("Authorization", "Bearer "+p.token)
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Notion-Version", notionConst.NotionVersionHeader)
 
-		p.Lock()
-		resp, err = http.DefaultClient.Do(req)
-		p.Unlock()
+	} else if filetype == "blocks.json" { //PATCH blocks to the page OldID
+
+		newID := func() string {
+			timeout := time.After(5 * time.Second)
+			for {
+				select {
+				case <-timeout:
+					return "" // Timeout reached
+				default:
+					p.mapMutex.RLock()
+					id, ok := pageIDMap[OldID]
+					p.mapMutex.RUnlock()
+					if ok {
+						return id
+					}
+					time.Sleep(10 * time.Millisecond)
+				}
+			}
+		}()
+
+		var jsonData []map[string]any
+		err := json.NewDecoder(fp).Decode(&jsonData)
 		if err != nil {
-			return fmt.Errorf("failed to execute request: %w", err)
+			return fmt.Errorf("failed to unmarshal JSON: %w", err)
 		}
-		defer resp.Body.Close()
 
-		if resp.StatusCode != http.StatusOK {
-			// debug
-			log.Printf("failed to upload children: %d", resp.StatusCode)
-			b, err := io.ReadAll(resp.Body)
-			if err != nil {
-				return fmt.Errorf("failed to read response body: %w", err)
+		for _, block := range jsonData { //PATCH each block to the page
+			if block["type"] == "child_page" {
+				payload := map[string]any{}
+				payload["parent"] = map[string]any{
+					"type":    "page_id",
+					"page_id": newID,
+				}
+				payload["properties"] = map[string]any{}
+				payload["children"] = []any{}
+				data, err := json.Marshal(payload)
+				if err != nil {
+					return fmt.Errorf("failed to marshal JSON: %w", err)
+				}
+				newPageID, err := p.PostPage(data)
+				if err != nil {
+					return fmt.Errorf("failed to post page: %w", err)
+				}
+				p.mapMutex.Lock()
+				pageIDMap[block["id"].(string)] = newPageID
+				p.mapMutex.Unlock()
+			} else { //standard block
+				payload := map[string]any{
+					"children": []any{
+						block,
+					},
+				}
+				data, err := json.Marshal(payload)
+				if err != nil {
+					return fmt.Errorf("failed to marshal JSON: %w", err)
+				}
+				newBlockID, err := p.AddBlock(data, newID)
+				if err != nil {
+					return fmt.Errorf("failed to patch block: %w", err)
+				}
+				p.mapMutex.Lock()
+				pageIDMap[block["id"].(string)] = newBlockID
+				p.mapMutex.Unlock()
 			}
-			var prettyJSON bytes.Buffer
-			err = json.Indent(&prettyJSON, b, "", "\t")
-			if err != nil {
-				return fmt.Errorf("failed to format error response: %w", err)
-			}
-			log.Printf("Error response: %s\n", prettyJSON.String())
-			// end debug
-			return fmt.Errorf("failed to store file: status code %d", resp.StatusCode)
 		}
+
+	} else {
+		return fmt.Errorf("unsupported file type: %s", filetype)
 	}
 
-	return nil
-}
-
-func (p *NotionExporter) SetPermissions(pathname string, fileinfo *objects.FileInfo) error {
-	return nil
-}
-
-func (p *NotionExporter) Close() error {
-	pageIDMap = map[string]string{}
 	return nil
 }

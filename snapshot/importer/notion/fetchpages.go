@@ -103,6 +103,9 @@ type PageNode struct {
 // Global maps
 var nodeMap = make(map[string]*PageNode)           // PageID -> PageNode
 var waitingChildren = make(map[string][]*PageNode) // ParentID -> []*PageNode
+var topLevelPages = make([]string, 0)              // Top level pages (root pages)
+
+//TODO: handle in the tree page inside blocks recursively
 
 func AddPagesToTree(pages []Page, results chan<- *importer.ScanResult, nReader *int) {
 	for _, page := range pages {
@@ -120,6 +123,8 @@ func AddPagesToTree(pages []Page, results chan<- *importer.ScanResult, nReader *
 
 		// Determine if it's a root node
 		if parentID == "" {
+			// Top-level page
+			topLevelPages = append(topLevelPages, id)
 			propagateConnectionToRoot(node, results, nReader)
 		} else {
 			if parent, ok := nodeMap[parentID]; ok {
@@ -158,8 +163,11 @@ func propagateConnectionToRoot(node *PageNode, results chan<- *importer.ScanResu
 		return
 	}
 	node.ConnectedToRoot = true
+	//maybe consider switching back to one file results instead of two, it would be easier to handle in the exorter.
+	//but it could be less efficient during the import process, TODO: to investigate
 	results <- importer.NewScanRecord(GetPathToRoot(node), "", objects.NewFileInfo(node.Page.ID, 0, os.ModeDir, time.Time{}, 0, 0, 0, 0, 0), nil)
-	results <- importer.NewScanRecord(GetPathToRoot(node)+"/content.json", "", objects.NewFileInfo("content.json", 0, 0, time.Time{}, 0, 0, 0, 0, 0), nil)
+	results <- importer.NewScanRecord(GetPathToRoot(node)+"/header.json", "", objects.NewFileInfo("header.json", 0, 0, time.Time{}, 0, 0, 0, 0, 0), nil)
+	results <- importer.NewScanRecord(GetPathToRoot(node)+"/blocks.json", "", objects.NewFileInfo("blocks.json", 0, 0, time.Time{}, 0, 0, 0, 0, 0), nil)
 	*nReader++
 	for _, child := range node.Children {
 		propagateConnectionToRoot(child, results, nReader)
