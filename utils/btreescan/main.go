@@ -12,10 +12,10 @@ import (
 
 	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/btree"
+	"github.com/PlakarKorp/kloset/config"
 	"github.com/PlakarKorp/kloset/snapshot/importer"
 	"github.com/PlakarKorp/kloset/snapshot/vfs"
 	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/config"
 	_ "github.com/PlakarKorp/plakar/connectors/fs/importer"
 	_ "github.com/PlakarKorp/plakar/connectors/ftp/importer"
 	_ "github.com/PlakarKorp/plakar/connectors/s3/importer"

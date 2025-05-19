@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/PlakarKorp/kloset/config"
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/kloset/snapshot"
-	"github.com/PlakarKorp/plakar/config"
 	_ "github.com/PlakarKorp/plakar/connectors/fs/exporter"
 	ptesting "github.com/PlakarKorp/plakar/testing"
 	"github.com/stretchr/testify/require"
