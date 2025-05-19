@@ -28,7 +28,7 @@ jobs:
       # Step 2: Build binaries using Docker with dependency installation
       - name: Build binary in Docker for ${{ matrix.arch }}
         run: |
-          docker run --rm -v $(pwd):/app -w /app/cmd/plakar \
+          docker run --rm -v $(pwd):/app -w /app \
             --platform linux/${{ matrix.arch }} \
             golang:1.23-bullseye bash -c "\
               apt-get update && \
