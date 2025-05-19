@@ -23,7 +23,7 @@ import (
 	"path"
 	"sync"
 
-	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/kloset/objects"
 	"github.com/pkg/sftp"
 	"golang.org/x/sync/errgroup"
 )

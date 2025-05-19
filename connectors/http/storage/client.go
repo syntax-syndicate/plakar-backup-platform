@@ -23,10 +23,10 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/kloset/objects"
+	"github.com/PlakarKorp/kloset/storage"
 	"github.com/PlakarKorp/plakar/network"
-	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/storage"
 )
 
 type Store struct {

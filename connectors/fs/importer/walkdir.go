@@ -25,8 +25,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/snapshot/importer"
+	"github.com/PlakarKorp/kloset/objects"
+	"github.com/PlakarKorp/kloset/snapshot/importer"
 	"github.com/pkg/xattr"
 )
 

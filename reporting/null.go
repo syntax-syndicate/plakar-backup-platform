@@ -1,7 +1,7 @@
 package reporting
 
 import (
-	"github.com/PlakarKorp/plakar/logging"
+	"github.com/PlakarKorp/kloset/logging"
 )
 
 type NullEmitter struct {

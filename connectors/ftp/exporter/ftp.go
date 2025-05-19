@@ -22,9 +22,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/snapshot/exporter"
+	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/kloset/objects"
+	"github.com/PlakarKorp/kloset/snapshot/exporter"
 	"github.com/secsy/goftp"
 )
 
