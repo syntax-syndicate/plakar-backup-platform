@@ -21,6 +21,9 @@ func (cmd *AgentTasksStop) Parse(ctx *appcontext.AppContext, args []string) erro
 		flags.PrintDefaults()
 	}
 	flags.Parse(args)
+	if flags.NArg() != 0 {
+		return fmt.Errorf("too many arguments")
+	}
 
 	return nil
 }

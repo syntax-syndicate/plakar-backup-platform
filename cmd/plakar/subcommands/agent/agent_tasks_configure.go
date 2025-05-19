@@ -30,6 +30,9 @@ func (cmd *AgentTasksConfigure) Parse(ctx *appcontext.AppContext, args []string)
 		flags.Usage()
 		return fmt.Errorf("no configuration file provided")
 	}
+	if flags.NArg() > 1 {
+		return fmt.Errorf("too many arguments")
+	}
 
 	if configurationFile, err := filepath.Abs(flags.Arg(0)); err != nil {
 		return fmt.Errorf("failed to get absolute path for configuration file: %w", err)
