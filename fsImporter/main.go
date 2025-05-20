@@ -4,26 +4,20 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/PlakarKorp/plakar/objects"
-	impor "github.com/PlakarKorp/plakar/snapshot/importer"
-	"github.com/pkg/xattr"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"io"
 	"io/fs"
-	"net"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
 
-	"github.com/PlakarKorp/go-kloset-sdk/pkg/importer"
-
-	"google.golang.org/grpc"
+	"github.com/PlakarKorp/plakar/objects"
+	impor "github.com/PlakarKorp/plakar/snapshot/importer"
+	"github.com/pkg/xattr"
 )
 
 type PlakarImporterFS struct {
-	importer.UnimplementedImporterServer
 	rootDir string
 }
 
@@ -44,19 +38,19 @@ func NewPlakarImporterFS(location string) (*PlakarImporterFS, error) {
 	}, nil
 }
 
-func (imp *PlakarImporterFS) Info(ctx context.Context, req *importer.InfoRequest) (*importer.InfoResponse, error) {
+func (imp *PlakarImporterFS) Info(ctx context.Context, req *InfoRequest) (*InfoResponse, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		hostname = "localhost"
 	}
-	return &importer.InfoResponse{
+	return &InfoResponse{
 		Type:   "fs",
 		Origin: hostname,
 		Root:   imp.rootDir,
 	}, nil
 }
 
-func (imp *PlakarImporterFS) Scan(req *importer.ScanRequest, stream importer.Importer_ScanServer) error {
+func (imp *PlakarImporterFS) Scan(req *ScanRequest, stream ScanResponseStreamer) error {
 	fmt.Println("Scan called")
 	realp, err := realpathFollow(imp.rootDir)
 	if err != nil {
@@ -83,16 +77,16 @@ func (imp *PlakarImporterFS) Scan(req *importer.ScanRequest, stream importer.Imp
 			//} else {
 			//	extendedAttr = nil
 			//}
-			if err := stream.Send(&importer.ScanResponse{
+			if err := stream.Send(&ScanResponse{
 				Pathname: result.Record.Pathname,
-				Result: &importer.ScanResponse_Record{
-					Record: &importer.ScanRecord{
+				Result: &ScanResponseRecord{
+					Record: &ScanRecord{
 						Target: result.Record.Pathname,
-						Fileinfo: &importer.ScanRecordFileInfo{
+						Fileinfo: &ScanRecordFileInfo{
 							Name:      result.Record.FileInfo.Lname,
 							Size:      result.Record.FileInfo.Lsize,
 							Mode:      uint32(result.Record.FileInfo.Lmode),
-							ModTime:   timestamppb.New(result.Record.FileInfo.LmodTime),
+							ModTime:   NewTimestamp(result.Record.FileInfo.LmodTime),
 							Dev:       result.Record.FileInfo.Ldev,
 							Ino:       result.Record.FileInfo.Lino,
 							Uid:       result.Record.FileInfo.Luid,
@@ -110,10 +104,10 @@ func (imp *PlakarImporterFS) Scan(req *importer.ScanRequest, stream importer.Imp
 				return err
 			}
 		case result.Error != nil:
-			if err := stream.Send(&importer.ScanResponse{
+			if err := stream.Send(&ScanResponse{
 				Pathname: result.Error.Pathname,
-				Result: &importer.ScanResponse_Error{
-					Error: &importer.ScanError{
+				Result: &ScanResponseError{
+					Error: &ScanError{
 						Message: result.Error.Err.Error(),
 					},
 				},
@@ -255,7 +249,7 @@ func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results ch
 	}
 }
 
-func (imp *PlakarImporterFS) Read(req *importer.ReadRequest, stream importer.Importer_ReadServer) error {
+func (imp *PlakarImporterFS) Read(req *ReadRequest, stream ReadResponseStramer) error {
 	file, err := os.Open(req.Pathname)
 	if err != nil {
 		return err
@@ -271,7 +265,7 @@ func (imp *PlakarImporterFS) Read(req *importer.ReadRequest, stream importer.Imp
 			}
 			return err
 		}
-		if err := stream.Send(&importer.ReadResponse{
+		if err := stream.Send(&ReadResponse{
 			Data: buf[:n],
 		}); err != nil {
 			return err
@@ -287,21 +281,12 @@ func main() {
 	}
 
 	scanDir := os.Args[1]
-	listenAddr, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", 50051))
-	if err != nil {
-		panic(err)
-	}
-
-	server := grpc.NewServer()
-
 	fsImporter, err := NewPlakarImporterFS(scanDir)
 	if err != nil {
 		panic(err)
 	}
 
-	importer.RegisterImporterServer(server, fsImporter)
-
-	if err := server.Serve(listenAddr); err != nil {
+	if err := RunImporter(fsImporter); err != nil {
 		panic(err)
 	}
 }
