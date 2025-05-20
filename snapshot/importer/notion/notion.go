@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path"
 	"sync"
@@ -110,6 +109,7 @@ func (p *NotionImporter) Scan() (<-chan *importer.ScanResult, error) {
 	go func() {
 		defer wg2.Done()
 
+		// TODO: add a timeout here, to avoid blocking forever, or a way to break the loop in case of error
 		for {
 			if len(p.done) == 1 {
 				// all scan are done, check if there are any readers left
@@ -117,23 +117,32 @@ func (p *NotionImporter) Scan() (<-chan *importer.ScanResult, error) {
 					return
 				}
 			}
-			record := <-p.notionChan
-			if record.EOF == true {
-				p.nReader--
+
+			var record notionRecord
+			select {
+			case record = <-p.notionChan:
+				// process the record
+				if record.EOF == true {
+					p.nReader--
+					continue
+				}
+			default:
+				// no record available, continue
 				continue
 			}
+
 			// do something with the record
 			type block struct {
-				ID          string `json:"id"`
-				HasChildren bool   `json:"has_children"`
-				Type        string `json:"type"`
+				ID          string            `json:"id"`
+				HasChildren bool              `json:"has_children"`
+				Type        string            `json:"type"`
+				Parent      map[string]string `json:"parent"`
 			}
 			var b block
 			if err := json.Unmarshal(record.Block, &b); err != nil {
 				results <- importer.NewScanError("", err)
 				continue
 			}
-			log.Printf("block: %s, %b", b.ID, b.HasChildren)
 			if b.HasChildren && b.Type != "child_page" {
 				fInfo := objects.NewFileInfo(
 					b.ID,
@@ -151,6 +160,15 @@ func (p *NotionImporter) Scan() (<-chan *importer.ScanResult, error) {
 				fInfo.Lname = "blocks.json"
 				results <- importer.NewScanRecord(record.pathTo+"/"+b.ID+"/"+fInfo.Lname, "", fInfo, nil)
 				p.nReader++
+
+				AddPagesToTree([]Page{{
+					ID:     b.ID,
+					Object: "block",
+					Parent: map[string]any{
+						"type":           b.Parent["type"],
+						b.Parent["type"]: b.Parent[b.Parent["type"]],
+					},
+				}}, results, &(p.nReader))
 			}
 		}
 	}()

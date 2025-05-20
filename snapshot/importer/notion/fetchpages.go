@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/PlakarKorp/plakar/objects"
+	"github.com/PlakarKorp/plakar/snapshot/importer"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/snapshot/importer"
 )
 
 const notionSearchURL = NotionURL + "/search"
@@ -23,12 +22,9 @@ type SearchResponse struct {
 }
 
 type Page struct {
-	Object string `json:"object"`
-	ID     string `json:"id"`
-	Parent struct {
-		Type   string `json:"type"`
-		PageID string `json:"page_id"`
-	}
+	Object string         `json:"object"`
+	ID     string         `json:"id"`
+	Parent map[string]any `json:"parent"` // Parent can be a page, block, or workspace (string, string, or boolean)
 	//Properties struct {
 	//	Title struct {
 	//		Title []struct {
@@ -78,8 +74,6 @@ func (p *NotionImporter) fetchAllPages(cursor string, results chan<- *importer.S
 		return err
 	}
 
-	//log.Print(response.Results)
-
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -100,18 +94,18 @@ type PageNode struct {
 	ConnectedToRoot bool
 }
 
-// Global maps
+// Global maps //TODO change global variables to struct fields
 var nodeMap = make(map[string]*PageNode)           // PageID -> PageNode
 var waitingChildren = make(map[string][]*PageNode) // ParentID -> []*PageNode
 var topLevelPages = make([]string, 0)              // Top level pages (root pages)
 
-//TODO: handle in the tree page inside blocks recursively !!!
-//adding block as node to the tree should be done in the same way as pages
-
 func AddPagesToTree(pages []Page, results chan<- *importer.ScanResult, nReader *int) {
 	for _, page := range pages {
 		id := page.ID
-		parentID := page.Parent.PageID
+		parentID, ok := page.Parent[page.Parent["type"].(string)].(string)
+		if !ok {
+			parentID = ""
+		}
 
 		// Get or create the node
 		node, exists := nodeMap[id]
@@ -164,11 +158,13 @@ func propagateConnectionToRoot(node *PageNode, results chan<- *importer.ScanResu
 		return
 	}
 	node.ConnectedToRoot = true
-	//maybe consider switching back to one file results instead of two, it would be easier to handle in the exorter.
-	//but it could be less efficient during the import process, TODO: to investigate
-	results <- importer.NewScanRecord(GetPathToRoot(node), "", objects.NewFileInfo(node.Page.ID, 0, os.ModeDir, time.Time{}, 0, 0, 0, 0, 0), nil)
-	results <- importer.NewScanRecord(GetPathToRoot(node)+"/file.json", "", objects.NewFileInfo("file.json", 0, 0, time.Time{}, 0, 0, 0, 0, 0), nil)
-	*nReader++
+
+	if node.Page.Object != "block" {
+		results <- importer.NewScanRecord(GetPathToRoot(node), "", objects.NewFileInfo(node.Page.ID, 0, os.ModeDir, time.Time{}, 0, 0, 0, 0, 0), nil)
+		results <- importer.NewScanRecord(GetPathToRoot(node)+"/file.json", "", objects.NewFileInfo("file.json", 0, 0, time.Time{}, 0, 0, 0, 0, 0), nil)
+		*nReader++
+	}
+
 	for _, child := range node.Children {
 		propagateConnectionToRoot(child, results, nReader)
 	}
@@ -190,4 +186,5 @@ func GetPathToRoot(node *PageNode) string {
 func ClearNodeTree() {
 	nodeMap = make(map[string]*PageNode)
 	waitingChildren = make(map[string][]*PageNode)
+	topLevelPages = make([]string, 0)
 }
