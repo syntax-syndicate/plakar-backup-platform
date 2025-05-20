@@ -21,8 +21,8 @@ type NotionExporter struct {
 	token  string
 	rootID string //TODO : change this to a user friendly name (e.g. "My Notion Page" instead of "1234567890abcdef")
 	sync.Mutex
-	mapMutex sync.RWMutex // Added RWMutex for protecting pageIDMap
-	timeout  <-chan time.Time
+	mapMutex sync.RWMutex     // Added RWMutex for protecting pageIDMap
+	timeout  <-chan time.Time // TODO: change this ugly timeout to a more elegant solution
 }
 
 func init() {
@@ -105,6 +105,8 @@ func (p *NotionExporter) makeRequest(method, url string, payload []byte) (map[st
 		DebugResponse(resp)
 		return nil, fmt.Errorf("request failed: status code %d", resp.StatusCode)
 	}
+
+	p.RestartTimeout()
 
 	jsonData := map[string]any{}
 	err = json.NewDecoder(resp.Body).Decode(&jsonData)
@@ -240,7 +242,7 @@ func (p *NotionExporter) StoreFile(pathname string, fp io.Reader, size int64) er
 			blocks[i] = child.(map[string]any)
 		}
 
-		err = p.AddAllBlocks(blocks, newID)
+		err = p.AddAllBlocks(blocks, newID, "page_id")
 		if err != nil {
 			return fmt.Errorf("failed to add blocks: %w", err)
 		}
@@ -270,7 +272,7 @@ func (p *NotionExporter) StoreFile(pathname string, fp io.Reader, size int64) er
 			return fmt.Errorf("failed to unmarshal JSON: %w", err)
 		}
 
-		err = p.AddAllBlocks(jsonData, newID)
+		err = p.AddAllBlocks(jsonData, newID, "block_id")
 		if err != nil {
 			return fmt.Errorf("failed to add blocks: %w", err)
 		}
@@ -282,27 +284,76 @@ func (p *NotionExporter) StoreFile(pathname string, fp io.Reader, size int64) er
 	return nil
 }
 
-func (p *NotionExporter) AddAllBlocks(jsonData []map[string]any, newID string) error {
+func (p *NotionExporter) AddAllBlocks(jsonData []map[string]any, newID, parentType string) error {
 	for _, block := range jsonData { //PATCH each block to the page
 		if block["type"] == "child_page" {
-			payload := map[string]any{}
-			payload["parent"] = map[string]any{
-				"type":    "page_id",
-				"page_id": newID,
+			if parentType == "block_id" {
+				// Special case for child page inside a block
+				payload := map[string]any{
+					"parent": map[string]any{
+						"type":    "page_id",
+						"page_id": p.rootID, //TODO: change this to the closest parent 'page' ID (not block ID)
+					},
+					"properties": map[string]any{},
+					"children":   []any{},
+				}
+
+				data, err := json.Marshal(payload)
+				if err != nil {
+					return fmt.Errorf("failed to marshal JSON: %w", err)
+				}
+				newPageID, err := p.PostPage(data)
+				if err != nil {
+					return fmt.Errorf("failed to post page: %w", err)
+				}
+				p.mapMutex.Lock()
+				pageIDMap[block["id"].(string)] = newPageID
+				p.mapMutex.Unlock()
+
+				// Add the link to the new page
+				linkBlock := map[string]any{
+					"object": "block",
+					"type":   "link_to_page",
+					"link_to_page": map[string]any{
+						"page_id": newPageID, // Use the ID of the newly created page
+					},
+				}
+
+				payload = map[string]any{
+					"children": []any{
+						linkBlock,
+					},
+				}
+
+				data, err = json.Marshal(payload)
+				if err != nil {
+					return fmt.Errorf("failed to marshal JSON for link block: %w", err)
+				}
+
+				_, err = p.AddBlock(data, newID) // Add the link block to the parent
+				if err != nil {
+					return fmt.Errorf("failed to add link block: %w", err)
+				}
+			} else {
+				payload := map[string]any{}
+				payload["parent"] = map[string]any{
+					"type":     parentType,
+					parentType: newID,
+				}
+				payload["properties"] = map[string]any{}
+				payload["children"] = []any{}
+				data, err := json.Marshal(payload)
+				if err != nil {
+					return fmt.Errorf("failed to marshal JSON: %w", err)
+				}
+				newPageID, err := p.PostPage(data)
+				if err != nil {
+					return fmt.Errorf("failed to post page: %w", err)
+				}
+				p.mapMutex.Lock()
+				pageIDMap[block["id"].(string)] = newPageID
+				p.mapMutex.Unlock()
 			}
-			payload["properties"] = map[string]any{}
-			payload["children"] = []any{}
-			data, err := json.Marshal(payload)
-			if err != nil {
-				return fmt.Errorf("failed to marshal JSON: %w", err)
-			}
-			newPageID, err := p.PostPage(data)
-			if err != nil {
-				return fmt.Errorf("failed to post page: %w", err)
-			}
-			p.mapMutex.Lock()
-			pageIDMap[block["id"].(string)] = newPageID
-			p.mapMutex.Unlock()
 		} else { //standard block
 			payload := map[string]any{
 				"children": []any{
