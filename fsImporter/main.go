@@ -15,6 +15,7 @@ import (
 	"github.com/PlakarKorp/plakar/objects"
 	impor "github.com/PlakarKorp/plakar/snapshot/importer"
 	"github.com/pkg/xattr"
+	"github.com/PlakarKorp/go-kloset-sdk/sdk"
 )
 
 type PlakarImporterFS struct {
@@ -38,19 +39,19 @@ func NewPlakarImporterFS(location string) (*PlakarImporterFS, error) {
 	}, nil
 }
 
-func (imp *PlakarImporterFS) Info(ctx context.Context, req *InfoRequest) (*InfoResponse, error) {
+func (imp *PlakarImporterFS) Info(ctx context.Context, req *sdk.InfoRequest) (*sdk.InfoResponse, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		hostname = "localhost"
 	}
-	return &InfoResponse{
+	return &sdk.InfoResponse{
 		Type:   "fs",
 		Origin: hostname,
 		Root:   imp.rootDir,
 	}, nil
 }
 
-func (imp *PlakarImporterFS) Scan(req *ScanRequest, stream ScanResponseStreamer) error {
+func (imp *PlakarImporterFS) Scan(req *sdk.ScanRequest, stream sdk.ScanResponseStreamer) error {
 	fmt.Println("Scan called")
 	realp, err := realpathFollow(imp.rootDir)
 	if err != nil {
@@ -77,16 +78,16 @@ func (imp *PlakarImporterFS) Scan(req *ScanRequest, stream ScanResponseStreamer)
 			//} else {
 			//	extendedAttr = nil
 			//}
-			if err := stream.Send(&ScanResponse{
+			if err := stream.Send(&sdk.ScanResponse{
 				Pathname: result.Record.Pathname,
-				Result: &ScanResponseRecord{
-					Record: &ScanRecord{
+				Result: &sdk.ScanResponseRecord{
+					Record: &sdk.ScanRecord{
 						Target: result.Record.Pathname,
-						Fileinfo: &ScanRecordFileInfo{
+						Fileinfo: &sdk.ScanRecordFileInfo{
 							Name:      result.Record.FileInfo.Lname,
 							Size:      result.Record.FileInfo.Lsize,
 							Mode:      uint32(result.Record.FileInfo.Lmode),
-							ModTime:   NewTimestamp(result.Record.FileInfo.LmodTime),
+							ModTime:   sdk.NewTimestamp(result.Record.FileInfo.LmodTime),
 							Dev:       result.Record.FileInfo.Ldev,
 							Ino:       result.Record.FileInfo.Lino,
 							Uid:       result.Record.FileInfo.Luid,
@@ -104,10 +105,10 @@ func (imp *PlakarImporterFS) Scan(req *ScanRequest, stream ScanResponseStreamer)
 				return err
 			}
 		case result.Error != nil:
-			if err := stream.Send(&ScanResponse{
+			if err := stream.Send(&sdk.ScanResponse{
 				Pathname: result.Error.Pathname,
-				Result: &ScanResponseError{
-					Error: &ScanError{
+				Result: &sdk.ScanResponseError{
+					Error: &sdk.ScanError{
 						Message: result.Error.Err.Error(),
 					},
 				},
@@ -249,7 +250,7 @@ func walkDir_addPrefixDirectories(rootDir string, jobs chan<- string, results ch
 	}
 }
 
-func (imp *PlakarImporterFS) Read(req *ReadRequest, stream ReadResponseStramer) error {
+func (imp *PlakarImporterFS) Read(req *sdk.ReadRequest, stream sdk.ReadResponseStramer) error {
 	file, err := os.Open(req.Pathname)
 	if err != nil {
 		return err
@@ -265,7 +266,7 @@ func (imp *PlakarImporterFS) Read(req *ReadRequest, stream ReadResponseStramer) 
 			}
 			return err
 		}
-		if err := stream.Send(&ReadResponse{
+		if err := stream.Send(&sdk.ReadResponse{
 			Data: buf[:n],
 		}); err != nil {
 			return err
@@ -286,7 +287,7 @@ func main() {
 		panic(err)
 	}
 
-	if err := RunImporter(fsImporter); err != nil {
+	if err := sdk.RunImporter(fsImporter); err != nil {
 		panic(err)
 	}
 }
