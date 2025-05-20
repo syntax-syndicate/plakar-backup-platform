@@ -2,76 +2,108 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
-	"log"
-	"time"
 
-	"github.com/PlakarKorp/plakar/SDK/exchanger"
+	"github.com/PlakarKorp/go-kloset-sdk/pkg/importer"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
-func main() {
-	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
+func ScanFS(client importer.ImporterClient) {
+	scanStream, err := client.Scan(context.Background(), &importer.ScanRequest{})
 	if err != nil {
-		log.Fatalf("client dial error: %v", err)
+		panic(err)
+	}
+	for {
+		resp, err := scanStream.Recv()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			panic(err)
+		}
+		if scanError := resp.GetError(); scanError != nil {
+			fmt.Printf("[ERROR] %s: %s\n", resp.Pathname, scanError.GetMessage())
+		} else if record := resp.GetRecord(); record != nil {
+			fmt.Printf("[OK] %s\n", resp.Pathname)
+		} else {
+			panic("?? unexpected response")
+		}
+	}
+}
+
+func GetFileContent(client importer.ImporterClient, filename string) {
+	data, err := client.Read(context.Background(), &importer.ReadRequest{Pathname: filename})
+	if err != nil {
+		panic(err)
+	}
+	for {
+		resp, err := data.Recv()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			panic(err)
+		}
+		fmt.Printf("%s", resp.Data)
+	}
+}
+
+func main() {
+	serverAddr := "localhost:50051"
+	conn, err := grpc.NewClient(serverAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		panic(err)
 	}
 	defer conn.Close()
-	client := exchanger.NewExchangerClient(conn)
+
+	client := importer.NewImporterClient(conn)
+
+	info, err := client.Info(context.Background(), &importer.InfoRequest{})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Importer type: %v\n", info.Type)
+	fmt.Printf("Importer origin: %v\n", info.Origin)
+	fmt.Printf("Importer root: %v\n", info.Root)
+
+	stream, err := client.Scan(context.Background(), &importer.ScanRequest{})
+	if err != nil {
+		fmt.Printf("Scan error: %v\n", err)
+		return
+	}
 
 	for {
-		scanStream, err := client.Scan(context.Background())
-		if err != nil {
-			log.Printf("error opening Scan stream: %v", err)
-			time.Sleep(2 * time.Second)
-			continue
-		}
-
-		err = scanStream.Send(&exchanger.ScanMessage{Data: "client: scan please"})
-		if err != nil {
-			log.Printf("error sending scan request: %v", err)
-			continue
-		}
-
-		msg, err := scanStream.Recv()
+		resp, err := stream.Recv()
 		if err == io.EOF {
-			log.Println("Scan stream closed by server.")
-			continue
+			fmt.Println("Scan completed.")
+			break
 		}
 		if err != nil {
-			log.Printf("error reading from Scan stream: %v", err)
+			fmt.Printf("Error receiving from stream: %v\n", err)
+			break
+		}
+		fmt.Printf("Received path: %s\n", resp.Pathname)
+		content, err := client.Read(context.Background(), &importer.ReadRequest{Pathname: resp.Pathname})
+		if err != nil {
+			fmt.Printf("Error reading file: %v\n", err)
 			continue
 		}
-
-		log.Printf("Scan response: %s", msg.Data)
-
-		go func(content string) {
-			log.Println("Triggering NewReader stream with content:", content)
-
-			newReaderStream, err := client.NewReader(context.Background())
-			if err != nil {
-				log.Printf("error opening NewReader stream: %v", err)
-				return
-			}
-
-			err = newReaderStream.Send(&exchanger.ReaderMessage{Chunk: "reader input from scan: " + content})
-			if err != nil {
-				log.Printf("error sending reader chunk: %v", err)
-				return
-			}
-
-			resp, err := newReaderStream.Recv()
+		for {
+			data, err := content.Recv()
 			if err == io.EOF {
-				log.Println("NewReader stream closed.")
-				return
+				break
 			}
 			if err != nil {
-				log.Printf("error reading from NewReader stream: %v", err)
-				return
+				fmt.Printf("Error receiving file content: %v\n", err)
+				break
 			}
-			log.Printf("NewReader response: %s", resp.Chunk)
-
-		}(msg.Data)
-
-		time.Sleep(1 * time.Second)
+			fmt.Printf("File content: %s\n", data.Data)
+		}
 	}
+	// GetFileContent(client, "/Users/niluje/dev/plakar/plakar-ui/README.md")
 }
