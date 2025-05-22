@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
+	"github.com/PlakarKorp/plakar/utils"
 )
 
 type TokenResponse struct {

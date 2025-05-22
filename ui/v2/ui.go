@@ -18,7 +18,6 @@ package v2
 
 import (
 	"embed"
-	_ "embed"
 	"fmt"
 	"io/fs"
 	"math/rand/v2"
@@ -26,9 +25,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/plakar/api"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/utils"
 )
 
 type UiOptions struct {
