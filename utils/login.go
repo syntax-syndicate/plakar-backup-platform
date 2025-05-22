@@ -24,7 +24,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/kloset/kcontext"
 	"github.com/google/uuid"
 )
 
@@ -33,12 +33,12 @@ type TokenResponse struct {
 }
 
 type loginFlow struct {
-	appCtx       *appcontext.AppContext
+	appCtx       *kcontext.KContext
 	repositoryID uuid.UUID
 	noSpawn      bool
 }
 
-func NewLoginFlow(appCtx *appcontext.AppContext, repositoryID uuid.UUID, noSpawn bool) (*loginFlow, error) {
+func NewLoginFlow(appCtx *kcontext.KContext, repositoryID uuid.UUID, noSpawn bool) (*loginFlow, error) {
 	flow := &loginFlow{
 		appCtx:       appCtx,
 		repositoryID: repositoryID,
@@ -55,7 +55,7 @@ func (flow *loginFlow) Poll(pollID string, iterations int, delay time.Duration, 
 			return "", flow.appCtx.Err()
 		case <-tick:
 			reqUrl := "https://api.plakar.io/v1/auth/poll/" + pollID
-			req, err := http.NewRequestWithContext(flow.appCtx.Context, "POST", reqUrl, nil)
+			req, err := http.NewRequestWithContext(flow.appCtx, "POST", reqUrl, nil)
 			if err != nil {
 				return "", fmt.Errorf("the /auth/login/github/poll API endpoint failed: %w", err)
 			}

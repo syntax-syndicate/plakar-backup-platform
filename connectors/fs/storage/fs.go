@@ -18,6 +18,7 @@ package fs
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -27,7 +28,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/kloset/storage"
@@ -43,7 +43,7 @@ func init() {
 	storage.Register(NewStore, "fs")
 }
 
-func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]string) (storage.Store, error) {
+func NewStore(ctx context.Context, proto string, storeConfig map[string]string) (storage.Store, error) {
 	return &Store{
 		location: storeConfig["location"],
 	}, nil
@@ -63,7 +63,7 @@ func (s *Store) Path(args ...string) string {
 	return filepath.Join(args...)
 }
 
-func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
+func (s *Store) Create(ctx context.Context, config []byte) error {
 	dirfp, err := os.Open(s.Path())
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
@@ -103,7 +103,7 @@ func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
 	return err
 }
 
-func (s *Store) Open(ctx *appcontext.AppContext) ([]byte, error) {
+func (s *Store) Open(ctx context.Context) ([]byte, error) {
 	s.packfiles = NewBuckets(s.Path("packfiles"))
 	s.states = NewBuckets(s.Path("states"))
 

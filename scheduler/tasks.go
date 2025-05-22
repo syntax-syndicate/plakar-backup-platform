@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/encryption"
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/kloset/storage"
 	"github.com/PlakarKorp/kloset/versioning"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/subcommands/backup"
 	"github.com/PlakarKorp/plakar/subcommands/check"
 	"github.com/PlakarKorp/plakar/subcommands/maintenance"
@@ -24,7 +24,7 @@ func loadRepository(newCtx *appcontext.AppContext, name string) (*repository.Rep
 		return nil, nil, fmt.Errorf("unable to get repository configuration: %w", err)
 	}
 
-	store, config, err := storage.Open(newCtx, storeConfig)
+	store, config, err := storage.Open(newCtx.GetInner(), storeConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to open storage: %w", err)
 	}
@@ -53,7 +53,7 @@ func loadRepository(newCtx *appcontext.AppContext, name string) (*repository.Rep
 		newCtx.SetSecret(key)
 	}
 
-	repo, err := repository.New(newCtx, store, config)
+	repo, err := repository.New(newCtx.GetInner(), store, config)
 	if err != nil {
 		store.Close()
 		return nil, store, fmt.Errorf("unable to open repository: %w", err)

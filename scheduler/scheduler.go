@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/repository"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/reporting"
 	"github.com/PlakarKorp/plakar/services"
 )
@@ -57,13 +57,12 @@ func (s *Scheduler) Run() {
 }
 
 func (s *Scheduler) NewTaskReporter(repo *repository.Repository, taskType, taskName, repoName string) *reporting.Reporter {
-	ctx := repo.AppContext()
 	doReport := true
-	authToken, err := ctx.GetAuthToken(repo.Configuration().RepositoryID)
+	authToken, err := s.ctx.GetAuthToken(repo.Configuration().RepositoryID)
 	if err != nil || authToken == "" {
 		doReport = false
 	} else {
-		sc := services.NewServiceConnector(ctx, authToken)
+		sc := services.NewServiceConnector(s.ctx, authToken)
 		enabled, err := sc.GetServiceStatus("alerting")
 		if err != nil || !enabled {
 			doReport = false

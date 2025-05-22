@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/caching"
 	"github.com/PlakarKorp/kloset/hashing"
 	"github.com/PlakarKorp/kloset/logging"
@@ -16,6 +15,7 @@ import (
 	"github.com/PlakarKorp/kloset/resources"
 	"github.com/PlakarKorp/kloset/storage"
 	"github.com/PlakarKorp/kloset/versioning"
+	"github.com/PlakarKorp/plakar/appcontext"
 	ptesting "github.com/PlakarKorp/plakar/testing"
 	"github.com/stretchr/testify/require"
 )
@@ -321,14 +321,14 @@ func _TestSnapshotPathParam(t *testing.T) {
 			wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 			require.NoError(t, err)
 
-			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
+			lstore, err := storage.Create(ctx.GetInner(), map[string]string{"location": c.location}, wrappedConfig)
 			require.NoError(t, err, "creating storage")
 
 			cache := caching.NewManager("mock:///tmp/test_plakar")
 			defer cache.Close()
 			ctx.SetCache(cache)
 			ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-			repo, err := repository.New(ctx, lstore, wrappedConfig)
+			repo, err := repository.New(ctx.GetInner(), lstore, wrappedConfig)
 			require.NoError(t, err, "creating repository")
 
 			req, err := http.NewRequest("GET", "/path/{id}", nil)

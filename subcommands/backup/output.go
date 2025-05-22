@@ -1,7 +1,7 @@
 package backup
 
 import (
-	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/charmbracelet/lipgloss"
 )
 

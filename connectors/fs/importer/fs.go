@@ -18,6 +18,7 @@ package fs
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/fs"
@@ -29,13 +30,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/snapshot/importer"
 	"github.com/pkg/xattr"
 )
 
 type FSImporter struct {
-	ctx     *appcontext.AppContext
+	ctx     context.Context
 	rootDir string
 
 	uidToName map[uint64]string
@@ -47,7 +47,7 @@ func init() {
 	importer.Register("fs", NewFSImporter)
 }
 
-func NewFSImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
+func NewFSImporter(appCtx context.Context, name string, config map[string]string) (importer.Importer, error) {
 	location := config["location"]
 	rootDir := strings.TrimPrefix(location, "fs://")
 

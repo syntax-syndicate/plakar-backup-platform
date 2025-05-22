@@ -17,13 +17,13 @@
 package s3
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/url"
 	"strconv"
 	"strings"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/snapshot/exporter"
 	"github.com/minio/minio-go/v7"
@@ -32,7 +32,7 @@ import (
 
 type S3Exporter struct {
 	minioClient *minio.Client
-	ctx         *appcontext.AppContext
+	ctx         context.Context
 
 	rootDir string
 }
@@ -51,7 +51,7 @@ func connect(location *url.URL, useSsl bool, accessKeyID, secretAccessKey string
 	})
 }
 
-func NewS3Exporter(ctx *appcontext.AppContext, name string, config map[string]string) (exporter.Exporter, error) {
+func NewS3Exporter(ctx context.Context, name string, config map[string]string) (exporter.Exporter, error) {
 	target := config["location"]
 	var accessKey string
 	if tmp, ok := config["access_key"]; !ok {

@@ -26,7 +26,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/compression"
 	"github.com/PlakarKorp/kloset/encryption"
 	"github.com/PlakarKorp/kloset/hashing"
@@ -37,6 +36,7 @@ import (
 	"github.com/PlakarKorp/kloset/snapshot/importer"
 	"github.com/PlakarKorp/kloset/storage"
 	"github.com/PlakarKorp/kloset/versioning"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/utils"
 )
@@ -74,7 +74,7 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 			return fmt.Errorf("peer repository: %w", err)
 		}
 
-		peerStore, peerStoreSerializedConfig, err := storage.Open(ctx, storeConfig)
+		peerStore, peerStoreSerializedConfig, err := storage.Open(ctx.GetInner(), storeConfig)
 		if err != nil {
 			return err
 		}
@@ -117,7 +117,7 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 
 		peerCtx := appcontext.NewAppContextFrom(ctx)
 		peerCtx.SetSecret(peerSecret)
-		_, err = repository.NewNoRebuild(peerCtx, peerStore, peerStoreSerializedConfig)
+		_, err = repository.NewNoRebuild(peerCtx.GetInner(), peerStore, peerStoreSerializedConfig)
 		if err != nil {
 			return err
 		}
@@ -231,12 +231,12 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		return 1, err
 	}
 
-	st, err := storage.Create(ctx, map[string]string{"location": repo.Location()}, wrappedConfig)
+	st, err := storage.Create(ctx.GetInner(), map[string]string{"location": repo.Location()}, wrappedConfig)
 	if err != nil {
 		return 1, err
 	}
 
-	repo, err = repository.New(ctx, st, wrappedConfig)
+	repo, err = repository.New(ctx.GetInner(), st, wrappedConfig)
 	if err != nil {
 		return 1, err
 	}
@@ -254,14 +254,14 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 			return 1, fmt.Errorf("source repository: %w", err)
 		}
 
-		peerStore, peerStoreSerializedConfig, err := storage.Open(ctx, storeConfig)
+		peerStore, peerStoreSerializedConfig, err := storage.Open(ctx.GetInner(), storeConfig)
 		if err != nil {
 			return 1, fmt.Errorf("could not open source store %s: %s", cmd.SyncFrom, err)
 		}
 
 		srcCtx := appcontext.NewAppContextFrom(ctx)
 		srcCtx.SetSecret(cmd.SyncSrcSecret)
-		srcRepository, err := repository.New(srcCtx, peerStore, peerStoreSerializedConfig)
+		srcRepository, err := repository.New(srcCtx.GetInner(), peerStore, peerStoreSerializedConfig)
 		if err != nil {
 			return 1, fmt.Errorf("could not open source repository %s: %s", cmd.SyncFrom, err)
 		}
@@ -291,7 +291,7 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 
 func (cmd *Ptar) backup(ctx *appcontext.AppContext, repo *repository.RepositoryWriter) error {
 	for _, loc := range cmd.Location {
-		imp, err := importer.NewImporter(ctx, map[string]string{"location": loc})
+		imp, err := importer.NewImporter(ctx.GetInner(), map[string]string{"location": loc})
 		if err != nil {
 			return err
 		}

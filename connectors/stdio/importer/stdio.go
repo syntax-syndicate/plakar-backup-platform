@@ -17,6 +17,7 @@
 package stdio
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -25,14 +26,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/snapshot/importer"
 )
 
 type StdioImporter struct {
 	fileDir string
-	appCtx  *appcontext.AppContext
+	appCtx  context.Context
 	name    string
 }
 
@@ -40,7 +40,7 @@ func init() {
 	importer.Register("stdin", NewStdioImporter)
 }
 
-func NewStdioImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
+func NewStdioImporter(appCtx context.Context, name string, config map[string]string) (importer.Importer, error) {
 	location := config["location"]
 	location = strings.TrimPrefix(location, "stdin://")
 	if !strings.HasPrefix(location, "/") {
@@ -129,7 +129,12 @@ func (p *StdioImporter) Root() string {
 }
 
 func (p *StdioImporter) Origin() string {
-	return p.appCtx.Hostname
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "localhost"
+	}
+
+	return hostname
 }
 
 func (p *StdioImporter) Type() string {

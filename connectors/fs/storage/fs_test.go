@@ -6,9 +6,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/storage"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/stretchr/testify/require"
 )
 

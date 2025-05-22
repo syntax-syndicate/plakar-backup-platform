@@ -6,7 +6,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/kloset/repository"
 	_ "github.com/PlakarKorp/plakar/connectors/fs/storage"
 	"github.com/creack/pty"

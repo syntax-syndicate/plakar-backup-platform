@@ -17,6 +17,7 @@
 package ftp
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -27,7 +28,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/snapshot/importer"
 	"github.com/secsy/goftp"
@@ -52,7 +52,7 @@ func connectToFTP(host, username, password string) (*goftp.Client, error) {
 	return goftp.DialConfig(config, host)
 }
 
-func NewFTPImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
+func NewFTPImporter(appCtx context.Context, name string, config map[string]string) (importer.Importer, error) {
 	target := config["location"]
 
 	parsed, err := url.Parse(target)

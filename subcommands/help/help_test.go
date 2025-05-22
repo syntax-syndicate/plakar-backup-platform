@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/kloset/caching"
 	"github.com/PlakarKorp/kloset/cookies"
 	"github.com/PlakarKorp/kloset/hashing"

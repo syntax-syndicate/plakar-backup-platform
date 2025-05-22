@@ -2,19 +2,19 @@ package httpd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/kloset/storage"
 	"github.com/PlakarKorp/plakar/network"
 )
 
 var store storage.Store
-var ctx *appcontext.AppContext
+var ctx context.Context
 var lNoDelete bool
 
 func openRepository(w http.ResponseWriter, r *http.Request) {
