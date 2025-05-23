@@ -24,7 +24,7 @@ func TestExecuteCmdMountDefault(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	repo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+	repo, ctx := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
 	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockDir("another_subdir"),
@@ -38,9 +38,6 @@ func TestExecuteCmdMountDefault(t *testing.T) {
 	tmpMountPoint, err := os.MkdirTemp("", "tmp_mount_point")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpMountPoint)
-
-	ctx := repo.AppContext()
-	defer ctx.Close()
 
 	args := []string{tmpMountPoint}
 
