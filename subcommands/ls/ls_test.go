@@ -11,6 +11,7 @@ import (
 
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/kloset/snapshot"
+	"github.com/PlakarKorp/plakar/appcontext"
 	ptesting "github.com/PlakarKorp/plakar/testing"
 	"github.com/stretchr/testify/require"
 )
@@ -19,13 +20,13 @@ func init() {
 	os.Setenv("TZ", "UTC")
 }
 
-func generateSnapshot(t *testing.T) (*repository.Repository, *snapshot.Snapshot) {
-	repo := ptesting.GenerateRepository(t, nil, nil, nil)
+func generateSnapshot(t *testing.T) (*repository.Repository, *snapshot.Snapshot, *appcontext.AppContext) {
+	repo, ctx := ptesting.GenerateRepository(t, nil, nil, nil)
 	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockFile("subdir/dummy.txt", 0644, "hello dummy"),
 	})
-	return repo, snap
+	return repo, snap, ctx
 }
 
 func TestExecuteCmdLsDefault(t *testing.T) {
@@ -35,17 +36,17 @@ func TestExecuteCmdLsDefault(t *testing.T) {
 	require.NoError(t, err)
 	os.Stdout = w
 
-	repo, snap := generateSnapshot(t)
+	repo, snap, ctx := generateSnapshot(t)
 	defer snap.Close()
 
 	args := []string{}
 
 	subcommand := &Ls{}
-	err = subcommand.Parse(repo.AppContext(), args)
+	err = subcommand.Parse(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(repo.AppContext(), repo)
+	status, err := subcommand.Execute(ctx, repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -73,17 +74,17 @@ func TestExecuteCmdLsFilterByIDAndRecursive(t *testing.T) {
 	require.NoError(t, err)
 	os.Stdout = w
 
-	repo, snap := generateSnapshot(t)
+	repo, snap, ctx := generateSnapshot(t)
 	defer snap.Close()
 
 	args := []string{"-recursive", hex.EncodeToString(snap.Header.GetIndexShortID())}
 
 	subcommand := &Ls{}
-	err = subcommand.Parse(repo.AppContext(), args)
+	err = subcommand.Parse(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(repo.AppContext(), repo)
+	status, err := subcommand.Execute(ctx, repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -113,17 +114,17 @@ func TestExecuteCmdLsFilterUuid(t *testing.T) {
 	require.NoError(t, err)
 	os.Stdout = w
 
-	repo, snap := generateSnapshot(t)
+	repo, snap, ctx := generateSnapshot(t)
 	defer snap.Close()
 
 	args := []string{"-uuid"}
 
 	subcommand := &Ls{}
-	err = subcommand.Parse(repo.AppContext(), args)
+	err = subcommand.Parse(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(repo.AppContext(), repo)
+	status, err := subcommand.Execute(ctx, repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 

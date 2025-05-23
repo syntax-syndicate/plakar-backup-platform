@@ -19,7 +19,7 @@ func init() {
 }
 
 func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) (*repository.Repository, *snapshot.Snapshot) {
-	repo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+	repo, _ := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
 	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockDir("another_subdir"),
@@ -120,7 +120,7 @@ func TestLocateSnapshotIDs(t *testing.T) {
 	bufErr := bytes.NewBuffer(nil)
 
 	// Create a temporary repository
-	repo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+	repo, _ := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
 
 	// Generate mock snapshots with metadata
 	snap1 := generateSnapshotWithMetadata(t, repo, ptesting.WithName("snapshot1"))

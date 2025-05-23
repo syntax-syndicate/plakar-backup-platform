@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func GenerateRepository(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer, passphrase *[]byte) *repository.Repository {
+func GenerateRepository(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer, passphrase *[]byte) (*repository.Repository, *appcontext.AppContext) {
 	// init temporary directories
 	tmpRepoDirRoot, err := os.MkdirTemp("", "tmp_repo")
 	require.NoError(t, err)
@@ -108,10 +108,10 @@ func GenerateRepository(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = repo.Location()
 
-	return repo
+	return repo, ctx
 }
 
-func GenerateRepositoryWithoutConfig(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer, passphrase *[]byte) *repository.Repository {
+func GenerateRepositoryWithoutConfig(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer, passphrase *[]byte) (*repository.Repository, *appcontext.AppContext) {
 	// init temporary directories
 	tmpRepoDirRoot, err := os.MkdirTemp("", "tmp_repo")
 	require.NoError(t, err)
@@ -171,5 +171,5 @@ func GenerateRepositoryWithoutConfig(t *testing.T, bufout *bytes.Buffer, buferr 
 	repo, err := repository.Inexistent(ctx.GetInner(), map[string]string{"location": tmpRepoDirRoot + "/repo"})
 	require.NoError(t, err, "creating repository")
 
-	return repo
+	return repo, ctx
 }

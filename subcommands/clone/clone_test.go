@@ -19,7 +19,7 @@ func TestExecuteCmdClone(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	repo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+	repo, ctx := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
 	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockDir("another_subdir"),
@@ -40,11 +40,11 @@ func TestExecuteCmdClone(t *testing.T) {
 	args := []string{"to", outputDir}
 
 	subcommand := &Clone{}
-	err = subcommand.Parse(repo.AppContext(), args)
+	err = subcommand.Parse(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(repo.AppContext(), repo)
+	status, err := subcommand.Execute(ctx, repo)
 	require.NoError(t, err)
 	require.NotNil(t, status)
 

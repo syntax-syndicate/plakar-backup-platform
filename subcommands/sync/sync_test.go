@@ -12,6 +12,7 @@ import (
 	"github.com/PlakarKorp/kloset/config"
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/kloset/snapshot"
+	"github.com/PlakarKorp/plakar/appcontext"
 	_ "github.com/PlakarKorp/plakar/connectors/fs/exporter"
 	ptesting "github.com/PlakarKorp/plakar/testing"
 	"github.com/stretchr/testify/require"
@@ -21,8 +22,8 @@ func init() {
 	os.Setenv("TZ", "UTC")
 }
 
-func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) (*repository.Repository, *snapshot.Snapshot) {
-	repo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) (*repository.Repository, *snapshot.Snapshot, *appcontext.AppContext) {
+	repo, ctx := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
 	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockDir("another_subdir"),
@@ -31,29 +32,27 @@ func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 		ptesting.NewMockFile("subdir/to_exclude", 0644, "*/subdir/to_exclude\n"),
 		ptesting.NewMockFile("another_subdir/bar.txt", 0644, "hello bar"),
 	})
-	return repo, snap
+	return repo, snap, ctx
 }
 
 func TestExecuteCmdSyncTo(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	localRepo, snap := generateSnapshot(t, bufOut, bufErr)
+	localRepo, snap, lctx := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx := localRepo.AppContext()
-
-	peerRepo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+	peerRepo, _ := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
 
 	indexId := snap.Header.GetIndexID()
 	args := []string{fmt.Sprintf("%s", hex.EncodeToString(indexId[:])), "to", peerRepo.Location()}
 
 	subcommand := &Sync{}
-	err := subcommand.Parse(localRepo.AppContext(), args)
+	err := subcommand.Parse(lctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(ctx, localRepo)
+	status, err := subcommand.Execute(lctx, localRepo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -67,22 +66,20 @@ func TestExecuteCmdSyncWith(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	localRepo, snap := generateSnapshot(t, bufOut, bufErr)
+	localRepo, snap, lctx := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx := localRepo.AppContext()
-
-	peerRepo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+	peerRepo, _ := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
 
 	indexId := snap.Header.GetIndexID()
 	args := []string{fmt.Sprintf("%s", hex.EncodeToString(indexId[:])), "with", peerRepo.Location()}
 
 	subcommand := &Sync{}
-	err := subcommand.Parse(localRepo.AppContext(), args)
+	err := subcommand.Parse(lctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(ctx, localRepo)
+	status, err := subcommand.Execute(lctx, localRepo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -96,13 +93,11 @@ func TestExecuteCmdSyncWithEncryption(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	localRepo, snap := generateSnapshot(t, bufOut, bufErr)
+	localRepo, snap, lctx := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx := localRepo.AppContext()
-
 	passphrase := []byte("aZeRtY123456$#@!@")
-	peerRepo := ptesting.GenerateRepository(t, bufOut, bufErr, &passphrase)
+	peerRepo, _ := ptesting.GenerateRepository(t, bufOut, bufErr, &passphrase)
 
 	// need to recreate configuration to store passphrase on peer repo
 	fmt.Println("peerRepo", peerRepo.Location())
@@ -111,22 +106,22 @@ func TestExecuteCmdSyncWithEncryption(t *testing.T) {
 
 	cfg, err := config.LoadOrCreate(opt_configfile)
 	require.NoError(t, err)
-	ctx.Config = cfg
-	ctx.Config.Repositories["peerRepo"] = make(map[string]string)
-	ctx.Config.Repositories["peerRepo"]["passphrase"] = string(passphrase)
-	ctx.Config.Repositories["peerRepo"]["location"] = string(peerRepo.Location())
-	err = ctx.Config.Save()
+	lctx.Config = cfg
+	lctx.Config.Repositories["peerRepo"] = make(map[string]string)
+	lctx.Config.Repositories["peerRepo"]["passphrase"] = string(passphrase)
+	lctx.Config.Repositories["peerRepo"]["location"] = string(peerRepo.Location())
+	err = lctx.Config.Save()
 	require.NoError(t, err)
 
 	indexId := snap.Header.GetIndexID()
 	args := []string{fmt.Sprintf("%s", hex.EncodeToString(indexId[:])), "with", "@peerRepo"}
 
 	subcommand := &Sync{}
-	err = subcommand.Parse(localRepo.AppContext(), args)
+	err = subcommand.Parse(lctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(ctx, localRepo)
+	status, err := subcommand.Execute(lctx, localRepo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 

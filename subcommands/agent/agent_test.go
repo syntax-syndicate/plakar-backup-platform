@@ -25,8 +25,8 @@ func init() {
 	os.Setenv("TZ", "UTC")
 }
 
-func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) (*repository.Repository, *snapshot.Snapshot) {
-	repo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) (*repository.Repository, *snapshot.Snapshot, *appcontext.AppContext) {
+	repo, ctx := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
 	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockDir("another_subdir"),
@@ -35,7 +35,7 @@ func generateSnapshot(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 		ptesting.NewMockFile("subdir/to_exclude", 0644, "*/subdir/to_exclude\n"),
 		ptesting.NewMockFile("another_subdir/bar.txt", 0644, "hello bar"),
 	})
-	return repo, snap
+	return repo, snap, ctx
 }
 
 func initContext(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer) (*appcontext.AppContext, string) {
@@ -115,10 +115,9 @@ func TestCmdAgentForegroundInit(t *testing.T) {
 	require.NoError(t, err)
 	defer client.Close()
 
-	repo, snap := generateSnapshot(t, bufOut, bufErr)
+	repo, snap, ctx2 := generateSnapshot(t, bufOut, bufErr)
 	defer snap.Close()
 
-	ctx2 := snap.AppContext()
 	ctx2.MaxConcurrency = 1
 
 	// override the homedir to avoid having test overwriting existing home configuration

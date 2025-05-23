@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/kloset/caching"
 	"github.com/PlakarKorp/kloset/cookies"
 	"github.com/PlakarKorp/kloset/hashing"
@@ -17,6 +16,7 @@ import (
 	"github.com/PlakarKorp/kloset/resources"
 	"github.com/PlakarKorp/kloset/storage"
 	"github.com/PlakarKorp/kloset/versioning"
+	"github.com/PlakarKorp/plakar/appcontext"
 	_ "github.com/PlakarKorp/plakar/connectors/fs/importer"
 	bfs "github.com/PlakarKorp/plakar/connectors/fs/storage"
 	"github.com/stretchr/testify/require"
@@ -26,7 +26,7 @@ func init() {
 	os.Setenv("TZ", "UTC")
 }
 
-func generateFixtures(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) (*repository.Repository, string) {
+func generateFixtures(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) (*repository.Repository, string, *appcontext.AppContext) {
 	// init temporary directories
 	tmpRepoDirRoot, err := os.MkdirTemp("", "tmp_repo")
 	require.NoError(t, err)
@@ -76,7 +76,7 @@ func generateFixtures(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 	require.NoError(t, err)
 
 	// open the storage to load the configuration
-	r, serializedConfig, err := storage.Open(ctx, map[string]string{"location": "fs://" + tmpRepoDir})
+	r, serializedConfig, err := storage.Open(ctx.GetInner(), map[string]string{"location": "fs://" + tmpRepoDir})
 	require.NoError(t, err)
 
 	// create a repository
@@ -93,19 +93,18 @@ func generateFixtures(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 	logger.EnableInfo()
 	// logger.EnableTrace("all")
 	ctx.SetLogger(logger)
-	repo, err := repository.New(ctx, r, serializedConfig)
+	repo, err := repository.New(ctx.GetInner(), r, serializedConfig)
 	require.NoError(t, err, "creating repository")
 
-	return repo, tmpBackupDir
+	return repo, tmpBackupDir, ctx
 }
 
 func TestExecuteCmdCreateDefault(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	repo, tmpBackupDir := generateFixtures(t, bufOut, bufErr)
+	repo, tmpBackupDir, ctx := generateFixtures(t, bufOut, bufErr)
 
-	ctx := repo.AppContext()
 	ctx.MaxConcurrency = 1
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = repo.Location()
@@ -143,9 +142,8 @@ func TestExecuteCmdCreateDefaultWithExcludes(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	repo, tmpBackupDir := generateFixtures(t, bufOut, bufErr)
+	repo, tmpBackupDir, ctx := generateFixtures(t, bufOut, bufErr)
 
-	ctx := repo.AppContext()
 	ctx.MaxConcurrency = 1
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = repo.Location()

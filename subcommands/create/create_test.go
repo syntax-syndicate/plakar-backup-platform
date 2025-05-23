@@ -6,8 +6,8 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/kloset/repository"
+	"github.com/PlakarKorp/plakar/appcontext"
 	_ "github.com/PlakarKorp/plakar/connectors/fs/storage"
 	"github.com/creack/pty"
 	"github.com/stretchr/testify/require"
@@ -26,7 +26,7 @@ func TestExecuteCmdCreateDefaultWithHashing(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
 
-	repo, err := repository.Inexistent(ctx, map[string]string{"location": tmpRepoDirRoot + "/repo"})
+	repo, err := repository.Inexistent(ctx.GetInner(), map[string]string{"location": tmpRepoDirRoot + "/repo"})
 	require.NoError(t, err)
 
 	// override the homedir to avoid having test overwriting existing home configuration
@@ -55,7 +55,7 @@ func TestExecuteCmdCreateDefaultWithoutCompression(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
 
-	repo, err := repository.Inexistent(ctx, map[string]string{"location": tmpRepoDirRoot + "/repo"})
+	repo, err := repository.Inexistent(ctx.GetInner(), map[string]string{"location": tmpRepoDirRoot + "/repo"})
 	require.NoError(t, err)
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = tmpRepoDirRoot
@@ -83,7 +83,7 @@ func TestExecuteCmdCreateDefaultWithoutEncryption(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
 
-	repo, err := repository.Inexistent(ctx, map[string]string{"location": tmpRepoDirRoot + "/repo"})
+	repo, err := repository.Inexistent(ctx.GetInner(), map[string]string{"location": tmpRepoDirRoot + "/repo"})
 	require.NoError(t, err)
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = tmpRepoDirRoot
@@ -125,7 +125,7 @@ func _TestExecuteCmdCreateDefaultWeakPassword(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
 
-	repo, err := repository.Inexistent(ctx, map[string]string{"location": tmpRepoDirRoot + "/repo"})
+	repo, err := repository.Inexistent(ctx.GetInner(), map[string]string{"location": tmpRepoDirRoot + "/repo"})
 	require.NoError(t, err)
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = tmpRepoDirRoot
@@ -173,7 +173,7 @@ func TestExecuteCmdCreateDefaultWithKeyfile(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
 
-	repo, err := repository.Inexistent(ctx, map[string]string{"location": tmpRepoDirRoot + "/repo"})
+	repo, err := repository.Inexistent(ctx.GetInner(), map[string]string{"location": tmpRepoDirRoot + "/repo"})
 	require.NoError(t, err)
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = tmpRepoDirRoot
@@ -202,7 +202,7 @@ func TestExecuteCmdCreateDefaultWithEnvPassphrase(t *testing.T) {
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
 
-	repo, err := repository.Inexistent(ctx, map[string]string{"location": tmpRepoDirRoot + "/repo"})
+	repo, err := repository.Inexistent(ctx.GetInner(), map[string]string{"location": tmpRepoDirRoot + "/repo"})
 	require.NoError(t, err)
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = tmpRepoDirRoot
