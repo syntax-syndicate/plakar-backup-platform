@@ -17,19 +17,19 @@
 package stdio
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/snapshot/exporter"
 )
 
 type StdioExporter struct {
 	filePath string
-	appCtx   *appcontext.AppContext
+	appCtx   context.Context
 	w        io.Writer
 }
 
@@ -38,7 +38,7 @@ func init() {
 	exporter.Register("stderr", NewStdioExporter)
 }
 
-func NewStdioExporter(appCtx *appcontext.AppContext, name string, config map[string]string) (exporter.Exporter, error) {
+func NewStdioExporter(appCtx context.Context, name string, config map[string]string) (exporter.Exporter, error) {
 	var w io.Writer
 
 	switch name {

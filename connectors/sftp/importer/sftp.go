@@ -17,11 +17,11 @@
 package sftp
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/url"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/snapshot/importer"
 	plakarsftp "github.com/PlakarKorp/plakar/sftp"
 	"github.com/pkg/sftp"
@@ -37,7 +37,7 @@ func init() {
 	importer.Register("sftp", NewSFTPImporter)
 }
 
-func NewSFTPImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
+func NewSFTPImporter(appCtx context.Context, name string, config map[string]string) (importer.Importer, error) {
 	var err error
 
 	target := config["location"]

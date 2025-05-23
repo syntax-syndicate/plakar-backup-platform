@@ -17,6 +17,7 @@
 package s3
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/url"
@@ -30,14 +31,13 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/snapshot/importer"
 )
 
 type S3Importer struct {
 	minioClient *minio.Client
-	ctx         *appcontext.AppContext
+	ctx         context.Context
 
 	bucket  string
 	host    string
@@ -60,7 +60,7 @@ func connect(location *url.URL, useSsl bool, accessKeyID, secretAccessKey string
 	})
 }
 
-func NewS3Importer(ctx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
+func NewS3Importer(ctx context.Context, name string, config map[string]string) (importer.Importer, error) {
 	target := config["location"]
 
 	var accessKey string

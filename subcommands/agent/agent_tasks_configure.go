@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/plakar/scheduler"
 	"github.com/PlakarKorp/plakar/subcommands"

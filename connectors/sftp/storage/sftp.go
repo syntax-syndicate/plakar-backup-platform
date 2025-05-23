@@ -18,6 +18,7 @@ package sftp
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -28,7 +29,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/kloset/storage"
@@ -49,7 +49,7 @@ func init() {
 	storage.Register(NewStore, "sftp")
 }
 
-func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]string) (storage.Store, error) {
+func NewStore(ctx context.Context, proto string, storeConfig map[string]string) (storage.Store, error) {
 	location := storeConfig["location"]
 	if location == "" {
 		return nil, fmt.Errorf("missing location")
@@ -86,7 +86,7 @@ func (s *Store) Path(args ...string) string {
 	return path.Join(args...)
 }
 
-func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
+func (s *Store) Create(ctx context.Context, config []byte) error {
 	client, err := plakarsftp.Connect(s.endpoint, s.config)
 	if err != nil {
 		return err
@@ -130,7 +130,7 @@ func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
 	return err
 }
 
-func (s *Store) Open(ctx *appcontext.AppContext) ([]byte, error) {
+func (s *Store) Open(ctx context.Context) ([]byte, error) {
 	client, err := plakarsftp.Connect(s.endpoint, s.config)
 	if err != nil {
 		return nil, err

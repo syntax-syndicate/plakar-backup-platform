@@ -22,10 +22,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/kloset/snapshot"
 	"github.com/PlakarKorp/kloset/snapshot/exporter"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/utils"
 )
@@ -169,7 +169,7 @@ func (cmd *Restore) Execute(ctx *appcontext.AppContext, repo *repository.Reposit
 
 	var exporterInstance exporter.Exporter
 	var err error
-	exporterInstance, err = exporter.NewExporter(ctx, exporterConfig)
+	exporterInstance, err = exporter.NewExporter(ctx.GetInner(), exporterConfig)
 	if err != nil {
 		return 1, err
 	}

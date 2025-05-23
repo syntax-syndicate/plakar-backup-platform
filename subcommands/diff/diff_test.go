@@ -20,7 +20,7 @@ func TestExecuteCmdDiffIdentical(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	repo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+	repo, ctx := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
 
 	// create one snapshot
 	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
@@ -51,11 +51,11 @@ func TestExecuteCmdDiffIdentical(t *testing.T) {
 	args := []string{snapPath1, snapPath2}
 
 	subcommand := &Diff{}
-	err := subcommand.Parse(repo.AppContext(), args)
+	err := subcommand.Parse(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(repo.AppContext(), repo)
+	status, err := subcommand.Execute(ctx, repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -67,7 +67,7 @@ func TestExecuteCmdDiffFiles(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	repo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+	repo, ctx := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
 
 	// create one snapshot
 	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
@@ -98,11 +98,11 @@ func TestExecuteCmdDiffFiles(t *testing.T) {
 	args := []string{snapPath1, snapPath2}
 
 	subcommand := &Diff{}
-	err := subcommand.Parse(repo.AppContext(), args)
+	err := subcommand.Parse(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(repo.AppContext(), repo)
+	status, err := subcommand.Execute(ctx, repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 

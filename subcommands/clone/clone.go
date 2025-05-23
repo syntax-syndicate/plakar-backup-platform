@@ -24,11 +24,11 @@ import (
 	"io"
 	"os"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/hashing"
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/kloset/resources"
 	"github.com/PlakarKorp/kloset/storage"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"golang.org/x/sync/errgroup"
 )
@@ -96,7 +96,7 @@ func (cmd *Clone) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 		return 1, err
 	}
 
-	cloneStore, err := storage.Create(ctx, storeConfig, wrappedSerializedConfig)
+	cloneStore, err := storage.Create(ctx.GetInner(), storeConfig, wrappedSerializedConfig)
 	if err != nil {
 		return 1, fmt.Errorf("could not create repository: %w", err)
 	}

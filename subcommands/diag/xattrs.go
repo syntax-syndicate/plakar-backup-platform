@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/kloset/btree"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/repository"

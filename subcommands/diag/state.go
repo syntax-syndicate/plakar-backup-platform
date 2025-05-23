@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/kloset/repository/state"

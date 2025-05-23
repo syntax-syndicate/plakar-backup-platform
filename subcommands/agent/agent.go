@@ -30,12 +30,12 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/events"
 	"github.com/PlakarKorp/kloset/logging"
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/kloset/storage"
 	"github.com/PlakarKorp/plakar/agent"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/scheduler"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/task"
@@ -435,7 +435,7 @@ func handleClient(ctx *appcontext.AppContext, wg *sync.WaitGroup, conn net.Conn)
 	if subcommand.GetFlags()&subcommands.BeforeRepositoryOpen != 0 {
 		// nop
 	} else if subcommand.GetFlags()&subcommands.BeforeRepositoryWithStorage != 0 {
-		repo, err = repository.Inexistent(clientContext, storeConfig)
+		repo, err = repository.Inexistent(clientContext.GetInner(), storeConfig)
 		if err != nil {
 			clientContext.GetLogger().Warn("Failed to open raw storage: %v", err)
 			fmt.Fprintf(clientContext.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
@@ -445,7 +445,7 @@ func handleClient(ctx *appcontext.AppContext, wg *sync.WaitGroup, conn net.Conn)
 	} else {
 		var serializedConfig []byte
 		clientContext.SetSecret(subcommand.GetRepositorySecret())
-		store, serializedConfig, err = storage.Open(clientContext, storeConfig)
+		store, serializedConfig, err = storage.Open(clientContext.GetInner(), storeConfig)
 		if err != nil {
 			clientContext.GetLogger().Warn("Failed to open storage: %v", err)
 			fmt.Fprintf(clientContext.Stderr, "Failed to open storage: %s\n", err)
@@ -453,7 +453,7 @@ func handleClient(ctx *appcontext.AppContext, wg *sync.WaitGroup, conn net.Conn)
 		}
 		defer store.Close()
 
-		repo, err = repository.New(clientContext, store, serializedConfig)
+		repo, err = repository.New(clientContext.GetInner(), store, serializedConfig)
 		if err != nil {
 			clientContext.GetLogger().Warn("Failed to open repository: %v", err)
 			fmt.Fprintf(clientContext.Stderr, "Failed to open repository: %s\n", err)

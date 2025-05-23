@@ -1,7 +1,7 @@
 package restore
 
 import (
-	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/kloset/events"
 	"github.com/charmbracelet/lipgloss"
 )

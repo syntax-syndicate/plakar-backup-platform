@@ -20,7 +20,7 @@ func TestExecuteCmdArchiveDefault(t *testing.T) {
 	bufOut := bytes.NewBuffer(nil)
 	bufErr := bytes.NewBuffer(nil)
 
-	repo := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
+	repo, ctx := ptesting.GenerateRepository(t, bufOut, bufErr, nil)
 	snap := ptesting.GenerateSnapshot(t, repo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockDir("another_subdir"),
@@ -42,11 +42,11 @@ func TestExecuteCmdArchiveDefault(t *testing.T) {
 	args := []string{"-output", outputDir, fmt.Sprintf("%s", hex.EncodeToString(indexId[:]))}
 
 	subcommand := &Archive{}
-	err = subcommand.Parse(repo.AppContext(), args)
+	err = subcommand.Parse(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(repo.AppContext(), repo)
+	status, err := subcommand.Execute(ctx, repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 

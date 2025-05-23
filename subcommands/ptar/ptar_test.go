@@ -15,7 +15,7 @@ func init() {
 }
 
 func TestExecuteCmdPtarDefault(t *testing.T) {
-	repo := ptesting.GenerateRepositoryWithoutConfig(t, nil, nil, nil)
+	repo, ctx := ptesting.GenerateRepositoryWithoutConfig(t, nil, nil, nil)
 	tmpSourceDir := ptesting.GenerateFiles(t, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockDir("another_subdir"),
@@ -28,18 +28,18 @@ func TestExecuteCmdPtarDefault(t *testing.T) {
 	args := []string{"--no-encryption", "--no-compression", filepath.Join(tmpSourceDir, "subdir")}
 
 	subcommand := &Ptar{}
-	err := subcommand.Parse(repo.AppContext(), args)
+	err := subcommand.Parse(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(repo.AppContext(), repo)
+	status, err := subcommand.Execute(ctx, repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 }
 
 func TestExecuteCmdPtarWithSync(t *testing.T) {
 	// Create source repository
-	srcRepo := ptesting.GenerateRepository(t, nil, nil, nil)
+	srcRepo, _ := ptesting.GenerateRepository(t, nil, nil, nil)
 	srcSnap := ptesting.GenerateSnapshot(t, srcRepo, []ptesting.MockFile{
 		ptesting.NewMockDir("subdir"),
 		ptesting.NewMockDir("another_subdir"),
@@ -51,16 +51,16 @@ func TestExecuteCmdPtarWithSync(t *testing.T) {
 	defer srcSnap.Close()
 
 	// Create destination repository
-	dstRepo := ptesting.GenerateRepositoryWithoutConfig(t, nil, nil, nil)
+	dstRepo, ctx := ptesting.GenerateRepositoryWithoutConfig(t, nil, nil, nil)
 
 	args := []string{"--no-encryption", "--no-compression", "--sync-from", srcRepo.Location()}
 
 	subcommand := &Ptar{}
-	err := subcommand.Parse(dstRepo.AppContext(), args)
+	err := subcommand.Parse(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
-	status, err := subcommand.Execute(dstRepo.AppContext(), dstRepo)
+	status, err := subcommand.Execute(ctx, dstRepo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 }

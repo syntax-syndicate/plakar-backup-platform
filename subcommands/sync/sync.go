@@ -21,12 +21,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/encryption"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/kloset/snapshot"
 	"github.com/PlakarKorp/kloset/storage"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/utils"
 )
@@ -77,7 +77,7 @@ func (cmd *Sync) Parse(ctx *appcontext.AppContext, args []string) error {
 		return fmt.Errorf("peer repository: %w", err)
 	}
 
-	peerStore, peerStoreSerializedConfig, err := storage.Open(ctx, storeConfig)
+	peerStore, peerStoreSerializedConfig, err := storage.Open(ctx.GetInner(), storeConfig)
 	if err != nil {
 		return err
 	}
@@ -121,7 +121,7 @@ func (cmd *Sync) Parse(ctx *appcontext.AppContext, args []string) error {
 
 	peerCtx := appcontext.NewAppContextFrom(ctx)
 	peerCtx.SetSecret(peerSecret)
-	_, err = repository.NewNoRebuild(peerCtx, peerStore, peerStoreSerializedConfig)
+	_, err = repository.NewNoRebuild(peerCtx.GetInner(), peerStore, peerStoreSerializedConfig)
 	if err != nil {
 		return err
 	}
@@ -151,14 +151,14 @@ func (cmd *Sync) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		return 1, fmt.Errorf("peer repository: %w", err)
 	}
 
-	peerStore, peerStoreSerializedConfig, err := storage.Open(ctx, storeConfig)
+	peerStore, peerStoreSerializedConfig, err := storage.Open(ctx.GetInner(), storeConfig)
 	if err != nil {
 		return 1, fmt.Errorf("could not open peer store %s: %s", cmd.PeerRepositoryLocation, err)
 	}
 
 	peerCtx := appcontext.NewAppContextFrom(ctx)
 	peerCtx.SetSecret(cmd.PeerRepositorySecret)
-	peerRepository, err := repository.New(peerCtx, peerStore, peerStoreSerializedConfig)
+	peerRepository, err := repository.New(peerCtx.GetInner(), peerStore, peerStoreSerializedConfig)
 	if err != nil {
 		return 1, fmt.Errorf("could not open peer repository %s: %s", cmd.PeerRepositoryLocation, err)
 	}

@@ -86,7 +86,7 @@ func servicesGetAlertingServiceConfiguration(w http.ResponseWriter, r *http.Requ
 		return nil
 	}
 
-	sc := services.NewServiceConnector(lrepository.AppContext(), authToken)
+	sc := services.NewServiceConnector(lctx, authToken)
 	enabled, err := sc.GetServiceStatus("alerting")
 	if err != nil {
 		return err
@@ -129,7 +129,7 @@ func servicesSetAlertingServiceConfiguration(w http.ResponseWriter, r *http.Requ
 		return err
 	}
 
-	sc := services.NewServiceConnector(lrepository.AppContext(), authToken)
+	sc := services.NewServiceConnector(lctx, authToken)
 
 	err := sc.SetServiceStatus("alerting", alertConfig.Enabled)
 	if err != nil {

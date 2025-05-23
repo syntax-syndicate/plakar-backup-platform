@@ -25,7 +25,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/kloset/compression"
 	"github.com/PlakarKorp/kloset/encryption"
 	"github.com/PlakarKorp/kloset/hashing"

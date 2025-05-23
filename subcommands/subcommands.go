@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/vmihailenco/msgpack/v5"
 )

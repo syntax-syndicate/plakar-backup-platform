@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/appcontext"
 )
 
 const SERVICE_ENDPOINT = "https://api.plakar.io"

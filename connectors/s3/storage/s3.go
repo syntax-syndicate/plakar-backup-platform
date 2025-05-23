@@ -18,6 +18,7 @@ package s3
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -25,7 +26,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/storage"
 
@@ -37,7 +37,7 @@ type Store struct {
 	location    string
 	Repository  string
 	minioClient *minio.Client
-	ctx         *appcontext.AppContext
+	ctx         context.Context
 	bucketName  string
 	prefixDir   string
 
@@ -54,7 +54,7 @@ func init() {
 	storage.Register(NewStore, "s3")
 }
 
-func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]string) (storage.Store, error) {
+func NewStore(ctx context.Context, proto string, storeConfig map[string]string) (storage.Store, error) {
 	var accessKey string
 	if value, ok := storeConfig["access_key"]; !ok {
 		return nil, fmt.Errorf("missing access_key")
@@ -129,7 +129,7 @@ func (s *Store) connect(location *url.URL) error {
 	return nil
 }
 
-func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
+func (s *Store) Create(ctx context.Context, config []byte) error {
 	parsed, err := url.Parse(s.location)
 	if err != nil {
 		return fmt.Errorf("parse location: %w", err)
@@ -183,7 +183,7 @@ func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
 	return nil
 }
 
-func (s *Store) Open(ctx *appcontext.AppContext) ([]byte, error) {
+func (s *Store) Open(ctx context.Context) ([]byte, error) {
 	parsed, err := url.Parse(s.location)
 	if err != nil {
 		return nil, fmt.Errorf("parse location: %w", err)

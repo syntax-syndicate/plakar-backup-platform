@@ -8,7 +8,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/caching"
 	"github.com/PlakarKorp/kloset/cookies"
 	"github.com/PlakarKorp/kloset/hashing"
@@ -17,6 +16,7 @@ import (
 	"github.com/PlakarKorp/kloset/resources"
 	"github.com/PlakarKorp/kloset/storage"
 	"github.com/PlakarKorp/kloset/versioning"
+	"github.com/PlakarKorp/plakar/appcontext"
 	bfs "github.com/PlakarKorp/plakar/connectors/fs/storage"
 	"github.com/stretchr/testify/require"
 )
@@ -77,7 +77,7 @@ func TestParseCmdHelpDefault(t *testing.T) {
 	require.NoError(t, err)
 
 	// open the storage to load the configuration
-	r, serializedConfig, err := storage.Open(ctx, map[string]string{"location": tmpRepoDir})
+	r, serializedConfig, err := storage.Open(ctx.GetInner(), map[string]string{"location": tmpRepoDir})
 	require.NoError(t, err)
 
 	// create a repository
@@ -92,7 +92,7 @@ func TestParseCmdHelpDefault(t *testing.T) {
 	logger := logging.NewLogger(bytes.NewBuffer(nil), bytes.NewBuffer(nil))
 	logger.EnableInfo()
 	ctx.SetLogger(logger)
-	repo, err := repository.New(ctx, r, serializedConfig)
+	repo, err := repository.New(ctx.GetInner(), r, serializedConfig)
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = repo.Location()
 	args := []string{"-style", "notty"}
@@ -177,7 +177,7 @@ func TestParseCmdHelpCommand(t *testing.T) {
 	require.NoError(t, err)
 
 	// open the storage to load the configuration
-	r, serializedConfig, err := storage.Open(ctx, map[string]string{"location": tmpRepoDir})
+	r, serializedConfig, err := storage.Open(ctx.GetInner(), map[string]string{"location": tmpRepoDir})
 	require.NoError(t, err)
 
 	// create a repository
@@ -192,7 +192,7 @@ func TestParseCmdHelpCommand(t *testing.T) {
 	logger := logging.NewLogger(bytes.NewBuffer(nil), bytes.NewBuffer(nil))
 	logger.EnableInfo()
 	ctx.SetLogger(logger)
-	repo, err := repository.New(ctx, r, serializedConfig)
+	repo, err := repository.New(ctx.GetInner(), r, serializedConfig)
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = repo.Location()
 	args := []string{"-style", "notty", "version"}
