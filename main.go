@@ -230,7 +230,7 @@ func EntryPoint() int {
 	}
 
 	// best effort check if security or reliability fix have been issued
-	if opt_disableSecurityCheck {
+	if !opt_disableSecurityCheck {
 		if rus, err := utils.CheckUpdate(ctx.CacheDir); err == nil {
 			if rus.SecurityFix || rus.ReliabilityFix {
 				concerns := ""
