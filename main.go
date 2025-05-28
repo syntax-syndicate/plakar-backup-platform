@@ -14,7 +14,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/caching"
 	"github.com/PlakarKorp/kloset/config"
 	"github.com/PlakarKorp/kloset/cookies"
@@ -24,6 +23,7 @@ import (
 	"github.com/PlakarKorp/kloset/storage"
 	"github.com/PlakarKorp/kloset/versioning"
 	"github.com/PlakarKorp/plakar/agent"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/task"
 	"github.com/PlakarKorp/plakar/utils"
@@ -63,6 +63,7 @@ import (
 	_ "github.com/PlakarKorp/plakar/connectors/sftp"
 	_ "github.com/PlakarKorp/plakar/connectors/sqlite"
 	_ "github.com/PlakarKorp/plakar/connectors/stdio"
+	_ "github.com/PlakarKorp/plakar/connectors/tar"
 )
 
 func EntryPoint() int {
@@ -230,7 +231,7 @@ func EntryPoint() int {
 	}
 
 	// best effort check if security or reliability fix have been issued
-	if opt_disableSecurityCheck {
+	if !opt_disableSecurityCheck {
 		if rus, err := utils.CheckUpdate(ctx.CacheDir); err == nil {
 			if rus.SecurityFix || rus.ReliabilityFix {
 				concerns := ""
@@ -368,14 +369,14 @@ func EntryPoint() int {
 		}
 		// store and repo can stay nil
 	} else if cmd.GetFlags()&subcommands.BeforeRepositoryWithStorage != 0 {
-		repo, err = repository.Inexistent(ctx, storeConfig)
+		repo, err = repository.Inexistent(ctx.GetInner(), storeConfig)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
 		}
 	} else {
 		var serializedConfig []byte
-		store, serializedConfig, err = storage.Open(ctx, storeConfig)
+		store, serializedConfig, err = storage.Open(ctx.GetInner(), storeConfig)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: failed to open the repository at %s: %s\n", flag.CommandLine.Name(), storeConfig["location"], err)
 			fmt.Fprintln(os.Stderr, "To specify an alternative repository, please use \"plakar at <location> <command>\".")
@@ -397,13 +398,13 @@ func EntryPoint() int {
 		setupEncryption(ctx, repoConfig, storeConfig)
 
 		if opt_agentless {
-			repo, err = repository.New(ctx, store, serializedConfig)
+			repo, err = repository.New(ctx.GetInner(), store, serializedConfig)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 				return 1
 			}
 		} else {
-			repo, err = repository.NewNoRebuild(ctx, store, serializedConfig)
+			repo, err = repository.NewNoRebuild(ctx.GetInner(), store, serializedConfig)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 				return 1

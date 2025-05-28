@@ -17,7 +17,7 @@
 package ftp
 
 import (
-	"fmt"
+	"context"
 	"io"
 	"log"
 	"net/url"
@@ -27,7 +27,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/snapshot/importer"
 	"github.com/secsy/goftp"
@@ -52,7 +51,7 @@ func connectToFTP(host, username, password string) (*goftp.Client, error) {
 	return goftp.DialConfig(config, host)
 }
 
-func NewFTPImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
+func NewFTPImporter(appCtx context.Context, name string, config map[string]string) (importer.Importer, error) {
 	target := config["location"]
 
 	parsed, err := url.Parse(target)
@@ -78,7 +77,8 @@ func (p *FTPImporter) ftpWalker_worker(jobs <-chan string, results chan<- *impor
 
 		fileinfo := objects.FileInfoFromStat(info)
 
-		results <- importer.NewScanRecord(filepath.ToSlash(path), "", fileinfo, nil)
+		results <- importer.NewScanRecord(filepath.ToSlash(path), "", fileinfo, nil,
+			func() (io.ReadCloser, error) { return p.NewReader(path) })
 
 		// Handle symlinks separately
 		if fileinfo.Mode()&os.ModeSymlink != 0 {
@@ -87,7 +87,7 @@ func (p *FTPImporter) ftpWalker_worker(jobs <-chan string, results chan<- *impor
 				results <- importer.NewScanError(path, err)
 				continue
 			}
-			results <- importer.NewScanRecord(filepath.ToSlash(path), originFile, fileinfo, nil)
+			results <- importer.NewScanRecord(filepath.ToSlash(path), originFile, fileinfo, nil, nil)
 		}
 	}
 }
@@ -180,10 +180,6 @@ func (p *FTPImporter) NewReader(pathname string) (io.ReadCloser, error) {
 	tmpfile.Seek(0, 0)
 
 	return tmpfile, nil
-}
-
-func (p *FTPImporter) NewExtendedAttributeReader(pathname string, attribute string) (io.ReadCloser, error) {
-	return nil, fmt.Errorf("extended attributes are not supported on FTP")
 }
 
 func (p *FTPImporter) Close() error {

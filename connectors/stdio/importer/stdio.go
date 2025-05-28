@@ -17,7 +17,7 @@
 package stdio
 
 import (
-	"fmt"
+	"context"
 	"io"
 	"os"
 	"path"
@@ -25,14 +25,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/snapshot/importer"
 )
 
 type StdioImporter struct {
 	fileDir string
-	appCtx  *appcontext.AppContext
+	appCtx  context.Context
 	name    string
 }
 
@@ -40,7 +39,7 @@ func init() {
 	importer.Register("stdin", NewStdioImporter)
 }
 
-func NewStdioImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
+func NewStdioImporter(appCtx context.Context, name string, config map[string]string) (importer.Importer, error) {
 	location := config["location"]
 	location = strings.TrimPrefix(location, "stdin://")
 	if !strings.HasPrefix(location, "/") {
@@ -79,7 +78,8 @@ func (p *StdioImporter) stdioWalker_addPrefixDirectories(results chan<- *importe
 			Lusername:  "",
 			Lgroupname: "",
 		}
-		results <- importer.NewScanRecord(subpath, "", fi, nil)
+		results <- importer.NewScanRecord(subpath, "", fi, nil,
+			func() (io.ReadCloser, error) { return os.Stdin, nil })
 	}
 }
 
@@ -102,22 +102,10 @@ func (p *StdioImporter) Scan() (<-chan *importer.ScanResult, error) {
 			Lusername:  "",
 			Lgroupname: "",
 		}
-		results <- importer.NewScanRecord(p.fileDir, "", fi, nil)
+		results <- importer.NewScanRecord(p.fileDir, "", fi, nil, nil)
 	}()
 
 	return results, nil
-}
-
-func (p *StdioImporter) NewReader(pathname string) (io.ReadCloser, error) {
-	return os.Stdin, nil
-}
-
-func (p *StdioImporter) NewExtendedAttributeReader(pathname string, attribute string) (io.ReadCloser, error) {
-	return nil, fmt.Errorf("extended attributes are not supported on stdio")
-}
-
-func (p *StdioImporter) GetExtendedAttributes(pathname string) ([]importer.ExtendedAttributes, error) {
-	return nil, fmt.Errorf("extended attributes are not supported on stdio")
 }
 
 func (p *StdioImporter) Close() error {
@@ -129,7 +117,12 @@ func (p *StdioImporter) Root() string {
 }
 
 func (p *StdioImporter) Origin() string {
-	return p.appCtx.Hostname
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "localhost"
+	}
+
+	return hostname
 }
 
 func (p *StdioImporter) Type() string {

@@ -1,28 +1,23 @@
 package testing
 
 import (
-	"bytes"
-	"io"
-	"os"
+	"context"
 	"strings"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/snapshot/importer"
 )
 
 type MockImporter struct {
 	location string
 	files    map[string]MockFile
-
 	gen  func(chan<- *importer.ScanResult)
-	open func(string) (io.ReadCloser, error)
 }
 
 func init() {
 	importer.Register("mock", NewMockImporter)
 }
 
-func NewMockImporter(appCtx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
+func NewMockImporter(appCtx context.Context, name string, config map[string]string) (importer.Importer, error) {
 	return &MockImporter{
 		location: config["location"],
 	}, nil
@@ -52,9 +47,8 @@ func (p *MockImporter) SetFiles(files []MockFile) {
 	}
 }
 
-func (p *MockImporter) SetGenerator(gen func(chan<- *importer.ScanResult), open func(string) (io.ReadCloser, error)) {
+func (p *MockImporter) SetGenerator(gen func(chan<- *importer.ScanResult)) {
 	p.gen = gen
-	p.open = open
 }
 
 func (p *MockImporter) Origin() string {
@@ -78,31 +72,6 @@ func (p *MockImporter) Scan() (<-chan *importer.ScanResult, error) {
 		}()
 	}
 	return ch, nil
-}
-
-func (p *MockImporter) NewReader(pathname string) (io.ReadCloser, error) {
-	if p.open != nil {
-		return p.open(pathname)
-	}
-
-	file, ok := p.files[pathname]
-	if !ok {
-		return nil, os.ErrNotExist
-	}
-
-	if file.IsDir {
-		return nil, os.ErrInvalid
-	}
-
-	if file.Mode&0400 == 0 {
-		return nil, os.ErrPermission
-	}
-
-	return io.NopCloser(bytes.NewReader(file.Content)), nil
-}
-
-func (p *MockImporter) NewExtendedAttributeReader(pathname, attr string) (io.ReadCloser, error) {
-	panic("should not be called")
 }
 
 func (p *MockImporter) Close() error {

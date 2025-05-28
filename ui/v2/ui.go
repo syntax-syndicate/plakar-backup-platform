@@ -27,6 +27,7 @@ import (
 
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/plakar/api"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/utils"
 )
 
@@ -40,9 +41,9 @@ type UiOptions struct {
 //go:embed frontend/*
 var content embed.FS
 
-func Ui(repo *repository.Repository, addr string, opts *UiOptions) error {
+func Ui(repo *repository.Repository, ctx *appcontext.AppContext, addr string, opts *UiOptions) error {
 	server := http.NewServeMux()
-	api.SetupRoutes(server, repo, opts.Token)
+	api.SetupRoutes(server, repo, ctx, opts.Token)
 
 	// Serve files from the ./frontend directory
 	server.HandleFunc("/{path...}", func(w http.ResponseWriter, r *http.Request) {

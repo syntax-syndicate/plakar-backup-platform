@@ -21,8 +21,8 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/repository"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/utils"
 )
@@ -88,7 +88,7 @@ func (cmd *Login) Execute(ctx *appcontext.AppContext, repo *repository.Repositor
 		}
 	}
 
-	flow, err := utils.NewLoginFlow(ctx, repo.Configuration().RepositoryID, cmd.NoSpawn)
+	flow, err := utils.NewLoginFlow(ctx.GetInner(), repo.Configuration().RepositoryID, cmd.NoSpawn)
 	if err != nil {
 		return 1, err
 	}

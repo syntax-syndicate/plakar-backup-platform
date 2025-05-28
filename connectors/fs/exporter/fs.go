@@ -17,11 +17,11 @@
 package fs
 
 import (
+	"context"
 	"io"
 	"os"
 	"strings"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/snapshot/exporter"
 )
@@ -34,7 +34,7 @@ func init() {
 	exporter.Register("fs", NewFSExporter)
 }
 
-func NewFSExporter(appCtx *appcontext.AppContext, name string, config map[string]string) (exporter.Exporter, error) {
+func NewFSExporter(appCtx context.Context, name string, config map[string]string) (exporter.Exporter, error) {
 	return &FSExporter{
 		rootDir: strings.TrimPrefix(config["location"], "fs://"),
 	}, nil

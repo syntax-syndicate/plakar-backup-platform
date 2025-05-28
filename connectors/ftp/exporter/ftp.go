@@ -17,12 +17,12 @@
 package ftp
 
 import (
+	"context"
 	"io"
 	"net/url"
 	"strings"
 	"time"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/snapshot/exporter"
 	"github.com/secsy/goftp"
@@ -50,7 +50,7 @@ func init() {
 	exporter.Register("ftp", NewFTPExporter)
 }
 
-func NewFTPExporter(appCtx *appcontext.AppContext, name string, config map[string]string) (exporter.Exporter, error) {
+func NewFTPExporter(appCtx context.Context, name string, config map[string]string) (exporter.Exporter, error) {
 	target := config["location"]
 
 	parsed, err := url.Parse(target)

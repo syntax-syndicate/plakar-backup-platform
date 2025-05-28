@@ -10,11 +10,11 @@ import (
 	"runtime/pprof"
 	"strings"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/btree"
 	"github.com/PlakarKorp/kloset/config"
 	"github.com/PlakarKorp/kloset/snapshot/importer"
 	"github.com/PlakarKorp/kloset/snapshot/vfs"
+	"github.com/PlakarKorp/plakar/appcontext"
 	_ "github.com/PlakarKorp/plakar/connectors/fs/importer"
 	_ "github.com/PlakarKorp/plakar/connectors/ftp/importer"
 	_ "github.com/PlakarKorp/plakar/connectors/s3/importer"
@@ -159,7 +159,7 @@ func main() {
 		log.Fatal("Failed to create the btree:", err)
 	}
 
-	imp, err := importer.NewImporter(appcontext.NewAppContext(), importerSource)
+	imp, err := importer.NewImporter(appcontext.NewAppContext().GetInner(), importerSource)
 	if err != nil {
 		log.Fatal("new fs importer failed:", err)
 	}
@@ -185,18 +185,16 @@ func doScan(imp importer.Importer, idx *btree.BTree[string, int, empty]) error {
 		case record.Record != nil:
 			path := record.Record.Pathname
 			if err := idx.Insert(path, empty{}); err != nil && err != btree.ErrExists {
+				record.Record.Reader.Close()
 				return fmt.Errorf("failed to insert %s: %v", path, err)
 			}
 			items++
 
 			if xattr && record.Record.IsXattr {
-				rd, err := imp.NewExtendedAttributeReader(path, record.Record.XattrName)
-				if err != nil {
-					return fmt.Errorf("failed to get xattr for %s due to %s", path, err)
-				}
-				rd.Close()
 				log.Println(path, "found xattr named", record.Record.XattrName)
 			}
+
+			record.Record.Reader.Close()
 		default:
 			return fmt.Errorf("got unknown scanrecord %v", record)
 		}

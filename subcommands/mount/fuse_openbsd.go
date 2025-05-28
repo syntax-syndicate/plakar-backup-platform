@@ -19,7 +19,7 @@ package mount
 import (
 	"fmt"
 
-	"github.com/PlakarKorp/kloset/appcontext"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/kloset/repository"
 )
 

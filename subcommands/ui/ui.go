@@ -23,8 +23,8 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/repository"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/subcommands"
 	v2 "github.com/PlakarKorp/plakar/ui/v2"
 	"github.com/google/uuid"
@@ -73,7 +73,7 @@ func (cmd *Ui) Execute(ctx *appcontext.AppContext, repo *repository.Repository) 
 		ui_opts.Token = uuid.NewString()
 	}
 
-	err := v2.Ui(repo, cmd.Addr, &ui_opts)
+	err := v2.Ui(repo, ctx, cmd.Addr, &ui_opts)
 	if err != nil {
 		fmt.Fprintf(ctx.Stderr, "ui: %s\n", err)
 		return 1, err

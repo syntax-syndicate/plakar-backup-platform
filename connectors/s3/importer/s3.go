@@ -17,6 +17,7 @@
 package s3
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/url"
@@ -30,14 +31,13 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/snapshot/importer"
 )
 
 type S3Importer struct {
 	minioClient *minio.Client
-	ctx         *appcontext.AppContext
+	ctx         context.Context
 
 	bucket  string
 	host    string
@@ -60,7 +60,7 @@ func connect(location *url.URL, useSsl bool, accessKeyID, secretAccessKey string
 	})
 }
 
-func NewS3Importer(ctx *appcontext.AppContext, name string, config map[string]string) (importer.Importer, error) {
+func NewS3Importer(ctx context.Context, name string, config map[string]string) (importer.Importer, error) {
 	target := config["location"]
 
 	var accessKey string
@@ -128,7 +128,7 @@ func (p *S3Importer) Scan() (<-chan *importer.ScanResult, error) {
 				0,
 				0,
 			)
-			result <- importer.NewScanRecord(parent, "", fi, nil)
+			result <- importer.NewScanRecord(parent, "", fi, nil, nil)
 
 			if parent == "/" {
 				break
@@ -159,7 +159,7 @@ func (p *S3Importer) Scan() (<-chan *importer.ScanResult, error) {
 					0,
 					0,
 				)
-				result <- importer.NewScanRecord("/"+parent, "", fi, nil)
+				result <- importer.NewScanRecord("/"+parent, "", fi, nil, nil)
 				parent = path.Dir(parent)
 			}
 
@@ -174,32 +174,13 @@ func (p *S3Importer) Scan() (<-chan *importer.ScanResult, error) {
 				0,
 				0,
 			)
-			result <- importer.NewScanRecord("/"+object.Key, "", fi, nil)
+			result <- importer.NewScanRecord("/"+object.Key, "", fi, nil, func() (io.ReadCloser, error) {
+				return p.minioClient.GetObject(p.ctx, p.bucket, object.Key, minio.GetObjectOptions{})
+			})
 		}
 
 	}()
 	return result, nil
-}
-
-func (p *S3Importer) NewReader(pathname string) (io.ReadCloser, error) {
-	if pathname == "/" {
-		return nil, fmt.Errorf("cannot read root directory")
-	}
-	if strings.HasSuffix(pathname, "/") {
-		return nil, fmt.Errorf("cannot read directory")
-	}
-	pathname = strings.TrimPrefix(pathname, "/")
-
-	obj, err := p.minioClient.GetObject(p.ctx, p.bucket, pathname,
-		minio.GetObjectOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
-}
-
-func (p *S3Importer) NewExtendedAttributeReader(pathname string, attribute string) (io.ReadCloser, error) {
-	return nil, fmt.Errorf("extended attributes are not supported on S3")
 }
 
 func (p *S3Importer) Close() error {

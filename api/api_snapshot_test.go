@@ -10,7 +10,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/caching"
 	"github.com/PlakarKorp/kloset/cookies"
 	"github.com/PlakarKorp/kloset/hashing"
@@ -19,6 +18,7 @@ import (
 	"github.com/PlakarKorp/kloset/resources"
 	"github.com/PlakarKorp/kloset/storage"
 	"github.com/PlakarKorp/kloset/versioning"
+	"github.com/PlakarKorp/plakar/appcontext"
 	ptesting "github.com/PlakarKorp/plakar/testing"
 	"github.com/stretchr/testify/require"
 )
@@ -155,14 +155,14 @@ func _TestSnapshotHeader(t *testing.T) {
 			ctx.SetCookies(cookies)
 			ctx.Client = "plakar-test/1.0.0"
 
-			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
+			lstore, err := storage.Create(ctx.GetInner(), map[string]string{"location": c.location}, wrappedConfig)
 			require.NoError(t, err, "creating storage")
-			repo, err := repository.New(ctx, lstore, wrappedConfig)
+			repo, err := repository.New(ctx.GetInner(), lstore, wrappedConfig)
 			require.NoError(t, err, "creating repository")
 
 			var noToken string
 			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, noToken)
+			SetupRoutes(mux, repo, ctx, noToken)
 
 			req, err := http.NewRequest("GET", fmt.Sprintf("/api/snapshot/%s", c.snapshotId), nil)
 			require.NoError(t, err, "creating request")
@@ -232,14 +232,14 @@ func TestSnapshotHeaderErrors(t *testing.T) {
 			ctx.SetCookies(cookies)
 			ctx.Client = "plakar-test/1.0.0"
 
-			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
+			lstore, err := storage.Create(ctx.GetInner(), map[string]string{"location": c.location}, wrappedConfig)
 			require.NoError(t, err, "creating storage")
-			repo, err := repository.New(ctx, lstore, wrappedConfig)
+			repo, err := repository.New(ctx.GetInner(), lstore, wrappedConfig)
 			require.NoError(t, err, "creating repository")
 
 			var noToken string
 			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, noToken)
+			SetupRoutes(mux, repo, ctx, noToken)
 
 			req, err := http.NewRequest("GET", fmt.Sprintf("/api/snapshot/%s", c.snapshotId), nil)
 			require.NoError(t, err, "creating request")
@@ -294,14 +294,14 @@ func _TestSnapshotSign(t *testing.T) {
 			ctx.SetCookies(cookies)
 			ctx.Client = "plakar-test/1.0.0"
 
-			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
+			lstore, err := storage.Create(ctx.GetInner(), map[string]string{"location": c.location}, wrappedConfig)
 			require.NoError(t, err, "creating storage")
-			repo, err := repository.New(ctx, lstore, wrappedConfig)
+			repo, err := repository.New(ctx.GetInner(), lstore, wrappedConfig)
 			require.NoError(t, err, "creating repository")
 
 			token := "test-token"
 			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, token)
+			SetupRoutes(mux, repo, ctx, token)
 
 			// retrieve a valid jwt token before calling the read
 			req, err := http.NewRequest("POST", fmt.Sprintf("/api/snapshot/reader-sign-url/%s", c.snapshotPath), nil)

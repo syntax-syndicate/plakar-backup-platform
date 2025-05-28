@@ -18,14 +18,15 @@ package s3
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 
-	"github.com/PlakarKorp/kloset/appcontext"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/storage"
 
@@ -37,7 +38,7 @@ type Store struct {
 	location    string
 	Repository  string
 	minioClient *minio.Client
-	ctx         *appcontext.AppContext
+	ctx         context.Context
 	bucketName  string
 	prefixDir   string
 
@@ -47,6 +48,8 @@ type Store struct {
 
 	storageClass string
 
+	bufPool sync.Pool
+
 	putObjectOptions minio.PutObjectOptions
 }
 
@@ -54,7 +57,7 @@ func init() {
 	storage.Register(NewStore, "s3")
 }
 
-func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]string) (storage.Store, error) {
+func NewStore(ctx context.Context, proto string, storeConfig map[string]string) (storage.Store, error) {
 	var accessKey string
 	if value, ok := storeConfig["access_key"]; !ok {
 		return nil, fmt.Errorf("missing access_key")
@@ -94,6 +97,12 @@ func NewStore(ctx *appcontext.AppContext, proto string, storeConfig map[string]s
 		storageClass:    storageClass,
 		ctx:             ctx,
 
+		bufPool: sync.Pool{
+			New: func() any {
+				return &bytes.Buffer{}
+			},
+		},
+
 		putObjectOptions: minio.PutObjectOptions{
 			// Some providers (eg. BlackBlaze) return the error
 			// "Unsupported header 'x-amz-checksum-algorithm'" if SendContentMd5
@@ -129,7 +138,7 @@ func (s *Store) connect(location *url.URL) error {
 	return nil
 }
 
-func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
+func (s *Store) Create(ctx context.Context, config []byte) error {
 	parsed, err := url.Parse(s.location)
 	if err != nil {
 		return fmt.Errorf("parse location: %w", err)
@@ -183,7 +192,7 @@ func (s *Store) Create(ctx *appcontext.AppContext, config []byte) error {
 	return nil
 }
 
-func (s *Store) Open(ctx *appcontext.AppContext) ([]byte, error) {
+func (s *Store) Open(ctx context.Context) ([]byte, error) {
 	parsed, err := url.Parse(s.location)
 	if err != nil {
 		return nil, fmt.Errorf("parse location: %w", err)
@@ -322,10 +331,19 @@ func (s *Store) GetPackfiles() ([]objects.MAC, error) {
 }
 
 func (s *Store) PutPackfile(mac objects.MAC, rd io.Reader) (int64, error) {
-	info, err := s.minioClient.PutObject(s.ctx, s.bucketName, s.realpath(fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac)), rd, -1, s.putObjectOptions)
+	buf := s.bufPool.Get().(*bytes.Buffer)
+	copied, err := io.Copy(buf, rd)
+	if err != nil {
+		return 0, fmt.Errorf("read packfile: %w", err)
+	}
+
+	info, err := s.minioClient.PutObject(s.ctx, s.bucketName, s.realpath(fmt.Sprintf("packfiles/%02x/%016x", mac[0], mac)), buf, copied, s.putObjectOptions)
 	if err != nil {
 		return 0, fmt.Errorf("put object: %w", err)
 	}
+
+	buf.Reset()
+	s.bufPool.Put(buf)
 	return info.Size, nil
 }
 
