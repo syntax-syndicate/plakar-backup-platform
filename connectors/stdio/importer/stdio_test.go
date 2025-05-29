@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	kimporter "github.com/PlakarKorp/kloset/snapshot/importer"
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/stretchr/testify/require"
 )
@@ -27,7 +28,7 @@ func TestStdioImporter(t *testing.T) {
 	require.NoError(t, err)
 	appCtx.Hostname = hostname
 
-	importer, err := NewStdioImporter(appCtx, "stdin", map[string]string{"location": "/test.txt"})
+	importer, err := kimporter.NewImporter(appCtx.GetInner(), map[string]string{"location": "stdin:///test.txt"})
 	require.NoError(t, err)
 	require.NotNil(t, importer)
 
@@ -46,23 +47,15 @@ func TestStdioImporter(t *testing.T) {
 	for record := range scanChan {
 		require.Nil(t, record.Error)
 		paths = append(paths, record.Record.Pathname)
+
+		if record.Record.FileInfo.Mode().IsRegular() {
+			content, err := io.ReadAll(record.Record.Reader)
+			require.NoError(t, err)
+			require.Equal(t, content, []byte("test importer stdin"))
+			record.Record.Reader.Close()
+		}
 	}
 	require.Equal(t, []string{"/", "/test.txt"}, paths)
-
-	// Test reading
-	reader, err := importer.NewReader("/test.txt")
-	require.NoError(t, err)
-	require.NotNil(t, reader)
-	defer reader.Close()
-
-	content, err := io.ReadAll(reader)
-	require.NoError(t, err)
-	require.Equal(t, testData, content)
-
-	// Test extended attributes
-	_, err = importer.NewExtendedAttributeReader("/test.txt", "user.plakar.test")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "extended attributes are not supported on stdio")
 
 	// Test close
 	err = importer.Close()

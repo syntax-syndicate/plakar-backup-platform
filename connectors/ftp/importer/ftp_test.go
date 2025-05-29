@@ -1,18 +1,19 @@
 package ftp
 
 import (
+	"io"
+	"strings"
 	"testing"
 
 	"github.com/PlakarKorp/plakar/appcontext"
 	ptesting "github.com/PlakarKorp/plakar/testing"
+	"github.com/stretchr/testify/require"
 )
 
 func TestImporter(t *testing.T) {
 	// Create a mock FTP server
 	server, err := ptesting.NewMockFTPServer()
-	if err != nil {
-		t.Fatalf("Failed to create mock server: %v", err)
-	}
+	require.NoError(t, err)
 	defer server.Close()
 
 	// Allow anonymous login for the test
@@ -33,9 +34,7 @@ func TestImporter(t *testing.T) {
 	importer, err := NewFTPImporter(appCtx, "ftp", map[string]string{
 		"location": "ftp://" + server.Addr + "/",
 	})
-	if err != nil {
-		t.Fatalf("Failed to create importer: %v", err)
-	}
+	require.NoError(t, err)
 	defer importer.Close()
 
 	// Test root path
@@ -46,9 +45,8 @@ func TestImporter(t *testing.T) {
 
 	// Test scanning files
 	scanResults, err := importer.Scan()
-	if err != nil {
-		t.Fatalf("Failed to scan: %v", err)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, scanResults)
 
 	// Collect scan results
 	scannedFiles := make(map[string]bool)
@@ -64,33 +62,19 @@ func TestImporter(t *testing.T) {
 		if result.Record != nil {
 			scannedFiles[result.Record.Pathname] = true
 		}
+
+		if result.Record.FileInfo.Mode().IsRegular() {
+			content, err := io.ReadAll(result.Record.Reader)
+			require.NoError(t, err)
+			require.Equal(t, string(content), testFiles[strings.TrimPrefix(result.Record.Pathname, "/")])
+			result.Record.Reader.Close()
+		}
 	}
 
 	// Verify all test files were scanned
 	for name := range testFiles {
 		if !scannedFiles["/"+name] {
 			t.Errorf("File /%s was not scanned", name)
-		}
-	}
-
-	// Test reading file contents
-	for name, expectedContent := range testFiles {
-		reader, err := importer.NewReader(name)
-		if err != nil {
-			t.Errorf("Failed to get reader for %s: %v", name, err)
-			continue
-		}
-		defer reader.Close()
-
-		content := make([]byte, len(expectedContent))
-		_, err = reader.Read(content)
-		if err != nil {
-			t.Errorf("Failed to read content of %s: %v", name, err)
-			continue
-		}
-
-		if string(content) != expectedContent {
-			t.Errorf("Content mismatch for %s. Expected: %s, Got: %s", name, expectedContent, string(content))
 		}
 	}
 }

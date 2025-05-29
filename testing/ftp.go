@@ -290,16 +290,21 @@ func (s *MockFTPServer) handleConnection(conn net.Conn) {
 				continue
 			}
 			file := strings.TrimSpace(strings.TrimPrefix(cmd, "RETR"))
+			normPath := strings.TrimPrefix(file, "/")
 			s.mu.RLock()
 			content, ok := s.Files[file]
+			content2, ok2 := s.Files[normPath]
 			s.mu.RUnlock()
-			if !ok {
+			if !ok && !ok2 {
 				conn.Write([]byte("550 File not found\r\n"))
 				continue
 			}
 			if dataConn == nil {
 				conn.Write([]byte("425 Can't open data connection\r\n"))
 				continue
+			}
+			if ok2 && !ok {
+				content = content2
 			}
 			conn.Write([]byte("150 Opening data connection\r\n"))
 			dataConn.Write(content)

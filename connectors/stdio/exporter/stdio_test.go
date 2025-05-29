@@ -6,9 +6,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/PlakarKorp/kloset/objects"
+	"github.com/PlakarKorp/kloset/snapshot/exporter"
 	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/snapshot/exporter"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,7 +28,7 @@ func TestExporter(t *testing.T) {
 
 	// Test stdout exporter
 	appCtx := appcontext.NewAppContext()
-	stdoutExporter, err := exporter.NewExporter(appCtx, map[string]string{"location": "stdout://"})
+	stdoutExporter, err := exporter.NewExporter(appCtx.GetInner(), map[string]string{"location": "stdout://"})
 	require.NoError(t, err)
 	defer stdoutExporter.Close()
 
@@ -74,7 +74,7 @@ func TestExporter(t *testing.T) {
 	os.Stderr = w
 
 	// Test stderr exporter
-	stderrExporter, err := exporter.NewExporter(appCtx, map[string]string{"location": "stderr://"})
+	stderrExporter, err := exporter.NewExporter(appCtx.GetInner(), map[string]string{"location": "stderr://"})
 	require.NoError(t, err)
 	defer stderrExporter.Close()
 
@@ -96,7 +96,7 @@ func TestExporter(t *testing.T) {
 	require.Equal(t, string(data), buf.String())
 
 	// Test invalid backend
-	_, err = exporter.NewExporter(appCtx, map[string]string{"location": "invalid://"})
+	_, err = exporter.NewExporter(appCtx.GetInner(), map[string]string{"location": "invalid://"})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "unsupported exporter protocol")
 }
