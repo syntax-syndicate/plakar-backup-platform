@@ -79,7 +79,7 @@ func NewTarImporter(ctx context.Context, name string, config map[string]string) 
 }
 
 func (t *TarImporter) Type() string   { return t.name }
-func (t *TarImporter) Root() string   { return t.location }
+func (t *TarImporter) Root() string   { return "/" }
 
 func (p *TarImporter) Origin() string {
 	hostname, err := os.Hostname()
