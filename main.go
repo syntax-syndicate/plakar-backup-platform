@@ -483,12 +483,12 @@ func EntryPoint() int {
 	return status
 }
 
-func getpassphrase(ctx *appcontext.AppContext, storeConfig map[string]string) []byte {
+func getpassphrase(ctx *appcontext.AppContext, params map[string]string) []byte {
 	if ctx.KeyFromFile != "" {
 		return []byte(ctx.KeyFromFile)
 	}
 
-	if pass, ok := storeConfig["passphrase"]; ok {
+	if pass, ok := params["passphrase"]; ok {
 		return []byte(pass)
 	}
 
@@ -499,20 +499,20 @@ func getpassphrase(ctx *appcontext.AppContext, storeConfig map[string]string) []
 	return nil
 }
 
-func setupEncryption(ctx *appcontext.AppContext, repoConfig *storage.Configuration, storeConfig map[string]string) error {
-	if repoConfig.Encryption == nil {
+func setupEncryption(ctx *appcontext.AppContext, config *storage.Configuration, params map[string]string) error {
+	if config.Encryption == nil {
 		return nil
 	}
 
-	secret := getpassphrase(ctx, storeConfig)
+	secret := getpassphrase(ctx, params)
 	if secret != nil {
-		key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams,
+		key, err := encryption.DeriveKey(config.Encryption.KDFParams,
 			secret)
 		if err != nil {
 			return err
 		}
 
-		if !encryption.VerifyCanary(repoConfig.Encryption, key) {
+		if !encryption.VerifyCanary(config.Encryption, key) {
 			return ErrCantUnlock
 		}
 		ctx.SetSecret(key)
@@ -526,12 +526,12 @@ func setupEncryption(ctx *appcontext.AppContext, repoConfig *storage.Configurati
 			return err
 		}
 
-		key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams,
+		key, err := encryption.DeriveKey(config.Encryption.KDFParams,
 			passphrase)
 		if err != nil {
 			return err
 		}
-		if encryption.VerifyCanary(repoConfig.Encryption, key) {
+		if encryption.VerifyCanary(config.Encryption, key) {
 			ctx.SetSecret(key)
 			return nil
 		}
