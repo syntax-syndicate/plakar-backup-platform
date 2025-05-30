@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -65,6 +66,8 @@ import (
 	_ "github.com/PlakarKorp/plakar/connectors/stdio"
 	_ "github.com/PlakarKorp/plakar/connectors/tar"
 )
+
+var ErrCantUnlock = errors.New("failed to unlock repository")
 
 func EntryPoint() int {
 	// default values
@@ -480,70 +483,61 @@ func EntryPoint() int {
 	return status
 }
 
+func getpassphrase(ctx *appcontext.AppContext, storeConfig map[string]string) []byte {
+	if ctx.KeyFromFile != "" {
+		return []byte(ctx.KeyFromFile)
+	}
+
+	if pass, ok := storeConfig["passphrase"]; ok {
+		return []byte(pass)
+	}
+
+	if pass, ok := os.LookupEnv("PLAKAR_PASSPHRASE"); ok {
+		return []byte(pass)
+	}
+
+	return nil
+}
+
 func setupEncryption(ctx *appcontext.AppContext, repoConfig *storage.Configuration, storeConfig map[string]string) error {
 	if repoConfig.Encryption == nil {
 		return nil
 	}
 
-	var err error
-	var secret []byte
-
-	derived := false
-	envPassphrase := os.Getenv("PLAKAR_PASSPHRASE")
-	if ctx.KeyFromFile == "" {
-		if passphrase, ok := storeConfig["passphrase"]; ok {
-			key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, []byte(passphrase))
-			if err != nil {
-				return err
-			}
-			if encryption.VerifyCanary(repoConfig.Encryption, key) {
-				secret = key
-				derived = true
-			}
-		} else {
-			for attempts := 0; attempts < 3; attempts++ {
-				var passphrase []byte
-				if envPassphrase == "" {
-					passphrase, err = utils.GetPassphrase("repository")
-					if err != nil {
-						return err
-					}
-				} else {
-					passphrase = []byte(envPassphrase)
-				}
-
-				key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, passphrase)
-				if err != nil {
-					return err
-				}
-				if !encryption.VerifyCanary(repoConfig.Encryption, key) {
-					if envPassphrase != "" {
-						break
-					}
-					continue
-				}
-				secret = key
-				derived = true
-				break
-			}
+	secret := getpassphrase(ctx, storeConfig)
+	if secret != nil {
+		key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams,
+			secret)
+		if err != nil {
+			return err
 		}
-	} else {
-		key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams, []byte(ctx.KeyFromFile))
+
+		if !encryption.VerifyCanary(repoConfig.Encryption, key) {
+			return ErrCantUnlock
+		}
+		ctx.SetSecret(key)
+		return nil
+	}
+
+	// fall back to prompting
+	for range 3 {
+		passphrase, err := utils.GetPassphrase("repository")
+		if err != nil {
+			return err
+		}
+
+		key, err := encryption.DeriveKey(repoConfig.Encryption.KDFParams,
+			passphrase)
 		if err != nil {
 			return err
 		}
 		if encryption.VerifyCanary(repoConfig.Encryption, key) {
-			secret = key
-			derived = true
+			ctx.SetSecret(key)
+			return nil
 		}
 	}
 
-	if !derived {
-		return fmt.Errorf("could not derive secret")
-	}
-
-	ctx.SetSecret(secret)
-	return nil
+	return ErrCantUnlock
 }
 
 func main() {
