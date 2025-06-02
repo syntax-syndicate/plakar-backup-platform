@@ -10,11 +10,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/snapshot"
-	"github.com/PlakarKorp/plakar/snapshot/header"
-	"github.com/PlakarKorp/plakar/snapshot/vfs"
-	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/kloset/objects"
+	"github.com/PlakarKorp/kloset/snapshot"
+	"github.com/PlakarKorp/kloset/snapshot/header"
+	"github.com/PlakarKorp/kloset/snapshot/vfs"
+	"github.com/PlakarKorp/kloset/storage"
 )
 
 type RepositoryInfoSnapshots struct {

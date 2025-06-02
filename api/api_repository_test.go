@@ -10,16 +10,16 @@ import (
 	"os"
 	"testing"
 
+	"github.com/PlakarKorp/kloset/caching"
+	"github.com/PlakarKorp/kloset/cookies"
+	"github.com/PlakarKorp/kloset/hashing"
+	"github.com/PlakarKorp/kloset/logging"
+	"github.com/PlakarKorp/kloset/repository"
+	"github.com/PlakarKorp/kloset/resources"
+	"github.com/PlakarKorp/kloset/storage"
+	"github.com/PlakarKorp/kloset/versioning"
 	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/caching"
-	"github.com/PlakarKorp/plakar/cookies"
-	"github.com/PlakarKorp/plakar/hashing"
-	"github.com/PlakarKorp/plakar/logging"
-	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/resources"
-	"github.com/PlakarKorp/plakar/storage"
 	ptesting "github.com/PlakarKorp/plakar/testing"
-	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/stretchr/testify/require"
 )
 
@@ -40,14 +40,14 @@ func _Test_RepositoryConfiguration(t *testing.T) {
 	require.NoError(t, err)
 	wrappedConfig, err := io.ReadAll(wrappedConfigRd)
 	require.NoError(t, err)
-	lstore, err := storage.Create(ctx, map[string]string{"location": "mock:///test/location"}, wrappedConfig)
+	lstore, err := storage.Create(ctx.GetInner(), map[string]string{"location": "mock:///test/location"}, wrappedConfig)
 	require.NoError(t, err, "creating storage")
 
 	cache := caching.NewManager("/tmp/test_plakar")
 	defer cache.Close()
 	ctx.SetCache(cache)
 	ctx.SetLogger(logging.NewLogger(os.Stdout, os.Stderr))
-	repo, err := repository.New(ctx, lstore, wrappedConfig)
+	repo, err := repository.New(ctx.GetInner(), lstore, wrappedConfig)
 	require.NoError(t, err, "creating repository")
 
 	cookies := cookies.NewManager("/tmp/test_plakar")
@@ -56,7 +56,7 @@ func _Test_RepositoryConfiguration(t *testing.T) {
 
 	var noToken string
 	mux := http.NewServeMux()
-	SetupRoutes(mux, repo, noToken)
+	SetupRoutes(mux, repo, ctx, noToken)
 
 	req, err := http.NewRequest("GET", "/api/repository/configuration", nil)
 	require.NoError(t, err, "creating request")
@@ -332,14 +332,14 @@ func _Test_RepositorySnapshots(t *testing.T) {
 			ctx.SetCookies(cookies)
 			ctx.Client = "plakar-test/1.0.0"
 
-			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
+			lstore, err := storage.Create(ctx.GetInner(), map[string]string{"location": c.location}, wrappedConfig)
 			require.NoError(t, err, "creating storage")
-			repo, err := repository.New(ctx, lstore, wrappedConfig)
+			repo, err := repository.New(ctx.GetInner(), lstore, wrappedConfig)
 			require.NoError(t, err, "creating repository")
 
 			var noToken string
 			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, noToken)
+			SetupRoutes(mux, repo, ctx, noToken)
 
 			req, err := http.NewRequest("GET", "/api/repository/snapshots", nil)
 			require.NoError(t, err, "creating request")
@@ -435,14 +435,14 @@ func _Test_RepositorySnapshotsErrors(t *testing.T) {
 			ctx.SetCookies(cookies)
 			ctx.Client = "plakar-test/1.0.0"
 
-			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
+			lstore, err := storage.Create(ctx.GetInner(), map[string]string{"location": c.location}, wrappedConfig)
 			require.NoError(t, err, "creating storage")
-			repo, err := repository.New(ctx, lstore, wrappedConfig)
+			repo, err := repository.New(ctx.GetInner(), lstore, wrappedConfig)
 			require.NoError(t, err, "creating repository")
 
 			var noToken string
 			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, noToken)
+			SetupRoutes(mux, repo, ctx, noToken)
 
 			req, err := http.NewRequest("GET", fmt.Sprintf("/api/repository/snapshots?%s", c.params), nil)
 			require.NoError(t, err, "creating request")
@@ -513,14 +513,14 @@ func _Test_RepositoryStates(t *testing.T) {
 			ctx.SetCookies(cookies)
 			ctx.Client = "plakar-test/1.0.0"
 
-			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
+			lstore, err := storage.Create(ctx.GetInner(), map[string]string{"location": c.location}, wrappedConfig)
 			require.NoError(t, err, "creating storage")
-			repo, err := repository.New(ctx, lstore, wrappedConfig)
+			repo, err := repository.New(ctx.GetInner(), lstore, wrappedConfig)
 			require.NoError(t, err, "creating repository")
 
 			var noToken string
 			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, noToken)
+			SetupRoutes(mux, repo, ctx, noToken)
 
 			req, err := http.NewRequest("GET", "/api/repository/states", nil)
 			require.NoError(t, err, "creating request")
@@ -585,14 +585,14 @@ func _Test_RepositoryState(t *testing.T) {
 			ctx.SetCookies(cookies)
 			ctx.Client = "plakar-test/1.0.0"
 
-			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
+			lstore, err := storage.Create(ctx.GetInner(), map[string]string{"location": c.location}, wrappedConfig)
 			require.NoError(t, err, "creating storage")
-			repo, err := repository.New(ctx, lstore, wrappedConfig)
+			repo, err := repository.New(ctx.GetInner(), lstore, wrappedConfig)
 			require.NoError(t, err, "creating repository")
 
 			var noToken string
 			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, noToken)
+			SetupRoutes(mux, repo, ctx, noToken)
 
 			req, err := http.NewRequest("GET", fmt.Sprintf("/api/repository/state/%s", c.stateId), nil)
 			require.NoError(t, err, "creating request")
@@ -662,14 +662,14 @@ func Test_RepositoryStateErrors(t *testing.T) {
 			ctx.SetCookies(cookies)
 			ctx.Client = "plakar-test/1.0.0"
 
-			lstore, err := storage.Create(ctx, map[string]string{"location": c.location}, wrappedConfig)
+			lstore, err := storage.Create(ctx.GetInner(), map[string]string{"location": c.location}, wrappedConfig)
 			require.NoError(t, err, "creating storage")
-			repo, err := repository.New(ctx, lstore, wrappedConfig)
+			repo, err := repository.New(ctx.GetInner(), lstore, wrappedConfig)
 			require.NoError(t, err, "creating repository")
 
 			var noToken string
 			mux := http.NewServeMux()
-			SetupRoutes(mux, repo, noToken)
+			SetupRoutes(mux, repo, ctx, noToken)
 
 			req, err := http.NewRequest("GET", fmt.Sprintf("/api/repository/state/%s", c.stateId), nil)
 			require.NoError(t, err, "creating request")

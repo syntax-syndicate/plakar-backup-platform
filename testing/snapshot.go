@@ -1,18 +1,19 @@
 package testing
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"testing"
 
-	_ "github.com/PlakarKorp/plakar/snapshot/importer/fs"
+	_ "github.com/PlakarKorp/plakar/connectors/fs/importer"
 
-	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/snapshot"
-	"github.com/PlakarKorp/plakar/snapshot/importer"
+	"github.com/PlakarKorp/kloset/objects"
+	"github.com/PlakarKorp/kloset/repository"
+	"github.com/PlakarKorp/kloset/snapshot"
+	"github.com/PlakarKorp/kloset/snapshot/importer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -55,27 +56,26 @@ func (m *MockFile) ScanResult() *importer.ScanResult {
 			},
 		}
 	default:
-		return &importer.ScanResult{
-			Record: &importer.ScanRecord{
-				Pathname: m.Path,
-				FileInfo: objects.FileInfo{
-					Lname:      path.Base(m.Path),
-					Lsize:      int64(len(m.Content)),
-					Lmode:      m.Mode,
-					Lnlink:     1,
-					Lusername:  "flan",
-					Lgroupname: "hacker",
-				},
-			},
+		info := objects.FileInfo{
+			Lname:      path.Base(m.Path),
+			Lsize:      int64(len(m.Content)),
+			Lmode:      m.Mode,
+			Lnlink:     1,
+			Lusername:  "flan",
+			Lgroupname: "hacker",
 		}
+		return importer.NewScanRecord(m.Path, "", info, nil, func() (io.ReadCloser, error) {
+			if m.Mode&0400 == 0 {
+				return nil, os.ErrPermission
+			}
+			return io.NopCloser(bytes.NewReader(m.Content)), nil
+		})
 	}
 }
 
 type testingOptions struct {
 	name string
-
 	gen  func(chan<- *importer.ScanResult)
-	open func(string) (io.ReadCloser, error)
 }
 
 func newTestingOptions() *testingOptions {
@@ -111,10 +111,9 @@ func GenerateFiles(t *testing.T, files []MockFile) string {
 	return tmpBackupDir
 }
 
-func WithGenerator(gen func(chan<- *importer.ScanResult), open func(string) (io.ReadCloser, error)) TestingOptions {
+func WithGenerator(gen func(chan<- *importer.ScanResult)) TestingOptions {
 	return func(o *testingOptions) {
 		o.gen = gen
-		o.open = open
 	}
 }
 
@@ -134,7 +133,7 @@ func GenerateSnapshot(t *testing.T, repo *repository.Repository, files []MockFil
 	require.NotNil(t, imp)
 
 	if o.gen != nil {
-		imp.(*MockImporter).SetGenerator(o.gen, o.open)
+		imp.(*MockImporter).SetGenerator(o.gen)
 	} else {
 		imp.(*MockImporter).SetFiles(files)
 	}

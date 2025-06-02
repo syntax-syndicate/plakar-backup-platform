@@ -5,10 +5,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/PlakarKorp/plakar/logging"
-	"github.com/PlakarKorp/plakar/objects"
-	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/snapshot"
+	"github.com/PlakarKorp/kloset/logging"
+	"github.com/PlakarKorp/kloset/objects"
+	"github.com/PlakarKorp/kloset/repository"
+	"github.com/PlakarKorp/kloset/snapshot"
 )
 
 const PLAKAR_API_URL = "https://api.plakar.io/v1/reporting/reports"

@@ -8,14 +8,16 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/snapshot"
-	"github.com/PlakarKorp/plakar/storage"
+	"github.com/PlakarKorp/kloset/repository"
+	"github.com/PlakarKorp/kloset/snapshot"
+	"github.com/PlakarKorp/kloset/storage"
+	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/utils"
 )
 
 var lstore storage.Store
 var lconfig storage.Configuration
+var lctx *appcontext.AppContext // XXX: Adding this for transition, it needs to go away. Some places we only have Repository and out of AppContext we only get a KContext, except sometimes you truly need an AppContext.
 var lrepository *repository.Repository
 
 type Item[T any] struct {
@@ -133,10 +135,11 @@ func apiInfo(w http.ResponseWriter, r *http.Request) error {
 	return json.NewEncoder(w).Encode(res)
 }
 
-func SetupRoutes(server *http.ServeMux, repo *repository.Repository, token string) {
+func SetupRoutes(server *http.ServeMux, repo *repository.Repository, ctx *appcontext.AppContext, token string) {
 	lstore = repo.Store()
 	lconfig = repo.Configuration()
 	lrepository = repo
+	lctx = ctx
 
 	authToken := TokenAuthMiddleware(token)
 	urlSigner := NewSnapshotReaderURLSigner(token)

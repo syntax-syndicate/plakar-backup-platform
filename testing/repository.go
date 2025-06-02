@@ -7,21 +7,21 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/PlakarKorp/kloset/caching"
+	"github.com/PlakarKorp/kloset/cookies"
+	"github.com/PlakarKorp/kloset/encryption"
+	"github.com/PlakarKorp/kloset/hashing"
+	"github.com/PlakarKorp/kloset/logging"
+	"github.com/PlakarKorp/kloset/repository"
+	"github.com/PlakarKorp/kloset/resources"
+	"github.com/PlakarKorp/kloset/storage"
+	"github.com/PlakarKorp/kloset/versioning"
 	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/caching"
-	"github.com/PlakarKorp/plakar/cookies"
-	"github.com/PlakarKorp/plakar/encryption"
-	"github.com/PlakarKorp/plakar/hashing"
-	"github.com/PlakarKorp/plakar/logging"
-	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/resources"
-	"github.com/PlakarKorp/plakar/storage"
-	bfs "github.com/PlakarKorp/plakar/storage/backends/fs"
-	"github.com/PlakarKorp/plakar/versioning"
+	bfs "github.com/PlakarKorp/plakar/connectors/fs/storage"
 	"github.com/stretchr/testify/require"
 )
 
-func GenerateRepository(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer, passphrase *[]byte) *repository.Repository {
+func GenerateRepository(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer, passphrase *[]byte) (*repository.Repository, *appcontext.AppContext) {
 	// init temporary directories
 	tmpRepoDirRoot, err := os.MkdirTemp("", "tmp_repo")
 	require.NoError(t, err)
@@ -74,7 +74,7 @@ func GenerateRepository(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer
 	require.NoError(t, err)
 
 	// open the storage to load the configuration
-	r, serializedConfig, err := storage.Open(ctx, map[string]string{"location": tmpRepoDir})
+	r, serializedConfig, err := storage.Open(ctx.GetInner(), map[string]string{"location": tmpRepoDir})
 	require.NoError(t, err)
 
 	// create a repository
@@ -102,16 +102,16 @@ func GenerateRepository(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer
 	}
 	// logger.EnableTrace("all")
 	ctx.SetLogger(logger)
-	repo, err := repository.New(ctx, r, serializedConfig)
+	repo, err := repository.New(ctx.GetInner(), r, serializedConfig)
 	require.NoError(t, err, "creating repository")
 
 	// override the homedir to avoid having test overwriting existing home configuration
 	ctx.HomeDir = repo.Location()
 
-	return repo
+	return repo, ctx
 }
 
-func GenerateRepositoryWithoutConfig(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer, passphrase *[]byte) *repository.Repository {
+func GenerateRepositoryWithoutConfig(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer, passphrase *[]byte) (*repository.Repository, *appcontext.AppContext) {
 	// init temporary directories
 	tmpRepoDirRoot, err := os.MkdirTemp("", "tmp_repo")
 	require.NoError(t, err)
@@ -168,8 +168,8 @@ func GenerateRepositoryWithoutConfig(t *testing.T, bufout *bytes.Buffer, buferr 
 	// logger.EnableTrace("all")
 	ctx.SetLogger(logger)
 
-	repo, err := repository.Inexistent(ctx, map[string]string{"location": tmpRepoDirRoot + "/repo"})
+	repo, err := repository.Inexistent(ctx.GetInner(), map[string]string{"location": tmpRepoDirRoot + "/repo"})
 	require.NoError(t, err, "creating repository")
 
-	return repo
+	return repo, ctx
 }

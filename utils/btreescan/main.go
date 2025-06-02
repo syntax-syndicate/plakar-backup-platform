@@ -10,17 +10,17 @@ import (
 	"runtime/pprof"
 	"strings"
 
+	"github.com/PlakarKorp/kloset/btree"
+	"github.com/PlakarKorp/kloset/config"
+	"github.com/PlakarKorp/kloset/snapshot/importer"
+	"github.com/PlakarKorp/kloset/snapshot/vfs"
 	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/btree"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/config"
-	"github.com/PlakarKorp/plakar/snapshot/importer"
-	_ "github.com/PlakarKorp/plakar/snapshot/importer/fs"
-	_ "github.com/PlakarKorp/plakar/snapshot/importer/ftp"
-	_ "github.com/PlakarKorp/plakar/snapshot/importer/s3"
-	_ "github.com/PlakarKorp/plakar/snapshot/importer/sftp"
-	_ "github.com/PlakarKorp/plakar/snapshot/importer/stdio"
-	"github.com/PlakarKorp/plakar/snapshot/vfs"
+	_ "github.com/PlakarKorp/plakar/connectors/fs/importer"
+	_ "github.com/PlakarKorp/plakar/connectors/ftp/importer"
+	_ "github.com/PlakarKorp/plakar/connectors/s3/importer"
+	_ "github.com/PlakarKorp/plakar/connectors/sftp/importer"
+	_ "github.com/PlakarKorp/plakar/connectors/stdio/importer"
+	"github.com/PlakarKorp/plakar/utils"
 	"github.com/cockroachdb/pebble/v2"
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -159,7 +159,7 @@ func main() {
 		log.Fatal("Failed to create the btree:", err)
 	}
 
-	imp, err := importer.NewImporter(appcontext.NewAppContext(), importerSource)
+	imp, err := importer.NewImporter(appcontext.NewAppContext().GetInner(), importerSource)
 	if err != nil {
 		log.Fatal("new fs importer failed:", err)
 	}
@@ -185,18 +185,16 @@ func doScan(imp importer.Importer, idx *btree.BTree[string, int, empty]) error {
 		case record.Record != nil:
 			path := record.Record.Pathname
 			if err := idx.Insert(path, empty{}); err != nil && err != btree.ErrExists {
+				record.Record.Reader.Close()
 				return fmt.Errorf("failed to insert %s: %v", path, err)
 			}
 			items++
 
 			if xattr && record.Record.IsXattr {
-				rd, err := imp.NewExtendedAttributeReader(path, record.Record.XattrName)
-				if err != nil {
-					return fmt.Errorf("failed to get xattr for %s due to %s", path, err)
-				}
-				rd.Close()
 				log.Println(path, "found xattr named", record.Record.XattrName)
 			}
+
+			record.Record.Reader.Close()
 		default:
 			return fmt.Errorf("got unknown scanrecord %v", record)
 		}

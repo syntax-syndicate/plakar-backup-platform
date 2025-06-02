@@ -18,7 +18,6 @@ package v2
 
 import (
 	"embed"
-	_ "embed"
 	"fmt"
 	"io/fs"
 	"math/rand/v2"
@@ -26,9 +25,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/plakar/api"
-	"github.com/PlakarKorp/plakar/cmd/plakar/utils"
-	"github.com/PlakarKorp/plakar/repository"
+	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/utils"
 )
 
 type UiOptions struct {
@@ -41,9 +41,9 @@ type UiOptions struct {
 //go:embed frontend/*
 var content embed.FS
 
-func Ui(repo *repository.Repository, addr string, opts *UiOptions) error {
+func Ui(repo *repository.Repository, ctx *appcontext.AppContext, addr string, opts *UiOptions) error {
 	server := http.NewServeMux()
-	api.SetupRoutes(server, repo, opts.Token)
+	api.SetupRoutes(server, repo, ctx, opts.Token)
 
 	// Serve files from the ./frontend directory
 	server.HandleFunc("/{path...}", func(w http.ResponseWriter, r *http.Request) {

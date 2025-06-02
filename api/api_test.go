@@ -8,26 +8,27 @@ import (
 	"os"
 	"testing"
 
+	"github.com/PlakarKorp/kloset/caching"
+	"github.com/PlakarKorp/kloset/cookies"
+	"github.com/PlakarKorp/kloset/hashing"
+	"github.com/PlakarKorp/kloset/logging"
+	"github.com/PlakarKorp/kloset/repository"
+	"github.com/PlakarKorp/kloset/resources"
+	"github.com/PlakarKorp/kloset/storage"
+	"github.com/PlakarKorp/kloset/versioning"
 	"github.com/PlakarKorp/plakar/appcontext"
-	"github.com/PlakarKorp/plakar/caching"
-	"github.com/PlakarKorp/plakar/cookies"
-	"github.com/PlakarKorp/plakar/hashing"
-	"github.com/PlakarKorp/plakar/logging"
-	"github.com/PlakarKorp/plakar/repository"
-	"github.com/PlakarKorp/plakar/resources"
-	"github.com/PlakarKorp/plakar/storage"
 	ptesting "github.com/PlakarKorp/plakar/testing"
-	"github.com/PlakarKorp/plakar/versioning"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNewRouter(t *testing.T) {
 	repo := &repository.Repository{}
+	ctx := appcontext.NewAppContext()
 	token := "test-token"
 	mux := http.NewServeMux()
 	// Make sure SetupRoutes doesn't panic, which happens when invalid routes
 	// are registered
-	SetupRoutes(mux, repo, token)
+	SetupRoutes(mux, repo, ctx, token)
 }
 
 func TestAuthMiddleware(t *testing.T) {
@@ -53,15 +54,15 @@ func TestAuthMiddleware(t *testing.T) {
 	ctx.SetCookies(cookies)
 	ctx.Client = "plakar-test/1.0.0"
 
-	lstore, err := storage.Create(ctx, map[string]string{"location": "mock:///test/location"}, wrappedConfig)
+	lstore, err := storage.Create(ctx.GetInner(), map[string]string{"location": "mock:///test/location"}, wrappedConfig)
 	require.NoError(t, err)
-	repo, err := repository.New(ctx, lstore, wrappedConfig)
+	repo, err := repository.New(ctx.GetInner(), lstore, wrappedConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
 	token := "test-token"
 	mux := http.NewServeMux()
-	SetupRoutes(mux, repo, token)
+	SetupRoutes(mux, repo, ctx, token)
 
 	req, err := http.NewRequest("GET", "/api/info", nil)
 	if err != nil {
@@ -113,15 +114,15 @@ func Test_UnknownEndpoint(t *testing.T) {
 	ctx.SetCookies(cookies)
 	ctx.Client = "plakar-test/1.0.0"
 
-	lstore, err := storage.Create(ctx, map[string]string{"location": "mock:///test/location"}, wrappedConfig)
+	lstore, err := storage.Create(ctx.GetInner(), map[string]string{"location": "mock:///test/location"}, wrappedConfig)
 	require.NoError(t, err)
-	repo, err := repository.New(ctx, lstore, wrappedConfig)
+	repo, err := repository.New(ctx.GetInner(), lstore, wrappedConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
 	token := ""
 	mux := http.NewServeMux()
-	SetupRoutes(mux, repo, token)
+	SetupRoutes(mux, repo, ctx, token)
 
 	req, err := http.NewRequest("GET", "/api/unknown_endpoint", nil)
 	if err != nil {
