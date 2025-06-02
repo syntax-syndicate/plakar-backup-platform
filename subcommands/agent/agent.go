@@ -93,6 +93,11 @@ func (cmd *Agent) Parse(ctx *appcontext.AppContext, args []string) error {
 	var opt_foreground bool
 	var opt_logfile string
 
+	_, envAgentLess := os.LookupEnv("PLAKAR_AGENTLESS")
+	if envAgentLess {
+		return fmt.Errorf("agent can not be start when PLAKAR_AGENTLESS is set")
+	}
+
 	flags := flag.NewFlagSet("agent", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s [OPTIONS]\n", flags.Name())
@@ -453,7 +458,7 @@ func handleClient(ctx *appcontext.AppContext, wg *sync.WaitGroup, conn net.Conn)
 		}
 		defer store.Close()
 
-		repo, err = repository.New(clientContext.GetInner(), store, serializedConfig)
+		repo, err = repository.New(clientContext.GetInner(), clientContext.GetSecret(), store, serializedConfig)
 		if err != nil {
 			clientContext.GetLogger().Warn("Failed to open repository: %v", err)
 			fmt.Fprintf(clientContext.Stderr, "Failed to open repository: %s\n", err)
