@@ -28,7 +28,9 @@ func TestStdioImporter(t *testing.T) {
 	require.NoError(t, err)
 	appCtx.Hostname = hostname
 
-	importer, err := kimporter.NewImporter(appCtx.GetInner(), map[string]string{"location": "stdin:///test.txt"})
+	importer, err := kimporter.NewImporter(appCtx.GetInner(), &kimporter.ImporterOptions{
+		Hostname: hostname,
+	}, map[string]string{"location": "stdin:///test.txt"})
 	require.NoError(t, err)
 	require.NotNil(t, importer)
 

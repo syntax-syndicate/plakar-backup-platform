@@ -31,7 +31,7 @@ func TestImporter(t *testing.T) {
 
 	// Create the importer
 	appCtx := appcontext.NewAppContext()
-	importer, err := NewFTPImporter(appCtx, "ftp", map[string]string{
+	importer, err := NewFTPImporter(appCtx, nil, "ftp", map[string]string{
 		"location": "ftp://" + server.Addr + "/",
 	})
 	require.NoError(t, err)
