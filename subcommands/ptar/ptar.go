@@ -191,11 +191,6 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	}
 	storageConfiguration.Hashing = *hashingConfiguration
 
-	minEntropBits := 80.
-	if cmd.AllowWeak {
-		minEntropBits = 0.
-	}
-
 	var hasher hash.Hash
 	var key []byte
 	if !cmd.NoEncryption {
@@ -209,7 +204,7 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 				passphrase = []byte(envPassphrase)
 			} else {
 				for attempt := 0; attempt < 3; attempt++ {
-					tmp, err := utils.GetPassphraseConfirm("ptar", minEntropBits)
+					tmp, err := utils.GetPassphraseConfirm("ptar", 0.)
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "%s\n", err)
 						continue
