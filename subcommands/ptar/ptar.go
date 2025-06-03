@@ -25,6 +25,7 @@ import (
 	"math"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/PlakarKorp/kloset/compression"
 	"github.com/PlakarKorp/kloset/encryption"
@@ -83,7 +84,10 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 	flags.Parse(args)
 
 	if flags.NArg() == 0 {
-		cmd.KlosetPath = fmt.Sprintf("%s.ptar", cmd.KlosetUUID)
+		cmd.KlosetPath = fmt.Sprintf("%s-%s.ptar",
+			time.Now().Format("20060102150405"),
+			strings.Split(cmd.KlosetUUID.String(), "-")[0],
+		)
 	} else if flags.NArg() == 1 {
 		cmd.KlosetPath = flags.Arg(0)
 	} else {
