@@ -25,10 +25,16 @@ func TestExecuteCmdPtarDefault(t *testing.T) {
 		ptesting.NewMockFile("another_subdir/bar.txt", 0644, "hello bar"),
 	})
 
-	args := []string{"--no-encryption", "--no-compression", filepath.Join(tmpSourceDir, "subdir")}
+	tmpDir, err := os.MkdirTemp("", "tmp_ptar")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
+
+	args := []string{"-no-encryption", "-no-compression", "-b", filepath.Join(tmpSourceDir, "subdir"), filepath.Join(tmpDir, "test.ptar")}
 
 	subcommand := &Ptar{}
-	err := subcommand.Parse(ctx, args)
+	err = subcommand.Parse(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 
@@ -53,10 +59,16 @@ func TestExecuteCmdPtarWithSync(t *testing.T) {
 	// Create destination repository
 	dstRepo, ctx := ptesting.GenerateRepositoryWithoutConfig(t, nil, nil, nil)
 
-	args := []string{"--no-encryption", "--no-compression", "--sync-from", srcRepo.Location()}
+	tmpDir, err := os.MkdirTemp("", "tmp_ptar")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
+
+	args := []string{"-no-encryption", "-no-compression", "-k", srcRepo.Location(), filepath.Join(tmpDir, "test.ptar")}
 
 	subcommand := &Ptar{}
-	err := subcommand.Parse(ctx, args)
+	err = subcommand.Parse(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
 

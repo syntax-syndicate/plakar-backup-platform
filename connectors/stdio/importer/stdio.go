@@ -52,6 +52,7 @@ func NewStdioImporter(appCtx context.Context, opts *importer.ImporterOptions, na
 		fileDir: location,
 		appCtx:  appCtx,
 		name:    name,
+		opts:    opts,
 	}, nil
 }
 
