@@ -1,0 +1,42 @@
+name: release
+
+on:
+  push:
+    # run only against tags
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    env:
+      # true if tag-name doesn't contain a hyphen (eg. v1.2.3-dev, 1.2.4-nightly), false otherwise
+      MAKE_LATEST_RELEASE: ${{ contains(github.ref_name, '-') == false }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          # To enable goreleaser-pro, uncomment the following line
+          # distribution: goreleaser-pro
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TOKEN: ${{ secrets.HOMEBREW_TOKEN }}
+          MAKE_LATEST_RELEASE: ${{ env.MAKE_LATEST_RELEASE }}
+          # If using goreleaser-pro, uncomment the following line
+          # GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
