@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/kloset/config"
 	"github.com/PlakarKorp/kloset/repository"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/stretchr/testify/require"
 )
 
@@ -60,26 +60,26 @@ remotes: {}
 	require.NotNil(t, subcommand)
 
 	status, err = subcommand.Execute(ctx, repo)
-	require.ErrorContains(t, err, "unknown subcommand unknown")
+	require.ErrorContains(t, err, "config command takes no argument")
 	require.Equal(t, 1, status)
 
-	args = []string{"remote", "create", "my-remote"}
-	subcommand = &ConfigCmd{}
-	err = subcommand.Parse(ctx, args)
+	args = []string{"create", "my-remote", "s3://foobar"}
+	subcommandr := &ConfigRemoteCmd{}
+	err = subcommandr.Parse(ctx, args)
 	require.NoError(t, err)
-	require.NotNil(t, subcommand)
+	require.NotNil(t, subcommandr)
 
-	status, err = subcommand.Execute(ctx, repo)
+	status, err = subcommandr.Execute(ctx, repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
-	args = []string{"repository", "create", "my-repo"}
-	subcommand = &ConfigCmd{}
-	err = subcommand.Parse(ctx, args)
+	args = []string{"create", "my-repo", "fs:/tmp/foobar"}
+	subcommandk := &ConfigKlosetCmd{}
+	err = subcommandk.Parse(ctx, args)
 	require.NoError(t, err)
-	require.NotNil(t, subcommand)
+	require.NotNil(t, subcommandk)
 
-	status, err = subcommand.Execute(ctx, repo)
+	status, err = subcommandk.Execute(ctx, repo)
 	require.NoError(t, err)
 	require.Equal(t, 0, status)
 
@@ -107,36 +107,40 @@ func TestCmdRemote(t *testing.T) {
 	ctx.Stderr = bufErr
 
 	args := []string{}
-	err = cmd_remote(ctx, args)
-	require.EqualError(t, err, "usage: plakar config remote [create | set | unset | validate]")
+	err = cmd_remote_config(ctx, args)
+	require.EqualError(t, err, "usage: plakar remote [create | set | unset | check | ping]")
 
 	args = []string{"unknown"}
-	err = cmd_remote(ctx, args)
-	require.EqualError(t, err, "usage: plakar config remote [create | set | unset | validate]")
+	err = cmd_remote_config(ctx, args)
+	require.EqualError(t, err, "usage: plakar remote [create | set | unset | check | ping]")
 
-	args = []string{"create", "my-remote"}
-	err = cmd_remote(ctx, args)
+	args = []string{"create", "my-remote", "s3://my-remote"}
+	err = cmd_remote_config(ctx, args)
 	require.NoError(t, err)
 
-	args = []string{"create", "my-remote2"}
-	err = cmd_remote(ctx, args)
+	args = []string{"create", "my-remote2", "s3://my-remote2"}
+	err = cmd_remote_config(ctx, args)
 	require.NoError(t, err)
 
-	args = []string{"set", "my-remote", "option", "value"}
-	err = cmd_remote(ctx, args)
+	args = []string{"set", "my-remote", "option=value"}
+	err = cmd_remote_config(ctx, args)
 	require.NoError(t, err)
 
-	args = []string{"set", "my-remote2", "option2", "value2"}
-	err = cmd_remote(ctx, args)
+	args = []string{"set", "my-remote2", "option2=value2"}
+	err = cmd_remote_config(ctx, args)
 	require.NoError(t, err)
 
 	args = []string{"unset", "my-remote2", "option2"}
-	err = cmd_remote(ctx, args)
+	err = cmd_remote_config(ctx, args)
 	require.NoError(t, err)
 
-	args = []string{"validate", "my-remote2"}
-	err = cmd_remote(ctx, args)
-	require.EqualError(t, err, "validation not implemented")
+	args = []string{"check", "my-remote2"}
+	err = cmd_remote_config(ctx, args)
+	require.EqualError(t, err, "check not implemented")
+
+	args = []string{"ping", "my-remote2"}
+	err = cmd_remote_config(ctx, args)
+	require.EqualError(t, err, "ping not implemented")
 
 	ctx.Config.Render(ctx.Stdout)
 
@@ -145,8 +149,10 @@ func TestCmdRemote(t *testing.T) {
 repositories: {}
 remotes:
     my-remote:
+        location: s3://my-remote
         option: value
-    my-remote2: {}
+    my-remote2:
+        location: s3://my-remote2
 `
 	require.Equal(t, expectedOutput, output)
 }
@@ -170,44 +176,40 @@ func TestCmdRepository(t *testing.T) {
 	ctx.Stderr = bufErr
 
 	args := []string{"unknown"}
-	err = cmd_repository(ctx, args)
-	require.EqualError(t, err, "usage: plakar config repository [create | default | set | unset | validate]")
+	err = cmd_kloset_config(ctx, args)
+	require.EqualError(t, err, "usage: plakar kloset [create | default | set | unset | check]")
 
-	args = []string{"create", "my-repo"}
-	err = cmd_repository(ctx, args)
+	args = []string{"create", "my-repo", "fs:/tmp/my-repo"}
+	err = cmd_kloset_config(ctx, args)
+	require.NoError(t, err)
+
+	args = []string{"set", "my-repo", "location=invalid://place"}
+	err = cmd_kloset_config(ctx, args)
 	require.NoError(t, err)
 
 	args = []string{"default", "my-repo"}
-	err = cmd_repository(ctx, args)
-	require.EqualError(t, err, "repository \"my-repo\" doesn't have a location set")
-
-	args = []string{"set", "my-repo", "location", "invalid://place"}
-	err = cmd_repository(ctx, args)
+	err = cmd_kloset_config(ctx, args)
 	require.NoError(t, err)
 
-	args = []string{"default", "my-repo"}
-	err = cmd_repository(ctx, args)
+	args = []string{"create", "my-repo2", "invalid://place2"}
+	err = cmd_kloset_config(ctx, args)
 	require.NoError(t, err)
 
-	args = []string{"create", "my-repo2"}
-	err = cmd_repository(ctx, args)
+	args = []string{"set", "my-repo", "option=value"}
+	err = cmd_kloset_config(ctx, args)
 	require.NoError(t, err)
 
-	args = []string{"set", "my-repo", "option", "value"}
-	err = cmd_repository(ctx, args)
-	require.NoError(t, err)
-
-	args = []string{"set", "my-repo2", "option2", "value2"}
-	err = cmd_repository(ctx, args)
+	args = []string{"set", "my-repo2", "option2=value2"}
+	err = cmd_kloset_config(ctx, args)
 	require.NoError(t, err)
 
 	args = []string{"unset", "my-repo2", "option2"}
-	err = cmd_repository(ctx, args)
+	err = cmd_kloset_config(ctx, args)
 	require.NoError(t, err)
 
-	args = []string{"validate", "my-repo2"}
-	err = cmd_repository(ctx, args)
-	require.EqualError(t, err, "validation not implemented")
+	args = []string{"check", "my-repo2"}
+	err = cmd_kloset_config(ctx, args)
+	require.EqualError(t, err, "check not implemented")
 
 	ctx.Config.Render(ctx.Stdout)
 
@@ -217,7 +219,8 @@ repositories:
     my-repo:
         location: invalid://place
         option: value
-    my-repo2: {}
+    my-repo2:
+        location: invalid://place2
 remotes: {}
 `
 	require.Equal(t, expectedOutput, output)
