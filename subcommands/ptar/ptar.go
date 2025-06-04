@@ -74,13 +74,14 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 		flags.PrintDefaults()
 	}
 
-	flags.BoolVar(&cmd.AllowWeak, "weak-passphrase", false, "allow weak passphrase to protect the repository")
 	flags.StringVar(&cmd.Hashing, "hashing", hashing.DEFAULT_HASHING_ALGORITHM, "hashing algorithm to use for digests")
 	flags.BoolVar(&cmd.NoEncryption, "no-encryption", false, "disable transparent encryption")
 	flags.BoolVar(&cmd.NoCompression, "no-compression", false, "disable transparent compression")
 	flags.BoolVar(&cmd.Overwrite, "overwrite", false, "overwrite the ptar archive if it already exists")
 	flags.Var(&cmd.SyncTargets, "k", "add a kloset location to include in the ptar archive (can be specified multiple times)")
-	flags.Var(&cmd.BackupTargets, "b", "add a backup location to include in the ptar archive (can be specified multiple times)")
+	flags.Var(&cmd.BackupTargets, "p", "add a backup location to include in the ptar archive (can be specified multiple times)")
+	flags.Var(&cmd.SyncTargets, "kloset", "add a kloset location to include in the ptar archive (can be specified multiple times)")
+	flags.Var(&cmd.BackupTargets, "path", "add a backup location to include in the ptar archive (can be specified multiple times)")
 	flags.Parse(args)
 
 	if flags.NArg() == 0 {
