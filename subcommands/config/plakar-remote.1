@@ -1,0 +1,53 @@
+.Dd February 27, 2025
+.Dt PLAKAR-REMOTE 1
+.Os
+.Sh NAME
+.Nm plakar remote
+.Nd Manage Plakar remote repository configurations
+.Sh SYNOPSIS
+.Nm
+.Cm remote
+.Op subcommand ...
+.Sh DESCRIPTION
+The
+.Nm
+command manages configuration of the remote Plakar repository configurations.
+.Pp
+The subcommands are as follows:
+.Bl -tag -width Ds
+.It Cm create Ar name Ar location Op option=value ...
+Create a new remote identified by
+.Ar name
+with the specified
+.Ar location .
+Specific additional configuration parameters might be set by adding
+.Ar option=value
+entries.
+Different remotes have different options available.
+.Op key
+.It Cm set Ar name Op option=value ...
+Set the
+.Ar option
+to
+.Ar value
+for the remote identified by
+.Ar name .
+Different remotes have different options available.
+Multiple option/value pairs might be specified.
+.It Cm unset Ar name Op option ...
+Remove the
+.Ar option
+for the remote identified by
+.Ar name .
+.It Cm check Ar name
+Check wether the remote
+.Ar name
+is properly configured.
+.It Cm ping Ar name
+Attempt to contact the remote
+.Ar name
+to ensure it is reachable.
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh SEE ALSO
+.Xr plakar 1
