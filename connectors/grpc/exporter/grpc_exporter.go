@@ -61,6 +61,17 @@ func (g *GrpcExporter) StoreFile(pathname string, fp io.Reader, size int64) erro
 		return err
 	}
 
+	if err := stream.Send(&grpc_exporter.StoreFileRequest{
+		Type: &grpc_exporter.StoreFileRequest_Header{
+			Header: &grpc_exporter.Header{
+				Pathname: pathname,
+				Size:     uint64(size),
+			},
+		},
+	}); err != nil {
+		return err
+	}
+
 	buf := make([]byte, 32*1024)
 	for {
 		n, err := fp.Read(buf)
@@ -72,11 +83,11 @@ func (g *GrpcExporter) StoreFile(pathname string, fp io.Reader, size int64) erro
 		}
 		
 		if err := stream.Send(&grpc_exporter.StoreFileRequest{
-			Pathname: pathname,
-			Fp: &grpc_exporter.IoReader{
-				Chunk: buf[:n],
+			Type: &grpc_exporter.StoreFileRequest_Data{
+				Data: &grpc_exporter.Data{
+					Chunk: buf[:n],
+				},
 			},
-			Size: uint64(size),
 		}); err != nil {
 			return err
 		}
