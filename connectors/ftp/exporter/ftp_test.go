@@ -1,8 +1,8 @@
 package ftp
 
 import (
+	"bytes"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/PlakarKorp/kloset/objects"
@@ -29,13 +29,6 @@ func TestExporter(t *testing.T) {
 	testFiles := map[string]string{
 		"file1.txt": "content1",
 		"file2.txt": "content2",
-	}
-
-	for name, content := range testFiles {
-		path := filepath.Join(tmpDir, name)
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-			t.Fatalf("Failed to create test file %s: %v", name, err)
-		}
 	}
 
 	// Create the exporter
@@ -65,20 +58,9 @@ func TestExporter(t *testing.T) {
 	}
 
 	// Test storing files
-	for name, _ := range testFiles {
-		path := filepath.Join(tmpDir, name)
-		fp, err := os.Open(path)
-		if err != nil {
-			t.Fatalf("Failed to open file %s: %v", name, err)
-		}
-		defer fp.Close()
-
-		fileInfo, err := fp.Stat()
-		if err != nil {
-			t.Fatalf("Failed to stat file %s: %v", name, err)
-		}
-
-		if err := exporter.StoreFile(name, fp, fileInfo.Size()); err != nil {
+	for name, content := range testFiles {
+		fp := bytes.NewReader([]byte(content))
+		if err := exporter.StoreFile(name, fp, int64(len(content))); err != nil {
 			t.Errorf("Failed to store file %s: %v", name, err)
 		}
 	}

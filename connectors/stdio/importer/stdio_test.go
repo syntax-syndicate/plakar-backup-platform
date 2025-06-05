@@ -51,10 +51,10 @@ func TestStdioImporter(t *testing.T) {
 		paths = append(paths, record.Record.Pathname)
 
 		if record.Record.FileInfo.Mode().IsRegular() {
+			defer record.Record.Reader.Close()
 			content, err := io.ReadAll(record.Record.Reader)
 			require.NoError(t, err)
 			require.Equal(t, content, []byte("test importer stdin"))
-			record.Record.Reader.Close()
 		}
 	}
 	require.Equal(t, []string{"/", "/test.txt"}, paths)
