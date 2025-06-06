@@ -28,6 +28,7 @@ import (
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/task"
 	"github.com/PlakarKorp/plakar/utils"
+	"github.com/PlakarKorp/plakar/plugins"
 	"github.com/denisbrodbeck/machineid"
 	"github.com/google/uuid"
 
@@ -158,6 +159,8 @@ func EntryPoint() int {
 
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
+
+	plugins.LoadBackends(ctx.Context, filepath.Join(configDir, "plugins"))
 
 	cfg, err := config.LoadOrCreate(opt_configfile)
 	if err != nil {
