@@ -11,16 +11,17 @@ import (
 )
 
 type GrpcExporter struct {
-	GrpcClient grpc_exporter.ExporterClient
+	GrpcClient 	grpc_exporter.ExporterClient
+	ctx 		context.Context
 }
 
 func (g *GrpcExporter) Close() error {
-	_, err := g.GrpcClient.Close(context.Background(), &grpc_exporter.CloseRequest{})
+	_, err := g.GrpcClient.Close(g.ctx, &grpc_exporter.CloseRequest{})
 	return err
 }
 
 func (g *GrpcExporter) CreateDirectory(pathname string) error {
-	_, err := g.GrpcClient.CreateDirectory(context.Background(), &grpc_exporter.CreateDirectoryRequest{Pathname: pathname})
+	_, err := g.GrpcClient.CreateDirectory(g.ctx, &grpc_exporter.CreateDirectoryRequest{Pathname: pathname})
 	if err != nil {
 		return err
 	}
@@ -28,7 +29,7 @@ func (g *GrpcExporter) CreateDirectory(pathname string) error {
 }
 
 func (g *GrpcExporter) Root() string {
-	info, err := g.GrpcClient.Root(context.Background(), &grpc_exporter.RootRequest{})
+	info, err := g.GrpcClient.Root(g.ctx, &grpc_exporter.RootRequest{})
 	if err != nil {
 		return ""
 	}
@@ -36,7 +37,7 @@ func (g *GrpcExporter) Root() string {
 }
 
 func (g *GrpcExporter) SetPermissions(pathname string, fileinfo *objects.FileInfo) error {
-	_, err := g.GrpcClient.SetPermissions(context.Background(), &grpc_exporter.SetPermissionsRequest{
+	_, err := g.GrpcClient.SetPermissions(g.ctx, &grpc_exporter.SetPermissionsRequest{
 		Pathname: pathname,
 		FileInfo: &grpc_exporter.FileInfo{
 			Name: 		fileinfo.Lname,
@@ -56,7 +57,7 @@ func (g *GrpcExporter) SetPermissions(pathname string, fileinfo *objects.FileInf
 }
 
 func (g *GrpcExporter) StoreFile(pathname string, fp io.Reader, size int64) error {
-	stream, err := g.GrpcClient.StoreFile(context.Background())
+	stream, err := g.GrpcClient.StoreFile(g.ctx)
 	if err != nil {
 		return err
 	}
