@@ -109,11 +109,15 @@ func cmd_kloset_config(ctx *appcontext.AppContext, args []string) error {
 			list = append(list, name)
 		}
 		sort.Strings(list)
-		pfx := ""
-		for _, name := range list {
+		for i, name := range list {
 			entry := ctx.Config.Repositories[name]
-			fmt.Fprintf(ctx.Stdout, "%s[%s]\nlocation=%s\n", pfx, name, entry["location"])
-			pfx = "\n"
+			if i != 0 {
+				fmt.Fprint(ctx.Stdout, "\n")
+			}
+			if ctx.Config.DefaultRepository == name {
+				fmt.Fprintf(ctx.Stdout, "; default\n")
+			}
+			fmt.Fprintf(ctx.Stdout, "[%s]\nlocation=%s\n", name, entry["location"])
 			var keys []string
 			for key, _ := range entry {
 				if key != "location" {
