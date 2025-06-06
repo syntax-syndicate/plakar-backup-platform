@@ -82,18 +82,14 @@ func (s *GrpcStorage) Size() int64 {
 	return resp.Size
 }
 
-//========================
-
-type chunkSenderFunc func(chunk []byte) error
-
-func sendChunks(rd io.Reader, send chunkSenderFunc) (int64, error) {
+func sendChunks(rd io.Reader, chunkSendFn func(chunk []byte) error) (int64, error) {
 	buffer := make([]byte, bufferSize)
 	var totalBytes int64
 
 	for {
 		n, err := rd.Read(buffer)
 		if n > 0 {
-			if sendErr := send(buffer[:n]); sendErr != nil {
+			if sendErr := chunkSendFn(buffer[:n]); sendErr != nil {
 				return totalBytes, fmt.Errorf("failed to send chunk: %w", sendErr)
 			}
 			totalBytes += int64(n)
@@ -108,13 +104,11 @@ func sendChunks(rd io.Reader, send chunkSenderFunc) (int64, error) {
 	return totalBytes, nil
 }
 
-type chunkReceiverFunc func() ([]byte, error)
-
-func receiveChunks(recv chunkReceiverFunc) (io.Reader, error) {
+func receiveChunks(chunkReceiverFn func() ([]byte, error)) (io.Reader, error) {
 	var buf bytes.Buffer
 
 	for {
-		chunk, err := recv()
+		chunk, err := chunkReceiverFn()
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -129,8 +123,6 @@ func receiveChunks(recv chunkReceiverFunc) (io.Reader, error) {
 func toGrpcMAC(mac objects.MAC) *grpc_storage.MAC {
 	return &grpc_storage.MAC{Value: mac[:]}
 }
-
-//========================
 
 func (s *GrpcStorage) GetStates() ([]objects.MAC, error) {
 	resp, err := s.GrpcClient.GetStates(s.ctx, &grpc_storage.GetStatesRequest{})
