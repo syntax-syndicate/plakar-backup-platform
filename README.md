@@ -1,14 +1,22 @@
 # plakar - Effortless backup
 
-## Plakar V1.0.1 released
+## 🔄 Latest Releases
 
-We are proud to announce the release of Plakar v1.0.1, our first stable and production-ready version.
+### **V1.0.2 – Minor Release: S3 Performance Boost** *(June 2, 2025)*
 
-This release marks the transition of Plakar from an experimental engine to a mature, extensible platform ready for real-world usage in both personal and enterprise contexts.
+- Achieved a **60× performance improvement** for backups over S3.  
+  A backup that previously took ~14 minutes now completes in ~13 seconds.
 
-Technical blog post: [Here](https://www.plakar.io/posts/2025-05-01/introducing-plakar-v1.0-to-redefine-open-source-data-protection-with-3m-funding/)
+[📝 Tech blog post](https://www.plakar.io/posts/2025-06-03/plakar-v1.0.2-was-released-mostly-s3-improvements/)
 
-## Introduction
+### **V1.0.1 – Major Release: Plakar is Production-Ready** *(May 15, 2025)*
+
+- **Plakar is now stable and production-ready**, marking a major milestone in our open-source journey.
+- Introduced **long-term support for our immutable storage engine**, [**Kloset**](https://www.plakar.io/posts/2025-04-29/kloset-the-immutable-data-store/).
+
+[📝 Tech blog post](https://www.plakar.io/posts/2025-05-01/introducing-plakar-v1.0-to-redefine-open-source-data-protection-with-3m-funding/)
+
+## 🧭 Introduction
 
 plakar provides an intuitive, powerful, and scalable backup solution.
 
@@ -31,11 +39,11 @@ Simplicity and efficiency are plakar's main priorities.
 
 Our mission is to set a new standard for effortless secure data protection. 
 
-## Plakar UI
+## 🖥️ Plakar UI
 
 Plakar includes a built-in web-based user interface to **monitor, browse, and restore** your backups with ease.
 
-### 🖥️ Launch the UI
+### 🚀 Launch the UI
 
 You can start the interface from any machine with access to your backups:
 
@@ -56,19 +64,19 @@ Navigate the contents of each snapshot to inspect, compare, or selectively resto
 ![Snapshot browser](https://www.plakar.io/readme/snapshot-browser.png)
 
 
-## Requirement
+## ⚙️ Requirement
 
 `plakar` requires Go 1.23.3 or higher,
 it may work on older versions but hasn't been tested.
 
 
-## Installing the CLI
+## 📦 Installing the CLI
 
 ```
 go install github.com/PlakarKorp/plakar/cmd/plakar@latest
 ```
 
-## Quickstart
+## 🚀 Quickstart
 
 plakar quickstart: https://docs.plakar.io/en/quickstart/
 
@@ -83,7 +91,7 @@ $ plakar at /var/backups sync to @s3                        # Synchronise a back
 
 ```
 
-## Notable Capabilities
+## 🧠 Notable Capabilities
 
 - **Instant recovery**: Instantly mount large backups on any devices without full restoration.
 - **Distributed backup**: Kloset can be easily distributed to implement 3,2,1 rule or advanced strategies (push, pull, sync) across heterogeneous environments.
@@ -94,11 +102,11 @@ $ plakar at /var/backups sync to @s3                        # Synchronise a back
 - **Integrations**: back up and restore from and to any source (file systems, object stores, SaaS applications...) with the right integration.
 
 
-## Documentation
+## 📚 Documentation
 
 For the latest information,
 you can read the documentation available at https://docs.plakar.io
 
-## Community
+## 💬 Community
 
 You can join our very active [Discord](https://discord.gg/uuegtnF2Q5) to discuss the project !

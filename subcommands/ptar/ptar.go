@@ -25,6 +25,7 @@ import (
 	"math"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/PlakarKorp/kloset/compression"
 	"github.com/PlakarKorp/kloset/encryption"
@@ -39,19 +40,36 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/utils"
+	"github.com/google/uuid"
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &Ptar{} }, subcommands.AgentSupport|subcommands.BeforeRepositoryWithStorage, "ptar")
+	subcommands.Register(func() subcommands.Subcommand { return &Ptar{} }, subcommands.BeforeRepositoryWithStorage, "ptar")
+}
+
+type listFlag []string
+
+func (l *listFlag) String() string {
+	return fmt.Sprint([]string(*l))
+}
+
+func (l *listFlag) Set(value string) error {
+	for _, v := range *l {
+		if v == value {
+			return nil
+		}
+	}
+	*l = append(*l, value)
+	return nil
 }
 
 func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
-	var opt_sync string
+
+	cmd.KlosetUUID = uuid.Must(uuid.NewRandom())
 
 	flags := flag.NewFlagSet("ptar", flag.ExitOnError)
 	flags.Usage = func() {
-		fmt.Fprintf(flags.Output(), "Usage: plakar [at /path/to/repository] %s [OPTIONS]\n", flags.Name())
-		fmt.Fprintf(flags.Output(), "       plakar [at @REPOSITORY] %s [OPTIONS]\n", flags.Name())
+		fmt.Fprintf(flags.Output(), "Usage: plakar %s [OPTIONS] file.ptar\n", flags.Name())
 		fmt.Fprintf(flags.Output(), "\nOPTIONS:\n")
 		flags.PrintDefaults()
 	}
@@ -60,16 +78,26 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 	flags.StringVar(&cmd.Hashing, "hashing", hashing.DEFAULT_HASHING_ALGORITHM, "hashing algorithm to use for digests")
 	flags.BoolVar(&cmd.NoEncryption, "no-encryption", false, "disable transparent encryption")
 	flags.BoolVar(&cmd.NoCompression, "no-compression", false, "disable transparent compression")
-	flags.StringVar(&opt_sync, "sync-from", "", "create a ptar archive from an existing repository")
+	flags.BoolVar(&cmd.Overwrite, "overwrite", false, "overwrite the ptar archive if it already exists")
+	flags.Var(&cmd.SyncTargets, "k", "add a kloset location to include in the ptar archive (can be specified multiple times)")
+	flags.Var(&cmd.BackupTargets, "b", "add a backup location to include in the ptar archive (can be specified multiple times)")
 	flags.Parse(args)
 
-	if len(opt_sync) > 0 && flags.NArg() > 0 {
-		return fmt.Errorf("%s: can't specify source directories in sync mode", flag.CommandLine.Name())
+	if flags.NArg() == 0 {
+		cmd.KlosetPath = fmt.Sprintf("%s-%s.ptar",
+			time.Now().Format("20060102150405"),
+			strings.Split(cmd.KlosetUUID.String(), "-")[0],
+		)
+	} else if flags.NArg() == 1 {
+		cmd.KlosetPath = flags.Arg(0)
+	} else {
+		return fmt.Errorf("%s: too many parameters", flag.CommandLine.Name())
 	}
 
-	var peerSecret []byte
-	if len(opt_sync) > 0 {
-		storeConfig, err := ctx.Config.GetRepository(opt_sync)
+	for _, syncTarget := range cmd.SyncTargets {
+		var peerSecret []byte
+
+		storeConfig, err := ctx.Config.GetRepository(syncTarget)
 		if err != nil {
 			return fmt.Errorf("peer repository: %w", err)
 		}
@@ -116,24 +144,16 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 		}
 
 		peerCtx := appcontext.NewAppContextFrom(ctx)
-		peerCtx.SetSecret(peerSecret)
-		_, err = repository.NewNoRebuild(peerCtx.GetInner(), peerCtx.GetSecret(), peerStore, peerStoreSerializedConfig)
+		_, err = repository.NewNoRebuild(peerCtx.GetInner(), peerSecret, peerStore, peerStoreSerializedConfig)
 		if err != nil {
 			return err
 		}
-	}
-
-	if len(opt_sync) == 0 && flags.NArg() < 1 {
-		return fmt.Errorf("%s: at least one source is needed", flag.CommandLine.Name())
+		cmd.SyncSecrets = append(cmd.SyncSecrets, peerSecret)
 	}
 
 	if hashing.GetHasher(strings.ToUpper(cmd.Hashing)) == nil {
 		return fmt.Errorf("%s: unknown hashing algorithm", flag.CommandLine.Name())
 	}
-
-	cmd.SyncSrcSecret = peerSecret
-	cmd.SyncFrom = opt_sync
-	cmd.Location = flags.Args()
 
 	return nil
 }
@@ -141,17 +161,24 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 type Ptar struct {
 	subcommands.SubcommandBase
 
+	KlosetPath string
+	KlosetUUID uuid.UUID
+
 	AllowWeak     bool
 	Hashing       string
 	NoEncryption  bool
 	NoCompression bool
-	SyncFrom      string
-	SyncSrcSecret []byte
-	Location      []string
+	Overwrite     bool
+
+	SyncTargets   listFlag
+	SyncSecrets   [][]byte
+	BackupTargets listFlag
 }
 
 func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	storageConfiguration := storage.NewConfiguration()
+	storageConfiguration.RepositoryID = cmd.KlosetUUID
+
 	if cmd.NoCompression {
 		storageConfiguration.Compression = nil
 	} else {
@@ -164,12 +191,8 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	}
 	storageConfiguration.Hashing = *hashingConfiguration
 
-	minEntropBits := 80.
-	if cmd.AllowWeak {
-		minEntropBits = 0.
-	}
-
 	var hasher hash.Hash
+	var key []byte
 	if !cmd.NoEncryption {
 		storageConfiguration.Encryption = encryption.NewDefaultConfiguration()
 
@@ -181,7 +204,7 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 				passphrase = []byte(envPassphrase)
 			} else {
 				for attempt := 0; attempt < 3; attempt++ {
-					tmp, err := utils.GetPassphraseConfirm("repository", minEntropBits)
+					tmp, err := utils.GetPassphraseConfirm("ptar", 0.)
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "%s\n", err)
 						continue
@@ -198,7 +221,7 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 			return 1, fmt.Errorf("can't encrypt the repository with an empty passphrase")
 		}
 
-		key, err := encryption.DeriveKey(storageConfiguration.Encryption.KDFParams, passphrase)
+		key, err = encryption.DeriveKey(storageConfiguration.Encryption.KDFParams, passphrase)
 		if err != nil {
 			return 1, err
 		}
@@ -209,7 +232,7 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		}
 		storageConfiguration.Encryption.Canary = canary
 		hasher = hashing.GetMACHasher(storage.DEFAULT_HASHING_ALGORITHM, key)
-		ctx.SetSecret(key)
+		//ctx.SetSecret(key)
 	} else {
 		storageConfiguration.Encryption = nil
 		hasher = hashing.GetHasher(storage.DEFAULT_HASHING_ALGORITHM)
@@ -231,12 +254,28 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 		return 1, err
 	}
 
-	st, err := storage.Create(ctx.GetInner(), map[string]string{"location": repo.Location()}, wrappedConfig)
+	location := cmd.KlosetPath
+	if !strings.HasPrefix(location, "ptar:") {
+		location = "ptar://" + location
+	}
+	noSchemeLocation := strings.TrimPrefix(location, "ptar://")
+
+	if _, err := os.Stat(noSchemeLocation); err == nil {
+		if !cmd.Overwrite {
+			return 1, fmt.Errorf("ptar archive %s already exists, use -overwrite to overwrite it", noSchemeLocation)
+		} else {
+			if err := os.Remove(noSchemeLocation); err != nil {
+				return 1, fmt.Errorf("could not remove existing ptar archive %s: %w", noSchemeLocation, err)
+			}
+		}
+	}
+
+	st, err := storage.Create(ctx.GetInner(), map[string]string{"location": location}, wrappedConfig)
 	if err != nil {
 		return 1, err
 	}
 
-	repo, err = repository.New(ctx.GetInner(), ctx.GetSecret(), st, wrappedConfig)
+	repo, err = repository.New(ctx.GetInner(), key, st, wrappedConfig)
 	if err != nil {
 		return 1, err
 	}
@@ -248,31 +287,29 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	}
 
 	repoWriter := repo.NewRepositoryWriter(scanCache, identifier, repository.PtarType)
-	if len(cmd.SyncFrom) > 0 {
-		storeConfig, err := ctx.Config.GetRepository(cmd.SyncFrom)
+	for i, syncTarget := range cmd.SyncTargets {
+		storeConfig, err := ctx.Config.GetRepository(syncTarget)
 		if err != nil {
 			return 1, fmt.Errorf("source repository: %w", err)
 		}
 
 		peerStore, peerStoreSerializedConfig, err := storage.Open(ctx.GetInner(), storeConfig)
 		if err != nil {
-			return 1, fmt.Errorf("could not open source store %s: %s", cmd.SyncFrom, err)
+			return 1, fmt.Errorf("could not open source store %s: %s", syncTarget, err)
 		}
 
 		srcCtx := appcontext.NewAppContextFrom(ctx)
-		srcCtx.SetSecret(cmd.SyncSrcSecret)
-		srcRepository, err := repository.New(srcCtx.GetInner(), srcCtx.GetSecret(), peerStore, peerStoreSerializedConfig)
+		srcRepository, err := repository.New(srcCtx.GetInner(), cmd.SyncSecrets[i], peerStore, peerStoreSerializedConfig)
 		if err != nil {
-			return 1, fmt.Errorf("could not open source repository %s: %s", cmd.SyncFrom, err)
+			return 1, fmt.Errorf("could not open source repository %s: %s", syncTarget, err)
 		}
 
 		if err := cmd.synchronize(ctx, srcRepository, repoWriter); err != nil {
 			return 1, err
 		}
-	} else {
-		if err := cmd.backup(ctx, repoWriter); err != nil {
-			return 1, err
-		}
+	}
+	if err := cmd.backup(ctx, repoWriter); err != nil {
+		return 1, err
 	}
 
 	// We are done with everything we can now stop the backup routines.
@@ -290,10 +327,8 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 }
 
 func (cmd *Ptar) backup(ctx *appcontext.AppContext, repo *repository.RepositoryWriter) error {
-	impopts := ctx.ImporterOpts()
-
-	for _, loc := range cmd.Location {
-		imp, err := importer.NewImporter(ctx.GetInner(), impopts, map[string]string{"location": loc})
+	for _, loc := range cmd.BackupTargets {
+		imp, err := importer.NewImporter(ctx.GetInner(), ctx.ImporterOpts(), map[string]string{"location": loc})
 		if err != nil {
 			return err
 		}
