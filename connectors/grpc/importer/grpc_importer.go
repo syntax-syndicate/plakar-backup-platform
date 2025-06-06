@@ -14,9 +14,9 @@ import (
 )
 
 type GrpcImporter struct {
-	GrpcClientScan   	grpc_importer.ImporterClient
-	GrpcClientReader 	grpc_importer.ImporterClient
-	ctx 				context.Context
+	GrpcClientScan   grpc_importer.ImporterClient
+	GrpcClientReader grpc_importer.ImporterClient
+	ctx              context.Context
 }
 
 func (g *GrpcImporter) Origin() string {
@@ -48,7 +48,7 @@ type GrpcReader struct {
 	stream grpc_importer.Importer_OpenClient
 	path   string
 	buf    *bytes.Buffer
-	ctx    context.Context	
+	ctx    context.Context
 }
 
 func NewGrpcReader(ctx context.Context, client grpc_importer.ImporterClient, path string) *GrpcReader {
@@ -56,7 +56,7 @@ func NewGrpcReader(ctx context.Context, client grpc_importer.ImporterClient, pat
 		client: client,
 		buf:    bytes.NewBuffer(nil),
 		path:   path,
-		ctx:   ctx,
+		ctx:    ctx,
 	}
 }
 
@@ -67,6 +67,7 @@ func (g *GrpcReader) Read(p []byte) (n int, err error) {
 			return n, err
 		}
 	}
+
 	if g.stream == nil {
 		g.stream, err = g.client.Open(g.ctx, &grpc_importer.OpenRequest{
 			Pathname: g.path,
@@ -75,6 +76,7 @@ func (g *GrpcReader) Read(p []byte) (n int, err error) {
 			return 0, fmt.Errorf("failed to open file %s: %w", g.path, err)
 		}
 	}
+	
 	fileResponse, err := g.stream.Recv()
 	if err != nil {
 		if err == io.EOF {
@@ -130,7 +132,7 @@ func (g *GrpcImporter) Scan() (<-chan *importer.ScanResult, error) {
 					Record: &importer.ScanRecord{
 						Pathname: response.GetPathname(),
 						Reader: importer.NewLazyReader(func() (io.ReadCloser, error) {
-							return NewGrpcReader(g.ctx, g.GrpcClientReader, response.GetPathname()), nil //TODO: check to not make to much files
+							return NewGrpcReader(g.ctx, g.GrpcClientReader, response.GetPathname()), nil
 						}),
 						FileInfo: objects.FileInfo{
 							Lname:      response.GetRecord().GetFileinfo().GetName(),
