@@ -19,7 +19,7 @@ package grpc
 import (
 	"bytes"
 	"context"
-	"fmt"	
+	"fmt"
 	"io"
 
 	"github.com/PlakarKorp/kloset/objects"
@@ -32,7 +32,7 @@ type GrpcStorage struct {
 	GrpcClient grpc_storage.StoreClient
 }
 
-const bufferSize = 4096
+const bufferSize = 16 * 1024
 
 func NewGrpcStorage(client grpc_storage.StoreClient) *GrpcStorage {
 	return &GrpcStorage{
