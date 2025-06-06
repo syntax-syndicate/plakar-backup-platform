@@ -30,13 +30,15 @@ import (
 
 type GrpcStorage struct {
 	GrpcClient grpc_storage.StoreClient
+	ctx        context.Context
 }
 
 const bufferSize = 16 * 1024
 
-func NewGrpcStorage(client grpc_storage.StoreClient) *GrpcStorage {
+func NewGrpcStorage(client grpc_storage.StoreClient, ctx context.Context) *GrpcStorage {
 	return &GrpcStorage{
 		GrpcClient: client,
+		ctx:        ctx,
 	}
 }
 
@@ -57,7 +59,7 @@ func (s *GrpcStorage) Open(ctx context.Context) ([]byte, error) {
 }
 
 func (s *GrpcStorage) Location() string {
-	resp, err := s.GrpcClient.GetLocation(context.Background(), &grpc_storage.GetLocationRequest{})
+	resp, err := s.GrpcClient.GetLocation(s.ctx, &grpc_storage.GetLocationRequest{})
 	if err != nil {
 		return ""
 	}
