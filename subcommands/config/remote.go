@@ -99,13 +99,18 @@ func cmd_remote_config(ctx *appcontext.AppContext, args []string) error {
 		sort.Strings(list)
 		pfx := ""
 		for _, name := range list {
-			cfg := ctx.Config.Remotes[name]
-			fmt.Printf("%s[%s]\nlocation=%s\n", pfx, name, cfg["location"])
+			entry := ctx.Config.Remotes[name]
+			fmt.Fprintf(ctx.Stdout, "%s[%s]\nlocation=%s\n", pfx, name, entry["location"])
 			pfx = "\n"
-			for k, v := range ctx.Config.Remotes[name] {
-				if k != "location" {
-					fmt.Printf("%s=%s\n", k, v)
+			var keys []string
+			for key, _ := range entry {
+				if key != "location" {
+					keys = append(keys, key)
 				}
+			}
+			sort.Strings(keys)
+			for _, key := range keys {
+				fmt.Fprintf(ctx.Stdout, "%s=%s\n", key, entry[key])
 			}
 		}
 		return nil
