@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"time"
-	"os/exec"
 
 	// "github.com/PlakarKorp/kloset/snapshot/importer"
 	// grpc_importer "github.com/PlakarKorp/kloset/snapshot/importer/pkg"
@@ -158,25 +158,10 @@ func LoadBackends(ctx context.Context, pluginPath string) error {
 				return fmt.Errorf("unknown plugin type: %s", typeName)
 			}
 			wrappedFunc := pType.Wrap(func(ctx context.Context, _ *any, name string, config map[string]string) (any, error) {
-				err := execPlugin(filepath.Join(pluginFolderPath, pluginFileName), config)
+
+				client, err := connectPlugin(pluginFolderPath, pluginFileName, typeName, config)
 				if err != nil {
-					return nil, fmt.Errorf("failed to fork child: %w", err)
-				}
-
-				unixSocketPath := filepath.Join(os.TempDir(), fmt.Sprintf("%s.sock", typeName))
-
-				if err := waitForSocket(unixSocketPath, 3*time.Second); err != nil {
-					return nil, fmt.Errorf("socket not ready: %w", err)
-				}
-
-				client, err := grpc.NewClient(
-					"unix://"+unixSocketPath,
-					grpc.WithTransportCredentials(insecure.NewCredentials()),
-					grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
-						return net.Dial("unix", unixSocketPath)
-					}))
-				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("failed to connect to plugin: %w", err)
 				}
 
 				return pType.GrpcClient(client, ctx), nil
@@ -185,6 +170,30 @@ func LoadBackends(ctx context.Context, pluginPath string) error {
 		}
 	}
 	return nil
+}
+
+func connectPlugin(pluginFolderPath string, pluginFileName string, typeName string, config map[string]string) (grpc.ClientConnInterface, error) {
+	err := execPlugin(filepath.Join(pluginFolderPath, pluginFileName), config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fork child: %w", err)
+	}
+
+	unixSocketPath := filepath.Join(os.TempDir(), fmt.Sprintf("%s.sock", typeName))
+
+	if err := waitForSocket(unixSocketPath, 3*time.Second); err != nil {
+		return nil, fmt.Errorf("socket not ready: %w", err)
+	}
+
+	client, err := grpc.NewClient(
+		"unix://"+unixSocketPath,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+			return net.Dial("unix", unixSocketPath)
+		}))
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
 }
 
 func execPlugin(pluginPath string, config map[string]string) error {
