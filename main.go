@@ -160,7 +160,11 @@ func EntryPoint() int {
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
 
-	plugins.LoadBackends(ctx.Context, filepath.Join(configDir, "plugins"))
+	err = plugins.LoadBackends(ctx.Context, filepath.Join(configDir, "plugins"))
+	if err != nil {	
+		fmt.Fprintf(os.Stderr, "%s: could not load plugins: %s\n", flag.CommandLine.Name(), err)
+		return 1
+	}
 
 	cfg, err := config.LoadOrCreate(opt_configfile)
 	if err != nil {
