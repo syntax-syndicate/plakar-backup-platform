@@ -467,6 +467,7 @@ func checkupdate(ctx *appcontext.AppContext, disableSecurityCheck bool) {
 		fmt.Fprintln(ctx.Stdout, "\tplakar -enable-security-check")
 		fmt.Fprintln(ctx.Stdout, "")
 		fmt.Fprintln(ctx.Stdout, "EOT")
+		return
 	}
 
 	if disableSecurityCheck {
