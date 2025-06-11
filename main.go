@@ -447,44 +447,53 @@ func EntryPoint() int {
 }
 
 func checkupdate(ctx *appcontext.AppContext, disableSecurityCheck bool) {
-	if firstRun := ctx.GetCookies().IsFirstRun(); firstRun {
+	if ctx.GetCookies().IsFirstRun() {
 		ctx.GetCookies().SetFirstRun()
-		if !disableSecurityCheck {
-			fmt.Fprintln(ctx.Stdout, "Welcome to plakar !")
-			fmt.Fprintln(ctx.Stdout, "")
-			fmt.Fprintln(ctx.Stdout, "By default, plakar checks for security updates on the releases feed once every 24h.")
-			fmt.Fprintln(ctx.Stdout, "It will notify you if there are important updates that you need to install.")
-			fmt.Fprintln(ctx.Stdout, "")
-			fmt.Fprintln(ctx.Stdout, "If you prefer to watch yourself, you can disable this permanently by running:")
-			fmt.Fprintln(ctx.Stdout, "")
-			fmt.Fprintln(ctx.Stdout, "\tplakar -disable-security-check")
-			fmt.Fprintln(ctx.Stdout, "")
-			fmt.Fprintln(ctx.Stdout, "If you change your mind, run:")
-			fmt.Fprintln(ctx.Stdout, "")
-			fmt.Fprintln(ctx.Stdout, "\tplakar -enable-security-check")
-			fmt.Fprintln(ctx.Stdout, "")
-			fmt.Fprintln(ctx.Stdout, "EOT")
+		if disableSecurityCheck {
+			return
 		}
+
+		fmt.Fprintln(ctx.Stdout, "Welcome to plakar !")
+		fmt.Fprintln(ctx.Stdout, "")
+		fmt.Fprintln(ctx.Stdout, "By default, plakar checks for security updates on the releases feed once every 24h.")
+		fmt.Fprintln(ctx.Stdout, "It will notify you if there are important updates that you need to install.")
+		fmt.Fprintln(ctx.Stdout, "")
+		fmt.Fprintln(ctx.Stdout, "If you prefer to watch yourself, you can disable this permanently by running:")
+		fmt.Fprintln(ctx.Stdout, "")
+		fmt.Fprintln(ctx.Stdout, "\tplakar -disable-security-check")
+		fmt.Fprintln(ctx.Stdout, "")
+		fmt.Fprintln(ctx.Stdout, "If you change your mind, run:")
+		fmt.Fprintln(ctx.Stdout, "")
+		fmt.Fprintln(ctx.Stdout, "\tplakar -enable-security-check")
+		fmt.Fprintln(ctx.Stdout, "")
+		fmt.Fprintln(ctx.Stdout, "EOT")
+	}
+
+	if disableSecurityCheck {
+		return
 	}
 
 	// best effort check if security or reliability fix have been issued
-	if !disableSecurityCheck {
-		if rus, err := utils.CheckUpdate(ctx.CacheDir); err == nil {
-			if rus.SecurityFix || rus.ReliabilityFix {
-				concerns := ""
-				if rus.SecurityFix {
-					concerns = "security"
-				}
-				if rus.ReliabilityFix {
-					if concerns != "" {
-						concerns += " and "
-					}
-					concerns += "reliability"
-				}
-				fmt.Fprintf(os.Stderr, "WARNING: %s concerns affect your current version, please upgrade to %s (+%d releases).\n", concerns, rus.Latest, rus.FoundCount)
-			}
-		}
+	rus, err := utils.CheckUpdate(ctx.CacheDir)
+	if err != nil {
+		return
 	}
+	if !rus.SecurityFix && !rus.ReliabilityFix {
+		return
+	}
+
+	concerns := ""
+	if rus.SecurityFix {
+		concerns = "security"
+	}
+	if rus.ReliabilityFix {
+		if concerns != "" {
+			concerns += " and "
+		}
+		concerns += "reliability"
+	}
+	fmt.Fprintf(os.Stderr, "WARNING: %s concerns affect your current version, please upgrade to %s (+%d releases).\n",
+		concerns, rus.Latest, rus.FoundCount)
 }
 
 func getpassphrase(ctx *appcontext.AppContext, params map[string]string) []byte {
