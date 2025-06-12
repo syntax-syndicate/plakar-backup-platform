@@ -8,13 +8,14 @@ import (
 	"syscall"
 	"path/filepath"
 	"regexp"
+	"os/exec"
 
 	// "github.com/PlakarKorp/kloset/snapshot/importer"
 	// grpc_importer "github.com/PlakarKorp/kloset/snapshot/importer/pkg"
 
-	"github.com/PlakarKorp/kloset/snapshot/exporter"
-	grpc_exporter "github.com/PlakarKorp/plakar/connectors/grpc/exporter"
-	grpc_exporter_pkg "github.com/PlakarKorp/plakar/connectors/grpc/exporter/pkg"
+	// "github.com/PlakarKorp/kloset/snapshot/exporter"
+	// grpc_exporter "github.com/PlakarKorp/plakar/connectors/grpc/exporter"
+	// grpc_exporter_pkg "github.com/PlakarKorp/plakar/connectors/grpc/exporter/pkg"
 
 	// "github.com/PlakarKorp/kloset/storage"
 	// grpc_storage "github.com/PlakarKorp/plakar/connectors/grpc/storage"
@@ -83,17 +84,17 @@ var pTypes = map[string]PluginType{
 	// 		}
 	// 	},
 	// },
-	"exporter": &pluginTypes[exporter.Exporter, exporter.ExporterOptions]{
-		registerFn: func(name string, fn func(context.Context, *exporter.ExporterOptions, string, map[string]string) (exporter.Exporter, error)) {
-			exporter.Register(name, fn)
-		},
-		grpcClient: func(client grpc.ClientConnInterface, ctx context.Context) exporter.Exporter {
-			return &grpc_exporter.GrpcExporter{
-				GrpcClient: grpc_exporter_pkg.NewExporterClient(client),
-				ctx:            ctx,
-			}
-		},
-	},
+	// "exporter": &pluginTypes[exporter.Exporter, exporter.ExporterOptions]{
+	// 	registerFn: func(name string, fn func(context.Context, *exporter.ExporterOptions, string, map[string]string) (exporter.Exporter, error)) {
+	// 		exporter.Register(name, fn)
+	// 	},
+	// 	grpcClient: func(client grpc.ClientConnInterface, ctx context.Context) exporter.Exporter {
+	// 		return &grpc_exporter.GrpcExporter{
+	// 			GrpcClient: grpc_exporter_pkg.NewExporterClient(client),
+	// 			ctx:            ctx,
+	// 		}
+	// 	},
+	// },
 	// "storage": &pluginTypes[storage.Store, storage.StoreOptions]{
 	// 	registerFn: func(name string, fn func(context.Context, *storage.StoreOptions, string, map[string]string) (storage.Store, error)) {
 	// 		storage.Register(fn, name)
@@ -141,7 +142,7 @@ func LoadBackends(ctx context.Context, pluginPath string) error {
 			}
 			wrappedFunc := pType.Wrap(func(ctx context.Context, _ *any, name string, config map[string]string) (any, error) {
 
-				client, err := connectPlugin(pluginFolderPath, pluginFileName, typeName, config)
+				client, err := connectPlugin(filepath.Join(pluginFolderPath, pluginFileName), config)
 				if err != nil {
 					return nil, fmt.Errorf("failed to connect to plugin: %w", err)
 				}
@@ -154,53 +155,47 @@ func LoadBackends(ctx context.Context, pluginPath string) error {
 	return nil
 }
 
-func connectPlugin(pluginFolderPath string, pluginFileName string, typeName string, config map[string]string) (grpc.ClientConnInterface, error) {
-	_, connFd, err := forkChild(filepath.Join(pluginFolderPath, pluginFileName), config)
+func connectPlugin(pluginPath string, config map[string]string) (grpc.ClientConnInterface, error) {
+	fd, err := forkChild(pluginPath, config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fork child: %w", err)
+		return nil, err
 	}
-	connFp := os.NewFile(uintptr(connFd), "grpc-conn")
-	conn, err := net.FileConn(connFp)
+
+	connFile := os.NewFile(uintptr(fd), "grpc-conn")
+	conn, err := net.FileConn(connFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create file conn: %w", err)
+		return nil, fmt.Errorf("net.FileConn failed: %w", err)
 	}
-	client, err := grpc.NewClient("127.0.0.1:0",
+
+	clientConn, err := grpc.NewClient("localhost:0",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+		grpc.WithContextDialer(func(ctx context.Context, s string) (net.Conn, error) {
 			return conn, nil
 		}),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create client context: %w", err)
+		return nil, fmt.Errorf("grpc client creation failed: %w", err)
 	}
-	return client, nil
+	return clientConn, nil
 }
 
-func forkChild(pluginPath string, config map[string]string) (int, int, error) {
-	sp, err := syscall.Socketpair(syscall.AF_LOCAL, syscall.SOCK_STREAM, syscall.AF_UNSPEC)
+func forkChild(pluginPath string, config map[string]string) (int, error) {
+	sp, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
 	if err != nil {
-		return -1, -1, fmt.Errorf("failed to create socketpair: %w", err)
+		return -1, fmt.Errorf("failed to create socketpair: %w", err)
 	}
 
-	procAttr := syscall.ProcAttr{}
-	procAttr.Files = []uintptr{
-		os.Stdin.Fd(),
-		os.Stdout.Fd(),
-		os.Stderr.Fd(),
-		uintptr(sp[0]),
+	childFile := os.NewFile(uintptr(sp[0]), "child-conn")
+
+	cmd := exec.Command(pluginPath, fmt.Sprintf("%v", config))
+	cmd.Stdin = childFile
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		return -1, fmt.Errorf("failed to start plugin: %w", err)
 	}
 
-	var pid int
-
-	argv := []string{pluginPath, fmt.Sprintf("%v", config)}
-	pid, err = syscall.ForkExec(pluginPath, argv, &procAttr)
-	if err != nil {
-		return -1, -1, fmt.Errorf("failed to ForkExec: %w", err)
-	}
-
-	if syscall.Close(sp[0]) != nil {
-		return -1, -1, fmt.Errorf("failed to close socket: %w", err)
-	}
-
-	return pid, sp[1], nil
+	childFile.Close()
+	return int(sp[1]), nil
 }
