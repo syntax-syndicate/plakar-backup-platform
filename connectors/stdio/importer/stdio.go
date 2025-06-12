@@ -33,7 +33,7 @@ type StdioImporter struct {
 	stdin   io.Reader
 	fileDir string
 	ctx     context.Context
-	opts    *importer.ImporterOptions
+	opts    *importer.Options
 	name    string
 }
 
@@ -41,7 +41,7 @@ func init() {
 	importer.Register("stdin", NewStdioImporter)
 }
 
-func NewStdioImporter(ctx context.Context, opts *importer.ImporterOptions, name string, config map[string]string) (importer.Importer, error) {
+func NewStdioImporter(ctx context.Context, opts *importer.Options, name string, config map[string]string) (importer.Importer, error) {
 	location := config["location"]
 	location = strings.TrimPrefix(location, "stdin://")
 	if !strings.HasPrefix(location, "/") {

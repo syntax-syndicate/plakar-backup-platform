@@ -1,36 +1,31 @@
 package stdio
 
 import (
+	"bytes"
+	"context"
 	"io"
 	"os"
 	"testing"
 
 	kimporter "github.com/PlakarKorp/kloset/snapshot/importer"
-	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/stretchr/testify/require"
 )
 
 func TestStdioImporter(t *testing.T) {
-	// Create a pipe to capture stdin
-	oldStdin := os.Stdin
-	r, w, _ := os.Pipe()
-	os.Stdin = r
-
 	// Test data
-	testData := []byte("test importer stdin")
-	_, err := w.Write(testData)
-	require.NoError(t, err)
-	w.Close()
+	origContent := []byte("test importer stdin")
+	r := bytes.NewReader(origContent)
 
 	// Create the importer with a properly initialized AppContext
-	appCtx := appcontext.NewAppContext()
+	ctx := context.Background()
+
 	hostname, err := os.Hostname()
 	require.NoError(t, err)
-	appCtx.Hostname = hostname
 
-	importer, err := kimporter.NewImporter(appCtx.GetInner(), &kimporter.ImporterOptions{
+	importer, err := NewStdioImporter(ctx, &kimporter.Options{
 		Hostname: hostname,
-	}, map[string]string{"location": "stdin:///test.txt"})
+		Stdin:    r,
+	}, "stdin", map[string]string{"location": "stdin:///test.txt"})
 	require.NoError(t, err)
 	require.NotNil(t, importer)
 
@@ -54,7 +49,7 @@ func TestStdioImporter(t *testing.T) {
 			defer record.Record.Reader.Close()
 			content, err := io.ReadAll(record.Record.Reader)
 			require.NoError(t, err)
-			require.Equal(t, content, []byte("test importer stdin"))
+			require.Equal(t, origContent, content)
 		}
 	}
 	require.Equal(t, []string{"/", "/test.txt"}, paths)
@@ -62,7 +57,4 @@ func TestStdioImporter(t *testing.T) {
 	// Test close
 	err = importer.Close()
 	require.NoError(t, err)
-
-	// Restore stdin
-	os.Stdin = oldStdin
 }
