@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 	"os/user"
 	"path/filepath"
@@ -213,44 +216,7 @@ func EntryPoint() int {
 		return 1
 	}
 
-	if firstRun := ctx.GetCookies().IsFirstRun(); firstRun {
-		ctx.GetCookies().SetFirstRun()
-		if !opt_disableSecurityCheck {
-			fmt.Fprintln(ctx.Stdout, "Welcome to plakar !")
-			fmt.Fprintln(ctx.Stdout, "")
-			fmt.Fprintln(ctx.Stdout, "By default, plakar checks for security updates on the releases feed once every 24h.")
-			fmt.Fprintln(ctx.Stdout, "It will notify you if there are important updates that you need to install.")
-			fmt.Fprintln(ctx.Stdout, "")
-			fmt.Fprintln(ctx.Stdout, "If you prefer to watch yourself, you can disable this permanently by running:")
-			fmt.Fprintln(ctx.Stdout, "")
-			fmt.Fprintln(ctx.Stdout, "\tplakar -disable-security-check")
-			fmt.Fprintln(ctx.Stdout, "")
-			fmt.Fprintln(ctx.Stdout, "If you change your mind, run:")
-			fmt.Fprintln(ctx.Stdout, "")
-			fmt.Fprintln(ctx.Stdout, "\tplakar -enable-security-check")
-			fmt.Fprintln(ctx.Stdout, "")
-			fmt.Fprintln(ctx.Stdout, "EOT")
-		}
-	}
-
-	// best effort check if security or reliability fix have been issued
-	if !opt_disableSecurityCheck {
-		if rus, err := utils.CheckUpdate(ctx.CacheDir); err == nil {
-			if rus.SecurityFix || rus.ReliabilityFix {
-				concerns := ""
-				if rus.SecurityFix {
-					concerns = "security"
-				}
-				if rus.ReliabilityFix {
-					if concerns != "" {
-						concerns += " and "
-					}
-					concerns += "reliability"
-				}
-				fmt.Fprintf(os.Stderr, "WARNING: %s concerns affect your current version, please upgrade to %s (+%d releases).\n", concerns, rus.Latest, rus.FoundCount)
-			}
-		}
-	}
+	checkupdate(ctx, opt_disableSecurityCheck)
 
 	// setup from default + override
 	if opt_cpuCount <= 0 {
@@ -483,20 +449,115 @@ func EntryPoint() int {
 	return status
 }
 
-func getpassphrase(ctx *appcontext.AppContext, params map[string]string) []byte {
+func checkupdate(ctx *appcontext.AppContext, disableSecurityCheck bool) {
+	if ctx.GetCookies().IsFirstRun() {
+		ctx.GetCookies().SetFirstRun()
+		if disableSecurityCheck {
+			return
+		}
+
+		fmt.Fprintln(ctx.Stdout, "Welcome to plakar !")
+		fmt.Fprintln(ctx.Stdout, "")
+		fmt.Fprintln(ctx.Stdout, "By default, plakar checks for security updates on the releases feed once every 24h.")
+		fmt.Fprintln(ctx.Stdout, "It will notify you if there are important updates that you need to install.")
+		fmt.Fprintln(ctx.Stdout, "")
+		fmt.Fprintln(ctx.Stdout, "If you prefer to watch yourself, you can disable this permanently by running:")
+		fmt.Fprintln(ctx.Stdout, "")
+		fmt.Fprintln(ctx.Stdout, "\tplakar -disable-security-check")
+		fmt.Fprintln(ctx.Stdout, "")
+		fmt.Fprintln(ctx.Stdout, "If you change your mind, run:")
+		fmt.Fprintln(ctx.Stdout, "")
+		fmt.Fprintln(ctx.Stdout, "\tplakar -enable-security-check")
+		fmt.Fprintln(ctx.Stdout, "")
+		fmt.Fprintln(ctx.Stdout, "EOT")
+		return
+	}
+
+	if disableSecurityCheck {
+		return
+	}
+
+	// best effort check if security or reliability fix have been issued
+	rus, err := utils.CheckUpdate(ctx.CacheDir)
+	if err != nil {
+		return
+	}
+	if !rus.SecurityFix && !rus.ReliabilityFix {
+		return
+	}
+
+	concerns := ""
+	if rus.SecurityFix {
+		concerns = "security"
+	}
+	if rus.ReliabilityFix {
+		if concerns != "" {
+			concerns += " and "
+		}
+		concerns += "reliability"
+	}
+	fmt.Fprintf(os.Stderr, "WARNING: %s concerns affect your current version, please upgrade to %s (+%d releases).\n",
+		concerns, rus.Latest, rus.FoundCount)
+}
+
+func getpassphrase(ctx *appcontext.AppContext, params map[string]string) ([]byte, error) {
 	if ctx.KeyFromFile != "" {
-		return []byte(ctx.KeyFromFile)
+		return []byte(ctx.KeyFromFile), nil
 	}
 
 	if pass, ok := params["passphrase"]; ok {
-		return []byte(pass)
+		return []byte(pass), nil
+	}
+
+	if cmd, ok := params["passphrase_cmd"]; ok {
+		var c *exec.Cmd
+		switch runtime.GOOS {
+		case "windows":
+			c = exec.Command("cmd", "/C", cmd)
+		default: // assume unix-esque
+			c = exec.Command("/bin/sh", "-c", cmd)
+		}
+
+		stdout, err := c.StdoutPipe()
+		if err != nil {
+			return nil, err
+		}
+
+		if err := c.Start(); err != nil {
+			return nil, err
+		}
+
+		var pass string
+		var lines int
+		scan := bufio.NewScanner(stdout)
+		for scan.Scan() {
+			pass = scan.Text()
+			lines++
+		}
+
+		// don't deadlock in case the scanner fails
+		io.Copy(io.Discard, stdout)
+
+		if err := c.Wait(); err != nil {
+			return nil, err
+		}
+
+		if err := scan.Err(); err != nil {
+			return nil, err
+		}
+
+		if lines != 1 {
+			return nil, fmt.Errorf("passphrase_cmd returned too many lines")
+		}
+
+		return []byte(pass), nil
 	}
 
 	if pass, ok := os.LookupEnv("PLAKAR_PASSPHRASE"); ok {
-		return []byte(pass)
+		return []byte(pass), nil
 	}
 
-	return nil
+	return nil, nil
 }
 
 func setupEncryption(ctx *appcontext.AppContext, config *storage.Configuration, params map[string]string) error {
@@ -504,7 +565,11 @@ func setupEncryption(ctx *appcontext.AppContext, config *storage.Configuration, 
 		return nil
 	}
 
-	secret := getpassphrase(ctx, params)
+	secret, err := getpassphrase(ctx, params)
+	if err != nil {
+		return err
+	}
+
 	if secret != nil {
 		key, err := encryption.DeriveKey(config.Encryption.KDFParams,
 			secret)
