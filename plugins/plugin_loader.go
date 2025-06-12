@@ -12,9 +12,9 @@ import (
 	// "github.com/PlakarKorp/kloset/snapshot/importer"
 	// grpc_importer "github.com/PlakarKorp/kloset/snapshot/importer/pkg"
 
-	// "github.com/PlakarKorp/kloset/snapshot/exporter"
-	// grpc_exporter "github.com/PlakarKorp/plakar/connectors/grpc/exporter"
-	// grpc_exporter_pkg "github.com/PlakarKorp/plakar/connectors/grpc/exporter/pkg"
+	"github.com/PlakarKorp/kloset/snapshot/exporter"
+	grpc_exporter "github.com/PlakarKorp/plakar/connectors/grpc/exporter"
+	grpc_exporter_pkg "github.com/PlakarKorp/plakar/connectors/grpc/exporter/pkg"
 
 	// "github.com/PlakarKorp/kloset/storage"
 	// grpc_storage "github.com/PlakarKorp/plakar/connectors/grpc/storage"
@@ -83,17 +83,17 @@ var pTypes = map[string]PluginType{
 	// 		}
 	// 	},
 	// },
-	// "exporter": &pluginTypes[exporter.Exporter, exporter.ExporterOptions]{
-	// 	registerFn: func(name string, fn func(context.Context, *exporter.ExporterOptions, string, map[string]string) (exporter.Exporter, error)) {
-	// 		exporter.Register(name, fn)
-	// 	},
-	// 	grpcClient: func(client grpc.ClientConnInterface, ctx context.Context) exporter.Exporter {
-	// 		return &exporter.GrpcExporter{
-	// 			GrpcClient: grpc_exporter.NewExporterClient(client),
-	// 			ctx:            ctx,
-	// 		}
-	// 	},
-	// },
+	"exporter": &pluginTypes[exporter.Exporter, exporter.ExporterOptions]{
+		registerFn: func(name string, fn func(context.Context, *exporter.ExporterOptions, string, map[string]string) (exporter.Exporter, error)) {
+			exporter.Register(name, fn)
+		},
+		grpcClient: func(client grpc.ClientConnInterface, ctx context.Context) exporter.Exporter {
+			return &grpc_exporter.GrpcExporter{
+				GrpcClient: grpc_exporter_pkg.NewExporterClient(client),
+				ctx:            ctx,
+			}
+		},
+	},
 	// "storage": &pluginTypes[storage.Store, storage.StoreOptions]{
 	// 	registerFn: func(name string, fn func(context.Context, *storage.StoreOptions, string, map[string]string) (storage.Store, error)) {
 	// 		storage.Register(fn, name)
