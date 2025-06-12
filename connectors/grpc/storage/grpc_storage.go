@@ -104,20 +104,52 @@ func sendChunks(rd io.Reader, chunkSendFn func(chunk []byte) error) (int64, erro
 	return totalBytes, nil
 }
 
-func receiveChunks(chunkReceiverFn func() ([]byte, error)) (io.Reader, error) {
-	var buf bytes.Buffer
+type grpcChunkReader struct {
+	streamRecv func() ([]byte, error)
+	buf        bytes.Buffer
+	eof        bool
+}
 
-	for {
-		chunk, err := chunkReceiverFn()
+func (g *grpcChunkReader) Read(p []byte) (int, error) {
+	totalRead := 0
+	for totalRead < len(p) {
+		//if there is data in the internal buffer -> read from it first
+		if g.buf.Len() > 0 {
+			n, err := g.buf.Read(p[totalRead:])
+			totalRead += n
+			if err != nil && err != io.EOF {
+				return totalRead, err
+			}
+			//if the buffer is full -> done
+			if totalRead == len(p) {
+				return totalRead, nil
+			}
+		}
+
+		//receive the next chunk of data
+		chunk, err := g.streamRecv()
 		if err != nil {
 			if err == io.EOF {
-				break
+				if totalRead > 0 {
+					return totalRead, nil //return what we have before signaling EOF
+				}
+				return 0, io.EOF
 			}
-			return nil, fmt.Errorf("receive chunk: %w", err)
+			return totalRead, fmt.Errorf("failed to receive file data: %w", err)
 		}
-		buf.Write(chunk)
+
+		//add chunk to the internal buffer
+		g.buf.Write(chunk)
 	}
-	return io.NopCloser(&buf), nil
+
+	return totalRead, nil
+}
+
+func receiveChunks(chunkReceiverFn func() ([]byte, error)) (io.Reader, error) {
+	streamReader := &grpcChunkReader{
+		streamRecv: chunkReceiverFn,
+	}
+	return streamReader, nil
 }
 
 func toGrpcMAC(mac objects.MAC) *grpc_storage.MAC {
