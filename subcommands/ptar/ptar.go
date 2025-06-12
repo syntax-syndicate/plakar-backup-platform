@@ -155,6 +155,35 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 		return fmt.Errorf("%s: unknown hashing algorithm", flag.CommandLine.Name())
 	}
 
+	if !cmd.NoEncryption {
+		var passphrase []byte
+
+		envPassphrase, ok := os.LookupEnv("PLAKAR_PASSPHRASE")
+		if ctx.KeyFromFile == "" {
+			if ok {
+				passphrase = []byte(envPassphrase)
+			} else {
+				for attempt := 0; attempt < 3; attempt++ {
+					tmp, err := utils.GetPassphraseConfirm("repository", 0.)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "%s\n", err)
+						continue
+					}
+					passphrase = tmp
+					break
+				}
+			}
+		} else {
+			passphrase = []byte(ctx.KeyFromFile)
+		}
+
+		if len(passphrase) == 0 {
+			return fmt.Errorf("can't encrypt the repository with an empty passphrase")
+		}
+
+		cmd.RepositorySecret = passphrase
+	}
+
 	return nil
 }
 
@@ -196,32 +225,8 @@ func (cmd *Ptar) Execute(ctx *appcontext.AppContext, repo *repository.Repository
 	if !cmd.NoEncryption {
 		storageConfiguration.Encryption = encryption.NewDefaultConfiguration()
 
-		var passphrase []byte
-
-		envPassphrase := os.Getenv("PLAKAR_PASSPHRASE")
-		if ctx.KeyFromFile == "" {
-			if envPassphrase != "" {
-				passphrase = []byte(envPassphrase)
-			} else {
-				for attempt := 0; attempt < 3; attempt++ {
-					tmp, err := utils.GetPassphraseConfirm("ptar", 0.)
-					if err != nil {
-						fmt.Fprintf(os.Stderr, "%s\n", err)
-						continue
-					}
-					passphrase = tmp
-					break
-				}
-			}
-		} else {
-			passphrase = []byte(ctx.KeyFromFile)
-		}
-
-		if len(passphrase) == 0 {
-			return 1, fmt.Errorf("can't encrypt the repository with an empty passphrase")
-		}
-
-		key, err = encryption.DeriveKey(storageConfiguration.Encryption.KDFParams, passphrase)
+		key, err = encryption.DeriveKey(storageConfiguration.Encryption.KDFParams,
+			cmd.RepositorySecret)
 		if err != nil {
 			return 1, err
 		}
