@@ -165,10 +165,6 @@ func (g *GrpcImporter) Scan() (<-chan *importer.ScanResult, error) {
 	return results, nil
 }
 
-func (g *GrpcImporter) NewExtendedAttributeReader(path string, xattr string) (io.ReadCloser, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
 func (g *GrpcImporter) Close() error {
 	if g.GrpcClientScan != nil {
 		if conn, ok := g.GrpcClientScan.(interface{ Close() error }); ok {
