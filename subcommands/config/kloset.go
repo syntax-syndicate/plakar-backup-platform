@@ -81,9 +81,13 @@ func cmd_kloset_config(ctx *appcontext.AppContext, args []string) error {
 		if !ctx.Config.HasRepository(name) {
 			return fmt.Errorf("kloset %q does not exists", name)
 		}
-		_, err := storage.New(ctx.GetInner(), ctx.Config.Repositories[name])
+		store, err := storage.New(ctx.GetInner(), ctx.Config.Repositories[name])
 		if err != nil {
 			return err
+		}
+		err = store.Close()
+		if err != nil {
+			ctx.GetLogger().Warn("error when closing store: %v", err)
 		}
 		return nil
 
@@ -140,9 +144,13 @@ func cmd_kloset_config(ctx *appcontext.AppContext, args []string) error {
 		if !ctx.Config.HasRepository(name) {
 			return fmt.Errorf("kloset %q does not exists", name)
 		}
-		_, _, err := storage.Open(ctx.GetInner(), ctx.Config.Repositories[name])
+		store, _, err := storage.Open(ctx.GetInner(), ctx.Config.Repositories[name])
 		if err != nil {
 			return err
+		}
+		err = store.Close()
+		if err != nil {
+			ctx.GetLogger().Warn("error when closing store: %v", err)
 		}
 		return nil
 
