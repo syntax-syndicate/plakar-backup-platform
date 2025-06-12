@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
+	"syscall"
 	"path/filepath"
 	"regexp"
-	"time"
 
 	// "github.com/PlakarKorp/kloset/snapshot/importer"
 	// grpc_importer "github.com/PlakarKorp/kloset/snapshot/importer/pkg"
@@ -108,23 +107,6 @@ var pTypes = map[string]PluginType{
 	// },
 }
 
-func waitForSocket(path string, timeout time.Duration) error {
-	deadline := time.Now().Add(timeout)
-	for {
-		if time.Now().After(deadline) {
-			return fmt.Errorf("timeout waiting for socket at %s", path)
-		}
-		if _, err := os.Stat(path); err == nil {
-			conn, err := net.Dial("unix", path)
-			if err == nil {
-				conn.Close()
-				return nil
-			}
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-}
-
 func LoadBackends(ctx context.Context, pluginPath string) error {
 	dirEntries, err := os.ReadDir(pluginPath)
 	if err != nil {
@@ -173,37 +155,52 @@ func LoadBackends(ctx context.Context, pluginPath string) error {
 }
 
 func connectPlugin(pluginFolderPath string, pluginFileName string, typeName string, config map[string]string) (grpc.ClientConnInterface, error) {
-	err := execPlugin(filepath.Join(pluginFolderPath, pluginFileName), config)
+	_, connFd, err := forkChild(filepath.Join(pluginFolderPath, pluginFileName), config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fork child: %w", err)
 	}
-
-	unixSocketPath := filepath.Join(os.TempDir(), fmt.Sprintf("%s.sock", typeName))
-
-	if err := waitForSocket(unixSocketPath, 3*time.Second); err != nil {
-		return nil, fmt.Errorf("socket not ready: %w", err)
+	connFp := os.NewFile(uintptr(connFd), "grpc-conn")
+	conn, err := net.FileConn(connFp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create file conn: %w", err)
 	}
-
-	client, err := grpc.NewClient(
-		"unix://"+unixSocketPath,
+	client, err := grpc.NewClient("127.0.0.1:0",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
-			return net.Dial("unix", unixSocketPath)
-		}))
+			return conn, nil
+		}),
+	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create client context: %w", err)
 	}
 	return client, nil
 }
 
-func execPlugin(pluginPath string, config map[string]string) error {
-	argv := []string{fmt.Sprintf("%v", config)}
-	cmd := exec.Command(pluginPath, argv...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start process: %w", err)
+func forkChild(pluginPath string, config map[string]string) (int, int, error) {
+	sp, err := syscall.Socketpair(syscall.AF_LOCAL, syscall.SOCK_STREAM, syscall.AF_UNSPEC)
+	if err != nil {
+		return -1, -1, fmt.Errorf("failed to create socketpair: %w", err)
 	}
-	return nil
+
+	procAttr := syscall.ProcAttr{}
+	procAttr.Files = []uintptr{
+		os.Stdin.Fd(),
+		os.Stdout.Fd(),
+		os.Stderr.Fd(),
+		uintptr(sp[0]),
+	}
+
+	var pid int
+
+	argv := []string{pluginPath, fmt.Sprintf("%v", config)}
+	pid, err = syscall.ForkExec(pluginPath, argv, &procAttr)
+	if err != nil {
+		return -1, -1, fmt.Errorf("failed to ForkExec: %w", err)
+	}
+
+	if syscall.Close(sp[0]) != nil {
+		return -1, -1, fmt.Errorf("failed to close socket: %w", err)
+	}
+
+	return pid, sp[1], nil
 }
