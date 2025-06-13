@@ -166,10 +166,5 @@ func (g *GrpcImporter) Scan() (<-chan *importer.ScanResult, error) {
 }
 
 func (g *GrpcImporter) Close() error {
-	if g.GrpcClientScan != nil {
-		if conn, ok := g.GrpcClientScan.(interface{ Close() error }); ok {
-			return conn.Close()
-		}
-	}
 	return nil
 }
