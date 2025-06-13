@@ -10,17 +10,17 @@ import (
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/snapshot/importer"
 
-	grpc_importer "github.com/PlakarKorp/plakar/connectors/grpc/importer/pkg"
+	grpc_importer_pkg "github.com/PlakarKorp/plakar/connectors/grpc/importer/pkg"
 )
 
 type GrpcImporter struct {
-	GrpcClientScan   grpc_importer.ImporterClient
-	GrpcClientReader grpc_importer.ImporterClient
-	ctx              context.Context
+	GrpcClientScan   grpc_importer_pkg.ImporterClient
+	GrpcClientReader grpc_importer_pkg.ImporterClient
+	Ctx              context.Context
 }
 
 func (g *GrpcImporter) Origin() string {
-	info, err := g.GrpcClientScan.Info(g.ctx, &grpc_importer.InfoRequest{})
+	info, err := g.GrpcClientScan.Info(g.Ctx, &grpc_importer_pkg.InfoRequest{})
 	if err != nil {
 		return ""
 	}
@@ -28,7 +28,7 @@ func (g *GrpcImporter) Origin() string {
 }
 
 func (g *GrpcImporter) Type() string {
-	info, err := g.GrpcClientScan.Info(g.ctx, &grpc_importer.InfoRequest{})
+	info, err := g.GrpcClientScan.Info(g.Ctx, &grpc_importer_pkg.InfoRequest{})
 	if err != nil {
 		return ""
 	}
@@ -36,22 +36,26 @@ func (g *GrpcImporter) Type() string {
 }
 
 func (g *GrpcImporter) Root() string {
-	info, err := g.GrpcClientScan.Info(g.ctx, &grpc_importer.InfoRequest{})
+	info, err := g.GrpcClientScan.Info(g.Ctx, &grpc_importer_pkg.InfoRequest{})
 	if err != nil {
 		return ""
 	}
 	return info.GetRoot()
 }
 
+func (g *GrpcImporter) Close() error {
+	return nil
+}
+
 type GrpcReader struct {
-	client grpc_importer.ImporterClient
-	stream grpc_importer.Importer_OpenClient
+	client grpc_importer_pkg.ImporterClient
+	stream grpc_importer_pkg.Importer_OpenClient
 	path   string
 	buf    *bytes.Buffer
 	ctx    context.Context
 }
 
-func NewGrpcReader(ctx context.Context, client grpc_importer.ImporterClient, path string) *GrpcReader {
+func NewGrpcReader(ctx context.Context, client grpc_importer_pkg.ImporterClient, path string) *GrpcReader {
 	return &GrpcReader{
 		client: client,
 		buf:    bytes.NewBuffer(nil),
@@ -69,7 +73,7 @@ func (g *GrpcReader) Read(p []byte) (n int, err error) {
 	}
 
 	if g.stream == nil {
-		g.stream, err = g.client.Open(g.ctx, &grpc_importer.OpenRequest{
+		g.stream, err = g.client.Open(g.ctx, &grpc_importer_pkg.OpenRequest{
 			Pathname: g.path,
 		})
 		if err != nil {
@@ -95,7 +99,7 @@ func (g *GrpcReader) Read(p []byte) (n int, err error) {
 }
 
 func (g *GrpcReader) Close() error {
-	_, err := g.client.Close(g.ctx, &grpc_importer.CloseRequest{
+	_, err := g.client.Close(g.ctx, &grpc_importer_pkg.CloseRequest{
 		Pathname: g.path,
 	})
 	if err != nil {
@@ -105,7 +109,7 @@ func (g *GrpcReader) Close() error {
 }
 
 func (g *GrpcImporter) Scan() (<-chan *importer.ScanResult, error) {
-	stream, err := g.GrpcClientScan.Scan(g.ctx, &grpc_importer.ScanRequest{})
+	stream, err := g.GrpcClientScan.Scan(g.Ctx, &grpc_importer_pkg.ScanRequest{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to start scan: %w", err)
 	}
@@ -132,7 +136,7 @@ func (g *GrpcImporter) Scan() (<-chan *importer.ScanResult, error) {
 					Record: &importer.ScanRecord{
 						Pathname: response.GetPathname(),
 						Reader: importer.NewLazyReader(func() (io.ReadCloser, error) {
-							return NewGrpcReader(g.ctx, g.GrpcClientReader, response.GetPathname()), nil
+							return NewGrpcReader(g.Ctx, g.GrpcClientReader, response.GetPathname()), nil
 						}),
 						FileInfo: objects.FileInfo{
 							Lname:      response.GetRecord().GetFileinfo().GetName(),
@@ -163,8 +167,4 @@ func (g *GrpcImporter) Scan() (<-chan *importer.ScanResult, error) {
 		}
 	}()
 	return results, nil
-}
-
-func (g *GrpcImporter) Close() error {
-	return nil
 }
