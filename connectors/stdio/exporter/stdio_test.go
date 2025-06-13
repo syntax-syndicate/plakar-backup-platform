@@ -2,13 +2,12 @@ package stdio
 
 import (
 	"bytes"
-	"io"
+	"context"
 	"os"
 	"testing"
 
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/snapshot/exporter"
-	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,13 +21,12 @@ func TestExporter(t *testing.T) {
 
 	// Create a buffer to capture stdout
 	var buf bytes.Buffer
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
 
 	// Test stdout exporter
-	appCtx := appcontext.NewAppContext()
-	stdoutExporter, err := exporter.NewExporter(appCtx.GetInner(), map[string]string{"location": "stdout://"})
+	ctx := context.Background()
+	stdoutExporter, err := NewStdioExporter(ctx, &exporter.Options{
+		Stdout: &buf,
+	}, "stdout", map[string]string{"location": "stdout://"})
 	require.NoError(t, err)
 	defer stdoutExporter.Close()
 
@@ -51,11 +49,6 @@ func TestExporter(t *testing.T) {
 	err = stdoutExporter.StoreFile("/dummy.txt", fpOrigin, datalen)
 	require.NoError(t, err)
 
-	// Restore stdout and read the output
-	w.Close()
-	os.Stdout = oldStdout
-	io.Copy(&buf, r)
-
 	// Verify the content
 	require.Equal(t, string(data), buf.String())
 
@@ -69,12 +62,13 @@ func TestExporter(t *testing.T) {
 
 	// Create a buffer to capture stderr
 	buf.Reset()
-	oldStderr := os.Stderr
-	r, w, _ = os.Pipe()
-	os.Stderr = w
 
 	// Test stderr exporter
-	stderrExporter, err := exporter.NewExporter(appCtx.GetInner(), map[string]string{"location": "stderr://"})
+	stderrExporter, err := NewStdioExporter(ctx, &exporter.Options{
+		Stderr: &buf,
+	}, "stderr", map[string]string{
+		"location": "stderr://",
+	})
 	require.NoError(t, err)
 	defer stderrExporter.Close()
 
@@ -87,16 +81,12 @@ func TestExporter(t *testing.T) {
 	err = stderrExporter.StoreFile("/dummy.txt", fpOrigin, datalen)
 	require.NoError(t, err)
 
-	// Restore stderr and read the output
-	w.Close()
-	os.Stderr = oldStderr
-	io.Copy(&buf, r)
-
 	// Verify the content
 	require.Equal(t, string(data), buf.String())
 
 	// Test invalid backend
-	_, err = exporter.NewExporter(appCtx.GetInner(), map[string]string{"location": "invalid://"})
+	_, err = NewStdioExporter(ctx, nil, "invalid",
+		map[string]string{"location": "invalid://"})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "unsupported exporter protocol")
+	require.Contains(t, err.Error(), "unknown stdio backend")
 }
