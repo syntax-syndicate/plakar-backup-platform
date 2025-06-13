@@ -24,8 +24,10 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/PlakarKorp/kloset/snapshot/importer"
 )
@@ -38,6 +40,8 @@ type FSImporter struct {
 	uidToName map[uint64]string
 	gidToName map[uint64]string
 	mu        sync.RWMutex
+
+	nocrossfs bool
 }
 
 func init() {
@@ -54,12 +58,15 @@ func NewFSImporter(appCtx context.Context, opts *importer.Options, name string, 
 
 	rootDir = path.Clean(rootDir)
 
+	nocrossfs, _ := strconv.ParseBool(config["dont_traverse_fs"])
+
 	return &FSImporter{
 		ctx:       appCtx,
 		opts:      opts,
 		rootDir:   rootDir,
 		uidToName: make(map[uint64]string),
 		gidToName: make(map[uint64]string),
+		nocrossfs: nocrossfs,
 	}, nil
 }
 
@@ -72,17 +79,17 @@ func (p *FSImporter) Type() string {
 }
 
 func (p *FSImporter) Scan() (<-chan *importer.ScanResult, error) {
-	realp, err := p.realpathFollow(p.rootDir)
+	realp, dev, err := p.realpathFollow(p.rootDir)
 	if err != nil {
 		return nil, err
 	}
 
 	results := make(chan *importer.ScanResult, 1000)
-	go p.walkDir_walker(results, p.rootDir, realp, 256)
+	go p.walkDir_walker(results, p.rootDir, realp, 256, dev)
 	return results, nil
 }
 
-func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir, realp string, numWorkers int) {
+func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir, realp string, numWorkers int, devno uint64) {
 	jobs := make(chan string, 1000) // Buffered channel to feed paths to workers
 	var wg sync.WaitGroup
 	for range numWorkers {
@@ -106,6 +113,21 @@ func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir
 			results <- importer.NewScanError(path, err)
 			return nil
 		}
+
+		if d.IsDir() && f.nocrossfs {
+			info, err := d.Info()
+			if err != nil {
+				results <- importer.NewScanError(path, err)
+				return nil
+			}
+
+			if sb, ok := info.Sys().(*syscall.Stat_t); ok {
+				if uint64(sb.Dev) != devno {
+					return filepath.SkipDir
+				}
+			}
+		}
+
 		jobs <- path
 		return nil
 	})
@@ -153,16 +175,22 @@ func (p *FSImporter) lookupIDs(uid, gid uint64) (uname, gname string) {
 	return
 }
 
-func (f *FSImporter) realpathFollow(path string) (resolved string, err error) {
+func (f *FSImporter) realpathFollow(path string) (resolved string, dev uint64, err error) {
 	info, err := os.Lstat(path)
 	if err != nil {
-		return "", err
+		return
+	}
+
+	if info.Mode()&os.ModeDir != 0 {
+		if sb, ok := info.Sys().(*syscall.Stat_t); ok {
+			dev = uint64(sb.Dev)
+		}
 	}
 
 	if info.Mode()&os.ModeSymlink != 0 {
 		realpath, err := os.Readlink(path)
 		if err != nil {
-			return "", err
+			return "", 0, err
 		}
 
 		if !filepath.IsAbs(realpath) {
@@ -171,7 +199,7 @@ func (f *FSImporter) realpathFollow(path string) (resolved string, err error) {
 		path = realpath
 	}
 
-	return path, nil
+	return path, dev, nil
 }
 
 func (p *FSImporter) Close() error {
