@@ -60,7 +60,7 @@ func (s *GrpcStorage) Open(ctx context.Context) ([]byte, error) {
 
 func (s *GrpcStorage) Location() string {
 	resp, err := s.GrpcClient.GetLocation(s.ctx, &grpc_storage.GetLocationRequest{})
-	if err != nil {
+	if err != nil { // TODO: asdd error logging
 		return ""
 	}
 	return resp.Location
@@ -107,7 +107,6 @@ func sendChunks(rd io.Reader, chunkSendFn func(chunk []byte) error) (int64, erro
 type grpcChunkReader struct {
 	streamRecv func() ([]byte, error)
 	buf        bytes.Buffer
-	eof        bool
 }
 
 func (g *grpcChunkReader) Read(p []byte) (int, error) {
@@ -117,7 +116,7 @@ func (g *grpcChunkReader) Read(p []byte) (int, error) {
 		if g.buf.Len() > 0 {
 			n, err := g.buf.Read(p[totalRead:])
 			totalRead += n
-			if err != nil && err != io.EOF {
+			if err != nil {
 				return totalRead, err
 			}
 			//if the buffer is full -> done
@@ -159,11 +158,14 @@ func toGrpcMAC(mac objects.MAC) *grpc_storage.MAC {
 func (s *GrpcStorage) GetStates() ([]objects.MAC, error) {
 	resp, err := s.GrpcClient.GetStates(s.ctx, &grpc_storage.GetStatesRequest{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get states: %w", err)
 	}
 
 	var states []objects.MAC
 	for _, mac := range resp.Macs {
+		if len(mac.Value) != len(objects.MAC{}) {
+			return nil, fmt.Errorf("invalid MAC length: %d", len(mac.Value))
+		}
 		states = append(states, objects.MAC(mac.Value))
 	}
 	return states, nil
@@ -214,11 +216,14 @@ func (s *GrpcStorage) DeleteState(mac objects.MAC) error {
 func (s *GrpcStorage) GetPackfiles() ([]objects.MAC, error) {
 	resp, err := s.GrpcClient.GetPackfiles(s.ctx, &grpc_storage.GetPackfilesRequest{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get packfiles: %w", err)
 	}
 
 	var packfiles []objects.MAC
 	for _, mac := range resp.Macs {
+		if len(mac.Value) != len(objects.MAC{}) {
+			return nil, fmt.Errorf("invalid MAC length: %d", len(mac.Value))
+		}
 		packfiles = append(packfiles, objects.MAC(mac.Value))
 	}
 	return packfiles, nil
@@ -288,11 +293,14 @@ func (s *GrpcStorage) DeletePackfile(mac objects.MAC) error {
 func (s *GrpcStorage) GetLocks() ([]objects.MAC, error) {
 	resp, err := s.GrpcClient.GetLocks(s.ctx, &grpc_storage.GetLocksRequest{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get locks: %w", err)
 	}
 
 	var locks []objects.MAC
 	for _, mac := range resp.Macs {
+		if len(mac.Value) != len(objects.MAC{}) {
+			return nil, fmt.Errorf("invalid MAC length: %d", len(mac.Value))
+		}
 		locks = append(locks, objects.MAC(mac.Value))
 	}
 	return locks, nil
