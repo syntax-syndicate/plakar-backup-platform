@@ -5,108 +5,26 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"syscall"
+	"os/exec"
 	"path/filepath"
 	"regexp"
-	"os/exec"
+	"syscall"
 
-	// "github.com/PlakarKorp/kloset/snapshot/importer"
-	// grpc_importer "github.com/PlakarKorp/kloset/snapshot/importer/pkg"
+	"github.com/PlakarKorp/kloset/snapshot/importer"
+	grpc_importer "github.com/PlakarKorp/plakar/connectors/grpc/importer"
+	grpc_importer_pkg "github.com/PlakarKorp/plakar/connectors/grpc/importer/pkg"
 
-	// "github.com/PlakarKorp/kloset/snapshot/exporter"
-	// grpc_exporter "github.com/PlakarKorp/plakar/connectors/grpc/exporter"
-	// grpc_exporter_pkg "github.com/PlakarKorp/plakar/connectors/grpc/exporter/pkg"
+	"github.com/PlakarKorp/kloset/snapshot/exporter"
+	grpc_exporter "github.com/PlakarKorp/plakar/connectors/grpc/exporter"
+	grpc_exporter_pkg "github.com/PlakarKorp/plakar/connectors/grpc/exporter/pkg"
 
-	// "github.com/PlakarKorp/kloset/storage"
-	// grpc_storage "github.com/PlakarKorp/plakar/connectors/grpc/storage"
-	// grpc_storage_pkg "github.com/PlakarKorp/plakar/connectors/grpc/storage/pkg"
+	"github.com/PlakarKorp/kloset/storage"
+	grpc_storage "github.com/PlakarKorp/plakar/connectors/grpc/storage"
+	grpc_storage_pkg "github.com/PlakarKorp/plakar/connectors/grpc/storage/pkg"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
-
-func wrap[T any, O any](fn any) func(context.Context, *O, string, map[string]string) (T, error) {
-	raw := fn.(func(context.Context, *interface{}, string, map[string]string) (interface{}, error))
-	return func(ctx context.Context, opts *O, proto string, config map[string]string) (T, error) {
-		var optsIface interface{} = opts
-		val, err := raw(ctx, &optsIface, proto, config)
-		if err != nil {
-			var zero T
-			return zero, err
-		}
-		t, ok := val.(T)
-		if !ok {
-			var zero T
-			fmt.Printf("wrap error: val is %v (type %T)\n", val, val)
-			return zero, fmt.Errorf("invalid return type: expected %T but got %T", zero, val)
-		}
-		return t, nil
-	}
-}
-
-type PluginType interface {
-	Register(name string, fn any)
-	GrpcClient(client grpc.ClientConnInterface, ctx context.Context) any
-	Wrap(fn any) any
-}
-
-type pluginTypes[T any, O any] struct {
-	registerFn func(name string, fn func(context.Context, *O, string, map[string]string) (T, error))
-	grpcClient func(client grpc.ClientConnInterface, ctx context.Context) T
-}
-
-func (p *pluginTypes[T, O]) Register(name string, fn any) {
-	typedFn, ok := fn.(func(context.Context, *O, string, map[string]string) (T, error))
-	if !ok {
-		panic("invalid function signature for plugin")
-	}
-	p.registerFn(name, typedFn)
-}
-
-func (p *pluginTypes[T, O]) GrpcClient(client grpc.ClientConnInterface, ctx context.Context) T {
-	return p.grpcClient(client, ctx)
-}
-
-func (p *pluginTypes[T, O]) Wrap(fn any) any {
-	return wrap[T, O](fn)
-}
-
-var pTypes = map[string]PluginType{
-	// "importer": &pluginTypes[importer.Importer, importer.ImporterOptions]{
-	// 	registerFn: func(name string, fn func(context.Context, *importer.ImporterOptions, string, map[string]string) (importer.Importer, error)) {
-	// 		importer.Register(name, fn)
-	// 	},
-	// 	grpcClient: func(client grpc.ClientConnInterface, ctx context.Context) importer.Importer {
-	// 		return &importer.GrpcImporter{
-	// 			GrpcClientScan:   grpc_importer.NewImporterClient(client),
-	// 			GrpcClientReader: grpc_importer.NewImporterClient(client),
-	// 			ctx:            ctx,
-	// 		}
-	// 	},
-	// },
-	// "exporter": &pluginTypes[exporter.Exporter, exporter.ExporterOptions]{
-	// 	registerFn: func(name string, fn func(context.Context, *exporter.ExporterOptions, string, map[string]string) (exporter.Exporter, error)) {
-	// 		exporter.Register(name, fn)
-	// 	},
-	// 	grpcClient: func(client grpc.ClientConnInterface, ctx context.Context) exporter.Exporter {
-	// 		return &grpc_exporter.GrpcExporter{
-	// 			GrpcClient: grpc_exporter_pkg.NewExporterClient(client),
-	// 			ctx:            ctx,
-	// 		}
-	// 	},
-	// },
-	// "storage": &pluginTypes[storage.Store, storage.StoreOptions]{
-	// 	registerFn: func(name string, fn func(context.Context, *storage.StoreOptions, string, map[string]string) (storage.Store, error)) {
-	// 		storage.Register(fn, name)
-	// 	},
-	// 	grpcClient: func(client grpc.ClientConnInterface, ctx context.Context) storage.Store {
-	// 		return &storage.GrpcStorage{
-	// 			GrpcClient: grpc_storage.NewStoreClient(client),
-	// 			ctx:            ctx,
-	// 		}
-	// 	},
-	// },
-}
 
 func LoadBackends(ctx context.Context, pluginPath string) error {
 	dirEntries, err := os.ReadDir(pluginPath)
@@ -134,22 +52,48 @@ func LoadBackends(ctx context.Context, pluginPath string) error {
 			}
 			key := matches[1]
 			pluginFileName := matches[0]
-			typeName := pluginEntry.Name()
 
-			pType, ok := pTypes[typeName]
-			if !ok {
-				return fmt.Errorf("unknown plugin type: %s", typeName)
+			switch pluginEntry.Name() {
+			case "importer":
+				importer.Register(key, func(ctx context.Context, o *importer.Options, s string, config map[string]string) (importer.Importer, error) {
+					client, err := connectPlugin(filepath.Join(pluginFolderPath, pluginFileName), config)
+					if err != nil {
+						return nil, fmt.Errorf("failed to connect to plugin: %w", err)
+					}
+
+					return &grpc_importer.GrpcImporter{
+						GrpcClientScan:   	grpc_importer_pkg.NewImporterClient(client),
+						GrpcClientReader: 	grpc_importer_pkg.NewImporterClient(client),
+						Ctx:             	ctx,
+					}, nil
+				})
+			case "exporter":
+				exporter.Register(key, func(ctx context.Context, o *exporter.Options, s string, config map[string]string) (exporter.Exporter, error) {
+					client, err := connectPlugin(filepath.Join(pluginFolderPath, pluginFileName), config)
+					if err != nil {
+						return nil, fmt.Errorf("failed to connect to plugin: %w", err)
+					}
+
+					return &grpc_exporter.GrpcExporter{
+						GrpcClient: 		grpc_exporter_pkg.NewExporterClient(client),
+						Ctx:             	ctx,
+					}, nil
+				})
+			case "storage":
+				storage.Register(func(ctx context.Context, s string, config map[string]string) (storage.Store, error) {
+					client, err := connectPlugin(filepath.Join(pluginFolderPath, pluginFileName), config)
+					if err != nil {
+						return nil, fmt.Errorf("failed to connect to plugin: %w", err)
+					}
+
+					return &grpc_storage.GrpcStorage{
+						GrpcClient:   		grpc_storage_pkg.NewStoreClient(client),
+						Ctx:             	ctx,
+					}, nil
+				}, key)
+			default:
+				return fmt.Errorf("unknown plugin type: %s", pluginEntry.Name())
 			}
-			wrappedFunc := pType.Wrap(func(ctx context.Context, _ *any, name string, config map[string]string) (any, error) {
-
-				client, err := connectPlugin(filepath.Join(pluginFolderPath, pluginFileName), config)
-				if err != nil {
-					return nil, fmt.Errorf("failed to connect to plugin: %w", err)
-				}
-
-				return pType.GrpcClient(client, ctx), nil
-			})
-			pType.Register(key, wrappedFunc)
 		}
 	}
 	return nil
