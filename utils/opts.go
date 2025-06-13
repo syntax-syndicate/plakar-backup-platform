@@ -32,7 +32,10 @@ func (o *OptsFlag) String() string {
 }
 
 func (o *OptsFlag) Set(s string) error {
-	k, v, _ := strings.Cut(s, "=")
+	k, v, found := strings.Cut(s, "=")
+	if !found {
+		v = "true"
+	}
 	o.opts[k] = v
 	return nil
 }
