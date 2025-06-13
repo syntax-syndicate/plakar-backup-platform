@@ -111,7 +111,7 @@ func connectPlugin(pluginPath string, config map[string]string) (grpc.ClientConn
 		return nil, fmt.Errorf("net.FileConn failed: %w", err)
 	}
 
-	clientConn, err := grpc.NewClient("localhost:0",
+	clientConn, err := grpc.NewClient("127.0.0.1:0",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithContextDialer(func(ctx context.Context, s string) (net.Conn, error) {
 			return conn, nil
@@ -141,5 +141,5 @@ func forkChild(pluginPath string, config map[string]string) (int, error) {
 	}
 
 	childFile.Close()
-	return int(sp[1]), nil
+	return sp[1], nil
 }
