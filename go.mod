@@ -3,7 +3,7 @@ module github.com/PlakarKorp/plakar
 go 1.23.3
 
 require (
-	github.com/PlakarKorp/kloset v1.0.1-beta.1.0.20250602080028-130dadfa50b7
+	github.com/PlakarKorp/kloset v1.0.1-beta.1.0.20250612075141-af0e76407801
 	github.com/alecthomas/chroma v0.10.0
 	github.com/anacrolix/fuse v0.3.1
 	github.com/charmbracelet/bubbletea v1.3.4
@@ -126,7 +126,8 @@ require (
 	golang.org/x/net v0.40.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.25.0 // indirect
-	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
+	google.golang.org/genproto v0.0.0-20250603155806-513f23925822 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250528174236-200df99c418a // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.62.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect

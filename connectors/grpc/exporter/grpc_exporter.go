@@ -7,6 +7,11 @@ import (
 	"github.com/PlakarKorp/kloset/objects"
 	grpc_exporter "github.com/PlakarKorp/plakar/connectors/grpc/exporter/pkg"
 
+	// google being google I guess.  No idea why this is actually
+	// required, but otherwise it breaks the workspace setup
+	// c.f. https://github.com/googleapis/go-genproto/issues/1015
+	_ "google.golang.org/genproto/protobuf/ptype"
+
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
