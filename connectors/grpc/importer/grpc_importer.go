@@ -44,12 +44,16 @@ func (g *GrpcImporter) Root() string {
 }
 
 func (g *GrpcImporter) Close() error {
+	_, err := g.GrpcClientScan.Close(g.Ctx, &grpc_importer_pkg.CloseRequest{})
+	if err != nil {
+		return fmt.Errorf("failed to close importer: %w", err)
+	}
 	return nil
 }
 
 type GrpcReader struct {
 	client grpc_importer_pkg.ImporterClient
-	stream grpc_importer_pkg.Importer_OpenClient
+	stream grpc_importer_pkg.Importer_OpenReaderClient
 	path   string
 	buf    *bytes.Buffer
 	ctx    context.Context
@@ -73,14 +77,14 @@ func (g *GrpcReader) Read(p []byte) (n int, err error) {
 	}
 
 	if g.stream == nil {
-		g.stream, err = g.client.Open(g.ctx, &grpc_importer_pkg.OpenRequest{
+		g.stream, err = g.client.OpenReader(g.ctx, &grpc_importer_pkg.OpenReaderRequest{
 			Pathname: g.path,
 		})
 		if err != nil {
 			return 0, fmt.Errorf("failed to open file %s: %w", g.path, err)
 		}
 	}
-	
+
 	fileResponse, err := g.stream.Recv()
 	if err != nil {
 		if err == io.EOF {
@@ -99,7 +103,7 @@ func (g *GrpcReader) Read(p []byte) (n int, err error) {
 }
 
 func (g *GrpcReader) Close() error {
-	_, err := g.client.Close(g.ctx, &grpc_importer_pkg.CloseRequest{
+	_, err := g.client.CloseReader(g.ctx, &grpc_importer_pkg.CloseReaderRequest{
 		Pathname: g.path,
 	})
 	if err != nil {
