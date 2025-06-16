@@ -22,7 +22,7 @@ import (
 	"log"
 	"net/url"
 	"os"
-	"path/filepath"
+	"path"
 	"strings"
 	"sync"
 	"time"
@@ -77,7 +77,7 @@ func (p *FTPImporter) ftpWalker_worker(jobs <-chan string, results chan<- *impor
 
 		fileinfo := objects.FileInfoFromStat(info)
 
-		results <- importer.NewScanRecord(filepath.ToSlash(path), "", fileinfo, nil,
+		results <- importer.NewScanRecord(path, "", fileinfo, nil,
 			func() (io.ReadCloser, error) { return p.NewReader(path) })
 
 		// Handle symlinks separately
@@ -87,17 +87,17 @@ func (p *FTPImporter) ftpWalker_worker(jobs <-chan string, results chan<- *impor
 				results <- importer.NewScanError(path, err)
 				continue
 			}
-			results <- importer.NewScanRecord(filepath.ToSlash(path), originFile, fileinfo, nil, nil)
+			results <- importer.NewScanRecord(path, originFile, fileinfo, nil, nil)
 		}
 	}
 }
 
 func (p *FTPImporter) ftpWalker_addPrefixDirectories(jobs chan<- string, results chan<- *importer.ScanResult) {
-	directory := filepath.Clean(p.rootDir)
+	directory := path.Clean(p.rootDir)
 	atoms := strings.Split(directory, string(os.PathSeparator))
 
 	for i := 0; i < len(atoms); i++ {
-		path := filepath.Join(atoms[0 : i+1]...)
+		path := path.Join(atoms[0 : i+1]...)
 
 		if !strings.HasPrefix(path, "/") {
 			path = "/" + path
@@ -122,7 +122,7 @@ func (p *FTPImporter) walkDir(root string, results chan<- string, wg *sync.WaitG
 	}
 
 	for _, entry := range entries {
-		entryPath := filepath.Join(root, entry.Name())
+		entryPath := path.Join(root, entry.Name())
 
 		// Send the current entry to the results channel
 		results <- entryPath

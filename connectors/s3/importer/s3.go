@@ -23,7 +23,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -98,7 +97,7 @@ func NewS3Importer(ctx context.Context, opts *importer.Options, name string, con
 
 	atoms := strings.Split(parsed.RequestURI()[1:], "/")
 	bucket := atoms[0]
-	scanDir := filepath.Clean("/" + strings.Join(atoms[1:], "/"))
+	scanDir := path.Clean("/" + strings.Join(atoms[1:], "/"))
 
 	return &S3Importer{
 		bucket:      bucket,

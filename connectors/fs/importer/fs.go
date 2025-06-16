@@ -22,7 +22,6 @@ import (
 	"io/fs"
 	"os"
 	"os/user"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -52,11 +51,11 @@ func NewFSImporter(appCtx context.Context, opts *importer.Options, name string, 
 	location := config["location"]
 	rootDir := strings.TrimPrefix(location, "fs://")
 
-	if !path.IsAbs(rootDir) {
+	if !filepath.IsAbs(rootDir) {
 		return nil, fmt.Errorf("not an absolute path %s", location)
 	}
 
-	rootDir = path.Clean(rootDir)
+	rootDir = filepath.Clean(rootDir)
 
 	nocrossfs, _ := strconv.ParseBool(config["dont_traverse_fs"])
 
