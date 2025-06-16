@@ -314,7 +314,7 @@ func EntryPoint() int {
 			if def != "" {
 				repositoryPath = "@" + def
 			} else {
-				repositoryPath = filepath.Join(ctx.HomeDir, ".plakar")
+				repositoryPath = "fs:" + filepath.Join(ctx.HomeDir, ".plakar")
 			}
 		}
 
