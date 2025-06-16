@@ -27,7 +27,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 
 	"github.com/PlakarKorp/kloset/snapshot/importer"
 )
@@ -115,16 +114,13 @@ func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir
 		}
 
 		if d.IsDir() && f.nocrossfs {
-			info, err := d.Info()
+			same, err := isSameFs(devno, d)
 			if err != nil {
 				results <- importer.NewScanError(path, err)
 				return nil
 			}
-
-			if sb, ok := info.Sys().(*syscall.Stat_t); ok {
-				if uint64(sb.Dev) != devno {
-					return filepath.SkipDir
-				}
+			if !same {
+				return filepath.SkipDir
 			}
 		}
 
@@ -182,9 +178,7 @@ func (f *FSImporter) realpathFollow(path string) (resolved string, dev uint64, e
 	}
 
 	if info.Mode()&os.ModeDir != 0 {
-		if sb, ok := info.Sys().(*syscall.Stat_t); ok {
-			dev = uint64(sb.Dev)
-		}
+		dev = dirDevice(info)
 	}
 
 	if info.Mode()&os.ModeSymlink != 0 {
