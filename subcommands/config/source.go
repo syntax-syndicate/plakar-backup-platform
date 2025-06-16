@@ -10,16 +10,17 @@ import (
 	"github.com/PlakarKorp/kloset/storage"
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/subcommands"
+	"github.com/PlakarKorp/plakar/utils"
 )
 
-type ConfigRemoteCmd struct {
+type ConfigSourceCmd struct {
 	subcommands.SubcommandBase
 
 	args []string
 }
 
-func (cmd *ConfigRemoteCmd) Parse(ctx *appcontext.AppContext, args []string) error {
-	flags := flag.NewFlagSet("remote", flag.ExitOnError)
+func (cmd *ConfigSourceCmd) Parse(ctx *appcontext.AppContext, args []string) error {
+	flags := flag.NewFlagSet("source", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s\n", flags.Name())
 		flags.PrintDefaults()
@@ -31,17 +32,17 @@ func (cmd *ConfigRemoteCmd) Parse(ctx *appcontext.AppContext, args []string) err
 	return nil
 }
 
-func (cmd *ConfigRemoteCmd) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+func (cmd *ConfigSourceCmd) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 
-	err := cmd_remote_config(ctx, cmd.args)
+	err := source_config(ctx, cmd.args)
 	if err != nil {
 		return 1, err
 	}
 	return 0, nil
 }
 
-func cmd_remote_config(ctx *appcontext.AppContext, args []string) error {
-	usage := "usage: plakar remote [add|check|ls|ping|rm|set|unset]"
+func source_config(ctx *appcontext.AppContext, args []string) error {
+	usage := "usage: plakar source [add|check|ls|ping|set|unset]"
 	cmd := "ls"
 	if len(args) > 0 {
 		cmd = args[0]
@@ -50,16 +51,16 @@ func cmd_remote_config(ctx *appcontext.AppContext, args []string) error {
 
 	switch cmd {
 	case "add":
-		usage := "usage: plakar remote add <name> <location> [<key>=<value>, ...]"
+		usage := "usage: plakar source add <name> <location> [<key>=<value>, ...]"
 		if len(args) < 2 {
 			return fmt.Errorf(usage)
 		}
 		name, location := args[0], args[1]
-		if ctx.Config.HasRemote(name) {
-			return fmt.Errorf("remote %q already exists", name)
+		if ctx.Config.HasSource(name) {
+			return fmt.Errorf("source %q already exists", name)
 		}
-		ctx.Config.Remotes[name] = make(map[string]string)
-		ctx.Config.Remotes[name]["location"] = location
+		ctx.Config.Sources[name] = make(map[string]string)
+		ctx.Config.Sources[name]["location"] = location
 		for _, kv := range args[2:] {
 			key, val, found := strings.Cut(kv, "=")
 			if !found {
@@ -68,22 +69,26 @@ func cmd_remote_config(ctx *appcontext.AppContext, args []string) error {
 			if key == "" {
 				return fmt.Errorf(usage)
 			}
-			ctx.Config.Remotes[name][key] = val
+			ctx.Config.Sources[name][key] = val
 		}
-		return ctx.Config.Save()
+		return utils.SaveConfig(ctx.ConfigDir, ctx.Config)
 
 	case "check":
-		usage := "usage: plakar remote check <name>"
+		usage := "usage: plakar source check <name>"
 		if len(args) != 1 {
 			return fmt.Errorf(usage)
 		}
 		name := args[0]
-		if !ctx.Config.HasRemote(name) {
-			return fmt.Errorf("kloset %q does not exists", name)
+		if !ctx.Config.HasSource(name) {
+			return fmt.Errorf("source %q does not exist", name)
 		}
-		_, err := storage.New(ctx.GetInner(), ctx.Config.Remotes[name])
+		store, err := storage.New(ctx.GetInner(), ctx.Config.Sources[name])
 		if err != nil {
 			return err
+		}
+		err = store.Close()
+		if err != nil {
+			ctx.GetLogger().Warn("error when closing store: %v", err)
 		}
 		return nil
 
@@ -93,12 +98,12 @@ func cmd_remote_config(ctx *appcontext.AppContext, args []string) error {
 			return fmt.Errorf(usage)
 		}
 		var list []string
-		for name, _ := range ctx.Config.Remotes {
+		for name, _ := range ctx.Config.Sources {
 			list = append(list, name)
 		}
 		sort.Strings(list)
 		for i, name := range list {
-			entry := ctx.Config.Remotes[name]
+			entry := ctx.Config.Sources[name]
 			if i != 0 {
 				fmt.Fprint(ctx.Stdout, "\n")
 			}
@@ -117,40 +122,44 @@ func cmd_remote_config(ctx *appcontext.AppContext, args []string) error {
 		return nil
 
 	case "ping":
-		usage := "usage: plakar remote ping <name>"
+		usage := "usage: plakar source ping <name>"
 		if len(args) != 1 {
 			return fmt.Errorf(usage)
 		}
 		name := args[0]
-		if !ctx.Config.HasRemote(name) {
-			return fmt.Errorf("remote %q does not exists", name)
+		if !ctx.Config.HasSource(name) {
+			return fmt.Errorf("source %q does not exist", name)
 		}
-		_, _, err := storage.Open(ctx.GetInner(), ctx.Config.Remotes[name])
+		store, _, err := storage.Open(ctx.GetInner(), ctx.Config.Sources[name])
 		if err != nil {
 			return err
+		}
+		err = store.Close()
+		if err != nil {
+			ctx.GetLogger().Warn("error when closing store: %v", err)
 		}
 		return nil
 
 	case "rm":
-		usage := "usage: plakar remote rm <name>"
+		usage := "usage: plakar source rm <name>"
 		if len(args) != 1 {
 			return fmt.Errorf(usage)
 		}
 		name := args[0]
-		if !ctx.Config.HasRemote(name) {
-			return fmt.Errorf("remote %q does not exist", name)
+		if !ctx.Config.HasSource(name) {
+			return fmt.Errorf("source %q does not exist", name)
 		}
-		delete(ctx.Config.Remotes, name)
-		return ctx.Config.Save()
+		delete(ctx.Config.Sources, name)
+		return utils.SaveConfig(ctx.ConfigDir, ctx.Config)
 
 	case "set":
-		usage := "usage: plakar remote set <name> [<key>=<value>, ...]"
+		usage := "usage: plakar source set <name> [<key>=<value>, ...]"
 		if len(args) == 0 {
 			return fmt.Errorf(usage)
 		}
 		name := args[0]
-		if !ctx.Config.HasRemote(name) {
-			return fmt.Errorf("remote %q does not exists", name)
+		if !ctx.Config.HasSource(name) {
+			return fmt.Errorf("source %q does not exist", name)
 		}
 		for _, kv := range args[1:] {
 			key, val, found := strings.Cut(kv, "=")
@@ -160,26 +169,26 @@ func cmd_remote_config(ctx *appcontext.AppContext, args []string) error {
 			if key == "" {
 				return fmt.Errorf(usage)
 			}
-			ctx.Config.Remotes[name][key] = val
+			ctx.Config.Sources[name][key] = val
 		}
-		return ctx.Config.Save()
+		return utils.SaveConfig(ctx.ConfigDir, ctx.Config)
 
 	case "unset":
-		usage := "usage: plakar remote unset <name> [<key>, ...]"
+		usage := "usage: plakar source unset <name> [<key>, ...]"
 		if len(args) == 0 {
 			return fmt.Errorf(usage)
 		}
 		name := args[0]
-		if !ctx.Config.HasRemote(name) {
-			return fmt.Errorf("remote %q does not exists", name)
+		if !ctx.Config.HasSource(name) {
+			return fmt.Errorf("source %q does not exist", name)
 		}
 		for _, key := range args[1:] {
 			if key == "location" {
 				return fmt.Errorf("cannot unset location")
 			}
-			delete(ctx.Config.Remotes[name], key)
+			delete(ctx.Config.Sources[name], key)
 		}
-		return ctx.Config.Save()
+		return utils.SaveConfig(ctx.ConfigDir, ctx.Config)
 
 	default:
 		return fmt.Errorf(usage)

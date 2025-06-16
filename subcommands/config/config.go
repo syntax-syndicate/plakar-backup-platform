@@ -26,6 +26,8 @@ func init() {
 		subcommands.AgentSupport|subcommands.BeforeRepositoryOpen|subcommands.IgnoreVersion, "config", "reload")
 	subcommands.Register(func() subcommands.Subcommand { return &ConfigKlosetCmd{} },
 		subcommands.BeforeRepositoryOpen, "kloset")
-	subcommands.Register(func() subcommands.Subcommand { return &ConfigRemoteCmd{} },
-		subcommands.BeforeRepositoryOpen, "remote")
+	subcommands.Register(func() subcommands.Subcommand { return &ConfigSourceCmd{} },
+		subcommands.BeforeRepositoryOpen, "source")
+	subcommands.Register(func() subcommands.Subcommand { return &ConfigDestinationCmd{} },
+		subcommands.BeforeRepositoryOpen, "destination")
 }
