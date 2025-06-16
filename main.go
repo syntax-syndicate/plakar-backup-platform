@@ -28,10 +28,10 @@ import (
 	"github.com/PlakarKorp/kloset/versioning"
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
+	_ "github.com/PlakarKorp/plakar/plugins"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/task"
 	"github.com/PlakarKorp/plakar/utils"
-	_ "github.com/PlakarKorp/plakar/plugins"
 	"github.com/denisbrodbeck/machineid"
 	"github.com/google/uuid"
 
@@ -164,7 +164,7 @@ func EntryPoint() int {
 	defer ctx.Close()
 
 	// err = plugins.LoadBackends(ctx.Context, filepath.Join(configDir, "plugins"))
-	// if err != nil {	
+	// if err != nil {
 	// 	fmt.Fprintf(os.Stderr, "%s: could not load plugins: %s\n", flag.CommandLine.Name(), err)
 	// 	return 1
 	// }
