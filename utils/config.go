@@ -34,6 +34,13 @@ func (cl *configHandler) Load() (*config.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	for k, v := range cl.Config.Repositories {
+		if _, ok := v[".default"]; ok {
+			cl.Config.DefaultRepository = k
+			delete(v, ".default")
+		}
+	}
+
 	return cl.Config, nil
 }
 
@@ -45,6 +52,11 @@ func (cl *configHandler) Save(cfg *config.Config) error {
 	err = cl.save("destinations.json", cfg.Destinations)
 	if err != nil {
 		return err
+	}
+	for k, v := range cfg.Repositories {
+		if k == cfg.DefaultRepository {
+			v[".default"] = "yes"
+		}
 	}
 	err = cl.save("klosets.json", cfg.Repositories)
 	if err != nil {
