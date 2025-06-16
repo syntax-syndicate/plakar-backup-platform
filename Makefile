@@ -39,9 +39,9 @@ gen:
 			rvolosatovs/protoc \
 				--proto_path=/app \
 				--go_out=./pkg/$$proto/ \
-				--go_opt=paths=source_relative,M$$proto.proto=github.com/PlakarKorp/go-kloset-sdk/$$proto \
+				--go_opt=paths=source_relative,M$$proto.proto=github.com/PlakarKorp/plakar/$$proto \
 				--go-grpc_out=./pkg/$$proto/ \
-				--go-grpc_opt=paths=source_relative,M$$proto.proto=github.com/PlakarKorp/go-kloset-sdk/$$proto \
+				--go-grpc_opt=paths=source_relative,M$$proto.proto=github.com/PlakarKorp/plakar/$$proto \
 				/app/$$proto.proto; \
 		rm -f ./$$proto.proto; \
 		mv ./pkg/$$proto/* ./connectors/grpc/$$proto/pkg/; \
