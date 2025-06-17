@@ -10,8 +10,7 @@ import (
 )
 
 type configHandler struct {
-	Path   string
-	Config *config.Config
+	Path string
 }
 
 func newConfigHandler(path string) *configHandler {
@@ -21,27 +20,45 @@ func newConfigHandler(path string) *configHandler {
 }
 
 func (cl *configHandler) Load() (*config.Config, error) {
-	cl.Config = config.NewConfig()
-	err := cl.load("sources.json", &cl.Config.Sources)
+
+	// Load old config if found
+	oldpath := filepath.Join(cl.Path, "plakar.yml")
+	cfg, err := LoadOldConfigIfExists(oldpath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading old config file: %w", err)
+	}
+
+	if cfg != nil {
+		// Save the config in the new format and remove the previous file
+		err = SaveConfig(cl.Path, cfg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update old config file: %w", err)
+		}
+		os.Remove(oldpath)
+		return cfg, nil
+	}
+
+	cfg = config.NewConfig()
+	err = cl.load("sources.json", &cfg.Sources)
 	if err != nil {
 		return nil, err
 	}
-	err = cl.load("destinations.json", &cl.Config.Destinations)
+	err = cl.load("destinations.json", &cfg.Destinations)
 	if err != nil {
 		return nil, err
 	}
-	err = cl.load("klosets.json", &cl.Config.Repositories)
+	err = cl.load("klosets.json", &cfg.Repositories)
 	if err != nil {
 		return nil, err
 	}
-	for k, v := range cl.Config.Repositories {
+	for k, v := range cfg.Repositories {
 		if _, ok := v[".default"]; ok {
-			cl.Config.DefaultRepository = k
+			cfg.DefaultRepository = k
 			delete(v, ".default")
 		}
 	}
 
-	return cl.Config, nil
+	return cfg, nil
 }
 
 func (cl *configHandler) Save(cfg *config.Config) error {
