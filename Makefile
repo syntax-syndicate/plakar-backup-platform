@@ -25,24 +25,19 @@ check: test
 test:
 	${GO} test ./...
 
-PROTO_SRC_DIR := $(shell pwd)/proto
-PROTOS := importer exporter storage
-HOME := $(shell echo $$HOME)/
+PROTOS = importer exporter storage
 
 gen:
 	for proto in $(PROTOS); do \
 		cp connectors/grpc/$$proto/$$proto.proto .; \
 		mkdir -p ./pkg/$$proto/; \
-		docker run --rm -ti \
-			-v `pwd`:/app \
-			-w /app \
-			rvolosatovs/protoc \
-				--proto_path=/app \
-				--go_out=./pkg/$$proto/ \
-				--go_opt=paths=source_relative,M$$proto.proto=github.com/PlakarKorp/plakar/$$proto \
-				--go-grpc_out=./pkg/$$proto/ \
-				--go-grpc_opt=paths=source_relative,M$$proto.proto=github.com/PlakarKorp/plakar/$$proto \
-				/app/$$proto.proto; \
+		protoc \
+			--proto_path=. \
+			--go_out=./pkg/$$proto/ \
+			--go_opt=paths=source_relative,M$$proto.proto=github.com/PlakarKorp/plakar/$$proto \
+			--go-grpc_out=./pkg/$$proto/ \
+			--go-grpc_opt=paths=source_relative,M$$proto.proto=github.com/PlakarKorp/plakar/$$proto \
+			./$$proto.proto; \
 		rm -f ./$$proto.proto; \
 		mv ./pkg/$$proto/* ./connectors/grpc/$$proto/pkg/; \
 		rm -rf ./pkg/$$proto; \
