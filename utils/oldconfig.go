@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"maps"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -33,5 +34,11 @@ func LoadOldConfigIfExists(configFile string) (*config.Config, error) {
 	cfg := config.NewConfig()
 	cfg.Repositories = old.Repositories
 	cfg.Sources = old.Remotes
+	cfg.Destinations = make(map[string]config.DestinationConfig)
+	for key, val := range cfg.Sources {
+		res := make(map[string]string)
+		maps.Copy(res, val)
+		cfg.Destinations[key] = res
+	}
 	return cfg, nil
 }
