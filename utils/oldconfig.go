@@ -32,6 +32,7 @@ func LoadOldConfigIfExists(configFile string) (*config.Config, error) {
 	}
 
 	cfg := config.NewConfig()
+	cfg.DefaultRepository = old.DefaultRepository
 	cfg.Repositories = old.Repositories
 	cfg.Sources = old.Remotes
 	cfg.Destinations = make(map[string]config.DestinationConfig)

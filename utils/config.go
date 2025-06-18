@@ -1,12 +1,12 @@
 package utils
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/PlakarKorp/kloset/config"
+	"gopkg.in/yaml.v3"
 )
 
 type configHandler struct {
@@ -39,22 +39,22 @@ func (cl *configHandler) Load() (*config.Config, error) {
 	}
 
 	cfg = config.NewConfig()
-	err = cl.load("sources.json", &cfg.Sources)
+	err = cl.load("sources.yml", &cfg.Sources)
 	if err != nil {
 		return nil, err
 	}
-	err = cl.load("destinations.json", &cfg.Destinations)
+	err = cl.load("destinations.yml", &cfg.Destinations)
 	if err != nil {
 		return nil, err
 	}
-	err = cl.load("klosets.json", &cfg.Repositories)
+	err = cl.load("klosets.yml", &cfg.Repositories)
 	if err != nil {
 		return nil, err
 	}
 	for k, v := range cfg.Repositories {
-		if _, ok := v[".default"]; ok {
+		if _, ok := v[".isDefault"]; ok {
 			cfg.DefaultRepository = k
-			delete(v, ".default")
+			delete(v, ".isDefault")
 		}
 	}
 
@@ -62,20 +62,20 @@ func (cl *configHandler) Load() (*config.Config, error) {
 }
 
 func (cl *configHandler) Save(cfg *config.Config) error {
-	err := cl.save("sources.json", cfg.Sources)
+	err := cl.save("sources.yml", cfg.Sources)
 	if err != nil {
 		return err
 	}
-	err = cl.save("destinations.json", cfg.Destinations)
+	err = cl.save("destinations.yml", cfg.Destinations)
 	if err != nil {
 		return err
 	}
 	for k, v := range cfg.Repositories {
 		if k == cfg.DefaultRepository {
-			v[".default"] = "yes"
+			v[".isDefault"] = "yes"
 		}
 	}
-	err = cl.save("klosets.json", cfg.Repositories)
+	err = cl.save("klosets.yml", cfg.Repositories)
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func (cl *configHandler) load(filename string, dst any) error {
 	}
 	defer f.Close()
 
-	err = json.NewDecoder(f).Decode(dst)
+	err = yaml.NewDecoder(f).Decode(dst)
 	if err != nil {
 		return fmt.Errorf("failed to parse config file: %w", err)
 	}
@@ -103,12 +103,12 @@ func (cl *configHandler) load(filename string, dst any) error {
 
 func (cl *configHandler) save(filename string, src any) error {
 	path := filepath.Join(cl.Path, filename)
-	tmpFile, err := os.CreateTemp(cl.Path, "config.*.json")
+	tmpFile, err := os.CreateTemp(cl.Path, "config.*.yml")
 	if err != nil {
 		return err
 	}
 
-	err = json.NewEncoder(tmpFile).Encode(src)
+	err = yaml.NewEncoder(tmpFile).Encode(src)
 	tmpFile.Close()
 
 	if err == nil {
