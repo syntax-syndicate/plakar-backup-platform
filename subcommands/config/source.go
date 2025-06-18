@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/PlakarKorp/kloset/repository"
-	"github.com/PlakarKorp/kloset/storage"
+	"github.com/PlakarKorp/kloset/snapshot/importer"
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/utils"
@@ -82,13 +82,17 @@ func source_config(ctx *appcontext.AppContext, args []string) error {
 		if !ctx.Config.HasSource(name) {
 			return fmt.Errorf("source %q does not exist", name)
 		}
-		store, err := storage.New(ctx.GetInner(), ctx.Config.Sources[name])
+		cfg, ok := ctx.Config.GetSource(name)
+		if !ok {
+			return fmt.Errorf("failed to retreive configuration for source %q", name)
+		}
+		imp, err := importer.NewImporter(ctx.GetInner(), ctx.ImporterOpts(), cfg)
 		if err != nil {
 			return err
 		}
-		err = store.Close()
+		err = imp.Close()
 		if err != nil {
-			ctx.GetLogger().Warn("error when closing store: %v", err)
+			ctx.GetLogger().Warn("error when closing source: %w", err)
 		}
 		return nil
 
@@ -122,23 +126,7 @@ func source_config(ctx *appcontext.AppContext, args []string) error {
 		return nil
 
 	case "ping":
-		usage := "usage: plakar source ping <name>"
-		if len(args) != 1 {
-			return fmt.Errorf(usage)
-		}
-		name := args[0]
-		if !ctx.Config.HasSource(name) {
-			return fmt.Errorf("source %q does not exist", name)
-		}
-		store, _, err := storage.Open(ctx.GetInner(), ctx.Config.Sources[name])
-		if err != nil {
-			return err
-		}
-		err = store.Close()
-		if err != nil {
-			ctx.GetLogger().Warn("error when closing store: %v", err)
-		}
-		return nil
+		return fmt.Errorf("not implemented")
 
 	case "rm":
 		usage := "usage: plakar source rm <name>"

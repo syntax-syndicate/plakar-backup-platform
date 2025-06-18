@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/PlakarKorp/kloset/repository"
-	"github.com/PlakarKorp/kloset/storage"
+	"github.com/PlakarKorp/kloset/snapshot/exporter"
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/utils"
@@ -82,11 +82,15 @@ func destination_config(ctx *appcontext.AppContext, args []string) error {
 		if !ctx.Config.HasDestination(name) {
 			return fmt.Errorf("destination %q does not exist", name)
 		}
-		store, err := storage.New(ctx.GetInner(), ctx.Config.Destinations[name])
+		cfg, ok := ctx.Config.GetDestination(name)
+		if !ok {
+			return fmt.Errorf("failed to retreive configuration for destination %q", name)
+		}
+		exp, err := exporter.NewExporter(ctx.GetInner(), cfg)
 		if err != nil {
 			return err
 		}
-		err = store.Close()
+		err = exp.Close()
 		if err != nil {
 			ctx.GetLogger().Warn("error when closing store: %v", err)
 		}
@@ -122,23 +126,7 @@ func destination_config(ctx *appcontext.AppContext, args []string) error {
 		return nil
 
 	case "ping":
-		usage := "usage: plakar destination ping <name>"
-		if len(args) != 1 {
-			return fmt.Errorf(usage)
-		}
-		name := args[0]
-		if !ctx.Config.HasDestination(name) {
-			return fmt.Errorf("destination %q does not exist", name)
-		}
-		store, _, err := storage.Open(ctx.GetInner(), ctx.Config.Destinations[name])
-		if err != nil {
-			return err
-		}
-		err = store.Close()
-		if err != nil {
-			ctx.GetLogger().Warn("error when closing store: %v", err)
-		}
-		return nil
+		return fmt.Errorf("not implemented")
 
 	case "rm":
 		usage := "usage: plakar destination rm <name>"
