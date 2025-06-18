@@ -17,10 +17,12 @@ type OldConfig struct {
 }
 
 func LoadOldConfigIfExists(configFile string) (*config.Config, error) {
+	cfg := config.NewConfig()
+
 	f, err := os.Open(configFile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return cfg, nil
 		}
 		return nil, fmt.Errorf("error reading old config file: %w", err)
 	}
@@ -31,7 +33,6 @@ func LoadOldConfigIfExists(configFile string) (*config.Config, error) {
 		return nil, fmt.Errorf("failed to parse old config file: %w", err)
 	}
 
-	cfg := config.NewConfig()
 	cfg.DefaultRepository = old.DefaultRepository
 	cfg.Repositories = old.Repositories
 	cfg.Sources = old.Remotes
@@ -41,5 +42,6 @@ func LoadOldConfigIfExists(configFile string) (*config.Config, error) {
 		maps.Copy(res, val)
 		cfg.Destinations[key] = res
 	}
+
 	return cfg, nil
 }

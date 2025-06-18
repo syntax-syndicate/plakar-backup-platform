@@ -21,36 +21,29 @@ func newConfigHandler(path string) *configHandler {
 
 func (cl *configHandler) Load() (*config.Config, error) {
 
-	// Load old config if found
-	oldpath := filepath.Join(cl.Path, "plakar.yml")
-	cfg, err := LoadOldConfigIfExists(oldpath)
+	cfg := config.NewConfig()
+	err := cl.load("sources.yml", &cfg.Sources)
 	if err != nil {
-		return nil, fmt.Errorf("error reading old config file: %w", err)
-	}
-
-	if cfg != nil {
-		// Save the config in the new format and remove the previous file
-		err = SaveConfig(cl.Path, cfg)
-		if err != nil {
-			return nil, fmt.Errorf("failed to update old config file: %w", err)
+		if os.IsNotExist(err) {
+			goto fallback
 		}
-		os.Remove(oldpath)
-		return cfg, nil
-	}
-
-	cfg = config.NewConfig()
-	err = cl.load("sources.yml", &cfg.Sources)
-	if err != nil {
 		return nil, err
 	}
 	err = cl.load("destinations.yml", &cfg.Destinations)
 	if err != nil {
+		if os.IsNotExist(err) {
+			goto fallback
+		}
 		return nil, err
 	}
 	err = cl.load("klosets.yml", &cfg.Repositories)
 	if err != nil {
+		if os.IsNotExist(err) {
+			goto fallback
+		}
 		return nil, err
 	}
+
 	for k, v := range cfg.Repositories {
 		if _, ok := v[".isDefault"]; ok {
 			cfg.DefaultRepository = k
@@ -58,6 +51,22 @@ func (cl *configHandler) Load() (*config.Config, error) {
 		}
 	}
 
+	return cfg, nil
+
+fallback:
+	// Load old config if found
+	oldpath := filepath.Join(cl.Path, "plakar.yml")
+	cfg, err = LoadOldConfigIfExists(oldpath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading old config file: %w", err)
+	}
+
+	// Save the config in the new format right now
+	err = SaveConfig(cl.Path, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update old config file: %w", err)
+	}
+	// Do we want to remove the old file?
 	return cfg, nil
 }
 
@@ -87,7 +96,7 @@ func (cl *configHandler) load(filename string, dst any) error {
 	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil
+			return err
 		}
 		return fmt.Errorf("error reading config file: %w", err)
 	}
