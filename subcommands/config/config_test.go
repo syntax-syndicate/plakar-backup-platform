@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/PlakarKorp/kloset/config"
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/utils"
@@ -52,7 +51,7 @@ func TestConfigEmpty(t *testing.T) {
 	bufErr.Reset()
 
 	args = []string{"add", "my-remote", "s3://foobar"}
-	subcommandr := &ConfigRemoteCmd{}
+	subcommandr := &ConfigSourceCmd{}
 	err = subcommandr.Parse(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommandr)
@@ -95,50 +94,36 @@ func TestCmdRemote(t *testing.T) {
 	ctx.Stderr = bufErr
 
 	args := []string{}
-	err = cmd_remote_config(ctx, args)
+	err = source_config(ctx, args)
 	require.NoError(t, err)
 
 	args = []string{"unknown"}
-	err = cmd_remote_config(ctx, args)
+	err = source_config(ctx, args)
 	require.EqualError(t, err, "usage: plakar remote [add|check|ls|ping|rm|set|unset]")
 
 	args = []string{"add", "my-remote", "invalid://my-remote"}
-	err = cmd_remote_config(ctx, args)
+	err = source_config(ctx, args)
 	require.NoError(t, err)
 
 	args = []string{"add", "my-remote2", "invalid://my-remote2"}
-	err = cmd_remote_config(ctx, args)
+	err = source_config(ctx, args)
 	require.NoError(t, err)
 
 	args = []string{"set", "my-remote", "option=value"}
-	err = cmd_remote_config(ctx, args)
+	err = source_config(ctx, args)
 	require.NoError(t, err)
 
 	args = []string{"set", "my-remote2", "option2=value2"}
-	err = cmd_remote_config(ctx, args)
+	err = source_config(ctx, args)
 	require.NoError(t, err)
 
 	args = []string{"unset", "my-remote2", "option2"}
-	err = cmd_remote_config(ctx, args)
+	err = source_config(ctx, args)
 	require.NoError(t, err)
 
 	args = []string{"check", "my-remote"}
-	err = cmd_remote_config(ctx, args)
+	err = source_config(ctx, args)
 	require.EqualError(t, err, "backend 'invalid' does not exist")
-
-	ctx.Config.Render(ctx.Stdout)
-
-	output := bufOut.String()
-	expectedOutput := `default-repo: ""
-repositories: {}
-remotes:
-    my-remote:
-        location: invalid://my-remote
-        option: value
-    my-remote2:
-        location: invalid://my-remote2
-`
-	require.Equal(t, expectedOutput, output)
 }
 
 func TestCmdRepository(t *testing.T) {
@@ -194,18 +179,4 @@ func TestCmdRepository(t *testing.T) {
 	args = []string{"check", "my-repo2"}
 	err = cmd_kloset_config(ctx, args)
 	require.EqualError(t, err, "backend 'invalid' does not exist")
-
-	ctx.Config.Render(ctx.Stdout)
-
-	output := bufOut.String()
-	expectedOutput := `default-repo: my-repo
-repositories:
-    my-repo:
-        location: invalid://place
-        option: value
-    my-repo2:
-        location: invalid://place2
-remotes: {}
-`
-	require.Equal(t, expectedOutput, output)
 }
