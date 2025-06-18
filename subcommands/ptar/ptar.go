@@ -95,6 +95,10 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 		return fmt.Errorf("%s: too many parameters", flag.CommandLine.Name())
 	}
 
+	if len(cmd.SyncTargets) == 0 && len(cmd.BackupTargets) == 0 {
+		return fmt.Errorf("%s: at least one -k or -p option must be specified", flag.CommandLine.Name())
+	}
+
 	for _, syncTarget := range cmd.SyncTargets {
 		var peerSecret []byte
 
