@@ -47,9 +47,9 @@ type TarImporter struct {
 }
 
 func init() {
-	importer.Register("tar", location.FLAG_FILE, NewTarImporter)
-	importer.Register("tar+gz", location.FLAG_FILE, NewTarImporter)
-	importer.Register("tgz", location.FLAG_FILE, NewTarImporter)
+	importer.Register("tar", location.FLAG_LOCALFS|location.FLAG_FILE, NewTarImporter)
+	importer.Register("tar+gz", location.FLAG_LOCALFS|location.FLAG_FILE, NewTarImporter)
+	importer.Register("tgz", location.FLAG_LOCALFS|location.FLAG_FILE, NewTarImporter)
 }
 
 func NewTarImporter(ctx context.Context, opts *importer.Options, name string, config map[string]string) (importer.Importer, error) {
