@@ -1,26 +1,25 @@
-package sftp
+package ftp
 
 import (
-	"context"
+	"bytes"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/PlakarKorp/kloset/objects"
-	"github.com/PlakarKorp/kloset/snapshot/exporter"
+	"github.com/PlakarKorp/plakar/appcontext"
 	ptesting "github.com/PlakarKorp/plakar/testing"
 )
 
 func TestExporter(t *testing.T) {
-	// Create a mock SFTP server that accepts the public key
-	server, err := ptesting.NewMockSFTPServer(t)
+	// Create a mock FTP server
+	server, err := ptesting.NewMockFTPServer()
 	if err != nil {
 		t.Fatalf("Failed to create mock server: %v", err)
 	}
 	defer server.Close()
 
 	// Create a temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "sftp-exporter-test-*")
+	tmpDir, err := os.MkdirTemp("", "ftp-exporter-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -32,21 +31,12 @@ func TestExporter(t *testing.T) {
 		"file2.txt": "content2",
 	}
 
-	for name, content := range testFiles {
-		path := filepath.Join(tmpDir, name)
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-			t.Fatalf("Failed to create test file %s: %v", name, err)
-		}
-	}
-
 	// Create the exporter
-	ctx := context.Background()
-	opts := exporter.Options{}
-	exporter, err := NewSFTPExporter(ctx, &opts, "sftp", map[string]string{
-		"location":                 "sftp://" + server.Addr + "/",
-		"username":                 "test",
-		"identity":                 server.KeyFile,
-		"insecure_ignore_host_key": "true",
+	appCtx := appcontext.NewAppContext()
+	exporter, err := NewFTPExporter(appCtx, nil, "ftp", map[string]string{
+		"location": "ftp://" + server.Addr + "/",
+		"username": "test",
+		"password": "test",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create exporter: %v", err)
@@ -68,21 +58,22 @@ func TestExporter(t *testing.T) {
 	}
 
 	// Test storing files
-	for name, _ := range testFiles {
-		path := filepath.Join(tmpDir, name)
-		fp, err := os.Open(path)
-		if err != nil {
-			t.Fatalf("Failed to open file %s: %v", name, err)
-		}
-		defer fp.Close()
-
-		fileInfo, err := fp.Stat()
-		if err != nil {
-			t.Fatalf("Failed to stat file %s: %v", name, err)
-		}
-
-		if err := exporter.StoreFile(name, fp, fileInfo.Size()); err != nil {
+	for name, content := range testFiles {
+		fp := bytes.NewReader([]byte(content))
+		if err := exporter.StoreFile(name, fp, int64(len(content))); err != nil {
 			t.Errorf("Failed to store file %s: %v", name, err)
+		}
+	}
+
+	// Verify stored files
+	for name, expectedContent := range testFiles {
+		content, exists := server.Files[name]
+		if !exists {
+			t.Errorf("File %s was not stored in the FTP server", name)
+			continue
+		}
+		if string(content) != expectedContent {
+			t.Errorf("File %s content mismatch. Expected: %s, Got: %s", name, expectedContent, string(content))
 		}
 	}
 

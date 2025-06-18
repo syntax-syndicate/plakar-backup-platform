@@ -160,7 +160,7 @@ func (cmd *Backup) DoBackup(ctx *appcontext.AppContext, repo *repository.Reposit
 		Excludes:       excludes,
 	}
 
-	scanDir := ctx.CWD
+	scanDir := "fs:" + ctx.CWD
 	if cmd.Path != "" {
 		scanDir = cmd.Path
 	}

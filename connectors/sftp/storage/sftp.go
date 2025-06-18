@@ -26,7 +26,6 @@ import (
 	"io/fs"
 	"net/url"
 	"path"
-	"path/filepath"
 	"strings"
 
 	"github.com/PlakarKorp/kloset/objects"
@@ -241,11 +240,11 @@ func (s *Store) GetLocks() (ret []objects.MAC, err error) {
 }
 
 func (s *Store) PutLock(lockID objects.MAC, rd io.Reader) (int64, error) {
-	return WriteToFileAtomicTempDir(s.client, filepath.Join(s.Path("locks"), hex.EncodeToString(lockID[:])), rd, s.Path(""))
+	return WriteToFileAtomicTempDir(s.client, path.Join(s.Path("locks"), hex.EncodeToString(lockID[:])), rd, s.Path(""))
 }
 
 func (s *Store) GetLock(lockID objects.MAC) (io.Reader, error) {
-	fp, err := s.client.Open(filepath.Join(s.Path("locks"), hex.EncodeToString(lockID[:])))
+	fp, err := s.client.Open(path.Join(s.Path("locks"), hex.EncodeToString(lockID[:])))
 	if err != nil {
 		return nil, err
 	}
@@ -254,5 +253,5 @@ func (s *Store) GetLock(lockID objects.MAC) (io.Reader, error) {
 }
 
 func (s *Store) DeleteLock(lockID objects.MAC) error {
-	return s.client.Remove(filepath.Join(s.Path("locks"), hex.EncodeToString(lockID[:])))
+	return s.client.Remove(path.Join(s.Path("locks"), hex.EncodeToString(lockID[:])))
 }
