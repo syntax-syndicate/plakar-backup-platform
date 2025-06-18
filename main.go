@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/PlakarKorp/kloset/caching"
-	"github.com/PlakarKorp/kloset/config"
 	"github.com/PlakarKorp/kloset/cookies"
 	"github.com/PlakarKorp/kloset/encryption"
 	"github.com/PlakarKorp/kloset/logging"
@@ -110,16 +109,15 @@ func EntryPoint() int {
 
 	opt_usernameDefault := opt_userDefault.Username
 
-	configDir, err := utils.GetConfigDir("plakar")
+	opt_configDefault, err := utils.GetConfigDir("plakar")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not get config directory: %s\n", flag.CommandLine.Name(), err)
 		return 1
 	}
-	opt_configDefault := filepath.Join(configDir, "plakar.yml")
 
 	// command line overrides
 	var opt_cpuCount int
-	var opt_configfile string
+	var opt_configdir string
 	var opt_username string
 	var opt_hostname string
 	var opt_cpuProfile string
@@ -132,7 +130,7 @@ func EntryPoint() int {
 	var opt_enableSecurityCheck bool
 	var opt_disableSecurityCheck bool
 
-	flag.StringVar(&opt_configfile, "config", opt_configDefault, "configuration file")
+	flag.StringVar(&opt_configdir, "config", opt_configDefault, "configuration directory")
 	flag.IntVar(&opt_cpuCount, "cpu", opt_cpuDefault, "limit the number of usable cores")
 	flag.StringVar(&opt_username, "username", opt_usernameDefault, "default username")
 	flag.StringVar(&opt_hostname, "hostname", opt_hostnameDefault, "default hostname")
@@ -163,13 +161,8 @@ func EntryPoint() int {
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
 
-	// err = plugins.LoadBackends(ctx.Context, filepath.Join(configDir, "plugins"))
-	// if err != nil {
-	// 	fmt.Fprintf(os.Stderr, "%s: could not load plugins: %s\n", flag.CommandLine.Name(), err)
-	// 	return 1
-	// }
-
-	cfg, err := config.LoadOrCreate(opt_configfile)
+	ctx.ConfigDir = opt_configdir
+	cfg, err := utils.LoadConfig(opt_configdir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not load configuration: %s\n", flag.CommandLine.Name(), err)
 		return 1

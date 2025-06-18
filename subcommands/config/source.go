@@ -7,20 +7,20 @@ import (
 	"strings"
 
 	"github.com/PlakarKorp/kloset/repository"
-	"github.com/PlakarKorp/kloset/storage"
+	"github.com/PlakarKorp/kloset/snapshot/importer"
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/utils"
 )
 
-type ConfigKlosetCmd struct {
+type ConfigSourceCmd struct {
 	subcommands.SubcommandBase
 
 	args []string
 }
 
-func (cmd *ConfigKlosetCmd) Parse(ctx *appcontext.AppContext, args []string) error {
-	flags := flag.NewFlagSet("kloset", flag.ExitOnError)
+func (cmd *ConfigSourceCmd) Parse(ctx *appcontext.AppContext, args []string) error {
+	flags := flag.NewFlagSet("source", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s\n", flags.Name())
 		flags.PrintDefaults()
@@ -32,17 +32,17 @@ func (cmd *ConfigKlosetCmd) Parse(ctx *appcontext.AppContext, args []string) err
 	return nil
 }
 
-func (cmd *ConfigKlosetCmd) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+func (cmd *ConfigSourceCmd) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 
-	err := cmd_kloset_config(ctx, cmd.args)
+	err := source_config(ctx, cmd.args)
 	if err != nil {
 		return 1, err
 	}
 	return 0, nil
 }
 
-func cmd_kloset_config(ctx *appcontext.AppContext, args []string) error {
-	usage := "usage: plakar kloset [add|check|ls|ping|set|unset]"
+func source_config(ctx *appcontext.AppContext, args []string) error {
+	usage := "usage: plakar source [add|check|ls|ping|set|unset]"
 	cmd := "ls"
 	if len(args) > 0 {
 		cmd = args[0]
@@ -51,16 +51,16 @@ func cmd_kloset_config(ctx *appcontext.AppContext, args []string) error {
 
 	switch cmd {
 	case "add":
-		usage := "usage: plakar kloset add <name> <location> [<key>=<value>, ...]"
+		usage := "usage: plakar source add <name> <location> [<key>=<value>, ...]"
 		if len(args) < 2 {
 			return fmt.Errorf(usage)
 		}
 		name, location := args[0], args[1]
-		if ctx.Config.HasRepository(name) {
-			return fmt.Errorf("kloset %q already exists", name)
+		if ctx.Config.HasSource(name) {
+			return fmt.Errorf("source %q already exists", name)
 		}
-		ctx.Config.Repositories[name] = make(map[string]string)
-		ctx.Config.Repositories[name]["location"] = location
+		ctx.Config.Sources[name] = make(map[string]string)
+		ctx.Config.Sources[name]["location"] = location
 		for _, kv := range args[2:] {
 			key, val, found := strings.Cut(kv, "=")
 			if !found {
@@ -69,40 +69,32 @@ func cmd_kloset_config(ctx *appcontext.AppContext, args []string) error {
 			if key == "" {
 				return fmt.Errorf(usage)
 			}
-			ctx.Config.Repositories[name][key] = val
+			ctx.Config.Sources[name][key] = val
 		}
 		return utils.SaveConfig(ctx.ConfigDir, ctx.Config)
 
 	case "check":
-		usage := "usage: plakar kloset check <name>"
+		usage := "usage: plakar source check <name>"
 		if len(args) != 1 {
 			return fmt.Errorf(usage)
 		}
 		name := args[0]
-		if !ctx.Config.HasRepository(name) {
-			return fmt.Errorf("kloset %q does not exists", name)
+		if !ctx.Config.HasSource(name) {
+			return fmt.Errorf("source %q does not exist", name)
 		}
-		store, err := storage.New(ctx.GetInner(), ctx.Config.Repositories[name])
+		cfg, ok := ctx.Config.GetSource(name)
+		if !ok {
+			return fmt.Errorf("failed to retreive configuration for source %q", name)
+		}
+		imp, err := importer.NewImporter(ctx.GetInner(), ctx.ImporterOpts(), cfg)
 		if err != nil {
 			return err
 		}
-		err = store.Close()
+		err = imp.Close()
 		if err != nil {
-			ctx.GetLogger().Warn("error when closing store: %v", err)
+			ctx.GetLogger().Warn("error when closing source: %v", err)
 		}
 		return nil
-
-	case "default":
-		usage := "usage: plakar kloset default <name>"
-		if len(args) != 1 {
-			return fmt.Errorf(usage)
-		}
-		name := args[0]
-		if !ctx.Config.HasRepository(name) {
-			return fmt.Errorf("kloset %q does not exists", name)
-		}
-		ctx.Config.DefaultRepository = name
-		return utils.SaveConfig(ctx.ConfigDir, ctx.Config)
 
 	case "ls":
 		usage := "usage: plakar remote ls"
@@ -110,17 +102,14 @@ func cmd_kloset_config(ctx *appcontext.AppContext, args []string) error {
 			return fmt.Errorf(usage)
 		}
 		var list []string
-		for name, _ := range ctx.Config.Repositories {
+		for name, _ := range ctx.Config.Sources {
 			list = append(list, name)
 		}
 		sort.Strings(list)
 		for i, name := range list {
-			entry := ctx.Config.Repositories[name]
+			entry := ctx.Config.Sources[name]
 			if i != 0 {
 				fmt.Fprint(ctx.Stdout, "\n")
-			}
-			if ctx.Config.DefaultRepository == name {
-				fmt.Fprintf(ctx.Stdout, "; default\n")
 			}
 			fmt.Fprintf(ctx.Stdout, "[%s]\nlocation=%s\n", name, entry["location"])
 			var keys []string
@@ -140,25 +129,25 @@ func cmd_kloset_config(ctx *appcontext.AppContext, args []string) error {
 		return fmt.Errorf("not implemented")
 
 	case "rm":
-		usage := "usage: plakar kloset rm <name>"
+		usage := "usage: plakar source rm <name>"
 		if len(args) != 1 {
 			return fmt.Errorf(usage)
 		}
 		name := args[0]
-		if !ctx.Config.HasRepository(name) {
-			return fmt.Errorf("kloset %q does not exist", name)
+		if !ctx.Config.HasSource(name) {
+			return fmt.Errorf("source %q does not exist", name)
 		}
-		delete(ctx.Config.Repositories, name)
+		delete(ctx.Config.Sources, name)
 		return utils.SaveConfig(ctx.ConfigDir, ctx.Config)
 
 	case "set":
-		usage := "usage: plakar kloset set <name> [<key>=<value>, ...]"
+		usage := "usage: plakar source set <name> [<key>=<value>, ...]"
 		if len(args) == 0 {
 			return fmt.Errorf(usage)
 		}
 		name := args[0]
-		if !ctx.Config.HasRepository(name) {
-			return fmt.Errorf("kloset %q does not exists", name)
+		if !ctx.Config.HasSource(name) {
+			return fmt.Errorf("source %q does not exist", name)
 		}
 		for _, kv := range args[1:] {
 			key, val, found := strings.Cut(kv, "=")
@@ -168,24 +157,24 @@ func cmd_kloset_config(ctx *appcontext.AppContext, args []string) error {
 			if key == "" {
 				return fmt.Errorf(usage)
 			}
-			ctx.Config.Repositories[name][key] = val
+			ctx.Config.Sources[name][key] = val
 		}
 		return utils.SaveConfig(ctx.ConfigDir, ctx.Config)
 
 	case "unset":
-		usage := "usage: plakar kloset unset <name> [<key>, ...]"
+		usage := "usage: plakar source unset <name> [<key>, ...]"
 		if len(args) == 0 {
 			return fmt.Errorf(usage)
 		}
 		name := args[0]
-		if !ctx.Config.HasRepository(name) {
-			return fmt.Errorf("kloset %q does not exists", name)
+		if !ctx.Config.HasSource(name) {
+			return fmt.Errorf("source %q does not exist", name)
 		}
 		for _, key := range args[1:] {
 			if key == "location" {
 				return fmt.Errorf("cannot unset location")
 			}
-			delete(ctx.Config.Repositories[name], key)
+			delete(ctx.Config.Sources[name], key)
 		}
 		return utils.SaveConfig(ctx.ConfigDir, ctx.Config)
 
