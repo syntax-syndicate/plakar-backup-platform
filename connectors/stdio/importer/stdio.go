@@ -37,7 +37,7 @@ type StdioImporter struct {
 }
 
 func init() {
-	importer.Register("stdin", NewStdioImporter)
+	importer.Register("stdin", 0, NewStdioImporter)
 }
 
 func NewStdioImporter(ctx context.Context, opts *importer.Options, name string, config map[string]string) (importer.Importer, error) {

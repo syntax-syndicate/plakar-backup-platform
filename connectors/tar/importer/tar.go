@@ -28,6 +28,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/PlakarKorp/kloset/location"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/snapshot/importer"
 )
@@ -46,9 +47,9 @@ type TarImporter struct {
 }
 
 func init() {
-	importer.Register("tar", NewTarImporter)
-	importer.Register("tar+gz", NewTarImporter)
-	importer.Register("tgz", NewTarImporter)
+	importer.Register("tar", location.FLAG_FILE, NewTarImporter)
+	importer.Register("tar+gz", location.FLAG_FILE, NewTarImporter)
+	importer.Register("tgz", location.FLAG_FILE, NewTarImporter)
 }
 
 func NewTarImporter(ctx context.Context, opts *importer.Options, name string, config map[string]string) (importer.Importer, error) {
