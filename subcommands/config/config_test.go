@@ -9,6 +9,7 @@ import (
 	"github.com/PlakarKorp/kloset/config"
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,7 +24,7 @@ func TestConfigEmpty(t *testing.T) {
 	})
 
 	configPath := filepath.Join(tmpDir, "config.yaml")
-	cfg, err := config.LoadOrCreate(configPath)
+	cfg, err := utils.LoadOldConfigIfExists(configPath)
 	require.NoError(t, err)
 	ctx := appcontext.NewAppContext()
 	ctx.Config = cfg
@@ -86,7 +87,7 @@ func TestCmdRemote(t *testing.T) {
 	})
 
 	configPath := filepath.Join(tmpDir, "config.yaml")
-	cfg, err := config.LoadOrCreate(configPath)
+	cfg, err := utils.LoadOldConfigIfExists(configPath)
 	require.NoError(t, err)
 	ctx := appcontext.NewAppContext()
 	ctx.Config = cfg
@@ -151,7 +152,7 @@ func TestCmdRepository(t *testing.T) {
 	})
 
 	configPath := filepath.Join(tmpDir, "config.yaml")
-	cfg, err := config.LoadOrCreate(configPath)
+	cfg, err := utils.LoadOldConfigIfExists(configPath)
 	require.NoError(t, err)
 	ctx := appcontext.NewAppContext()
 	ctx.Config = cfg

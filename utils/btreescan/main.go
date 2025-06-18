@@ -122,7 +122,7 @@ func main() {
 		log.Fatal("failed to get plakar config dir: ", err)
 	}
 
-	config, err := config.LoadOrCreate(filepath.Join(cdir, "plakar.yml"))
+	config, err := utils.LoadOldConfigIfExists(filepath.Join(cdir, "plakar.yml"))
 	if err != nil {
 		log.Fatal("could not load config file: ", err)
 	}

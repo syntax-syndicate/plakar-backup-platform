@@ -13,6 +13,7 @@ import (
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/kloset/snapshot"
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/utils"
 	_ "github.com/PlakarKorp/plakar/connectors/fs/exporter"
 	ptesting "github.com/PlakarKorp/plakar/testing"
 	"github.com/stretchr/testify/require"
@@ -104,7 +105,7 @@ func TestExecuteCmdSyncWithEncryption(t *testing.T) {
 	opt_configfile := filepath.Join(strings.TrimPrefix(peerRepo.Location(), "fs://"), "plakar.yml")
 	fmt.Println("opt_configfile", opt_configfile)
 
-	cfg, err := config.LoadOrCreate(opt_configfile)
+	cfg, err := utils.LoadOldConfigIfExists(opt_configfile)
 	require.NoError(t, err)
 	lctx.Config = cfg
 	lctx.Config.Repositories["peerRepo"] = make(map[string]string)
