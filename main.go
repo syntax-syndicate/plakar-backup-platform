@@ -27,6 +27,7 @@ import (
 	"github.com/PlakarKorp/kloset/versioning"
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
+	_ "github.com/PlakarKorp/plakar/plugins"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/task"
 	"github.com/PlakarKorp/plakar/utils"
@@ -306,7 +307,7 @@ func EntryPoint() int {
 			if def != "" {
 				repositoryPath = "@" + def
 			} else {
-				repositoryPath = filepath.Join(ctx.HomeDir, ".plakar")
+				repositoryPath = "fs:" + filepath.Join(ctx.HomeDir, ".plakar")
 			}
 		}
 
