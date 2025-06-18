@@ -92,7 +92,7 @@ func source_config(ctx *appcontext.AppContext, args []string) error {
 		}
 		err = imp.Close()
 		if err != nil {
-			ctx.GetLogger().Warn("error when closing source: %w", err)
+			ctx.GetLogger().Warn("error when closing source: %v", err)
 		}
 		return nil
 
