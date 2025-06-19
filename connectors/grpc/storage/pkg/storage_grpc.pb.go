@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.4.0
 // - protoc             v4.24.4
-// source: store.proto
+// source: storage.proto
 
-package store
+package storage
 
 import (
 	context "context"
@@ -1001,5 +1001,5 @@ var Store_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "store.proto",
+	Metadata: "storage.proto",
 }
