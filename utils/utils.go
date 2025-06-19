@@ -253,7 +253,7 @@ func GetConfigDir(appName string) (string, error) {
 		}
 		configDir = filepath.Join(configDir, appName)
 	default:
-		// Use XDG_CACHE_HOME or default to ~/.cache
+		// Use XDG_CONFIG_HOME or default to ~/.config
 		configDir = os.Getenv("XDG_CONFIG_HOME")
 		if configDir == "" {
 			homeDir, err := os.UserHomeDir()
