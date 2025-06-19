@@ -287,47 +287,6 @@ func GetVersion() string {
 	return VERSION
 }
 
-func NormalizePath(path string) (string, error) {
-	path = filepath.Clean(path)
-	parts := strings.Split(path, string(filepath.Separator))[1:]
-
-	if len(parts) == 0 || parts[0] == "" {
-		return "/", nil
-	}
-
-	var normalizedPath string
-	// For Windows, start with the drive letter.
-	if filepath.IsAbs(path) {
-		normalizedPath = string(filepath.Separator)
-	}
-
-	for _, part := range parts {
-		if part == "" {
-			continue
-		}
-
-		dirEntries, err := os.ReadDir(normalizedPath)
-		if err != nil {
-			return "", err
-		}
-
-		matched := false
-		for _, entry := range dirEntries {
-			if strings.EqualFold(entry.Name(), part) {
-				normalizedPath = filepath.Join(normalizedPath, entry.Name())
-				matched = true
-				break
-			}
-		}
-
-		if !matched {
-			return "", fmt.Errorf("path not found: %s", path)
-		}
-	}
-
-	return normalizedPath, nil
-}
-
 var sbuilderPool = sync.Pool{
 	New: func() any {
 		return new(strings.Builder)
