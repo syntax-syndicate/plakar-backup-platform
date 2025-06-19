@@ -292,13 +292,15 @@ func NormalizePath(path string) (string, error) {
 	parts := strings.Split(path, string(filepath.Separator))[1:]
 
 	if len(parts) == 0 || parts[0] == "" {
+		if runtime.GOOS == "windows" {
+			return "C:\\", nil
+		}
 		return "/", nil
 	}
 
-	var normalizedPath string
-	// For Windows, start with the drive letter.
-	if filepath.IsAbs(path) {
-		normalizedPath = string(filepath.Separator)
+	normalizedPath := string(filepath.Separator)
+	if runtime.GOOS == "windows" {
+		normalizedPath = filepath.VolumeName(path) + "\\"
 	}
 
 	for _, part := range parts {
