@@ -20,7 +20,6 @@ func newConfigHandler(path string) *configHandler {
 }
 
 func (cl *configHandler) Load() (*config.Config, error) {
-
 	cfg := config.NewConfig()
 	err := cl.load("sources.yml", &cfg.Sources)
 	if err != nil {

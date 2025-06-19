@@ -26,6 +26,7 @@ func TestConfigEmpty(t *testing.T) {
 	cfg, err := utils.LoadOldConfigIfExists(configPath)
 	require.NoError(t, err)
 	ctx := appcontext.NewAppContext()
+	ctx.ConfigDir = tmpDir
 	ctx.Config = cfg
 	ctx.Stdout = bufOut
 	ctx.Stderr = bufErr
@@ -90,6 +91,7 @@ func TestCmdRemote(t *testing.T) {
 	require.NoError(t, err)
 	ctx := appcontext.NewAppContext()
 	ctx.Config = cfg
+	ctx.ConfigDir = tmpDir
 	ctx.Stdout = bufOut
 	ctx.Stderr = bufErr
 
@@ -141,6 +143,7 @@ func TestCmdRepository(t *testing.T) {
 	require.NoError(t, err)
 	ctx := appcontext.NewAppContext()
 	ctx.Config = cfg
+	ctx.ConfigDir = tmpDir
 	ctx.Stdout = bufOut
 	ctx.Stderr = bufErr
 
