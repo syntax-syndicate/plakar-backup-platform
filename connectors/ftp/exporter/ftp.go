@@ -47,7 +47,7 @@ func connectToFTP(host, username, password string) (*goftp.Client, error) {
 }
 
 func init() {
-	exporter.Register("ftp", NewFTPExporter)
+	exporter.Register("ftp", 0, NewFTPExporter)
 }
 
 func NewFTPExporter(ctx context.Context, opts *exporter.Options, name string, config map[string]string) (exporter.Exporter, error) {

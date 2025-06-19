@@ -27,6 +27,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/PlakarKorp/kloset/location"
 	"github.com/PlakarKorp/kloset/snapshot/importer"
 )
 
@@ -43,7 +44,7 @@ type FSImporter struct {
 }
 
 func init() {
-	importer.Register("fs", NewFSImporter)
+	importer.Register("fs", location.FLAG_LOCALFS, NewFSImporter)
 }
 
 func NewFSImporter(appCtx context.Context, opts *importer.Options, name string, config map[string]string) (importer.Importer, error) {

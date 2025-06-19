@@ -39,7 +39,7 @@ type FTPImporter struct {
 }
 
 func init() {
-	importer.Register("ftp", NewFTPImporter)
+	importer.Register("ftp", 0, NewFTPImporter)
 }
 
 func connectToFTP(host, username, password string) (*goftp.Client, error) {

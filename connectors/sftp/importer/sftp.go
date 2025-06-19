@@ -32,7 +32,7 @@ type SFTPImporter struct {
 }
 
 func init() {
-	importer.Register("sftp", NewSFTPImporter)
+	importer.Register("sftp", 0, NewSFTPImporter)
 }
 
 func NewSFTPImporter(appCtx context.Context, opts *importer.Options, name string, config map[string]string) (importer.Importer, error) {

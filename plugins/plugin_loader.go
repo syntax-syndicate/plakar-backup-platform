@@ -55,28 +55,28 @@ func LoadBackends(ctx context.Context, pluginPath string) error {
 
 			switch pluginEntry.Name() {
 			case "importer":
-				importer.Register(key, func(ctx context.Context, o *importer.Options, s string, config map[string]string) (importer.Importer, error) {
+				importer.Register(key, 0, func(ctx context.Context, o *importer.Options, s string, config map[string]string) (importer.Importer, error) {
 					client, err := connectPlugin(filepath.Join(pluginFolderPath, pluginFileName), config)
 					if err != nil {
 						return nil, fmt.Errorf("failed to connect to plugin: %w", err)
 					}
 
 					return &grpc_importer.GrpcImporter{
-						GrpcClientScan:   	grpc_importer_pkg.NewImporterClient(client),
-						GrpcClientReader: 	grpc_importer_pkg.NewImporterClient(client),
-						Ctx:             	ctx,
+						GrpcClientScan:   grpc_importer_pkg.NewImporterClient(client),
+						GrpcClientReader: grpc_importer_pkg.NewImporterClient(client),
+						Ctx:              ctx,
 					}, nil
 				})
 			case "exporter":
-				exporter.Register(key, func(ctx context.Context, o *exporter.Options, s string, config map[string]string) (exporter.Exporter, error) {
+				exporter.Register(key, 0, func(ctx context.Context, o *exporter.Options, s string, config map[string]string) (exporter.Exporter, error) {
 					client, err := connectPlugin(filepath.Join(pluginFolderPath, pluginFileName), config)
 					if err != nil {
 						return nil, fmt.Errorf("failed to connect to plugin: %w", err)
 					}
 
 					return &grpc_exporter.GrpcExporter{
-						GrpcClient: 		grpc_exporter_pkg.NewExporterClient(client),
-						Ctx:             	ctx,
+						GrpcClient: grpc_exporter_pkg.NewExporterClient(client),
+						Ctx:        ctx,
 					}, nil
 				})
 			case "storage":
@@ -87,10 +87,10 @@ func LoadBackends(ctx context.Context, pluginPath string) error {
 					}
 
 					return &grpc_storage.GrpcStorage{
-						GrpcClient:   		grpc_storage_pkg.NewStoreClient(client),
-						Ctx:             	ctx,
+						GrpcClient: grpc_storage_pkg.NewStoreClient(client),
+						Ctx:        ctx,
 					}, nil
-				}, key)
+				}, 0, key)
 			default:
 				return fmt.Errorf("unknown plugin type: %s", pluginEntry.Name())
 			}
