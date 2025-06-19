@@ -25,6 +25,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/PlakarKorp/kloset/location"
 	"github.com/PlakarKorp/kloset/objects"
 	"github.com/PlakarKorp/kloset/storage"
 	"github.com/PlakarKorp/kloset/versioning"
@@ -53,7 +54,7 @@ var stateMAC = objects.MAC{0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07,
 var packfileMAC = objects.MAC{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f}
 
 func init() {
-	storage.Register(NewStore, "ptar")
+	storage.Register(NewStore, location.FLAG_LOCALFS|location.FLAG_FILE, "ptar")
 }
 
 func NewStore(ctx context.Context, proto string, storeConfig map[string]string) (storage.Store, error) {

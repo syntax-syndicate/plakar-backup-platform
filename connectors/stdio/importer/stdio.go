@@ -21,7 +21,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -38,7 +37,7 @@ type StdioImporter struct {
 }
 
 func init() {
-	importer.Register("stdin", NewStdioImporter)
+	importer.Register("stdin", 0, NewStdioImporter)
 }
 
 func NewStdioImporter(ctx context.Context, opts *importer.Options, name string, config map[string]string) (importer.Importer, error) {
@@ -59,11 +58,11 @@ func NewStdioImporter(ctx context.Context, opts *importer.Options, name string, 
 }
 
 func (p *StdioImporter) stdioWalker_addPrefixDirectories(results chan<- *importer.ScanResult) {
-	directory := filepath.Clean(p.fileDir)
+	directory := path.Clean(p.fileDir)
 	atoms := strings.Split(directory, string(os.PathSeparator))
 
 	for i := 0; i < len(atoms)-1; i++ {
-		subpath := filepath.Join(atoms[0 : i+1]...)
+		subpath := path.Join(atoms[0 : i+1]...)
 
 		if !strings.HasPrefix(subpath, "/") {
 			subpath = "/" + subpath

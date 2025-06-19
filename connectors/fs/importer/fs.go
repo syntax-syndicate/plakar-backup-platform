@@ -22,13 +22,12 @@ import (
 	"io/fs"
 	"os"
 	"os/user"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 
+	"github.com/PlakarKorp/kloset/location"
 	"github.com/PlakarKorp/kloset/snapshot/importer"
 )
 
@@ -45,18 +44,18 @@ type FSImporter struct {
 }
 
 func init() {
-	importer.Register("fs", NewFSImporter)
+	importer.Register("fs", location.FLAG_LOCALFS, NewFSImporter)
 }
 
 func NewFSImporter(appCtx context.Context, opts *importer.Options, name string, config map[string]string) (importer.Importer, error) {
 	location := config["location"]
 	rootDir := strings.TrimPrefix(location, "fs://")
 
-	if !path.IsAbs(rootDir) {
+	if !filepath.IsAbs(rootDir) {
 		return nil, fmt.Errorf("not an absolute path %s", location)
 	}
 
-	rootDir = path.Clean(rootDir)
+	rootDir = filepath.Clean(rootDir)
 
 	nocrossfs, _ := strconv.ParseBool(config["dont_traverse_fs"])
 
@@ -115,16 +114,13 @@ func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir
 		}
 
 		if d.IsDir() && f.nocrossfs {
-			info, err := d.Info()
+			same, err := isSameFs(devno, d)
 			if err != nil {
 				results <- importer.NewScanError(path, err)
 				return nil
 			}
-
-			if sb, ok := info.Sys().(*syscall.Stat_t); ok {
-				if uint64(sb.Dev) != devno {
-					return filepath.SkipDir
-				}
+			if !same {
+				return filepath.SkipDir
 			}
 		}
 
@@ -182,9 +178,7 @@ func (f *FSImporter) realpathFollow(path string) (resolved string, dev uint64, e
 	}
 
 	if info.Mode()&os.ModeDir != 0 {
-		if sb, ok := info.Sys().(*syscall.Stat_t); ok {
-			dev = uint64(sb.Dev)
-		}
+		dev = dirDevice(info)
 	}
 
 	if info.Mode()&os.ModeSymlink != 0 {
