@@ -7,6 +7,6 @@ import (
 	"errors"
 )
 
-func LoadBackends(ctx context.Context, pluginPath string) error {
+func Load(ctx context.Context, pluginPath string) error {
 	return errors.ErrUnsupported
 }

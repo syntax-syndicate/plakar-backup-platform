@@ -4,7 +4,9 @@ package plugins
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
 	"os/exec"
@@ -28,10 +30,13 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func LoadBackends(ctx context.Context, pluginPath string) error {
+func Load(ctx context.Context, pluginPath string) error {
 	dirEntries, err := os.ReadDir(pluginPath)
 	if err != nil {
-		return fmt.Errorf("failed to read plugins directory: %w", err)
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		return err
 	}
 
 	pluginAcceptTypes := map[string]bool{"importer": true, "exporter": true, "storage": true}

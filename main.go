@@ -27,7 +27,7 @@ import (
 	"github.com/PlakarKorp/kloset/versioning"
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
-	_ "github.com/PlakarKorp/plakar/plugins"
+	"github.com/PlakarKorp/plakar/plugins"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/task"
 	"github.com/PlakarKorp/plakar/utils"
@@ -197,6 +197,12 @@ func EntryPoint() int {
 	ctx.SetCache(caching.NewManager(cacheDir))
 	defer ctx.GetCache().Close()
 
+	dataDir, err := utils.GetDataDir("plakar")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: could not get data directory: %s\n", flag.CommandLine.Name(), err)
+		return 1
+	}
+
 	if opt_disableSecurityCheck {
 		ctx.GetCookies().SetDisabledSecurityCheck()
 		fmt.Fprintln(ctx.Stdout, "security check disabled !")
@@ -280,6 +286,11 @@ func EntryPoint() int {
 	}
 
 	ctx.SetLogger(logger)
+
+	pluginDir := filepath.Join(dataDir, "plugins")
+	if err := plugins.Load(ctx, pluginDir); err != nil {
+		logger.Warn("failed to load the plugins: %s", err)
+	}
 
 	var repositoryPath string
 
