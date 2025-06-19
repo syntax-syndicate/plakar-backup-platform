@@ -28,7 +28,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func LoadBackends(ctx context.Context, pluginPath string) error {
+func Load(ctx context.Context, pluginPath string) error {
 	dirEntries, err := os.ReadDir(pluginPath)
 	if err != nil {
 		return fmt.Errorf("failed to read plugins directory: %w", err)
