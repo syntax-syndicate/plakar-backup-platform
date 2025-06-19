@@ -65,31 +65,6 @@ func init() {
 
 var agentContextSingleton *AgentContext
 
-func daemonize(argv []string) error {
-	binary, err := os.Executable()
-	if err != nil {
-		return err
-	}
-
-	procAttr := syscall.ProcAttr{}
-	procAttr.Files = []uintptr{
-		uintptr(syscall.Stdin),
-		uintptr(syscall.Stdout),
-		uintptr(syscall.Stderr),
-	}
-	procAttr.Env = append(os.Environ(),
-		"REEXEC=1",
-	)
-
-	pid, err := syscall.ForkExec(binary, argv, &procAttr)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("agent started with pid=%d\n", pid)
-	os.Exit(0)
-	return nil
-}
-
 func (cmd *Agent) Parse(ctx *appcontext.AppContext, args []string) error {
 	var opt_foreground bool
 	var opt_logfile string
