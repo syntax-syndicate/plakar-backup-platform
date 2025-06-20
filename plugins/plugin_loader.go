@@ -12,33 +12,27 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-
 	"strings"
 	"syscall"
 
 	"github.com/PlakarKorp/kloset/location"
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/kloset/snapshot"
-	"gopkg.in/yaml.v3"
-
+	"github.com/PlakarKorp/kloset/snapshot/exporter"
 	"github.com/PlakarKorp/kloset/snapshot/importer"
+	"github.com/PlakarKorp/kloset/storage"
 	"github.com/PlakarKorp/plakar/appcontext"
 	fsexporter "github.com/PlakarKorp/plakar/connectors/fs/exporter"
-
-	grpc_importer "github.com/PlakarKorp/plakar/connectors/grpc/importer"
-	grpc_importer_pkg "github.com/PlakarKorp/plakar/connectors/grpc/importer/pkg"
-	"github.com/PlakarKorp/plakar/utils"
-
-	"github.com/PlakarKorp/kloset/snapshot/exporter"
 	grpc_exporter "github.com/PlakarKorp/plakar/connectors/grpc/exporter"
 	grpc_exporter_pkg "github.com/PlakarKorp/plakar/connectors/grpc/exporter/pkg"
-
-	"github.com/PlakarKorp/kloset/storage"
+	grpc_importer "github.com/PlakarKorp/plakar/connectors/grpc/importer"
+	grpc_importer_pkg "github.com/PlakarKorp/plakar/connectors/grpc/importer/pkg"
 	grpc_storage "github.com/PlakarKorp/plakar/connectors/grpc/storage"
 	grpc_storage_pkg "github.com/PlakarKorp/plakar/connectors/grpc/storage/pkg"
-
+	"github.com/PlakarKorp/plakar/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"gopkg.in/yaml.v3"
 )
 
 type Manifest []struct {
