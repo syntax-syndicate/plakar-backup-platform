@@ -7,6 +7,7 @@ import (
 
 type AppContext struct {
 	*kcontext.KContext
+	ConfigDir string
 	secret []byte
 }
 

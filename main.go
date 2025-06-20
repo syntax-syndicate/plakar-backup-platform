@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/PlakarKorp/kloset/caching"
-	"github.com/PlakarKorp/kloset/config"
 	"github.com/PlakarKorp/kloset/cookies"
 	"github.com/PlakarKorp/kloset/encryption"
 	"github.com/PlakarKorp/kloset/logging"
@@ -28,6 +27,7 @@ import (
 	"github.com/PlakarKorp/kloset/versioning"
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/plugins"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/task"
 	"github.com/PlakarKorp/plakar/utils"
@@ -79,11 +79,6 @@ func EntryPoint() int {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		return 1
 	}
-	cwd, err = utils.NormalizePath(cwd)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
-		return 1
-	}
 
 	opt_cpuDefault := runtime.GOMAXPROCS(0)
 	if opt_cpuDefault != 1 {
@@ -109,16 +104,15 @@ func EntryPoint() int {
 
 	opt_usernameDefault := opt_userDefault.Username
 
-	configDir, err := utils.GetConfigDir("plakar")
+	opt_configDefault, err := utils.GetConfigDir("plakar")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not get config directory: %s\n", flag.CommandLine.Name(), err)
 		return 1
 	}
-	opt_configDefault := filepath.Join(configDir, "plakar.yml")
 
 	// command line overrides
 	var opt_cpuCount int
-	var opt_configfile string
+	var opt_configdir string
 	var opt_username string
 	var opt_hostname string
 	var opt_cpuProfile string
@@ -131,7 +125,7 @@ func EntryPoint() int {
 	var opt_enableSecurityCheck bool
 	var opt_disableSecurityCheck bool
 
-	flag.StringVar(&opt_configfile, "config", opt_configDefault, "configuration file")
+	flag.StringVar(&opt_configdir, "config", opt_configDefault, "configuration directory")
 	flag.IntVar(&opt_cpuCount, "cpu", opt_cpuDefault, "limit the number of usable cores")
 	flag.StringVar(&opt_username, "username", opt_usernameDefault, "default username")
 	flag.StringVar(&opt_hostname, "hostname", opt_hostnameDefault, "default hostname")
@@ -162,7 +156,8 @@ func EntryPoint() int {
 	ctx := appcontext.NewAppContext()
 	defer ctx.Close()
 
-	cfg, err := config.LoadOrCreate(opt_configfile)
+	ctx.ConfigDir = opt_configdir
+	cfg, err := utils.LoadConfig(opt_configdir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: could not load configuration: %s\n", flag.CommandLine.Name(), err)
 		return 1
@@ -201,6 +196,12 @@ func EntryPoint() int {
 	ctx.CacheDir = cacheDir
 	ctx.SetCache(caching.NewManager(cacheDir))
 	defer ctx.GetCache().Close()
+
+	dataDir, err := utils.GetDataDir("plakar")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: could not get data directory: %s\n", flag.CommandLine.Name(), err)
+		return 1
+	}
 
 	if opt_disableSecurityCheck {
 		ctx.GetCookies().SetDisabledSecurityCheck()
@@ -286,6 +287,11 @@ func EntryPoint() int {
 
 	ctx.SetLogger(logger)
 
+	pluginDir := filepath.Join(dataDir, "plugins")
+	if err := plugins.Load(ctx, pluginDir); err != nil {
+		logger.Warn("failed to load the plugins: %s", err)
+	}
+
 	var repositoryPath string
 
 	var at bool
@@ -307,7 +313,7 @@ func EntryPoint() int {
 			if def != "" {
 				repositoryPath = "@" + def
 			} else {
-				repositoryPath = filepath.Join(ctx.HomeDir, ".plakar")
+				repositoryPath = "fs:" + filepath.Join(ctx.HomeDir, ".plakar")
 			}
 		}
 

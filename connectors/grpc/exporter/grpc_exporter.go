@@ -7,21 +7,26 @@ import (
 	"github.com/PlakarKorp/kloset/objects"
 	grpc_exporter "github.com/PlakarKorp/plakar/connectors/grpc/exporter/pkg"
 
+	// google being google I guess.  No idea why this is actually
+	// required, but otherwise it breaks the workspace setup
+	// c.f. https://github.com/googleapis/go-genproto/issues/1015
+	_ "google.golang.org/genproto/protobuf/ptype"
+
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type GrpcExporter struct {
 	GrpcClient 	grpc_exporter.ExporterClient
-	ctx 		context.Context
+	Ctx 		context.Context
 }
 
 func (g *GrpcExporter) Close() error {
-	_, err := g.GrpcClient.Close(g.ctx, &grpc_exporter.CloseRequest{})
+	_, err := g.GrpcClient.Close(g.Ctx, &grpc_exporter.CloseRequest{})
 	return err
 }
 
 func (g *GrpcExporter) CreateDirectory(pathname string) error {
-	_, err := g.GrpcClient.CreateDirectory(g.ctx, &grpc_exporter.CreateDirectoryRequest{Pathname: pathname})
+	_, err := g.GrpcClient.CreateDirectory(g.Ctx, &grpc_exporter.CreateDirectoryRequest{Pathname: pathname})
 	if err != nil {
 		return err
 	}
@@ -29,7 +34,7 @@ func (g *GrpcExporter) CreateDirectory(pathname string) error {
 }
 
 func (g *GrpcExporter) Root() string {
-	info, err := g.GrpcClient.Root(g.ctx, &grpc_exporter.RootRequest{})
+	info, err := g.GrpcClient.Root(g.Ctx, &grpc_exporter.RootRequest{})
 	if err != nil {
 		return ""
 	}
@@ -37,7 +42,7 @@ func (g *GrpcExporter) Root() string {
 }
 
 func (g *GrpcExporter) SetPermissions(pathname string, fileinfo *objects.FileInfo) error {
-	_, err := g.GrpcClient.SetPermissions(g.ctx, &grpc_exporter.SetPermissionsRequest{
+	_, err := g.GrpcClient.SetPermissions(g.Ctx, &grpc_exporter.SetPermissionsRequest{
 		Pathname: pathname,
 		FileInfo: &grpc_exporter.FileInfo{
 			Name: 		fileinfo.Lname,
@@ -57,7 +62,7 @@ func (g *GrpcExporter) SetPermissions(pathname string, fileinfo *objects.FileInf
 }
 
 func (g *GrpcExporter) StoreFile(pathname string, fp io.Reader, size int64) error {
-	stream, err := g.GrpcClient.StoreFile(g.ctx)
+	stream, err := g.GrpcClient.StoreFile(g.Ctx)
 	if err != nil {
 		return err
 	}

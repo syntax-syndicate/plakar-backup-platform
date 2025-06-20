@@ -165,7 +165,7 @@ func (cmd *Backup) DoBackup(ctx *appcontext.AppContext, repo *repository.Reposit
 		Excludes:       excludes,
 	}
 
-	scanDir := ctx.CWD
+	scanDir := "fs:" + ctx.CWD
 	if cmd.Path != "" {
 		scanDir = cmd.Path
 	}
@@ -175,7 +175,7 @@ func (cmd *Backup) DoBackup(ctx *appcontext.AppContext, repo *repository.Reposit
 	}
 
 	if strings.HasPrefix(scanDir, "@") {
-		remote, ok := ctx.Config.GetRemote(scanDir[1:])
+		remote, ok := ctx.Config.GetSource(scanDir[1:])
 		if !ok {
 			return 1, fmt.Errorf("could not resolve importer: %s", scanDir), objects.MAC{}, nil
 		}

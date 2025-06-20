@@ -38,7 +38,7 @@ type S3Exporter struct {
 }
 
 func init() {
-	exporter.Register("s3", NewS3Exporter)
+	exporter.Register("s3", 0, NewS3Exporter)
 }
 
 func connect(location *url.URL, useSsl bool, accessKeyID, secretAccessKey string) (*minio.Client, error) {
