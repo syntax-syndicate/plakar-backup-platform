@@ -45,7 +45,9 @@ type Manifest []struct {
 }
 
 func Load(ctx *appcontext.AppContext, pluginsDir, cacheDir string) error {
-	os.MkdirAll(cacheDir, 0755)
+	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+		return err
+	}
 
 	dirEntries, err := os.ReadDir(pluginsDir)
 	if err != nil {
