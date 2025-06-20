@@ -3,10 +3,11 @@
 package plugins
 
 import (
-	"context"
 	"errors"
+
+	"github.com/PlakarKorp/plakar/appcontext"
 )
 
-func Load(ctx context.Context, pluginPath string) error {
+func Load(ctx *appcontext.AppContext, pluginPath, cacheDir string) error {
 	return errors.ErrUnsupported
 }
