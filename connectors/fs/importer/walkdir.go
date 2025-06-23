@@ -96,15 +96,23 @@ func (f *FSImporter) walkDir_worker(jobs <-chan string, results chan<- *importer
 	}
 }
 
-func walkDir_addPrefixDirectories(root string, jobs chan<- string, results chan<- *importer.ScanResult) {
+func walkDir_addPrefixDirectories(root string, results chan<- *importer.ScanResult) {
 	root = filepath.Dir(root)
 	for {
-		if _, err := os.Stat(root); err != nil {
+		var finfo objects.FileInfo
+
+		sb, err := os.Lstat(root)
+		if err != nil {
 			results <- importer.NewScanError(root, err)
-			continue
+			finfo = objects.FileInfo{
+				Lname: filepath.Base(root),
+				Lmode: os.ModeDir | 0755,
+			}
+		} else {
+			finfo = objects.FileInfoFromStat(sb)
 		}
 
-		jobs <- root
+		results <- importer.NewScanRecord(root, "", finfo, nil, nil)
 
 		newroot := filepath.Dir(root)
 		if newroot == root { // base case for "/" or "C:\"
@@ -114,6 +122,10 @@ func walkDir_addPrefixDirectories(root string, jobs chan<- string, results chan<
 	}
 
 	if runtime.GOOS == "windows" {
-		jobs <- "/"
+		finfo := objects.FileInfo{
+			Lname: "/",
+			Lmode: os.ModeDir | 0755,
+		}
+		results <- importer.NewScanRecord("/", "", finfo, nil, nil)
 	}
 }

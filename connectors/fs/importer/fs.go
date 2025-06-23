@@ -101,10 +101,10 @@ func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, numWork
 	}
 
 	// Add prefix directories first
-	walkDir_addPrefixDirectories(f.realpath, jobs, results)
+	walkDir_addPrefixDirectories(f.realpath, results)
 	if f.realpath != f.rootDir {
 		jobs <- f.rootDir
-		walkDir_addPrefixDirectories(f.rootDir, jobs, results)
+		walkDir_addPrefixDirectories(f.rootDir, results)
 	}
 
 	err := filepath.WalkDir(f.realpath, func(path string, d fs.DirEntry, err error) error {
