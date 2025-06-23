@@ -18,7 +18,6 @@ package config
 
 import (
 	"github.com/PlakarKorp/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/subcommands/agent"
 )
 
 func init() {
