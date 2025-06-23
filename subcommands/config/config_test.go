@@ -101,7 +101,7 @@ func TestCmdRemote(t *testing.T) {
 
 	args = []string{"unknown"}
 	err = source_config(ctx, args)
-	require.EqualError(t, err, "usage: plakar source [add|check|ls|ping|set|unset]")
+	require.EqualError(t, err, "usage: plakar source [add|check|ls|ping|rm|set|unset]")
 
 	args = []string{"add", "my-remote", "invalid://my-remote"}
 	err = source_config(ctx, args)
@@ -149,7 +149,7 @@ func TestCmdRepository(t *testing.T) {
 
 	args := []string{"unknown"}
 	err = cmd_kloset_config(ctx, args)
-	require.EqualError(t, err, "usage: plakar kloset [add|check|ls|ping|set|unset]")
+	require.EqualError(t, err, "usage: plakar kloset [add|check|ls|ping|rm|set|unset]")
 
 	args = []string{"add", "my-repo", "fs:/tmp/my-repo"}
 	err = cmd_kloset_config(ctx, args)
