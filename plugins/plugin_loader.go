@@ -37,7 +37,13 @@ type Manifest []struct {
 	License       string   `yaml:"license"`
 }
 
-func Load(ctx *appcontext.AppContext, pluginsDir, cacheDir string) error {
+var re = regexp.MustCompile(`^([a-z0-9][a-zA-Z0-9\+.\-]*)-(v[0-9]+\.[0-9]+\.[0-9]+)\.ptar$`)
+
+func ValidateName(name string) bool {
+	return re.MatchString(name)
+}
+
+func LoadDir(ctx *appcontext.AppContext, pluginsDir, cacheDir string) error {
 	if err := os.MkdirAll(cacheDir, 0755); err != nil {
 		return err
 	}
@@ -50,7 +56,6 @@ func Load(ctx *appcontext.AppContext, pluginsDir, cacheDir string) error {
 		return err
 	}
 
-	re := regexp.MustCompile(`^([a-z0-9][a-zA-Z0-9\+.\-]*)-(v[0-9]+\.[0-9]+\.[0-9]+)\.ptar$`)
 	for _, entry := range dirEntries {
 		if !entry.Type().IsRegular() {
 			continue
@@ -60,14 +65,18 @@ func Load(ctx *appcontext.AppContext, pluginsDir, cacheDir string) error {
 			continue
 		}
 
-		if err := loadplugin(ctx, pluginsDir, cacheDir, entry.Name()); err != nil {
+		if err := Load(ctx, pluginsDir, cacheDir, entry.Name()); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func loadplugin(ctx *appcontext.AppContext, pluginsDir, cacheDir, name string) error {
+func Load(ctx *appcontext.AppContext, pluginsDir, cacheDir, name string) error {
+	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+		return err
+	}
+
 	extlen := len(filepath.Ext(name))
 	plugin := filepath.Join(cacheDir, name[:len(name)-extlen])
 

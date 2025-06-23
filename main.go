@@ -291,7 +291,7 @@ func EntryPoint() int {
 
 	// use cookiesDir as base since it's the same wrt agentless
 	pluginCache := filepath.Join(cookiesDir, "plugins")
-	if err := plugins.Load(ctx, pluginDir, pluginCache); err != nil {
+	if err := plugins.LoadDir(ctx, pluginDir, pluginCache); err != nil {
 		logger.Warn("failed to load the plugins: %s", err)
 	}
 
