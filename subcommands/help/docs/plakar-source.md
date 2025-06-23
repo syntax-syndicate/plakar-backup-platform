@@ -7,7 +7,6 @@ PLAKAR-SOURCE(1) - General Commands Manual
 # SYNOPSIS
 
 **plakar source**
-**source**
 \[subcommand&nbsp;...]
 
 # DESCRIPTION

@@ -7,7 +7,6 @@ PLAKAR-KLOSET(1) - General Commands Manual
 # SYNOPSIS
 
 **plakar kloset**
-**kloset**
 \[subcommand&nbsp;...]
 
 # DESCRIPTION

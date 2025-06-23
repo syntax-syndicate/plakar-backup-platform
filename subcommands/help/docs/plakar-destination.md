@@ -7,7 +7,6 @@ PLAKAR-DESTINATION(1) - General Commands Manual
 # SYNOPSIS
 
 **plakar destination**
-**destination**
 \[subcommand&nbsp;...]
 
 # DESCRIPTION
