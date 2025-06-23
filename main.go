@@ -51,6 +51,7 @@ import (
 	_ "github.com/PlakarKorp/plakar/subcommands/ls"
 	_ "github.com/PlakarKorp/plakar/subcommands/maintenance"
 	_ "github.com/PlakarKorp/plakar/subcommands/mount"
+	_ "github.com/PlakarKorp/plakar/subcommands/pkg"
 	_ "github.com/PlakarKorp/plakar/subcommands/ptar"
 	_ "github.com/PlakarKorp/plakar/subcommands/restore"
 	_ "github.com/PlakarKorp/plakar/subcommands/rm"

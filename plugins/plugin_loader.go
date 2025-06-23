@@ -28,13 +28,17 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type Manifest []struct {
-	Type          string   `yaml:"type"`
-	Protocols     []string `yaml:"protocols"`
-	LocationFlags []string `yaml:"locationFlags"`
-	Executable    string   `yaml:"executable"`
-	Homepage      string   `yaml:"homepage"`
-	License       string   `yaml:"license"`
+type Manifest struct {
+	Name       string `yaml:"name"`
+	Version    string `yaml:"version"`
+	Connectors []struct {
+		Type          string   `yaml:"type"`
+		Protocols     []string `yaml:"protocols"`
+		LocationFlags []string `yaml:"locationFlags"`
+		Executable    string   `yaml:"executable"`
+		Homepage      string   `yaml:"homepage"`
+		License       string   `yaml:"license"`
+	} `yaml:"connectors"`
 }
 
 var re = regexp.MustCompile(`^([a-z0-9][a-zA-Z0-9\+.\-]*)-(v[0-9]+\.[0-9]+\.[0-9]+)\.ptar$`)
@@ -98,14 +102,14 @@ func Load(ctx *appcontext.AppContext, pluginsDir, cacheDir, name string) error {
 		return fmt.Errorf("failed to decode the manifest: %w", err)
 	}
 
-	for i := range manifest {
-		exe := filepath.Join(plugin, manifest[i].Executable)
+	for _, conn := range manifest.Connectors {
+		exe := filepath.Join(plugin, conn.Executable)
 		if !strings.HasPrefix(exe, plugin) {
-			return fmt.Errorf("bad executable path %q in plugin %s", manifest[i].Executable, name)
+			return fmt.Errorf("bad executable path %q in plugin %s", conn.Executable, name)
 		}
 
 		var flags location.Flags
-		for _, flag := range manifest[i].LocationFlags {
+		for _, flag := range conn.LocationFlags {
 			f, err := location.ParseFlag(flag)
 			if err != nil {
 				return fmt.Errorf("unknown flag %q in plugin %s", flag, name)
@@ -113,8 +117,8 @@ func Load(ctx *appcontext.AppContext, pluginsDir, cacheDir, name string) error {
 			flags |= f
 		}
 
-		for _, proto := range manifest[i].Protocols {
-			switch manifest[i].Type {
+		for _, proto := range conn.Protocols {
+			switch conn.Type {
 			case "importer":
 				importer.Register(proto, flags, func(ctx context.Context, o *importer.Options, s string, config map[string]string) (importer.Importer, error) {
 					client, err := connectPlugin(exe, config)
@@ -153,7 +157,7 @@ func Load(ctx *appcontext.AppContext, pluginsDir, cacheDir, name string) error {
 					}, nil
 				}, flags, proto)
 			default:
-				return fmt.Errorf("unknown plugin type: %s", manifest[i].Type)
+				return fmt.Errorf("unknown plugin type: %s", conn.Type)
 			}
 		}
 	}
