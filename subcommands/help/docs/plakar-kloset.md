@@ -14,21 +14,48 @@ PLAKAR-KLOSET(1) - General Commands Manual
 
 The
 **plakar kloset**
-command manages configuration of the Plakar repository configurations.
+command manages the Plakar repository configurations.
+
+The configuration consists in a set of named entries, each of them
+describing a Plakar repository (kloset) holding backups.
+
+A repository is defined by at least a location, specifying the storage
+implementation to use, and some storage-specific parameters.
 
 The subcommands are as follows:
 
-**create** *name* *location* \[option=value ...]
+**add** *name* *location* \[option=value ...]
 
-> Create a new repository identified by
+> Create a new repository entry identified by
 > *name*
 > with the specified
 > *location*.
-> Specific additional configuration parameters might be set by adding
+> Specific additional configuration parameters can be set by adding
 > *option=value*
-> entries.
-> Different repositories have different options available.
-> \[key]
+> parameters.
+
+**check** *name*
+
+> Check wether the repository identified by
+> *name*
+> is properly configured.
+
+**ls**
+
+> Display the current repositories configuration.
+> This is the default if no subcommand is specified.
+
+**ping** *name*
+
+> Try to connect to the repository identified by
+> *name*
+> to make sure it is reachable.
+
+**rm** *name*
+
+> Remove the repository identified by
+> *name*
+> from the configuration.
 
 **set** *name* \[option=value ...]
 
@@ -38,27 +65,14 @@ The subcommands are as follows:
 > *value*
 > for the repository identified by
 > *name*.
-> Different repositories have different options available.
-> Multiple option/value pairs might be specified.
+> Multiple option/value pairs can be specified.
 
 **unset** *name* \[option ...]
 
 > Remove the
 > *option*
-> for the repository identified by
+> for the repository entry identified by
 > *name*.
-
-**check** *name*
-
-> Check wether the repository
-> *name*
-> is properly configured.
-
-**default** *name*
-
-> Make the repository
-> *name*
-> the default one.
 
 # DIAGNOSTICS
 

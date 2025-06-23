@@ -42,7 +42,7 @@ func (cmd *ConfigKlosetCmd) Execute(ctx *appcontext.AppContext, repo *repository
 }
 
 func cmd_kloset_config(ctx *appcontext.AppContext, args []string) error {
-	usage := "usage: plakar kloset [add|check|ls|ping|set|unset]"
+	usage := "usage: plakar kloset [add|check|ls|ping|rm|set|unset]"
 	cmd := "ls"
 	if len(args) > 0 {
 		cmd = args[0]

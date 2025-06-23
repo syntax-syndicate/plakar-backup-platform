@@ -22,8 +22,6 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &agent.AgentRestart{} },
-		subcommands.AgentSupport|subcommands.BeforeRepositoryOpen|subcommands.IgnoreVersion, "config", "reload")
 	subcommands.Register(func() subcommands.Subcommand { return &ConfigKlosetCmd{} },
 		subcommands.BeforeRepositoryOpen, "kloset")
 	subcommands.Register(func() subcommands.Subcommand { return &ConfigSourceCmd{} },
