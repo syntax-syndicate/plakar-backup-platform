@@ -22,7 +22,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"sync"
 
 	"github.com/PlakarKorp/kloset/objects"
@@ -49,6 +48,11 @@ func (f *FSImporter) walkDir_worker(jobs <-chan string, results chan<- *importer
 			return
 		}
 
+		// fixup the rootdir if it happened to be a file
+		if path == f.rootDir {
+			f.rootDir = filepath.Dir(f.rootDir)
+		}
+
 		info, err := os.Lstat(path)
 		if err != nil {
 			results <- importer.NewScanError(path, err)
@@ -73,12 +77,7 @@ func (f *FSImporter) walkDir_worker(jobs <-chan string, results chan<- *importer
 			}
 		}
 
-		// this is for windows paths:
-		// C:\User\Omar\plakar -> C:/User/Omar/Plakar -> /C:/User/Omar/Plakar
-		entrypath := filepath.ToSlash(path)
-		if !strings.HasPrefix(entrypath, "/") {
-			entrypath = "/" + entrypath
-		}
+		entrypath := toslash(path)
 
 		results <- importer.NewScanRecord(entrypath, originFile, fileinfo, extendedAttributes,
 			func() (io.ReadCloser, error) {

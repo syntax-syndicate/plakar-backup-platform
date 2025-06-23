@@ -32,15 +32,17 @@ import (
 )
 
 type FSImporter struct {
-	ctx     context.Context
-	opts    *importer.Options
-	rootDir string
+	ctx      context.Context
+	opts     *importer.Options
+	rootDir  string
+	realpath string
 
 	uidToName map[uint64]string
 	gidToName map[uint64]string
 	mu        sync.RWMutex
 
 	nocrossfs bool
+	devno     uint64
 }
 
 func init() {
@@ -59,13 +61,20 @@ func NewFSImporter(appCtx context.Context, opts *importer.Options, name string, 
 
 	nocrossfs, _ := strconv.ParseBool(config["dont_traverse_fs"])
 
+	realpath, devno, err := realpathFollow(rootDir)
+	if err != nil {
+		return nil, err
+	}
+
 	return &FSImporter{
 		ctx:       appCtx,
 		opts:      opts,
 		rootDir:   rootDir,
+		realpath:  realpath,
 		uidToName: make(map[uint64]string),
 		gidToName: make(map[uint64]string),
 		nocrossfs: nocrossfs,
+		devno:     devno,
 	}, nil
 }
 
@@ -78,17 +87,12 @@ func (p *FSImporter) Type() string {
 }
 
 func (p *FSImporter) Scan() (<-chan *importer.ScanResult, error) {
-	realp, dev, err := p.realpathFollow(p.rootDir)
-	if err != nil {
-		return nil, err
-	}
-
 	results := make(chan *importer.ScanResult, 1000)
-	go p.walkDir_walker(results, p.rootDir, realp, 256, dev)
+	go p.walkDir_walker(results, 256)
 	return results, nil
 }
 
-func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir, realp string, numWorkers int, devno uint64) {
+func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, numWorkers int) {
 	jobs := make(chan string, 1000) // Buffered channel to feed paths to workers
 	var wg sync.WaitGroup
 	for range numWorkers {
@@ -97,13 +101,13 @@ func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir
 	}
 
 	// Add prefix directories first
-	walkDir_addPrefixDirectories(realp, jobs, results)
-	if realp != rootDir {
-		jobs <- rootDir
-		walkDir_addPrefixDirectories(rootDir, jobs, results)
+	walkDir_addPrefixDirectories(f.realpath, jobs, results)
+	if f.realpath != f.rootDir {
+		jobs <- f.rootDir
+		walkDir_addPrefixDirectories(f.rootDir, jobs, results)
 	}
 
-	err := filepath.WalkDir(realp, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(f.realpath, func(path string, d fs.DirEntry, err error) error {
 		if f.ctx.Err() != nil {
 			return err
 		}
@@ -114,7 +118,7 @@ func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir
 		}
 
 		if d.IsDir() && f.nocrossfs {
-			same, err := isSameFs(devno, d)
+			same, err := isSameFs(f.devno, d)
 			if err != nil {
 				results <- importer.NewScanError(path, err)
 				return nil
@@ -128,7 +132,7 @@ func (f *FSImporter) walkDir_walker(results chan<- *importer.ScanResult, rootDir
 		return nil
 	})
 	if err != nil {
-		results <- importer.NewScanError(realp, err)
+		results <- importer.NewScanError(f.realpath, err)
 	}
 
 	close(jobs)
@@ -171,7 +175,7 @@ func (p *FSImporter) lookupIDs(uid, gid uint64) (uname, gname string) {
 	return
 }
 
-func (f *FSImporter) realpathFollow(path string) (resolved string, dev uint64, err error) {
+func realpathFollow(path string) (resolved string, dev uint64, err error) {
 	info, err := os.Lstat(path)
 	if err != nil {
 		return
@@ -201,5 +205,16 @@ func (p *FSImporter) Close() error {
 }
 
 func (p *FSImporter) Root() string {
-	return p.rootDir
+	return toslash(p.rootDir)
+}
+
+// convert paths to the internal format.  For unix nothing changes,
+// for windows we apply some edits:
+// C:\User\Omar\Plakar -> C:/User/Omar/Plakar -> /C:/User/Omar/Plakar
+func toslash(p string) string {
+	p = filepath.ToSlash(p)
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	return p
 }
