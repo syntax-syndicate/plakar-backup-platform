@@ -22,7 +22,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log/syslog"
 	"net"
 	"net/http"
 	"os"
@@ -101,11 +100,9 @@ func (cmd *Agent) Parse(ctx *appcontext.AppContext, args []string) error {
 		}
 		ctx.GetLogger().SetOutput(f)
 	} else if !opt_foreground {
-		w, err := syslog.New(syslog.LOG_INFO|syslog.LOG_USER, "plakar")
-		if err != nil {
+		if err := setupSyslog(ctx); err != nil {
 			return err
 		}
-		ctx.GetLogger().SetSyslogOutput(w)
 	}
 
 	cmd.socketPath = filepath.Join(ctx.CacheDir, "agent.sock")
@@ -149,7 +146,9 @@ func (cmd *AgentStop) Parse(ctx *appcontext.AppContext, args []string) error {
 }
 
 func (cmd *AgentStop) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
-	syscall.Kill(os.Getpid(), syscall.SIGINT)
+	if err := stop(); err != nil {
+		return 1, err
+	}
 	return 0, nil
 }
 
