@@ -42,7 +42,7 @@ func (cmd *ConfigDestinationCmd) Execute(ctx *appcontext.AppContext, repo *repos
 }
 
 func destination_config(ctx *appcontext.AppContext, args []string) error {
-	usage := "usage: plakar destination [add|check|ls|ping|set|unset]"
+	usage := "usage: plakar destination [add|check|ls|ping|rm|set|unset]"
 	cmd := "ls"
 	if len(args) > 0 {
 		cmd = args[0]
