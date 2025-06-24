@@ -13,14 +13,14 @@ import (
 	"github.com/PlakarKorp/plakar/utils"
 )
 
-type ConfigKlosetCmd struct {
+type ConfigStoreCmd struct {
 	subcommands.SubcommandBase
 
 	args []string
 }
 
-func (cmd *ConfigKlosetCmd) Parse(ctx *appcontext.AppContext, args []string) error {
-	flags := flag.NewFlagSet("kloset", flag.ExitOnError)
+func (cmd *ConfigStoreCmd) Parse(ctx *appcontext.AppContext, args []string) error {
+	flags := flag.NewFlagSet("store", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s\n", flags.Name())
 		flags.PrintDefaults()
@@ -32,17 +32,17 @@ func (cmd *ConfigKlosetCmd) Parse(ctx *appcontext.AppContext, args []string) err
 	return nil
 }
 
-func (cmd *ConfigKlosetCmd) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
+func (cmd *ConfigStoreCmd) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 
-	err := cmd_kloset_config(ctx, cmd.args)
+	err := cmd_store_config(ctx, cmd.args)
 	if err != nil {
 		return 1, err
 	}
 	return 0, nil
 }
 
-func cmd_kloset_config(ctx *appcontext.AppContext, args []string) error {
-	usage := "usage: plakar kloset [add|check|ls|ping|rm|set|unset]"
+func cmd_store_config(ctx *appcontext.AppContext, args []string) error {
+	usage := "usage: plakar store [add|check|ls|ping|rm|set|unset]"
 	cmd := "ls"
 	if len(args) > 0 {
 		cmd = args[0]
@@ -51,13 +51,13 @@ func cmd_kloset_config(ctx *appcontext.AppContext, args []string) error {
 
 	switch cmd {
 	case "add":
-		usage := "usage: plakar kloset add <name> <location> [<key>=<value>, ...]"
+		usage := "usage: plakar store add <name> <location> [<key>=<value>, ...]"
 		if len(args) < 2 {
 			return fmt.Errorf(usage)
 		}
 		name, location := args[0], args[1]
 		if ctx.Config.HasRepository(name) {
-			return fmt.Errorf("kloset %q already exists", name)
+			return fmt.Errorf("store %q already exists", name)
 		}
 		ctx.Config.Repositories[name] = make(map[string]string)
 		ctx.Config.Repositories[name]["location"] = location
@@ -74,13 +74,13 @@ func cmd_kloset_config(ctx *appcontext.AppContext, args []string) error {
 		return utils.SaveConfig(ctx.ConfigDir, ctx.Config)
 
 	case "check":
-		usage := "usage: plakar kloset check <name>"
+		usage := "usage: plakar store check <name>"
 		if len(args) != 1 {
 			return fmt.Errorf(usage)
 		}
 		name := args[0]
 		if !ctx.Config.HasRepository(name) {
-			return fmt.Errorf("kloset %q does not exists", name)
+			return fmt.Errorf("store %q does not exists", name)
 		}
 		store, err := storage.New(ctx.GetInner(), ctx.Config.Repositories[name])
 		if err != nil {
@@ -93,13 +93,13 @@ func cmd_kloset_config(ctx *appcontext.AppContext, args []string) error {
 		return nil
 
 	case "default":
-		usage := "usage: plakar kloset default <name>"
+		usage := "usage: plakar store default <name>"
 		if len(args) != 1 {
 			return fmt.Errorf(usage)
 		}
 		name := args[0]
 		if !ctx.Config.HasRepository(name) {
-			return fmt.Errorf("kloset %q does not exists", name)
+			return fmt.Errorf("store %q does not exists", name)
 		}
 		ctx.Config.DefaultRepository = name
 		return utils.SaveConfig(ctx.ConfigDir, ctx.Config)
@@ -140,25 +140,25 @@ func cmd_kloset_config(ctx *appcontext.AppContext, args []string) error {
 		return fmt.Errorf("not implemented")
 
 	case "rm":
-		usage := "usage: plakar kloset rm <name>"
+		usage := "usage: plakar store rm <name>"
 		if len(args) != 1 {
 			return fmt.Errorf(usage)
 		}
 		name := args[0]
 		if !ctx.Config.HasRepository(name) {
-			return fmt.Errorf("kloset %q does not exist", name)
+			return fmt.Errorf("store %q does not exist", name)
 		}
 		delete(ctx.Config.Repositories, name)
 		return utils.SaveConfig(ctx.ConfigDir, ctx.Config)
 
 	case "set":
-		usage := "usage: plakar kloset set <name> [<key>=<value>, ...]"
+		usage := "usage: plakar store set <name> [<key>=<value>, ...]"
 		if len(args) == 0 {
 			return fmt.Errorf(usage)
 		}
 		name := args[0]
 		if !ctx.Config.HasRepository(name) {
-			return fmt.Errorf("kloset %q does not exists", name)
+			return fmt.Errorf("store %q does not exists", name)
 		}
 		for _, kv := range args[1:] {
 			key, val, found := strings.Cut(kv, "=")
@@ -173,13 +173,13 @@ func cmd_kloset_config(ctx *appcontext.AppContext, args []string) error {
 		return utils.SaveConfig(ctx.ConfigDir, ctx.Config)
 
 	case "unset":
-		usage := "usage: plakar kloset unset <name> [<key>, ...]"
+		usage := "usage: plakar store unset <name> [<key>, ...]"
 		if len(args) == 0 {
 			return fmt.Errorf(usage)
 		}
 		name := args[0]
 		if !ctx.Config.HasRepository(name) {
-			return fmt.Errorf("kloset %q does not exists", name)
+			return fmt.Errorf("store %q does not exists", name)
 		}
 		for _, key := range args[1:] {
 			if key == "location" {

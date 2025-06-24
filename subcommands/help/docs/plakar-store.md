@@ -1,31 +1,31 @@
-PLAKAR-KLOSET(1) - General Commands Manual
+PLAKAR-STORE(1) - General Commands Manual
 
 # NAME
 
-**plakar kloset** - Manage Plakar repository configurations
+**plakar store** - Manage Plakar store configurations
 
 # SYNOPSIS
 
-**plakar kloset**
+**plakar store**
 \[subcommand&nbsp;...]
 
 # DESCRIPTION
 
 The
-**plakar kloset**
-command manages the Plakar repository configurations.
+**plakar store**
+command manages the Plakar store configurations.
 
 The configuration consists in a set of named entries, each of them
-describing a Plakar repository (kloset) holding backups.
+describing a Plakar store holding backups.
 
-A repository is defined by at least a location, specifying the storage
+A store is defined by at least a location, specifying the storage
 implementation to use, and some storage-specific parameters.
 
 The subcommands are as follows:
 
 **add** *name* *location* \[option=value ...]
 
-> Create a new repository entry identified by
+> Create a new store entry identified by
 > *name*
 > with the specified
 > *location*.
@@ -35,24 +35,24 @@ The subcommands are as follows:
 
 **check** *name*
 
-> Check wether the repository identified by
+> Check wether the store identified by
 > *name*
 > is properly configured.
 
 **ls**
 
-> Display the current repositories configuration.
+> Display the current stores configuration.
 > This is the default if no subcommand is specified.
 
 **ping** *name*
 
-> Try to connect to the repository identified by
+> Try to connect to the store identified by
 > *name*
 > to make sure it is reachable.
 
 **rm** *name*
 
-> Remove the repository identified by
+> Remove the store identified by
 > *name*
 > from the configuration.
 
@@ -62,7 +62,7 @@ The subcommands are as follows:
 > *option*
 > to
 > *value*
-> for the repository identified by
+> for the store identified by
 > *name*.
 > Multiple option/value pairs can be specified.
 
@@ -70,12 +70,12 @@ The subcommands are as follows:
 
 > Remove the
 > *option*
-> for the repository entry identified by
+> for the store entry identified by
 > *name*.
 
 # DIAGNOSTICS
 
-The **plakar kloset** utility exits&#160;0 on success, and&#160;&gt;0 if an error occurs.
+The **plakar store** utility exits&#160;0 on success, and&#160;&gt;0 if an error occurs.
 
 # SEE ALSO
 

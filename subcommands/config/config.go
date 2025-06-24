@@ -21,8 +21,8 @@ import (
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &ConfigKlosetCmd{} },
-		subcommands.BeforeRepositoryOpen, "kloset")
+	subcommands.Register(func() subcommands.Subcommand { return &ConfigStoreCmd{} },
+		subcommands.BeforeRepositoryOpen, "store")
 	subcommands.Register(func() subcommands.Subcommand { return &ConfigSourceCmd{} },
 		subcommands.BeforeRepositoryOpen, "source")
 	subcommands.Register(func() subcommands.Subcommand { return &ConfigDestinationCmd{} },
