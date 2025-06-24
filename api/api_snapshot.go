@@ -337,7 +337,7 @@ func snapshotVFSChildren(w http.ResponseWriter, r *http.Request) error {
 		entrypath = "/"
 	}
 
-	entrypath = filepath.Clean(entrypath)
+	entrypath = path.Clean(entrypath)
 
 	fsinfo, err := fs.GetEntry(entrypath)
 	if err != nil {

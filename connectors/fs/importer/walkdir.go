@@ -112,7 +112,7 @@ func walkDir_addPrefixDirectories(root string, results chan<- *importer.ScanResu
 			finfo = objects.FileInfoFromStat(sb)
 		}
 
-		results <- importer.NewScanRecord(root, "", finfo, nil, nil)
+		results <- importer.NewScanRecord(toslash(root), "", finfo, nil, nil)
 
 		newroot := filepath.Dir(root)
 		if newroot == root { // base case for "/" or "C:\"
