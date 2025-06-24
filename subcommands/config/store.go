@@ -3,7 +3,6 @@ package config
 import (
 	"flag"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/PlakarKorp/kloset/repository"
@@ -11,6 +10,8 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/utils"
+
+	"gopkg.in/yaml.v3"
 )
 
 type ConfigStoreCmd struct {
@@ -105,36 +106,11 @@ func cmd_store_config(ctx *appcontext.AppContext, args []string) error {
 		return utils.SaveConfig(ctx.ConfigDir, ctx.Config)
 
 	case "ls":
-		usage := "usage: plakar remote ls"
+		usage := "usage: plakar store ls"
 		if len(args) != 0 {
 			return fmt.Errorf(usage)
 		}
-		var list []string
-		for name, _ := range ctx.Config.Repositories {
-			list = append(list, name)
-		}
-		sort.Strings(list)
-		for i, name := range list {
-			entry := ctx.Config.Repositories[name]
-			if i != 0 {
-				fmt.Fprint(ctx.Stdout, "\n")
-			}
-			if ctx.Config.DefaultRepository == name {
-				fmt.Fprintf(ctx.Stdout, "; default\n")
-			}
-			fmt.Fprintf(ctx.Stdout, "[%s]\nlocation=%s\n", name, entry["location"])
-			var keys []string
-			for key, _ := range entry {
-				if key != "location" {
-					keys = append(keys, key)
-				}
-			}
-			sort.Strings(keys)
-			for _, key := range keys {
-				fmt.Fprintf(ctx.Stdout, "%s=%s\n", key, entry[key])
-			}
-		}
-		return nil
+		return yaml.NewEncoder(ctx.Stdout).Encode(ctx.Config.Repositories)
 
 	case "ping":
 		return fmt.Errorf("not implemented")
