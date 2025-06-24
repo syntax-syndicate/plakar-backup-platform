@@ -35,7 +35,7 @@ func TestConfigEmpty(t *testing.T) {
 	repo := &repository.Repository{}
 	args := []string{}
 
-	subcommand := &ConfigKlosetCmd{}
+	subcommand := &ConfigStoreCmd{}
 	err = subcommand.Parse(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommand)
@@ -62,7 +62,7 @@ func TestConfigEmpty(t *testing.T) {
 	require.Equal(t, 0, status)
 
 	args = []string{"add", "my-repo", "fs:/tmp/foobar"}
-	subcommandk := &ConfigKlosetCmd{}
+	subcommandk := &ConfigStoreCmd{}
 	err = subcommandk.Parse(ctx, args)
 	require.NoError(t, err)
 	require.NotNil(t, subcommandk)
@@ -101,7 +101,7 @@ func TestCmdRemote(t *testing.T) {
 
 	args = []string{"unknown"}
 	err = source_config(ctx, args)
-	require.EqualError(t, err, "usage: plakar source [add|check|ls|ping|set|unset]")
+	require.EqualError(t, err, "usage: plakar source [add|check|ls|ping|rm|set|unset]")
 
 	args = []string{"add", "my-remote", "invalid://my-remote"}
 	err = source_config(ctx, args)
@@ -148,38 +148,38 @@ func TestCmdRepository(t *testing.T) {
 	ctx.Stderr = bufErr
 
 	args := []string{"unknown"}
-	err = cmd_kloset_config(ctx, args)
-	require.EqualError(t, err, "usage: plakar kloset [add|check|ls|ping|set|unset]")
+	err = cmd_store_config(ctx, args)
+	require.EqualError(t, err, "usage: plakar store [add|check|ls|ping|rm|set|unset]")
 
 	args = []string{"add", "my-repo", "fs:/tmp/my-repo"}
-	err = cmd_kloset_config(ctx, args)
+	err = cmd_store_config(ctx, args)
 	require.NoError(t, err)
 
 	args = []string{"set", "my-repo", "location=invalid://place"}
-	err = cmd_kloset_config(ctx, args)
+	err = cmd_store_config(ctx, args)
 	require.NoError(t, err)
 
 	args = []string{"default", "my-repo"}
-	err = cmd_kloset_config(ctx, args)
+	err = cmd_store_config(ctx, args)
 	require.NoError(t, err)
 
 	args = []string{"add", "my-repo2", "invalid://place2"}
-	err = cmd_kloset_config(ctx, args)
+	err = cmd_store_config(ctx, args)
 	require.NoError(t, err)
 
 	args = []string{"set", "my-repo", "option=value"}
-	err = cmd_kloset_config(ctx, args)
+	err = cmd_store_config(ctx, args)
 	require.NoError(t, err)
 
 	args = []string{"set", "my-repo2", "option2=value2"}
-	err = cmd_kloset_config(ctx, args)
+	err = cmd_store_config(ctx, args)
 	require.NoError(t, err)
 
 	args = []string{"unset", "my-repo2", "option2"}
-	err = cmd_kloset_config(ctx, args)
+	err = cmd_store_config(ctx, args)
 	require.NoError(t, err)
 
 	args = []string{"check", "my-repo2"}
-	err = cmd_kloset_config(ctx, args)
+	err = cmd_store_config(ctx, args)
 	require.EqualError(t, err, "backend 'invalid' does not exist")
 }

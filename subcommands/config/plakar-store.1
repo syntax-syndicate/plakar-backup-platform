@@ -1,0 +1,62 @@
+.Dd February 27, 2025
+.Dt PLAKAR-STORE 1
+.Os
+.Sh NAME
+.Nm plakar store
+.Nd Manage Plakar store configurations
+.Sh SYNOPSIS
+.Nm
+.Op subcommand ...
+.Sh DESCRIPTION
+The
+.Nm
+command manages the Plakar store configurations.
+.Pp
+The configuration consists in a set of named entries, each of them
+describing a Plakar store holding backups.
+.Pp
+A store is defined by at least a location, specifying the storage
+implementation to use, and some storage-specific parameters.
+.Pp
+The subcommands are as follows:
+.Bl -tag -width Ds
+.It Cm add Ar name Ar location Op option=value ...
+Create a new store entry identified by
+.Ar name
+with the specified
+.Ar location .
+Specific additional configuration parameters can be set by adding
+.Ar option=value
+parameters.
+.It Cm check Ar name
+Check wether the store identified by
+.Ar name
+is properly configured.
+.It Cm ls
+Display the current stores configuration.
+This is the default if no subcommand is specified.
+.It Cm ping Ar name
+Try to connect to the store identified by
+.Ar name
+to make sure it is reachable.
+.It Cm rm Ar name
+Remove the store identified by
+.Ar name
+from the configuration.
+.It Cm set Ar name Op option=value ...
+Set the
+.Ar option
+to
+.Ar value
+for the store identified by
+.Ar name .
+Multiple option/value pairs can be specified.
+.It Cm unset Ar name Op option ...
+Remove the
+.Ar option
+for the store entry identified by
+.Ar name .
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh SEE ALSO
+.Xr plakar 1

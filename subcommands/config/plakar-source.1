@@ -1,0 +1,63 @@
+.Dd February 27, 2025
+.Dt PLAKAR-SOURCE 1
+.Os
+.Sh NAME
+.Nm plakar source
+.Nd Manage Plakar backup source configuration
+.Sh SYNOPSIS
+.Nm
+.Op subcommand ...
+.Sh DESCRIPTION
+The
+.Nm
+command manages the configuration of data sources for Plakar to backup.
+.Pp
+The configuration consists in a set of named entries, each of them
+describing a source for a backup operation.
+.Pp
+A source is defined by at least a location, specifying the importer
+to use, and some importer-specific parameters.
+.Pp
+The subcommands are as follows:
+.Bl -tag -width Ds
+.It Cm add Ar name Ar location Op option=value ...
+Create a new source entry identified by
+.Ar name
+with the specified
+.Ar location
+describing the importer to use.
+Additional importer options can be set by adding
+.Ar option=value
+parameters.
+.It Cm check Ar name
+Check wether the importer for the source identified by
+.Ar name
+is properly configured.
+.It Cm ls
+Display the current sources configuration.
+This is the default if no subcommand is specified.
+.It Cm ping Ar name
+Try to open the data source identified by
+.Ar name
+to make sure it is reachable.
+.It Cm rm Ar name
+Remove the source identified by
+.Ar name
+from the configuration.
+.It Cm set Ar name Op option=value ...
+Set the
+.Ar option
+to
+.Ar value
+for the source identified by
+.Ar name .
+Multiple option/value pairs can be specified.
+.It Cm unset Ar name Op option ...
+Remove the
+.Ar option
+for the source entry identified by
+.Ar name .
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh SEE ALSO
+.Xr plakar 1
