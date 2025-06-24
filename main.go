@@ -262,7 +262,6 @@ func EntryPoint() int {
 	ctx.CommandLine = strings.Join(os.Args, " ")
 	ctx.MachineID = opt_machineIdDefault
 	ctx.KeyFromFile = secretFromKeyfile
-	ctx.HomeDir = opt_userDefault.HomeDir
 	ctx.ProcessID = os.Getpid()
 	ctx.MaxConcurrency = opt_cpuCount*8 + 1
 
@@ -316,7 +315,7 @@ func EntryPoint() int {
 			if def != "" {
 				repositoryPath = "@" + def
 			} else {
-				repositoryPath = "fs:" + filepath.Join(ctx.HomeDir, ".plakar")
+				repositoryPath = "fs:" + filepath.Join(opt_userDefault.HomeDir, ".plakar")
 			}
 		}
 
