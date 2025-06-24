@@ -1,5 +1,3 @@
-//go:build !windows
-
 package plugins
 
 import (
@@ -7,13 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"syscall"
 
 	"github.com/PlakarKorp/kloset/location"
 	"github.com/PlakarKorp/kloset/repository"
@@ -30,21 +25,29 @@ import (
 	grpc_storage "github.com/PlakarKorp/plakar/connectors/grpc/storage"
 	grpc_storage_pkg "github.com/PlakarKorp/plakar/connectors/grpc/storage/pkg"
 	"github.com/PlakarKorp/plakar/utils"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"gopkg.in/yaml.v3"
 )
 
-type Manifest []struct {
-	Type          string   `yaml:"type"`
-	Protocols     []string `yaml:"protocols"`
-	LocationFlags []string `yaml:"locationFlags"`
-	Executable    string   `yaml:"executable"`
-	Homepage      string   `yaml:"homepage"`
-	License       string   `yaml:"license"`
+type Manifest struct {
+	Name       string `yaml:"name"`
+	Version    string `yaml:"version"`
+	Connectors []struct {
+		Type          string   `yaml:"type"`
+		Protocols     []string `yaml:"protocols"`
+		LocationFlags []string `yaml:"locationFlags"`
+		Executable    string   `yaml:"executable"`
+		Homepage      string   `yaml:"homepage"`
+		License       string   `yaml:"license"`
+	} `yaml:"connectors"`
 }
 
-func Load(ctx *appcontext.AppContext, pluginsDir, cacheDir string) error {
+var re = regexp.MustCompile(`^([a-z0-9][a-zA-Z0-9\+.\-]*)-(v[0-9]+\.[0-9]+\.[0-9]+)\.ptar$`)
+
+func ValidateName(name string) bool {
+	return re.MatchString(name)
+}
+
+func LoadDir(ctx *appcontext.AppContext, pluginsDir, cacheDir string) error {
 	if err := os.MkdirAll(cacheDir, 0755); err != nil {
 		return err
 	}
@@ -57,7 +60,6 @@ func Load(ctx *appcontext.AppContext, pluginsDir, cacheDir string) error {
 		return err
 	}
 
-	re := regexp.MustCompile(`^([a-z0-9][a-zA-Z0-9\+.\-]*)-(v[0-9]+\.[0-9]+\.[0-9]+)\.ptar$`)
 	for _, entry := range dirEntries {
 		if !entry.Type().IsRegular() {
 			continue
@@ -67,14 +69,18 @@ func Load(ctx *appcontext.AppContext, pluginsDir, cacheDir string) error {
 			continue
 		}
 
-		if err := loadplugin(ctx, pluginsDir, cacheDir, entry.Name()); err != nil {
+		if err := Load(ctx, pluginsDir, cacheDir, entry.Name()); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func loadplugin(ctx *appcontext.AppContext, pluginsDir, cacheDir, name string) error {
+func Load(ctx *appcontext.AppContext, pluginsDir, cacheDir, name string) error {
+	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+		return err
+	}
+
 	extlen := len(filepath.Ext(name))
 	plugin := filepath.Join(cacheDir, name[:len(name)-extlen])
 
@@ -96,14 +102,14 @@ func loadplugin(ctx *appcontext.AppContext, pluginsDir, cacheDir, name string) e
 		return fmt.Errorf("failed to decode the manifest: %w", err)
 	}
 
-	for i := range manifest {
-		exe := filepath.Join(plugin, manifest[i].Executable)
+	for _, conn := range manifest.Connectors {
+		exe := filepath.Join(plugin, conn.Executable)
 		if !strings.HasPrefix(exe, plugin) {
-			return fmt.Errorf("bad executable path %q in plugin %s", manifest[i].Executable, name)
+			return fmt.Errorf("bad executable path %q in plugin %s", conn.Executable, name)
 		}
 
 		var flags location.Flags
-		for _, flag := range manifest[i].LocationFlags {
+		for _, flag := range conn.LocationFlags {
 			f, err := location.ParseFlag(flag)
 			if err != nil {
 				return fmt.Errorf("unknown flag %q in plugin %s", flag, name)
@@ -111,8 +117,8 @@ func loadplugin(ctx *appcontext.AppContext, pluginsDir, cacheDir, name string) e
 			flags |= f
 		}
 
-		for _, proto := range manifest[i].Protocols {
-			switch manifest[i].Type {
+		for _, proto := range conn.Protocols {
+			switch conn.Type {
 			case "importer":
 				importer.Register(proto, flags, func(ctx context.Context, o *importer.Options, s string, config map[string]string) (importer.Importer, error) {
 					client, err := connectPlugin(exe, config)
@@ -151,7 +157,7 @@ func loadplugin(ctx *appcontext.AppContext, pluginsDir, cacheDir, name string) e
 					}, nil
 				}, flags, proto)
 			default:
-				return fmt.Errorf("unknown plugin type: %s", manifest[i].Type)
+				return fmt.Errorf("unknown plugin type: %s", conn.Type)
 			}
 		}
 	}
@@ -214,49 +220,4 @@ func extract(ctx *appcontext.AppContext, plugin, destDir string) error {
 	}
 
 	return nil
-}
-
-func connectPlugin(pluginPath string, config map[string]string) (grpc.ClientConnInterface, error) {
-	fd, err := forkChild(pluginPath, config)
-	if err != nil {
-		return nil, err
-	}
-
-	connFile := os.NewFile(uintptr(fd), "grpc-conn")
-	conn, err := net.FileConn(connFile)
-	if err != nil {
-		return nil, fmt.Errorf("net.FileConn failed: %w", err)
-	}
-
-	clientConn, err := grpc.NewClient("127.0.0.1:0",
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithContextDialer(func(ctx context.Context, s string) (net.Conn, error) {
-			return conn, nil
-		}),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("grpc client creation failed: %w", err)
-	}
-	return clientConn, nil
-}
-
-func forkChild(pluginPath string, config map[string]string) (int, error) {
-	sp, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
-	if err != nil {
-		return -1, fmt.Errorf("failed to create socketpair: %w", err)
-	}
-
-	childFile := os.NewFile(uintptr(sp[0]), "child-conn")
-
-	cmd := exec.Command(pluginPath, fmt.Sprintf("%v", config))
-	cmd.Stdin = childFile
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Start(); err != nil {
-		return -1, fmt.Errorf("failed to start plugin: %w", err)
-	}
-
-	childFile.Close()
-	return sp[1], nil
 }

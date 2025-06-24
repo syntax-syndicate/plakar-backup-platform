@@ -53,6 +53,8 @@ func init() {
 	subcommands.Register(func() subcommands.Subcommand { return &AgentTasksStop{} },
 		subcommands.AgentSupport|subcommands.BeforeRepositoryOpen, "agent", "tasks", "stop")
 	subcommands.Register(func() subcommands.Subcommand { return &AgentRestart{} },
+		subcommands.AgentSupport|subcommands.BeforeRepositoryOpen|subcommands.IgnoreVersion, "agent", "reload")
+	subcommands.Register(func() subcommands.Subcommand { return &AgentRestart{} },
 		subcommands.AgentSupport|subcommands.BeforeRepositoryOpen|subcommands.IgnoreVersion, "agent", "restart")
 	subcommands.Register(func() subcommands.Subcommand { return &AgentStop{} },
 		subcommands.AgentSupport|subcommands.BeforeRepositoryOpen|subcommands.IgnoreVersion, "agent", "stop")
