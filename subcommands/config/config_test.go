@@ -45,7 +45,7 @@ func TestConfigEmpty(t *testing.T) {
 	require.Equal(t, 0, status)
 
 	output := bufOut.String()
-	expectedOutput := ``
+	expectedOutput := "{}\n"
 	require.Equal(t, expectedOutput, output)
 
 	bufOut.Reset()
