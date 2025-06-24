@@ -18,14 +18,11 @@ package config
 
 import (
 	"github.com/PlakarKorp/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/subcommands/agent"
 )
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &agent.AgentRestart{} },
-		subcommands.AgentSupport|subcommands.BeforeRepositoryOpen|subcommands.IgnoreVersion, "config", "reload")
-	subcommands.Register(func() subcommands.Subcommand { return &ConfigKlosetCmd{} },
-		subcommands.BeforeRepositoryOpen, "kloset")
+	subcommands.Register(func() subcommands.Subcommand { return &ConfigStoreCmd{} },
+		subcommands.BeforeRepositoryOpen, "store")
 	subcommands.Register(func() subcommands.Subcommand { return &ConfigSourceCmd{} },
 		subcommands.BeforeRepositoryOpen, "source")
 	subcommands.Register(func() subcommands.Subcommand { return &ConfigDestinationCmd{} },
