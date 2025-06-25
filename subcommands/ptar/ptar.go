@@ -349,9 +349,10 @@ func (cmd *Ptar) backup(ctx *appcontext.AppContext, repo *repository.RepositoryW
 		}
 
 		backupOptions := &snapshot.BackupOptions{
-			MaxConcurrency: 4,
-			NoCheckpoint:   true,
-			NoCommit:       true,
+			MaxConcurrency:  4,
+			NoCheckpoint:    true,
+			NoCommit:        true,
+			CleanupVFSCache: true,
 		}
 
 		err = snap.Backup(imp, backupOptions)
