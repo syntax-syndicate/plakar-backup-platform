@@ -170,10 +170,6 @@ func (cmd *Backup) DoBackup(ctx *appcontext.AppContext, repo *repository.Reposit
 		scanDir = cmd.Path
 	}
 
-	if _, found := cmd.Opts["location"]; !found {
-		cmd.Opts["location"] = scanDir
-	}
-
 	if strings.HasPrefix(scanDir, "@") {
 		remote, ok := ctx.Config.GetSource(scanDir[1:])
 		if !ok {
@@ -191,6 +187,11 @@ func (cmd *Backup) DoBackup(ctx *appcontext.AppContext, repo *repository.Reposit
 				}
 			}
 		}
+	}
+
+	// Now that we have resolved the possible @ syntax let's apply the scandir.
+	if _, found := cmd.Opts["location"]; !found {
+		cmd.Opts["location"] = scanDir
 	}
 
 	imp, err := importer.NewImporter(ctx.GetInner(), ctx.ImporterOpts(), cmd.Opts)
