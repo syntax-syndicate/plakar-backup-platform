@@ -32,6 +32,10 @@ func (m *Manager) Close() error {
 	return nil
 }
 
+func (m *Manager) GetDir() string {
+	return m.cookiesDir
+}
+
 func (c *Manager) GetAuthToken() (string, error) {
 	data, err := os.ReadFile(filepath.Join(c.cookiesDir, ".auth-token"))
 	if err != nil {
