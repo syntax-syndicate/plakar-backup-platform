@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/PlakarKorp/kloset/caching"
-	"github.com/PlakarKorp/kloset/cookies"
 	"github.com/PlakarKorp/kloset/hashing"
 	"github.com/PlakarKorp/kloset/logging"
 	"github.com/PlakarKorp/kloset/repository"
@@ -83,9 +82,6 @@ func TestParseCmdHelpDefault(t *testing.T) {
 	// create a repository
 	cache := caching.NewManager(tmpCacheDir)
 	ctx.SetCache(cache)
-
-	cookies := cookies.NewManager(tmpCacheDir)
-	ctx.SetCookies(cookies)
 	ctx.Client = "plakar-test/1.0.0"
 
 	// Create a new logger
@@ -93,8 +89,6 @@ func TestParseCmdHelpDefault(t *testing.T) {
 	logger.EnableInfo()
 	ctx.SetLogger(logger)
 	repo, err := repository.New(ctx.GetInner(), nil, r, serializedConfig)
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
 	args := []string{"-style", "notty"}
 
 	subcommand := &Help{}
@@ -183,9 +177,6 @@ func TestParseCmdHelpCommand(t *testing.T) {
 	// create a repository
 	cache := caching.NewManager(tmpCacheDir)
 	ctx.SetCache(cache)
-
-	cookies := cookies.NewManager(tmpCacheDir)
-	ctx.SetCookies(cookies)
 	ctx.Client = "plakar-test/1.0.0"
 
 	// Create a new logger
@@ -193,8 +184,6 @@ func TestParseCmdHelpCommand(t *testing.T) {
 	logger.EnableInfo()
 	ctx.SetLogger(logger)
 	repo, err := repository.New(ctx.GetInner(), nil, r, serializedConfig)
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
 	args := []string{"-style", "notty", "version"}
 
 	subcommand := &Help{}

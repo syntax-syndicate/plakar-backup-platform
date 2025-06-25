@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/PlakarKorp/kloset/caching"
-	"github.com/PlakarKorp/kloset/cookies"
 	"github.com/PlakarKorp/kloset/encryption"
 	"github.com/PlakarKorp/kloset/hashing"
 	"github.com/PlakarKorp/kloset/logging"
@@ -18,6 +17,7 @@ import (
 	"github.com/PlakarKorp/kloset/versioning"
 	"github.com/PlakarKorp/plakar/appcontext"
 	bfs "github.com/PlakarKorp/plakar/connectors/fs/storage"
+	"github.com/PlakarKorp/plakar/cookies"
 	"github.com/stretchr/testify/require"
 )
 
@@ -104,9 +104,6 @@ func GenerateRepository(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer
 	ctx.SetLogger(logger)
 	repo, err := repository.New(ctx.GetInner(), key, r, serializedConfig)
 	require.NoError(t, err, "creating repository")
-
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
 
 	return repo, ctx
 }

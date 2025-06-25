@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/PlakarKorp/kloset/caching"
-	"github.com/PlakarKorp/kloset/cookies"
 	"github.com/PlakarKorp/kloset/logging"
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/kloset/snapshot"
@@ -54,9 +53,6 @@ func initContext(t *testing.T, bufout *bytes.Buffer, buferr *bytes.Buffer) (*app
 	cache := caching.NewManager(tmpCacheDir)
 	ctx.SetCache(cache)
 	ctx.MaxConcurrency = 1
-
-	cookies := cookies.NewManager("/tmp/test_plakar")
-	ctx.SetCookies(cookies)
 	ctx.Client = "plakar-test/1.0.0"
 
 	var logger *logging.Logger
@@ -119,9 +115,6 @@ func TestCmdAgentForegroundInit(t *testing.T) {
 	defer snap.Close()
 
 	ctx2.MaxConcurrency = 1
-
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx2.HomeDir = repo.Location()
 
 	retval, err := client.SendCommand(ctx2, []string{"ls"}, &ls.Ls{LocateOptions: utils.NewDefaultLocateOptions(), SubcommandBase: subcommands.SubcommandBase{Flags: subcommands.AgentSupport}}, map[string]string{"location": repo.Location()})
 	require.NoError(t, err)

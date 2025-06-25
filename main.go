@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/PlakarKorp/kloset/caching"
-	"github.com/PlakarKorp/kloset/cookies"
 	"github.com/PlakarKorp/kloset/encryption"
 	"github.com/PlakarKorp/kloset/logging"
 	"github.com/PlakarKorp/kloset/repository"
@@ -27,6 +26,7 @@ import (
 	"github.com/PlakarKorp/kloset/versioning"
 	"github.com/PlakarKorp/plakar/agent"
 	"github.com/PlakarKorp/plakar/appcontext"
+	"github.com/PlakarKorp/plakar/cookies"
 	"github.com/PlakarKorp/plakar/plugins"
 	"github.com/PlakarKorp/plakar/subcommands"
 	"github.com/PlakarKorp/plakar/task"
@@ -168,7 +168,6 @@ func EntryPoint() int {
 
 	ctx.Client = "plakar/" + utils.GetVersion()
 	ctx.CWD = cwd
-	ctx.KeyringDir = filepath.Join(opt_userDefault.HomeDir, ".plakar-keyring")
 
 	_, envAgentLess := os.LookupEnv("PLAKAR_AGENTLESS")
 	if envAgentLess {
@@ -183,7 +182,7 @@ func EntryPoint() int {
 		fmt.Fprintf(os.Stderr, "%s: could not get cookies directory: %s\n", flag.CommandLine.Name(), err)
 		return 1
 	}
-	ctx.CookiesDir = cookiesDir
+
 	ctx.SetCookies(cookies.NewManager(cookiesDir))
 	defer ctx.GetCookies().Close()
 
@@ -258,15 +257,13 @@ func EntryPoint() int {
 
 	ctx.OperatingSystem = runtime.GOOS
 	ctx.Architecture = runtime.GOARCH
-	ctx.NumCPU = opt_cpuCount
 	ctx.Username = opt_username
 	ctx.Hostname = opt_hostname
 	ctx.CommandLine = strings.Join(os.Args, " ")
 	ctx.MachineID = opt_machineIdDefault
 	ctx.KeyFromFile = secretFromKeyfile
-	ctx.HomeDir = opt_userDefault.HomeDir
 	ctx.ProcessID = os.Getpid()
-	ctx.MaxConcurrency = ctx.NumCPU*8 + 1
+	ctx.MaxConcurrency = opt_cpuCount*8 + 1
 
 	if flag.NArg() == 0 {
 		fmt.Fprintf(os.Stderr, "%s: a subcommand must be provided\n", filepath.Base(flag.CommandLine.Name()))
@@ -318,7 +315,7 @@ func EntryPoint() int {
 			if def != "" {
 				repositoryPath = "@" + def
 			} else {
-				repositoryPath = "fs:" + filepath.Join(ctx.HomeDir, ".plakar")
+				repositoryPath = "fs:" + filepath.Join(opt_userDefault.HomeDir, ".plakar")
 			}
 		}
 

@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/PlakarKorp/kloset/caching"
-	"github.com/PlakarKorp/kloset/cookies"
 	"github.com/PlakarKorp/kloset/hashing"
 	"github.com/PlakarKorp/kloset/logging"
 	"github.com/PlakarKorp/kloset/repository"
@@ -82,9 +81,6 @@ func generateFixtures(t *testing.T, bufOut *bytes.Buffer, bufErr *bytes.Buffer) 
 	// create a repository
 	cache := caching.NewManager(tmpCacheDir)
 	ctx.SetCache(cache)
-
-	cookies := cookies.NewManager(tmpCacheDir)
-	ctx.SetCookies(cookies)
 	ctx.Client = "plakar-test/1.0.0"
 
 	// Create a new logger
@@ -106,8 +102,6 @@ func TestExecuteCmdCreateDefault(t *testing.T) {
 	repo, tmpBackupDir, ctx := generateFixtures(t, bufOut, bufErr)
 
 	ctx.MaxConcurrency = 1
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
 	args := []string{tmpBackupDir}
 
 	subcommand := &Backup{}
@@ -145,8 +139,6 @@ func TestExecuteCmdCreateDefaultWithExcludes(t *testing.T) {
 	repo, tmpBackupDir, ctx := generateFixtures(t, bufOut, bufErr)
 
 	ctx.MaxConcurrency = 1
-	// override the homedir to avoid having test overwriting existing home configuration
-	ctx.HomeDir = repo.Location()
 	args := []string{"-excludes", tmpBackupDir + "/subdir/to_exclude", tmpBackupDir}
 
 	subcommand := &Backup{}
