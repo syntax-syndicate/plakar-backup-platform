@@ -54,7 +54,7 @@ func (cmd *Create) Parse(ctx *appcontext.AppContext, args []string) error {
 
 	flags.BoolVar(&allow_weak, "weak-passphrase", false, "allow weak passphrase to protect the repository")
 	flags.StringVar(&cmd.Hashing, "hashing", hashing.DEFAULT_HASHING_ALGORITHM, "hashing algorithm to use for digests")
-	flags.BoolVar(&cmd.NoEncryption, "no-encryption", false, "disable transparent encryption")
+	flags.BoolVar(&cmd.NoEncryption, "plaintext", false, "disable transparent encryption")
 	flags.BoolVar(&cmd.NoCompression, "no-compression", false, "disable transparent compression")
 	flags.Parse(args)
 
