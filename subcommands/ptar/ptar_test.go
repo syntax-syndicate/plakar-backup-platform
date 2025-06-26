@@ -31,7 +31,7 @@ func TestExecuteCmdPtarDefault(t *testing.T) {
 		os.RemoveAll(tmpDir)
 	})
 
-	args := []string{"-no-encryption", "-no-compression", "-p", filepath.Join(tmpSourceDir, "subdir"), filepath.Join(tmpDir, "test.ptar")}
+	args := []string{"-plaintext", "-o", filepath.Join(tmpDir, "test.ptar"), filepath.Join(tmpSourceDir, "subdir")}
 
 	subcommand := &Ptar{}
 	err = subcommand.Parse(ctx, args)
@@ -65,7 +65,7 @@ func TestExecuteCmdPtarWithSync(t *testing.T) {
 		os.RemoveAll(tmpDir)
 	})
 
-	args := []string{"-no-encryption", "-no-compression", "-k", srcRepo.Location(), filepath.Join(tmpDir, "test.ptar")}
+	args := []string{"-plaintext", "-o", filepath.Join(tmpDir, "test.ptar"), "-k", srcRepo.Location()}
 
 	subcommand := &Ptar{}
 	err = subcommand.Parse(ctx, args)
