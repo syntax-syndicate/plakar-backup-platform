@@ -6,9 +6,7 @@
 .Nd Create a new Plakar repository
 .Sh SYNOPSIS
 .Nm
-.Op Fl hashing Ar algorithm
 .Op Fl no-encryption
-.Op Fl no-compression
 .Sh DESCRIPTION
 The
 .Nm
@@ -17,15 +15,9 @@ command creates a new Plakar repository at the specified path which defaults to
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl hashing Ar algorithm
-Provide alternative hashing algorithm to replace the default.
-Supported algorithms are BLAKE3 and SHA256, default is BLAKE3.
-.It Fl no-encryption
+.It Fl plaintext
 Disable transparent encryption for the repository.
 If specified, the repository will not use encryption.
-.It Fl no-compression
-Disable transparent compression for the repository.
-If specified, the repository will not use compression.
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width PLAKAR_PASSPHRASE
