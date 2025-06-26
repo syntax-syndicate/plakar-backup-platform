@@ -90,8 +90,8 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 		return fmt.Errorf("%s: at least one -k option or path must be specified", flag.CommandLine.Name())
 	}
 
-	cmd.BackupTargets = make([]string, len(flags.Args()))
 	if len(flags.Args()) > 0 {
+		cmd.BackupTargets = make([]string, len(flags.Args()))
 		copy(cmd.BackupTargets, flags.Args())
 	}
 
