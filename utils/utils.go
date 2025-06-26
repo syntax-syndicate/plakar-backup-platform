@@ -309,7 +309,7 @@ func GetDataDir(appName string) (string, error) {
 	return dataDir, nil
 }
 
-var VERSION = "v1.0.3-main"
+var VERSION = "v1.0.3-devel"
 
 func init() {
 	if !semver.IsValid(VERSION) {
