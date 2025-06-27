@@ -7,9 +7,7 @@ PLAKAR-CREATE(1) - General Commands Manual
 # SYNOPSIS
 
 **plakar create**
-\[**-hashing**&nbsp;*algorithm*]
-\[**-no-encryption**]
-\[**-no-compression**]
+\[**-plaintext**]
 
 # DESCRIPTION
 
@@ -20,20 +18,10 @@ command creates a new Plakar repository at the specified path which defaults to
 
 The options are as follows:
 
-**-hashing** *algorithm*
-
-> Provide alternative hashing algorithm to replace the default.
-> Supported algorithms are BLAKE3 and SHA256, default is BLAKE3.
-
-**-no-encryption**
+**-plaintext**
 
 > Disable transparent encryption for the repository.
 > If specified, the repository will not use encryption.
-
-**-no-compression**
-
-> Disable transparent compression for the repository.
-> If specified, the repository will not use compression.
 
 # ENVIRONMENT
 
