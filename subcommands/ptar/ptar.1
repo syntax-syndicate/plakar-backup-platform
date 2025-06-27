@@ -8,25 +8,28 @@
 .Nm
 .Op Fl plaintext
 .Op Fl overwrite
-.Op Fl k | kloset Ar location
+.Op Fl k Ar location
 .Fl o Ar file.ptar
 .Op Ar path ...
 .Sh DESCRIPTION
 The
 .Nm
-command creates a single portable archive (a
-.Pa .ptar
-file) that bundles one or more existing Plakar repositories (“klosets”) and/or
-arbitrary filesystem paths into a self-contained package.
-The resulting archive preserves repository metadata, snapshots and data
-chunks, and is compressed and encrypted for secure transport or off-site storage.
+command creates a single portable archive
+(a
+.Sq .ptar
+file) that bundles one or more existing Plakar repositories
+.Pq Dq klosets
+and/or arbitrary filesystem paths into a self-contained package.
+The resulting archive preserves repository metadata, snapshots and
+data chunks, and is compressed and encrypted for secure transport or
+off-site storage.
 .Pp
 At least one data source must be supplied: either one or more
-.Fl k | Fl kloset
+.Fl k No or Fl kloset
 options naming remote or local kloset repositories, and/or one or more
 .Ar path
-arguments identifying files or directories to back up.  The destination
-archive name is mandatory and supplied with
+arguments identifying files or directories to back up.
+The destination archive name is mandatory and supplied with
 .Fl o .
 .Pp
 Unless the
@@ -34,31 +37,35 @@ Unless the
 flag is given,
 .Nm
 refuses to replace an existing archive.
-.Sh OPTIONS
+.Pp
+The options are as follows:
 .Bl -tag -width Ds
 .It Fl plaintext
-Disable transparent encryption of the archive.  If omitted,
+Disable transparent encryption of the archive.
+If omitted,
 .Nm
-encrypts repository data using a key derived from the passphrase specified
-via
-.Ev PLAKAR\_PASSPHRASE
+encrypts repository data using a key derived from the passphrase
+specified via
+.Ev PLAKAR_PASSPHRASE
 or prompted interactively.
 .It Fl overwrite
 Overwrite an existing
 .Pa .ptar
 file at the destination path.
-.It Fl k Ar location | Fl kloset Ar location
+.It Fl k Ar location , Fl kloset Ar location
 Add a kloset repository to include in the archive.
 May be specified multiple times to bundle several repositories.
 .It Fl o Ar file.ptar
-Path of the archive to create.  This option is required.
+Path of the archive to create.
+This option is required.
 .It Ar path ...
 Zero or more filesystem paths to back up directly into the archive.
 .El
 .Sh ENVIRONMENT
-.Bl -tag -width PLAKAR\_PASSPHRASE
-.It Ev PLAKAR\_PASSPHRASE
-Passphrase used to derive the encryption key when encryption is enabled.
+.Bl -tag -width PLAKAR_PASSPHRASE
+.It Ev PLAKAR_PASSPHRASE
+Passphrase used to derive the encryption key when encryption is
+enabled.
 .El
 .Sh DIAGNOSTICS
 .Ex -std
@@ -72,5 +79,5 @@ hashing algorithm unknown, repository access failure, I/O errors, etc.).
 .El
 .Sh SEE ALSO
 .Xr plakar 1 ,
-.Xr plakar-create 1 ,
-.Xr plakar-backup 1
+.Xr plakar-backup 1 ,
+.Xr plakar-create 1
