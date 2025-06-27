@@ -29,7 +29,7 @@ func TestExecuteCmdCreateDefaultWithHashing(t *testing.T) {
 	repo, err := repository.Inexistent(ctx.GetInner(), map[string]string{"location": tmpRepoDirRoot + "/repo"})
 	require.NoError(t, err)
 
-	args := []string{"--no-encryption", "--hashing", "SHA256"}
+	args := []string{"-plaintext"}
 
 	subcommand := &Create{}
 	err = subcommand.Parse(ctx, args)
@@ -55,7 +55,7 @@ func TestExecuteCmdCreateDefaultWithoutCompression(t *testing.T) {
 
 	repo, err := repository.Inexistent(ctx.GetInner(), map[string]string{"location": tmpRepoDirRoot + "/repo"})
 	require.NoError(t, err)
-	args := []string{"--no-encryption", "--no-compression"}
+	args := []string{"-plaintext"}
 
 	subcommand := &Create{}
 	err = subcommand.Parse(ctx, args)
@@ -81,7 +81,7 @@ func TestExecuteCmdCreateDefaultWithoutEncryption(t *testing.T) {
 
 	repo, err := repository.Inexistent(ctx.GetInner(), map[string]string{"location": tmpRepoDirRoot + "/repo"})
 	require.NoError(t, err)
-	args := []string{"--no-encryption"}
+	args := []string{"-plaintext"}
 
 	subcommand := &Create{}
 	err = subcommand.Parse(ctx, args)
