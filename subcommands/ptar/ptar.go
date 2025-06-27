@@ -25,7 +25,6 @@ import (
 	"math"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/PlakarKorp/kloset/compression"
 	"github.com/PlakarKorp/kloset/encryption"
@@ -75,28 +74,25 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 	}
 
 	flags.StringVar(&cmd.Hashing, "hashing", hashing.DEFAULT_HASHING_ALGORITHM, "hashing algorithm to use for digests")
-	flags.BoolVar(&cmd.NoEncryption, "no-encryption", false, "disable transparent encryption")
+	flags.BoolVar(&cmd.NoEncryption, "plaintext", false, "disable transparent encryption")
 	flags.BoolVar(&cmd.NoCompression, "no-compression", false, "disable transparent compression")
 	flags.BoolVar(&cmd.Overwrite, "overwrite", false, "overwrite the ptar archive if it already exists")
 	flags.Var(&cmd.SyncTargets, "k", "add a kloset location to include in the ptar archive (can be specified multiple times)")
-	flags.Var(&cmd.BackupTargets, "p", "add a backup location to include in the ptar archive (can be specified multiple times)")
 	flags.Var(&cmd.SyncTargets, "kloset", "add a kloset location to include in the ptar archive (can be specified multiple times)")
-	flags.Var(&cmd.BackupTargets, "path", "add a backup location to include in the ptar archive (can be specified multiple times)")
+	flags.StringVar(&cmd.KlosetPath, "o", "", "name of the ptar archive to create")
 	flags.Parse(args)
 
-	if flags.NArg() == 0 {
-		cmd.KlosetPath = fmt.Sprintf("%s-%s.ptar",
-			time.Now().Format("20060102150405"),
-			strings.Split(cmd.KlosetUUID.String(), "-")[0],
-		)
-	} else if flags.NArg() == 1 {
-		cmd.KlosetPath = flags.Arg(0)
-	} else {
-		return fmt.Errorf("%s: too many parameters", flag.CommandLine.Name())
+	if cmd.KlosetPath == "" {
+		return fmt.Errorf("%s: -o option must be specified", flag.CommandLine.Name())
 	}
 
-	if len(cmd.SyncTargets) == 0 && len(cmd.BackupTargets) == 0 {
-		return fmt.Errorf("%s: at least one -k or -p option must be specified", flag.CommandLine.Name())
+	if len(cmd.SyncTargets) == 0 && flags.NArg() == 0 {
+		return fmt.Errorf("%s: at least one -k option or path must be specified", flag.CommandLine.Name())
+	}
+
+	if len(flags.Args()) > 0 {
+		cmd.BackupTargets = make([]string, len(flags.Args()))
+		copy(cmd.BackupTargets, flags.Args())
 	}
 
 	for _, syncTarget := range cmd.SyncTargets {
