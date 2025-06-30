@@ -34,8 +34,9 @@ type Manifest struct {
 	Connectors []struct {
 		Type          string   `yaml:"type"`
 		Protocols     []string `yaml:"protocols"`
-		LocationFlags []string `yaml:"locationFlags"`
+		LocationFlags []string `yaml:"location_flags"`
 		Executable    string   `yaml:"executable"`
+		ExtraFiles    []string `yaml:"extra_files"`
 		Homepage      string   `yaml:"homepage"`
 		License       string   `yaml:"license"`
 	} `yaml:"connectors"`
