@@ -14,6 +14,7 @@ PLAKAR-BACKUP(1) - General Commands Manual
 \[**-o**&nbsp;*option*]
 \[**-quiet**]
 \[**-tag**&nbsp;*tag*]
+\[**-scan**]
 \[*place*]
 
 # DESCRIPTION
@@ -70,6 +71,10 @@ The options are as follows:
 
 > Specify a tag to assign to the snapshot for easier identification.
 
+**-scan**
+
+> Don't actually create a snapshot, just output the list of files.
+
 # EXAMPLES
 
 Create a snapshot of the current directory with a tag:
@@ -102,4 +107,4 @@ The **plakar backup** utility exits&#160;0 on success, and&#160;&gt;0 if an erro
 plakar(1),
 plakar-config(1)
 
-Plakar - April 4, 2025
+Plakar - June 27, 2025
