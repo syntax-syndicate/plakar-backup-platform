@@ -72,7 +72,7 @@ func (cmd *Backup) Parse(ctx *appcontext.AppContext, args []string) error {
 	flags.BoolVar(&cmd.Silent, "silent", false, "suppress ALL output")
 	flags.BoolVar(&cmd.OptCheck, "check", false, "check the snapshot after creating it")
 	flags.Var(utils.NewOptsFlag(cmd.Opts), "o", "specify extra importer options")
-	flags.BoolVar(&cmd.DryRun, "dry-run", false, "do not actually perform a backup, just list the files")
+	flags.BoolVar(&cmd.DryRun, "scan", false, "do not actually perform a backup, just list the files")
 	//flags.BoolVar(&opt_stdio, "stdio", false, "output one line per file to stdout instead of the default interactive output")
 	flags.Parse(args)
 

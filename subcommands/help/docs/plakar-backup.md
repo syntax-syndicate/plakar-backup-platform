@@ -8,13 +8,13 @@ PLAKAR-BACKUP(1) - General Commands Manual
 
 **plakar backup**
 \[**-concurrency**&nbsp;*number*]
-\[**-dry-run**]
 \[**-exclude**&nbsp;*pattern*]
 \[**-excludes**&nbsp;*file*]
 \[**-check**]
 \[**-o**&nbsp;*option*]
 \[**-quiet**]
 \[**-tag**&nbsp;*tag*]
+\[**-scan**]
 \[*place*]
 
 # DESCRIPTION
@@ -40,10 +40,6 @@ The options are as follows:
 > Set the maximum number of parallel tasks for faster processing.
 > Defaults to
 > `8 * CPU count + 1`.
-
-**-dry-run**
-
-> Don't actually create a snapshot, just output the list of files.
 
 **-exclude** *pattern*
 
@@ -74,6 +70,10 @@ The options are as follows:
 **-tag** *tag*
 
 > Specify a tag to assign to the snapshot for easier identification.
+
+**-scan**
+
+> Don't actually create a snapshot, just output the list of files.
 
 # EXAMPLES
 
