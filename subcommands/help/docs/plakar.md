@@ -121,15 +121,15 @@ The following commands are available:
 > Clone a Plakar repository to a new location, documented in
 > plakar-clone(1).
 
-**config**
-
-> Manage Plakar configuration, documented in
-> plakar-config(1).
-
 **create**
 
 > Create a new Plakar repository, documented in
 > plakar-create(1).
+
+**destination**
+
+> Manage Plakar restore destination configuration, documented in
+> plakar-destination(1).
 
 **diff**
 
@@ -163,7 +163,7 @@ The following commands are available:
 **maintenance**
 
 > Remove unused data from a Plakar repository, documented in
-> plakar-mantenance(1).
+> plakar-maintenance(1).
 
 **mount**
 
@@ -184,6 +184,16 @@ The following commands are available:
 
 > Start a Plakar server, documented in
 > plakar-server(1).
+
+**source**
+
+> Manage Plakar backup source configuration, documented in
+> plakar-source(1).
+
+**store**
+
+> Manage Plakar store configurations, documented in
+> plakar-store(1).
 
 **sync**
 
