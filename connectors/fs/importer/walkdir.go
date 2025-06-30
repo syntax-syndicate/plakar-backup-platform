@@ -48,15 +48,15 @@ func (f *FSImporter) walkDir_worker(jobs <-chan string, results chan<- *importer
 			return
 		}
 
-		// fixup the rootdir if it happened to be a file
-		if path == f.rootDir {
-			f.rootDir = filepath.Dir(f.rootDir)
-		}
-
 		info, err := os.Lstat(path)
 		if err != nil {
 			results <- importer.NewScanError(path, err)
 			continue
+		}
+
+		// fixup the rootdir if it happened to be a file
+		if !info.IsDir() && path == f.rootDir {
+			f.rootDir = filepath.Dir(f.rootDir)
 		}
 
 		extendedAttributes, err := xattr.List(path)
