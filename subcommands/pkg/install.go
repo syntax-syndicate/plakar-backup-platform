@@ -20,7 +20,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -106,8 +105,6 @@ func (cmd *PkgInstall) Execute(ctx *appcontext.AppContext, _ *repository.Reposit
 
 func install(plugdir, plugin string) error {
 	dst := filepath.Join(plugdir, filepath.Base(plugin))
-	log.Println("about to install", plugin, "in", dst)
-
 	if err := os.Link(plugin, dst); err == nil {
 		return nil
 	}
