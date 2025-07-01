@@ -72,9 +72,12 @@ func (cmd *PkgInstall) Parse(ctx *appcontext.AppContext, args []string) error {
 }
 
 func (cmd *PkgInstall) Execute(ctx *appcontext.AppContext, _ *repository.Repository) (int, error) {
-	// XXX using cookies dir because we always use the agent dir,
-	// regardless of mode.
-	cachedir := filepath.Join(ctx.GetCookies().GetDir(), "plugins")
+	cachedir, err := utils.GetCacheDir("plakar")
+	if err != nil {
+		return 1, err
+	}
+
+	cachedir = filepath.Join(cachedir, "plugins")
 
 	dataDir, err := utils.GetDataDir("plakar")
 	if err != nil {
