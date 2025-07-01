@@ -48,9 +48,10 @@ func init() {
 type PkgCreate struct {
 	subcommands.SubcommandBase
 
-	Base     string
-	Out      string
-	Manifest plugins.Manifest
+	Base         string
+	Out          string
+	Manifest     plugins.Manifest
+	ManifestPath string
 }
 
 func (cmd *PkgCreate) Parse(ctx *appcontext.AppContext, args []string) error {
@@ -76,6 +77,7 @@ func (cmd *PkgCreate) Parse(ctx *appcontext.AppContext, args []string) error {
 		manifest = filepath.Clean(manifest)
 	}
 	cmd.Base = filepath.Dir(manifest)
+	cmd.ManifestPath = manifest
 
 	fp, err := os.Open(manifest)
 	if err != nil {
@@ -135,8 +137,9 @@ func (cmd *PkgCreate) Execute(ctx *appcontext.AppContext, _ *repository.Reposito
 
 	repoWriter := repo.NewRepositoryWriter(scanCache, identifier, repository.PtarType)
 	imp := &pkgerImporter{
-		manifest: &cmd.Manifest,
-		cwd:      cmd.Base,
+		manifestPath: cmd.ManifestPath,
+		manifest:     &cmd.Manifest,
+		cwd:          cmd.Base,
 	}
 
 	snap, err := snapshot.CreateWithRepositoryWriter(repoWriter)
