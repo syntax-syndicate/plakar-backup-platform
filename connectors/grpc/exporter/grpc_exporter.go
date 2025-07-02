@@ -16,8 +16,8 @@ import (
 )
 
 type GrpcExporter struct {
-	GrpcClient 	grpc_exporter.ExporterClient
-	Ctx 		context.Context
+	GrpcClient grpc_exporter.ExporterClient
+	Ctx        context.Context
 }
 
 func (g *GrpcExporter) Close() error {
@@ -45,17 +45,17 @@ func (g *GrpcExporter) SetPermissions(pathname string, fileinfo *objects.FileInf
 	_, err := g.GrpcClient.SetPermissions(g.Ctx, &grpc_exporter.SetPermissionsRequest{
 		Pathname: pathname,
 		FileInfo: &grpc_exporter.FileInfo{
-			Name: 		fileinfo.Lname,
-			Mode:	 	uint32(fileinfo.Lmode),
-			ModTime: 	timestamppb.New(fileinfo.LmodTime),
-			Dev: 		fileinfo.Ldev,
-			Ino: 		fileinfo.Lino,
-			Uid: 		fileinfo.Luid,
-			Gid: 		fileinfo.Lgid,
-			Nlink: 		uint32(fileinfo.Lnlink),
-			Username: 	fileinfo.Lusername,
-			Groupname: 	fileinfo.Lgroupname,
-			Flags: 		fileinfo.Flags,
+			Name:      fileinfo.Lname,
+			Mode:      uint32(fileinfo.Lmode),
+			ModTime:   timestamppb.New(fileinfo.LmodTime),
+			Dev:       fileinfo.Ldev,
+			Ino:       fileinfo.Lino,
+			Uid:       fileinfo.Luid,
+			Gid:       fileinfo.Lgid,
+			Nlink:     uint32(fileinfo.Lnlink),
+			Username:  fileinfo.Lusername,
+			Groupname: fileinfo.Lgroupname,
+			Flags:     fileinfo.Flags,
 		},
 	})
 	return err
@@ -87,7 +87,7 @@ func (g *GrpcExporter) StoreFile(pathname string, fp io.Reader, size int64) erro
 		if err != nil {
 			return err
 		}
-		
+
 		if err := stream.Send(&grpc_exporter.StoreFileRequest{
 			Type: &grpc_exporter.StoreFileRequest_Data{
 				Data: &grpc_exporter.Data{
