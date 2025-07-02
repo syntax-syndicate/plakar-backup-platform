@@ -5,7 +5,9 @@ import (
 	"io"
 
 	"github.com/PlakarKorp/kloset/objects"
+	"github.com/PlakarKorp/kloset/snapshot/exporter"
 	grpc_exporter "github.com/PlakarKorp/plakar/connectors/grpc/exporter/pkg"
+	"google.golang.org/grpc"
 
 	// google being google I guess.  No idea why this is actually
 	// required, but otherwise it breaks the workspace setup
@@ -18,6 +20,26 @@ import (
 type GrpcExporter struct {
 	GrpcClient grpc_exporter.ExporterClient
 	Ctx        context.Context
+}
+
+func NewExporter(ctx context.Context, client grpc.ClientConnInterface, opts *exporter.Options, proto string, config map[string]string) (exporter.Exporter, error) {
+	exporter := &GrpcExporter{
+		GrpcClient: grpc_exporter.NewExporterClient(client),
+		Ctx:        ctx,
+	}
+
+	_, err := exporter.GrpcClient.Init(ctx, &grpc_exporter.InitRequest{
+		Options: &grpc_exporter.Options{
+			Maxconcurrency: int64(opts.MaxConcurrency),
+		},
+		Proto:  proto,
+		Config: config,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return exporter, nil
 }
 
 func (g *GrpcExporter) Close() error {
