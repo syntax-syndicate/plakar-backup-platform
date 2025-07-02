@@ -146,7 +146,7 @@ func Load(ctx *appcontext.AppContext, pluginsDir, cacheDir, name string) error {
 					}, nil
 				})
 			case "storage":
-				storage.Register(func(ctx context.Context, s string, config map[string]string) (storage.Store, error) {
+				storage.Register(proto, flags, func(ctx context.Context, s string, config map[string]string) (storage.Store, error) {
 					client, err := connectPlugin(exe, config)
 					if err != nil {
 						return nil, fmt.Errorf("failed to connect to plugin: %w", err)
@@ -156,7 +156,7 @@ func Load(ctx *appcontext.AppContext, pluginsDir, cacheDir, name string) error {
 						GrpcClient: grpc_storage_pkg.NewStoreClient(client),
 						Ctx:        ctx,
 					}, nil
-				}, flags, proto)
+				})
 			default:
 				return fmt.Errorf("unknown plugin type: %s", conn.Type)
 			}
