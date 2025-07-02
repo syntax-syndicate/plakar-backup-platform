@@ -12,7 +12,7 @@
 .Op Fl no-agent
 .Op Fl quiet
 .Op Fl trace Ar subsystems
-.Op Cm at Ar kloset_store
+.Op Cm at Ar kloset
 .Ar subcommand ...
 .Sh DESCRIPTION
 .Nm
@@ -55,8 +55,10 @@ Display trace logs.
 is a comma-separated series of keywords to enable the trace logs for
 different subsystems:
 .Cm all , trace , repository , snapshot No and Cm server .
-.It Cm at Ar kloset_store
-Operate on the given Kloset store.
+.It Cm at Ar kloset
+Operates on the given
+.Ar kloset
+store.
 It could be a path, an URI, or a label in the form
 .Dq @ Ns Ar name
 to reference a configuration created with

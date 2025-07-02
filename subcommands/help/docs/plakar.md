@@ -13,7 +13,7 @@ PLAKAR(1) - General Commands Manual
 \[**-no-agent**]
 \[**-quiet**]
 \[**-trace**&nbsp;*subsystems*]
-\[**at**&nbsp;*kloset\_store*]
+\[**at**&nbsp;*kloset*]
 *subcommand&nbsp;...*
 
 # DESCRIPTION
@@ -70,9 +70,11 @@ The following options are available:
 > different subsystems:
 > **all**, **trace**, **repository**, **snapshot** and **server**.
 
-**at** *kloset\_store*
+**at** *kloset*
 
-> Operate on the given Kloset store.
+> Operates on the given
+> *kloset*
+> store.
 > It could be a path, an URI, or a label in the form
 > "@*name*"
 > to reference a configuration created with
