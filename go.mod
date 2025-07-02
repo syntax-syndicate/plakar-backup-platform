@@ -3,7 +3,7 @@ module github.com/PlakarKorp/plakar
 go 1.23.3
 
 require (
-	github.com/PlakarKorp/kloset v1.0.1-beta.1.0.20250627150137-c19aa18f45dc
+	github.com/PlakarKorp/kloset v1.0.1-beta.2.0.20250702124952-75e297b1ec9d
 	github.com/alecthomas/chroma v0.10.0
 	github.com/anacrolix/fuse v0.3.1
 	github.com/charmbracelet/bubbletea v1.3.4
