@@ -20,7 +20,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -73,9 +72,12 @@ func (cmd *PkgInstall) Parse(ctx *appcontext.AppContext, args []string) error {
 }
 
 func (cmd *PkgInstall) Execute(ctx *appcontext.AppContext, _ *repository.Repository) (int, error) {
-	// XXX using cookies dir because we always use the agent dir,
-	// regardless of mode.
-	cachedir := filepath.Join(ctx.GetCookies().GetDir(), "plugins")
+	cachedir, err := utils.GetCacheDir("plakar")
+	if err != nil {
+		return 1, err
+	}
+
+	cachedir = filepath.Join(cachedir, "plugins")
 
 	dataDir, err := utils.GetDataDir("plakar")
 	if err != nil {
@@ -106,8 +108,6 @@ func (cmd *PkgInstall) Execute(ctx *appcontext.AppContext, _ *repository.Reposit
 
 func install(plugdir, plugin string) error {
 	dst := filepath.Join(plugdir, filepath.Base(plugin))
-	log.Println("about to install", plugin, "in", dst)
-
 	if err := os.Link(plugin, dst); err == nil {
 		return nil
 	}

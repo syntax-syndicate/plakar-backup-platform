@@ -31,8 +31,9 @@ import (
 )
 
 type pkgerImporter struct {
-	cwd      string
-	manifest *plugins.Manifest
+	cwd          string
+	manifest     *plugins.Manifest
+	manifestPath string
 }
 
 func (imp *pkgerImporter) Origin() string {
@@ -118,6 +119,7 @@ func (imp *pkgerImporter) scan(ch chan<- *importer.ScanResult) {
 		},
 	}
 
+	imp.dofile(imp.manifestPath, ch, false)
 	for _, conn := range imp.manifest.Connectors {
 		imp.dofile(conn.Executable, ch, true)
 		for _, file := range conn.ExtraFiles {
