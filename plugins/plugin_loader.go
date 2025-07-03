@@ -45,17 +45,15 @@ func ValidateName(name string) bool {
 	return re.MatchString(name)
 }
 
-func LoadDir(ctx *appcontext.AppContext, pluginsDir, cacheDir string) error {
-	if err := os.MkdirAll(cacheDir, 0755); err != nil {
-		return err
-	}
+func ListDir(ctx *appcontext.AppContext, pluginsDir string) ([]string, error) {
+	var names []string
 
 	dirEntries, err := os.ReadDir(pluginsDir)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return nil
+			return names, nil
 		}
-		return err
+		return names, err
 	}
 
 	for _, entry := range dirEntries {
@@ -67,10 +65,23 @@ func LoadDir(ctx *appcontext.AppContext, pluginsDir, cacheDir string) error {
 			continue
 		}
 
-		if err := Load(ctx, pluginsDir, cacheDir, entry.Name()); err != nil {
+		names = append(names, entry.Name())
+	}
+	return names, nil
+}
+
+func LoadDir(ctx *appcontext.AppContext, pluginsDir, cacheDir string) error {
+	names, err := ListDir(ctx, pluginsDir)
+	if err != nil {
+		return err
+	}
+
+	for _, name := range names {
+		if err := Load(ctx, pluginsDir, cacheDir, name); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
