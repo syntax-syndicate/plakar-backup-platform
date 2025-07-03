@@ -2,11 +2,11 @@ PLAKAR-BACKUP(1) - General Commands Manual
 
 # NAME
 
-**plakar backup** - Create a new snapshot in a Plakar repository
+**plakar-backup** - Create a new snapshot in a Plakar repository
 
 # SYNOPSIS
 
-**plakar backup**
+**plakar&nbsp;backup**
 \[**-concurrency**&nbsp;*number*]
 \[**-exclude**&nbsp;*pattern*]
 \[**-excludes**&nbsp;*file*]
@@ -30,8 +30,8 @@ based on patterns provided through options.
 *place*
 can be either a path, an URI, or a label on the form
 "@*name*"
-to reference a remote configured with
-plakar-config(1).
+to reference a source configured with
+plakar-source(1).
 
 The options are as follows:
 
@@ -91,7 +91,7 @@ Backup a directory with specific file exclusions:
 
 # DIAGNOSTICS
 
-The **plakar backup** utility exits&#160;0 on success, and&#160;&gt;0 if an error occurs.
+The **plakar-backup** utility exits&#160;0 on success, and&#160;&gt;0 if an error occurs.
 
 0
 
@@ -105,6 +105,6 @@ The **plakar backup** utility exits&#160;0 on success, and&#160;&gt;0 if an erro
 # SEE ALSO
 
 plakar(1),
-plakar-config(1)
+plakar-source(1)
 
-Plakar - June 27, 2025
+Plakar - July 3, 2025
