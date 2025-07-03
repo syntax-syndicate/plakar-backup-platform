@@ -3,7 +3,11 @@ name: check manpage formatting
 on:
   push:
     branches:
+    paths:
+      - '**.[1-9]'
   pull_request:
+    paths:
+      - '**.[1-9]'
 
 jobs:
   build:
