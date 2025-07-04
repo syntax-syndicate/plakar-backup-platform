@@ -146,16 +146,6 @@ The following commands are available:
 > Find filenames in a Kloset snapshot, documented in
 > plakar-locate(1).
 
-**login**
-
-> Login to enable additional features, documented in
-> plakar-login(1).
-
-**logout**
-
-> Logout your Plakar installation, documented in
-> plakar-logout(1).
-
 **ls**
 
 > List snapshots and their contents in a Kloset store, documented in
@@ -170,11 +160,6 @@ The following commands are available:
 
 > Mount Kloset snapshots as a read-only filesystem, documented in
 > plakar-mount(1).
-
-**pkg**
-
-> Install and create Plakar plugins, documented in
-> plakar-pkg(1).
 
 **ptar**
 
@@ -195,12 +180,6 @@ The following commands are available:
 
 > Start a Plakar server, documented in
 > plakar-server(1).
-
-**services**
-
-> Manage additional Plakar services that require you to be logged in, documented
-> in
-> plakar-services(1).
 
 **source**
 
