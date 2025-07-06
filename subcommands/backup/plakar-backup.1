@@ -8,7 +8,7 @@
 .Nm plakar backup
 .Op Fl concurrency Ar number
 .Op Fl exclude Ar pattern
-.Op Fl excludes Ar file
+.Op Fl exclude-file Ar file
 .Op Fl check
 .Op Fl o Ar option
 .Op Fl quiet
@@ -40,7 +40,7 @@ Defaults to
 Specify individual glob exclusion patterns to ignore files or
 directories in the backup.
 This option can be repeated.
-.It Fl excludes Ar file
+.It Fl exclude-file Ar file
 Specify a file containing glob exclusion patterns, one per line, to
 ignore files or directories in the backup.
 .It Fl check
@@ -65,7 +65,7 @@ $ plakar backup -tag daily-backup
 .Pp
 Backup a specific directory with exclusion patterns from a file:
 .Bd -literal -offset indent
-$ plakar backup -excludes ~/my-excludes-file /var/www
+$ plakar backup -exclude-file ~/my-excludes-file /var/www
 .Ed
 .Pp
 Backup a directory with specific file exclusions:

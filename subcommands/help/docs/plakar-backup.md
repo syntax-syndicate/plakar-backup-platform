@@ -9,7 +9,7 @@ PLAKAR-BACKUP(1) - General Commands Manual
 **plakar&nbsp;backup**
 \[**-concurrency**&nbsp;*number*]
 \[**-exclude**&nbsp;*pattern*]
-\[**-excludes**&nbsp;*file*]
+\[**-exclude-file**&nbsp;*file*]
 \[**-check**]
 \[**-o**&nbsp;*option*]
 \[**-quiet**]
@@ -47,7 +47,7 @@ The options are as follows:
 > directories in the backup.
 > This option can be repeated.
 
-**-excludes** *file*
+**-exclude-file** *file*
 
 > Specify a file containing glob exclusion patterns, one per line, to
 > ignore files or directories in the backup.
@@ -83,7 +83,7 @@ Create a snapshot of the current directory with a tag:
 
 Backup a specific directory with exclusion patterns from a file:
 
-	$ plakar backup -excludes ~/my-excludes-file /var/www
+	$ plakar backup -exclude-file ~/my-excludes-file /var/www
 
 Backup a directory with specific file exclusions:
 
