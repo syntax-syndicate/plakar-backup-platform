@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/kloset/repository"
+	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -27,6 +27,8 @@ type Subcommand interface {
 	GetRepositorySecret() []byte
 	GetFlags() CommandFlags
 	setFlags(CommandFlags)
+	GetCWD() string
+	SetCWD(string)
 
 	GetLogInfo() bool
 	SetLogInfo(bool)
@@ -37,6 +39,7 @@ type Subcommand interface {
 type SubcommandBase struct {
 	RepositorySecret []byte
 	Flags            CommandFlags
+	CWD              string
 
 	// XXX - rework that post-release
 	LogInfo   bool
@@ -49,6 +52,14 @@ func (cmd *SubcommandBase) setFlags(flags CommandFlags) {
 
 func (cmd *SubcommandBase) GetFlags() CommandFlags {
 	return cmd.Flags
+}
+
+func (cmd *SubcommandBase) GetCWD() string {
+	return cmd.CWD
+}
+
+func (cmd *SubcommandBase) SetCWD(cwd string) {
+	cmd.CWD = cwd
 }
 
 func (cmd *SubcommandBase) GetLogInfo() bool {
