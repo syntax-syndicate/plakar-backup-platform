@@ -398,6 +398,8 @@ func EntryPoint() int {
 		return 1
 	}
 
+	cmd.SetCWD(ctx.CWD)
+
 	c := make(chan os.Signal, 1)
 	go func() {
 		<-c
