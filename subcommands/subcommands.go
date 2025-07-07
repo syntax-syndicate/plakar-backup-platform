@@ -3,7 +3,6 @@ package subcommands
 import (
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/PlakarKorp/kloset/repository"
@@ -124,12 +123,28 @@ func Lookup(arguments []string) (Subcommand, []string, []string) {
 	return nil, nil, arguments
 }
 
-func List() []string {
-	var list []string
+func List() [][]string {
+	var list [][]string
+	slices.SortFunc(subcommands, func(a, b subcmd) int {
+		var i int
+		for {
+			n := strings.Compare(a.args[i], b.args[i])
+			if n != 0 {
+				return n
+			}
+
+			i++
+			if i == len(a.args) {
+				return -1
+			}
+			if i == len(b.args) {
+				return +1
+			}
+		}
+	})
 	for _, command := range subcommands {
-		list = append(list, strings.Join(command.args, " "))
+		list = append(list, command.args)
 	}
-	sort.Strings(list)
 	return list
 }
 
