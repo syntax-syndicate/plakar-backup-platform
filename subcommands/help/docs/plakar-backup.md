@@ -31,7 +31,7 @@ based on patterns provided through options.
 *place*
 can be either a path, an URI, or a label with the form
 "@*name*"
-to reference the source of an integration configured with
+to reference a source connector configured with
 plakar-source(1).
 
 The options are as follows:
@@ -59,7 +59,7 @@ The options are as follows:
 
 **-o** *option*
 
-> Can be used to pass extra arguments to the source of the integration.
+> Can be used to pass extra arguments to the source connector.
 > The given
 > *option*
 > takes precedence over the configuration file.
