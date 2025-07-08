@@ -121,7 +121,7 @@ func repositorySnapshots(w http.ResponseWriter, r *http.Request) error {
 		if err != nil && since != "" {
 			return &ApiError{
 				HttpCode: http.StatusBadRequest,
-				ErrCode:  "invalid_params",
+				ErrCode:  "invalid_argument",
 				Message:  "Invalid 'since' parameter format. Expected RFC3339 format.",
 			}
 		}
