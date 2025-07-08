@@ -119,7 +119,7 @@ The following commands are available:
 
 **destination**
 
-> Manage configurations for the destinations of integrations, documented in
+> Manage configurations for the destination connectors, documented in
 > plakar-destination(1).
 
 **diff**
@@ -183,7 +183,7 @@ The following commands are available:
 
 **source**
 
-> Manage configurations for the sources of integrations, documented in
+> Manage configurations for the source connectors, documented in
 > plakar-source(1).
 
 **store**
