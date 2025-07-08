@@ -9,8 +9,10 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/PlakarKorp/kloset/objects"
+	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/kloset/snapshot"
 	"github.com/PlakarKorp/kloset/snapshot/header"
 	"github.com/PlakarKorp/kloset/snapshot/vfs"
@@ -31,6 +33,25 @@ type RepositoryInfoResponse struct {
 	Configuration storage.Configuration   `json:"configuration"`
 }
 
+func getNSnapshotsPerDay(repo *repository.Repository, ndays int) ([]int, error) {
+	nSnapshotsPerDay := make([]int, ndays)
+	for snapshotID := range repo.ListSnapshots() {
+		snap, err := snapshot.Load(repo, snapshotID)
+		if err != nil {
+			continue
+		}
+		if !snap.Header.Timestamp.Before(repo.Configuration().Timestamp.AddDate(0, 0, -ndays)) {
+			dayIndex := time.Since(snap.Header.Timestamp).Hours() / 24
+			if dayIndex < float64(ndays) {
+				nSnapshotsPerDay[(ndays-1)-int(dayIndex)]++
+			}
+		}
+		snap.Close()
+	}
+
+	return nSnapshotsPerDay, nil
+}
+
 func repositoryInfo(w http.ResponseWriter, r *http.Request) error {
 	configuration := lrepository.Configuration()
 
@@ -39,7 +60,7 @@ func repositoryInfo(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("unable to calculate logical size: %w", err)
 	}
 
-	nSnapshotsPerDay, err := snapshot.NSnapshotsPerDay(lrepository, 30)
+	nSnapshotsPerDay, err := getNSnapshotsPerDay(lrepository, 30)
 	if err != nil {
 		return fmt.Errorf("unable to calculate snapshots per day: %w", err)
 	}
