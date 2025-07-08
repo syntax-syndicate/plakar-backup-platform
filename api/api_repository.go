@@ -18,10 +18,11 @@ import (
 )
 
 type RepositoryInfoSnapshots struct {
-	Total       int     `json:"total"`
-	StorageSize int64   `json:"storage_size"`
-	LogicalSize int64   `json:"logical_size"`
-	Efficiency  float64 `json:"efficiency"`
+	Total           int     `json:"total"`
+	StorageSize     int64   `json:"storage_size"`
+	LogicalSize     int64   `json:"logical_size"`
+	Efficiency      float64 `json:"efficiency"`
+	SnapshotsPerDay []int   `json:"snapshots_per_day"`
 }
 
 type RepositoryInfoResponse struct {
@@ -32,9 +33,15 @@ type RepositoryInfoResponse struct {
 
 func repositoryInfo(w http.ResponseWriter, r *http.Request) error {
 	configuration := lrepository.Configuration()
+
 	nSnapshots, logicalSize, err := snapshot.LogicalSize(lrepository)
 	if err != nil {
 		return fmt.Errorf("unable to calculate logical size: %w", err)
+	}
+
+	nSnapshotsPerDay, err := snapshot.NSnapshotsPerDay(lrepository, 30)
+	if err != nil {
+		return fmt.Errorf("unable to calculate snapshots per day: %w", err)
 	}
 
 	efficiency := float64(0)
@@ -59,10 +66,11 @@ func repositoryInfo(w http.ResponseWriter, r *http.Request) error {
 	return json.NewEncoder(w).Encode(Item[RepositoryInfoResponse]{Item: RepositoryInfoResponse{
 		Location: lrepository.Location(),
 		Snapshots: RepositoryInfoSnapshots{
-			Total:       nSnapshots,
-			StorageSize: int64(lrepository.StorageSize()),
-			LogicalSize: logicalSize,
-			Efficiency:  efficiency,
+			Total:           nSnapshots,
+			StorageSize:     int64(lrepository.StorageSize()),
+			LogicalSize:     logicalSize,
+			Efficiency:      efficiency,
+			SnapshotsPerDay: nSnapshotsPerDay,
 		},
 		Configuration: configuration,
 	}})
