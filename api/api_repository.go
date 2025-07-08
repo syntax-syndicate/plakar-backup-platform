@@ -119,7 +119,11 @@ func repositorySnapshots(w http.ResponseWriter, r *http.Request) error {
 	} else {
 		sinceTime, err = time.Parse(time.RFC3339, since)
 		if err != nil && since != "" {
-			return fmt.Errorf("invalid 'since' parameter: %w", err)
+			return &ApiError{
+				HttpCode: http.StatusBadRequest,
+				ErrCode:  "invalid_params",
+				Message:  "Invalid 'since' parameter format. Expected RFC3339 format.",
+			}
 		}
 	}
 
