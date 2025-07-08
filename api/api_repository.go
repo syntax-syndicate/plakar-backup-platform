@@ -112,6 +112,17 @@ func repositorySnapshots(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	var sinceTime time.Time
+	since, _, err := QueryParamToString(r, "since")
+	if err != nil {
+		return err
+	} else {
+		sinceTime, err = time.Parse(time.RFC3339, since)
+		if err != nil && since != "" {
+			return fmt.Errorf("invalid 'since' parameter: %w", err)
+		}
+	}
+
 	sortKeys, err := QueryParamToSortKeys(r, "sort", "Timestamp")
 	if err != nil {
 		return err
@@ -133,6 +144,11 @@ func repositorySnapshots(w http.ResponseWriter, r *http.Request) error {
 		}
 
 		if importerType != "" && strings.ToLower(snap.Header.GetSource(0).Importer.Type) != strings.ToLower(importerType) {
+			snap.Close()
+			continue
+		}
+
+		if since != "" && snap.Header.Timestamp.Before(sinceTime) {
 			snap.Close()
 			continue
 		}
