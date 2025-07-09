@@ -35,7 +35,60 @@ type config struct {
 	proxyCmd           string
 }
 
+func ConnectWithCmd(endpoint *url.URL, params map[string]string) (*sftp.Client, error) {
+	host := strings.TrimSuffix(endpoint.Host, ":")
+	if endpoint.User != nil {
+		host = endpoint.User.Username() + "@" + host
+	}
+
+	cmd := exec.Command("ssh", "-o", "BatchMode=yes", host, "-s", "sftp")
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, err
+	}
+
+	var sshErr error
+	go func() {
+		sc := bufio.NewScanner(stderr)
+		for sc.Scan() {
+			sshErr = fmt.Errorf("ssh command error: %q", sc.Text())
+		}
+	}()
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+
+	go func() {
+		cmd.Wait()
+	}()
+
+	client, err := sftp.NewClientPipe(stdout, stdin)
+	if err != nil {
+		if sshErr != nil {
+			return nil, sshErr
+		} else {
+			return nil, err
+		}
+	}
+
+	return client, nil
+}
+
 func Connect(endpoint *url.URL, params map[string]string) (*sftp.Client, error) {
+	if v, ok := params["use_ssh"]; ok && v == "true" {
+		return ConnectWithCmd(endpoint, params)
+	}
+
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get home directory: %v", err)
