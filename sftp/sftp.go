@@ -35,7 +35,7 @@ type config struct {
 	proxyCmd           string
 }
 
-func ConnectWithCmd(endpoint *url.URL, params map[string]string) (*sftp.Client, error) {
+func Connect(endpoint *url.URL, params map[string]string) (*sftp.Client, error) {
 	host := strings.TrimSuffix(endpoint.Host, ":")
 	if endpoint.User != nil {
 		host = endpoint.User.Username() + "@" + host
@@ -84,11 +84,7 @@ func ConnectWithCmd(endpoint *url.URL, params map[string]string) (*sftp.Client, 
 	return client, nil
 }
 
-func Connect(endpoint *url.URL, params map[string]string) (*sftp.Client, error) {
-	if v, ok := params["use_ssh"]; ok && v == "true" {
-		return ConnectWithCmd(endpoint, params)
-	}
-
+func OldConnect(endpoint *url.URL, params map[string]string) (*sftp.Client, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get home directory: %v", err)
