@@ -98,6 +98,10 @@ func (cmd *Backup) Parse(ctx *appcontext.AppContext, args []string) error {
 	//flags.BoolVar(&opt_stdio, "stdio", false, "output one line per file to stdout instead of the default interactive output")
 	flags.Parse(args)
 
+	if flags.NArg() > 1 {
+		return fmt.Errorf("Too many arguments")
+	}
+
 	for _, item := range opt_exclude {
 		if _, err := glob.Compile(item); err != nil {
 			return fmt.Errorf("failed to compile exclude pattern: %s", item)
@@ -160,7 +164,6 @@ func (cmd *Backup) Execute(ctx *appcontext.AppContext, repo *repository.Reposito
 }
 
 func (cmd *Backup) DoBackup(ctx *appcontext.AppContext, repo *repository.Repository) (int, error, objects.MAC, error) {
-
 	excludes := []glob.Glob{}
 	for _, item := range cmd.Excludes {
 		g, err := glob.Compile(item)
