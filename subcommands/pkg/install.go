@@ -34,7 +34,7 @@ import (
 	"github.com/PlakarKorp/plakar/utils"
 )
 
-var baseURL, _ = url.Parse("https://tmp.omarpolo.com/")
+var baseURL, _ = url.Parse("https://plugins.plakar.io") // XXX to be fixed
 
 func init() {
 	subcommands.Register(func() subcommands.Subcommand { return &PkgInstall{} },
@@ -136,6 +136,7 @@ func install(ctx *appcontext.AppContext, plugdir, plugin string) (string, error)
 		}
 
 		name = path.Base(u.Path)
+		defer os.Remove(plugin)
 	} else {
 		name = filepath.Base(plugin)
 	}
@@ -170,20 +171,20 @@ func fetch(ctx *appcontext.AppContext, plugdir, plugin string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
+	defer fp.Close()
 
 	ctx.GetLogger().Info("fetching %s", plugin)
 	req, err := http.Get(plugin)
 	if err != nil {
-		fp.Close()
+		defer os.Remove(fp.Name())
 		return "", fmt.Errorf("failed to fetch %s: %w", plugin, err)
 	}
 	defer req.Body.Close()
 
 	if _, err := io.Copy(fp, req.Body); err != nil {
-		fp.Close()
+		defer os.Remove(fp.Name())
 		return "", fmt.Errorf("failed to download the plugin: %w", err)
 	}
 
-	fp.Close()
 	return fp.Name(), nil
 }
