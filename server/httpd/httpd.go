@@ -323,10 +323,10 @@ func (s *server) deleteLock(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func Server(repo *repository.Repository, addr string, noDelete bool) error {
+func Server(ctx context.Context, repo *repository.Repository, addr string, noDelete bool) error {
 	s := server{
 		store:    repo.Store(),
-		ctx:      repo.AppContext(),
+		ctx:      ctx,
 		noDelete: noDelete,
 	}
 
