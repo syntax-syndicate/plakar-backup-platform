@@ -285,6 +285,11 @@ func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	importerDirectory, _, err := QueryParamToString(r, "importerDirectory")
+	if err != nil {
+		return err
+	}
+
 	resource, _, err := QueryParamToString(r, "resource")
 	if err != nil {
 		return err
@@ -316,6 +321,11 @@ func repositoryLocatePathname(w http.ResponseWriter, r *http.Request) error {
 		}
 
 		if importerOrigin != "" && !strings.EqualFold(snap.Header.GetSource(0).Importer.Origin, importerOrigin) {
+			snap.Close()
+			continue
+		}
+
+		if importerDirectory != "" && !strings.EqualFold(snap.Header.GetSource(0).Importer.Directory, importerDirectory) {
 			snap.Close()
 			continue
 		}
