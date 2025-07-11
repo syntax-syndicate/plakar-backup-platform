@@ -87,8 +87,7 @@ func (cmd *Ptar) Parse(ctx *appcontext.AppContext, args []string) error {
 	}
 
 	if len(cmd.SyncTargets) == 0 && flags.NArg() == 0 {
-		cmd.BackupTargets = make([]string, 1)
-		cmd.BackupTargets[0] = ctx.CWD
+		cmd.BackupTargets = []string{ctx.CWD}
 	}
 
 	if len(flags.Args()) > 0 {
