@@ -74,7 +74,7 @@ import (
 
 var ErrCantUnlock = errors.New("failed to unlock repository")
 
-func EntryPoint() int {
+func entryPoint() int {
 	// default values
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -148,7 +148,7 @@ func EntryPoint() int {
 		flag.PrintDefaults()
 
 		fmt.Fprintf(flag.CommandLine.Output(), "\nCOMMANDS:\n")
-		listcmds(flag.CommandLine.Output(), "  ")
+		listCmds(flag.CommandLine.Output(), "  ")
 		fmt.Fprintf(flag.CommandLine.Output(), "\nFor more information on a command, use '%s help COMMAND'.\n", flag.CommandLine.Name())
 	}
 	flag.Parse()
@@ -216,7 +216,7 @@ func EntryPoint() int {
 		return 1
 	}
 
-	checkupdate(ctx, opt_disableSecurityCheck)
+	checkUpdate(ctx, opt_disableSecurityCheck)
 
 	// setup from default + override
 	if opt_cpuCount <= 0 {
@@ -265,7 +265,7 @@ func EntryPoint() int {
 
 	if flag.NArg() == 0 {
 		fmt.Fprintf(os.Stderr, "%s: a subcommand must be provided\n", filepath.Base(flag.CommandLine.Name()))
-		listcmds(os.Stderr, "  ")
+		listCmds(os.Stderr, "  ")
 		return 1
 	}
 
@@ -458,7 +458,7 @@ func EntryPoint() int {
 	return status
 }
 
-func checkupdate(ctx *appcontext.AppContext, disableSecurityCheck bool) {
+func checkUpdate(ctx *appcontext.AppContext, disableSecurityCheck bool) {
 	if ctx.GetCookies().IsFirstRun() {
 		ctx.GetCookies().SetFirstRun()
 		if disableSecurityCheck {
@@ -509,7 +509,7 @@ func checkupdate(ctx *appcontext.AppContext, disableSecurityCheck bool) {
 		concerns, rus.Latest, rus.FoundCount)
 }
 
-func getpassphrase(ctx *appcontext.AppContext, params map[string]string) ([]byte, error) {
+func getPassphrase(ctx *appcontext.AppContext, params map[string]string) ([]byte, error) {
 	if ctx.KeyFromFile != "" {
 		return []byte(ctx.KeyFromFile), nil
 	}
@@ -574,7 +574,7 @@ func setupEncryption(ctx *appcontext.AppContext, config *storage.Configuration, 
 		return nil
 	}
 
-	secret, err := getpassphrase(ctx, params)
+	secret, err := getPassphrase(ctx, params)
 	if err != nil {
 		return err
 	}
@@ -614,7 +614,7 @@ func setupEncryption(ctx *appcontext.AppContext, config *storage.Configuration, 
 	return ErrCantUnlock
 }
 
-func listcmds(out io.Writer, prefix string) {
+func listCmds(out io.Writer, prefix string) {
 	var last string
 	var subs []string
 
@@ -660,5 +660,5 @@ func listcmds(out io.Writer, prefix string) {
 }
 
 func main() {
-	os.Exit(EntryPoint())
+	os.Exit(entryPoint())
 }
