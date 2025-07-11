@@ -34,7 +34,7 @@ import (
 	"github.com/PlakarKorp/plakar/utils"
 )
 
-var baseURL, _ = url.Parse("https://plugins.plakar.io") // XXX to be fixed
+var baseURL, _ = url.Parse("https://plugins.plakar.io/pkg/plakar/")
 
 func init() {
 	subcommands.Register(func() subcommands.Subcommand { return &PkgInstall{} },
