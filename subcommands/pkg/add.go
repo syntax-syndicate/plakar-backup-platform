@@ -37,20 +37,20 @@ import (
 var baseURL, _ = url.Parse("https://plugins.plakar.io/pkg/plakar/")
 
 func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &PkgInstall{} },
+	subcommands.Register(func() subcommands.Subcommand { return &PkgAdd{} },
 		subcommands.BeforeRepositoryOpen,
-		"pkg", "install")
+		"pkg", "add")
 }
 
-type PkgInstall struct {
+type PkgAdd struct {
 	subcommands.SubcommandBase
 	Out      string
 	Args     []string
 	Manifest plugins.Manifest
 }
 
-func (cmd *PkgInstall) Parse(ctx *appcontext.AppContext, args []string) error {
-	flags := flag.NewFlagSet("pkg install", flag.ExitOnError)
+func (cmd *PkgAdd) Parse(ctx *appcontext.AppContext, args []string) error {
+	flags := flag.NewFlagSet("pkg add", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(flags.Output(), "Usage: %s plugin.ptar ...",
 			flags.Name())
@@ -84,7 +84,7 @@ func (cmd *PkgInstall) Parse(ctx *appcontext.AppContext, args []string) error {
 	return nil
 }
 
-func (cmd *PkgInstall) Execute(ctx *appcontext.AppContext, _ *repository.Repository) (int, error) {
+func (cmd *PkgAdd) Execute(ctx *appcontext.AppContext, _ *repository.Repository) (int, error) {
 	cachedir, err := utils.GetCacheDir("plakar")
 	if err != nil {
 		return 1, err
@@ -153,7 +153,7 @@ func install(ctx *appcontext.AppContext, plugdir, plugin string) (string, error)
 	defer fp.Close()
 
 	// maybe a different filesystem
-	tmp, err := os.CreateTemp(plugdir, "pkg-install-*")
+	tmp, err := os.CreateTemp(plugdir, "pkg-add-*")
 	if err != nil {
 		return dst, err
 	}
