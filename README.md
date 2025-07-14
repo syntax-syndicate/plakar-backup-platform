@@ -1,6 +1,7 @@
 <div align="center">
 
-![plakar-logo-primary](./docs/assets/Plakar_Logo_Simple_Pirmary.png)
+<img src="./docs/assets/Plakar_Logo_Simple_Pirmary.png" alt="Plakar Backup & Restore Solution" width="100"/>
+
 # plakar - Effortless backup
 
 </div>
