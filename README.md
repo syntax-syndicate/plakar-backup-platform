@@ -1,8 +1,13 @@
+<div align="center">
+
+![plakar-logo-primary](./docs/assets/Plakar_Logo_Simple_Pirmary.png)
 # plakar - Effortless backup
+
+</div>
 
 ## 🔄 Latest Releases
 
-### **V1.0.2 – Minor Release: S3 Performance Boost** *(June 2, 2025)*
+`### **V1.0.2 – Minor Release: S3 Performance Boost** *(June 2, 2025)*
 
 - Achieved a **60× performance improvement** for backups over S3.  
   A backup that previously took ~14 minutes now completes in ~13 seconds.
