@@ -1,14 +1,26 @@
 <div align="center">
 
-<img src="./docs/assets/Plakar_Logo_Simple_Pirmary.png" alt="Plakar Backup & Restore Solution" width="100"/>
+<img src="./docs/assets/Plakar_Logo_Simple_Pirmary.png" alt="Plakar Backup & Restore Solution" width="200"/>
 
 # plakar - Effortless backup
+
+[![Join our Discord community](https://img.shields.io/badge/Discord-Join%20Us-purple?logo=discord&logoColor=white&style=for-the-badge)](https://discord.gg/A2yvjS6r2C)
+
+
+[Deutsch](https://www.readme-i18n.com/PlakarKorp/plakar?lang=de) |
+[Español](https://www.readme-i18n.com/PlakarKorp/plakar?lang=es) |
+[français](https://www.readme-i18n.com/PlakarKorp/plakar?lang=fr) |
+[日本語](https://www.readme-i18n.com/PlakarKorp/plakar?lang=ja) |
+[한국어](https://www.readme-i18n.com/PlakarKorp/plakar?lang=ko) |
+[Português](https://www.readme-i18n.com/PlakarKorp/plakar?lang=pt) |
+[Русский](https://www.readme-i18n.com/PlakarKorp/plakar?lang=ru) |
+[中文](https://www.readme-i18n.com/PlakarKorp/plakar?lang=zh)
 
 </div>
 
 ## 🔄 Latest Releases
 
-`### **V1.0.2 – Minor Release: S3 Performance Boost** *(June 2, 2025)*
+### **V1.0.2 – Minor Release: S3 Performance Boost** *(June 2, 2025)*
 
 - Achieved a **60× performance improvement** for backups over S3.  
   A backup that previously took ~14 minutes now completes in ~13 seconds.
@@ -107,6 +119,14 @@ $ plakar at /var/backups sync to @s3                        # Synchronise a back
 - **Lock-free maintenance**: Perform garbage collection without interrupting backup or restore operations.
 - **Integrations**: back up and restore from and to any source (file systems, object stores, SaaS applications...) with the right integration.
 
+## 🗄️ Plakar archive format : ptar
+
+[ptar](https://www.plakar.io/posts/2025-06-27/it-doesnt-make-sense-to-wrap-modern-data-in-a-1979-format-introducing-.ptar/) is Plakar’s lightweight, high-performance archive format for secure and efficient backup snapshots.
+
+[Kapsul](https://www.plakar.io/posts/2025-07-07/kapsul-a-tool-to-create-and-manage-deduplicated-compressed-and-encrypted-ptar-vaults/) is a companion tool that lets you run most plakar sub-commands directly on a .ptar archive without extracting it.
+It mounts the archive in memory as a read-only Plakar repository, enabling transparent and efficient inspection, restoration, and diffing of snapshots.
+
+For installation, usage examples, and full documentation, see the [Kapsul repository](https://github.com/PlakarKorp/kapsul).
 
 ## 📚 Documentation
 
