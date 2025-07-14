@@ -2,7 +2,7 @@
 
 <img src="./docs/assets/Plakar_Logo_Simple_Pirmary.png" alt="Plakar Backup & Restore Solution" width="200"/>
 
-# plakar - Effortless backup
+# plakar - Effortless backup & more
 
 [![Join our Discord community](https://img.shields.io/badge/Discord-Join%20Us-purple?logo=discord&logoColor=white&style=for-the-badge)](https://discord.gg/A2yvjS6r2C)
 
@@ -50,7 +50,7 @@ Plakar's main strengths:
 - **Horizontally scalable**: Support high concurrency and multiple backups type in a single Kloset.
 - **Browsable**: Browse, sort, search, and compare backups using the Plakar UI.
 - **Fast**: backup, check, sync and restore are  operations are optimized for large-scale data.
-- **Efficient**: more restore points, less storage, thanks to Kloset's unmatched deduplication and compression.
+- **Efficient**: more restore points, less storage, thanks to Kloset's unmatched [deduplication](https://www.plakar.io/posts/2025-07-11/introducing-go-cdc-chunkers-chunk-and-deduplicate-everything/) and compression.
 - **Open Source and actively maintained**: open source forever and now maintained by [Plakar Korp](https://www.plakar.io)
 
 Simplicity and efficiency are plakar's main priorities.
