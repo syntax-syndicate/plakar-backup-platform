@@ -329,7 +329,16 @@ func entryPoint() int {
 		return 1
 	}
 
-	// these commands need to be ran before the repository is opened
+	// try to get the passphrase from env and store config so that it's
+	// available to subcommands like create.
+	passphrase, err := getPassphraseFromEnv(ctx, storeConfig)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
+		return 1
+	}
+	if passphrase != "" {
+		ctx.KeyFromFile = passphrase
+	}
 
 	var store storage.Store
 	var repo *repository.Repository
@@ -367,7 +376,7 @@ func entryPoint() int {
 			return 1
 		}
 
-		if err := setupEncryption(ctx, repoConfig, storeConfig); err != nil {
+		if err := setupEncryption(ctx, repoConfig); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", flag.CommandLine.Name(), err)
 			return 1
 		}
@@ -509,13 +518,13 @@ func checkUpdate(ctx *appcontext.AppContext, disableSecurityCheck bool) {
 		concerns, rus.Latest, rus.FoundCount)
 }
 
-func getPassphrase(ctx *appcontext.AppContext, params map[string]string) ([]byte, error) {
+func getPassphraseFromEnv(ctx *appcontext.AppContext, params map[string]string) (string, error) {
 	if ctx.KeyFromFile != "" {
-		return []byte(ctx.KeyFromFile), nil
+		return ctx.KeyFromFile, nil
 	}
 
 	if pass, ok := params["passphrase"]; ok {
-		return []byte(pass), nil
+		return pass, nil
 	}
 
 	if cmd, ok := params["passphrase_cmd"]; ok {
@@ -529,11 +538,11 @@ func getPassphrase(ctx *appcontext.AppContext, params map[string]string) ([]byte
 
 		stdout, err := c.StdoutPipe()
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 
 		if err := c.Start(); err != nil {
-			return nil, err
+			return "", err
 		}
 
 		var pass string
@@ -548,38 +557,34 @@ func getPassphrase(ctx *appcontext.AppContext, params map[string]string) ([]byte
 		io.Copy(io.Discard, stdout)
 
 		if err := c.Wait(); err != nil {
-			return nil, err
+			return "", err
 		}
 
 		if err := scan.Err(); err != nil {
-			return nil, err
+			return "", err
 		}
 
 		if lines != 1 {
-			return nil, fmt.Errorf("passphrase_cmd returned too many lines")
+			return "", fmt.Errorf("passphrase_cmd returned too many lines")
 		}
 
-		return []byte(pass), nil
+		return pass, nil
 	}
 
 	if pass, ok := os.LookupEnv("PLAKAR_PASSPHRASE"); ok {
-		return []byte(pass), nil
+		return pass, nil
 	}
 
-	return nil, nil
+	return "", nil
 }
 
-func setupEncryption(ctx *appcontext.AppContext, config *storage.Configuration, params map[string]string) error {
+func setupEncryption(ctx *appcontext.AppContext, config *storage.Configuration) error {
 	if config.Encryption == nil {
 		return nil
 	}
 
-	secret, err := getPassphrase(ctx, params)
-	if err != nil {
-		return err
-	}
-
-	if secret != nil {
+	if ctx.KeyFromFile != "" {
+		secret := []byte(ctx.KeyFromFile)
 		key, err := encryption.DeriveKey(config.Encryption.KDFParams,
 			secret)
 		if err != nil {
@@ -595,13 +600,13 @@ func setupEncryption(ctx *appcontext.AppContext, config *storage.Configuration, 
 
 	// fall back to prompting
 	for range 3 {
-		passphrase, err := utils.GetPassphrase("repository")
+		secret, err := utils.GetPassphrase("repository")
 		if err != nil {
 			return err
 		}
 
 		key, err := encryption.DeriveKey(config.Encryption.KDFParams,
-			passphrase)
+			secret)
 		if err != nil {
 			return err
 		}
