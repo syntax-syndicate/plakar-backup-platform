@@ -56,12 +56,9 @@ func cmd_store_config(ctx *appcontext.AppContext, args []string) error {
 		if len(args) < 2 {
 			return fmt.Errorf(usage)
 		}
-		name, location := args[0], args[1]
+		name, location := args[0], normalizeLocation(args[1])
 		if ctx.Config.HasRepository(name) {
 			return fmt.Errorf("store %q already exists", name)
-		}
-		if !isValidLocation(location) {
-			return fmt.Errorf("invalid location %q", location)
 		}
 		ctx.Config.Repositories[name] = make(map[string]string)
 		ctx.Config.Repositories[name]["location"] = location

@@ -31,9 +31,6 @@ func init() {
 		subcommands.BeforeRepositoryOpen, "destination")
 }
 
-func isValidLocation(location string) bool {
-	if strings.Contains(location, "=") {
-		return false
-	}
-	return true
+func normalizeLocation(location string) string {
+	return strings.TrimPrefix(location, "location=")
 }
