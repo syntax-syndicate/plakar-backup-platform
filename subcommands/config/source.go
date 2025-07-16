@@ -60,6 +60,9 @@ func source_config(ctx *appcontext.AppContext, args []string) error {
 		if ctx.Config.HasSource(name) {
 			return fmt.Errorf("source %q already exists", name)
 		}
+		if !isValidLocation(location) {
+			return fmt.Errorf("invalid location %q", location)
+		}
 		ctx.Config.Sources[name] = make(map[string]string)
 		ctx.Config.Sources[name]["location"] = location
 		for _, kv := range args[2:] {

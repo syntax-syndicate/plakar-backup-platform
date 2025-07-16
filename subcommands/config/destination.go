@@ -60,6 +60,9 @@ func destination_config(ctx *appcontext.AppContext, args []string) error {
 		if ctx.Config.HasDestination(name) {
 			return fmt.Errorf("destination %q already exists", name)
 		}
+		if !isValidLocation(location) {
+			return fmt.Errorf("invalid location %q", location)
+		}
 		ctx.Config.Destinations[name] = make(map[string]string)
 		ctx.Config.Destinations[name]["location"] = location
 		for _, kv := range args[2:] {

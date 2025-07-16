@@ -17,6 +17,8 @@
 package config
 
 import (
+	"strings"
+
 	"github.com/PlakarKorp/plakar/subcommands"
 )
 
@@ -27,4 +29,11 @@ func init() {
 		subcommands.BeforeRepositoryOpen, "source")
 	subcommands.Register(func() subcommands.Subcommand { return &ConfigDestinationCmd{} },
 		subcommands.BeforeRepositoryOpen, "destination")
+}
+
+func isValidLocation(location string) bool {
+	if strings.Contains(location, "=") {
+		return false
+	}
+	return true
 }
