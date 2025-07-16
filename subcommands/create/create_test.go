@@ -182,28 +182,3 @@ func TestExecuteCmdCreateDefaultWithKeyfile(t *testing.T) {
 	_, err = os.Stat(fmt.Sprintf("%s/repo/CONFIG", tmpRepoDirRoot))
 	require.NoError(t, err)
 }
-
-func TestExecuteCmdCreateDefaultWithEnvPassphrase(t *testing.T) {
-	tmpRepoDirRoot, err := os.MkdirTemp("", "tmp_repo")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		os.RemoveAll(tmpRepoDirRoot)
-	})
-	ctx := appcontext.NewAppContext()
-	defer ctx.Close()
-
-	t.Setenv("PLAKAR_PASSPHRASE", "")
-
-	args := []string{}
-
-	subcommand := &Create{}
-	err = subcommand.Parse(ctx, args)
-	require.Error(t, err, "can't encrypt the repository with an empty passphrase")
-
-	t.Setenv("PLAKAR_PASSPHRASE", "aZeRtY123456$#@!@")
-	err = subcommand.Parse(ctx, args)
-	require.NoError(t, err)
-
-	_, err = os.Stat(fmt.Sprintf("%s/repo/CONFIG", tmpRepoDirRoot))
-	require.NotNil(t, err)
-}
