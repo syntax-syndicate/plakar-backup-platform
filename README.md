@@ -18,6 +18,36 @@
 
 </div>
 
+
+
+
+## ⚙️ Requirement
+
+`plakar` requires Go 1.23.3 or higher,
+it may work on older versions but hasn't been tested.
+
+On systems that package older versions,
+such as Debian or Ubuntu,
+it is preferable to install the latest version from the official website:
+
+```sh
+# Remove old version
+sudo apt remove golang-go
+
+# Install latest Go
+wget https://go.dev/dl/go1.23.4.linux-amd64.tar.gz
+sudo rm -rf /usr/local/go
+sudo tar -C /usr/local -xzf go1.23.4.linux-amd64.tar.gz
+export PATH=$PATH:/usr/local/go/bin
+```
+
+## 📦 Installing the CLI
+
+```
+go install github.com/PlakarKorp/plakar@latest
+```
+
+
 ## 🔄 Latest Releases
 
 ### **V1.0.2 – Minor Release: S3 Performance Boost** *(June 2, 2025)*
@@ -81,18 +111,6 @@ Navigate the contents of each snapshot to inspect, compare, or selectively resto
 
 ![Snapshot browser](https://www.plakar.io/readme/snapshot-browser.png)
 
-
-## ⚙️ Requirement
-
-`plakar` requires Go 1.23.3 or higher,
-it may work on older versions but hasn't been tested.
-
-
-## 📦 Installing the CLI
-
-```
-go install github.com/PlakarKorp/plakar@latest
-```
 
 ## 🚀 Quickstart
 
