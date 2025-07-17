@@ -114,9 +114,10 @@ func (cmd *PkgBuild) Execute(ctx *appcontext.AppContext, repo *repository.Reposi
 	if err := os.MkdirAll(datadir, 0755); err != nil {
 		return 1, err
 	}
+	defer os.RemoveAll(datadir)
 
 	if err := clone(datadir, recipe); err != nil {
-		return 1, fmt.Errorf("failed to clone %s: %w", recipe.Repository, err)
+		return 1, fmt.Errorf("failed to clone %s: %s: %w", recipe.Repository, recipe.Version, err)
 	}
 
 	make := exec.Command("make", "-C", datadir)
