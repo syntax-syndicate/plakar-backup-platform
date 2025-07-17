@@ -130,10 +130,6 @@ func (cmd *PkgBuild) Execute(ctx *appcontext.AppContext, repo *repository.Reposi
 	if err != nil {
 		return 1, fmt.Errorf("failed to create a temp dir: %w", err)
 	}
-
-	if err := os.MkdirAll(datadir, 0755); err != nil {
-		return 1, err
-	}
 	defer os.RemoveAll(datadir)
 
 	if err := clone(datadir, recipe); err != nil {
