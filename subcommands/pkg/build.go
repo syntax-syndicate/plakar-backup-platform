@@ -19,10 +19,13 @@ package pkg
 import (
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/PlakarKorp/kloset/repository"
 	"github.com/PlakarKorp/plakar/appcontext"
@@ -67,13 +70,30 @@ func (cmd *PkgBuild) Parse(ctx *appcontext.AppContext, args []string) error {
 		return fmt.Errorf("wrong usage")
 	}
 
-	fp, err := os.Open(flags.Arg(0))
+	var rd io.ReadCloser
+	var err error
+
+	if flags.Arg(0) == "-" {
+		rd = io.NopCloser(ctx.Stdin)
+	} else if strings.HasPrefix(flags.Arg(0), "http://") ||
+		strings.HasPrefix(flags.Arg(0), "https://") {
+		resp, err := http.Get(flags.Arg(0))
+		if err != nil {
+			return fmt.Errorf("can't fetch %s: %w", flags.Arg(0), err)
+		}
+		if resp.StatusCode/100 != 2 {
+			return fmt.Errorf("HTTP error %d: %s", resp.StatusCode, resp.Status)
+		}
+		rd = resp.Body
+	} else {
+		rd, err = os.Open(flags.Arg(0))
+	}
 	if err != nil {
 		return fmt.Errorf("can't open %s: %w", flags.Arg(0), err)
 	}
-	defer fp.Close()
+	defer rd.Close()
 
-	if err := yaml.NewDecoder(fp).Decode(&cmd.Recipe); err != nil {
+	if err := yaml.NewDecoder(rd).Decode(&cmd.Recipe); err != nil {
 		return fmt.Errorf("failed to parse the recipe %s: %w", flags.Arg(0), err)
 	}
 
