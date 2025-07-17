@@ -21,8 +21,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -39,6 +41,8 @@ func init() {
 		subcommands.BeforeRepositoryOpen,
 		"pkg", "build")
 }
+
+var recipeURL, _ = url.Parse("https://plugins.plakar.io/recipe/")
 
 var namere = regexp.MustCompile("^[_a-zA-Z0-9]+$")
 
@@ -73,11 +77,22 @@ func (cmd *PkgBuild) Parse(ctx *appcontext.AppContext, args []string) error {
 	var rd io.ReadCloser
 	var err error
 
-	if flags.Arg(0) == "-" {
+	recipe := flags.Arg(0)
+	remote := strings.HasPrefix(recipe, "https://") || strings.HasPrefix(recipe, "http://")
+	if !remote && !filepath.IsAbs(recipe) && !strings.Contains(recipe, string(os.PathSeparator)) {
+		u := *recipeURL
+		u.Path = path.Join(u.Path, recipe)
+		if !strings.HasPrefix(recipe, ".yaml") {
+			u.Path += ".yaml"
+		}
+		recipe = u.String()
+		remote = true
+	}
+
+	if recipe == "-" {
 		rd = io.NopCloser(ctx.Stdin)
-	} else if strings.HasPrefix(flags.Arg(0), "http://") ||
-		strings.HasPrefix(flags.Arg(0), "https://") {
-		resp, err := http.Get(flags.Arg(0))
+	} else if remote {
+		resp, err := http.Get(recipe)
 		if err != nil {
 			return fmt.Errorf("can't fetch %s: %w", flags.Arg(0), err)
 		}
@@ -86,10 +101,10 @@ func (cmd *PkgBuild) Parse(ctx *appcontext.AppContext, args []string) error {
 		}
 		rd = resp.Body
 	} else {
-		rd, err = os.Open(flags.Arg(0))
+		rd, err = os.Open(recipe)
 	}
 	if err != nil {
-		return fmt.Errorf("can't open %s: %w", flags.Arg(0), err)
+		return fmt.Errorf("can't open %s: %w", recipe, err)
 	}
 	defer rd.Close()
 
