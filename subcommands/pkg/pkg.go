@@ -29,6 +29,22 @@ import (
 )
 
 func init() {
+	subcommands.Register(func() subcommands.Subcommand { return &PkgAdd{} },
+		subcommands.BeforeRepositoryOpen,
+		"pkg", "add")
+
+	subcommands.Register(func() subcommands.Subcommand { return &PkgRm{} },
+		subcommands.BeforeRepositoryOpen,
+		"pkg", "rm")
+
+	subcommands.Register(func() subcommands.Subcommand { return &PkgCreate{} },
+		subcommands.BeforeRepositoryOpen,
+		"pkg", "create")
+
+	subcommands.Register(func() subcommands.Subcommand { return &PkgBuild{} },
+		subcommands.BeforeRepositoryOpen,
+		"pkg", "build")
+
 	subcommands.Register(func() subcommands.Subcommand { return &Pkg{} },
 		subcommands.BeforeRepositoryOpen,
 		"pkg")

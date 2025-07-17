@@ -37,12 +37,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &PkgBuild{} },
-		subcommands.BeforeRepositoryOpen,
-		"pkg", "build")
-}
-
 var recipeURL, _ = url.Parse("https://plugins.plakar.io/recipe/")
 
 var namere = regexp.MustCompile("^[_a-zA-Z0-9]+$")
