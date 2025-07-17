@@ -125,7 +125,12 @@ func (cmd *PkgBuild) Parse(ctx *appcontext.AppContext, args []string) error {
 func (cmd *PkgBuild) Execute(ctx *appcontext.AppContext, repo *repository.Repository) (int, error) {
 	recipe := &cmd.Recipe
 
-	datadir := filepath.Join(ctx.CWD, fmt.Sprintf("build-%s-%s", recipe.Name, recipe.Version))
+	pattern := fmt.Sprintf("build-%s-%s-*", recipe.Name, recipe.Version)
+	datadir, err := os.MkdirTemp("", pattern)
+	if err != nil {
+		return 1, fmt.Errorf("failed to create a temp dir: %w", err)
+	}
+
 	if err := os.MkdirAll(datadir, 0755); err != nil {
 		return 1, err
 	}
