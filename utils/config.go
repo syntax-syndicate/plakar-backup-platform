@@ -45,6 +45,9 @@ func (cl *configHandler) Load() (*config.Config, error) {
 
 	for k, v := range cfg.Repositories {
 		if _, ok := v[".isDefault"]; ok {
+			if cfg.DefaultRepository != "" {
+				return nil, fmt.Errorf("multiple default store")
+			}
 			cfg.DefaultRepository = k
 			delete(v, ".isDefault")
 		}
