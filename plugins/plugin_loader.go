@@ -114,7 +114,6 @@ func Load(ctx *appcontext.AppContext, pluginsDir, cacheDir, name string) error {
 
 	extlen := len(filepath.Ext(name))
 	plugin := filepath.Join(cacheDir, name[:len(name)-extlen])
-	fmt.Println(plugin)
 
 	if _, err := os.Stat(plugin); err != nil {
 		path := filepath.Join(pluginsDir, name)
