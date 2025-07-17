@@ -39,12 +39,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &PkgCreate{} },
-		subcommands.BeforeRepositoryOpen,
-		"pkg", "create")
-}
-
 type PkgCreate struct {
 	subcommands.SubcommandBase
 

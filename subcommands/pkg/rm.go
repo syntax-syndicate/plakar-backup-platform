@@ -30,12 +30,6 @@ import (
 	"github.com/PlakarKorp/plakar/utils"
 )
 
-func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &PkgRm{} },
-		subcommands.BeforeRepositoryOpen,
-		"pkg", "rm")
-}
-
 type PkgRm struct {
 	subcommands.SubcommandBase
 	Args []string

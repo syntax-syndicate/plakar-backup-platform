@@ -36,12 +36,6 @@ import (
 
 var baseURL, _ = url.Parse("https://plugins.plakar.io/pkg/plakar/")
 
-func init() {
-	subcommands.Register(func() subcommands.Subcommand { return &PkgAdd{} },
-		subcommands.BeforeRepositoryOpen,
-		"pkg", "add")
-}
-
 type PkgAdd struct {
 	subcommands.SubcommandBase
 	Out      string
