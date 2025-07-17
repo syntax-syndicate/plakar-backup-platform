@@ -27,6 +27,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 
 	"github.com/PlakarKorp/kloset/repository"
@@ -150,6 +151,7 @@ func (cmd *PkgBuild) Execute(ctx *appcontext.AppContext, repo *repository.Reposi
 	if err := create.Parse(ctx, []string{manifest}); err != nil {
 		return 1, err
 	}
+	create.Out = fmt.Sprintf("%s_%s_%s_%s.ptar", recipe.Name, recipe.Version, runtime.GOOS, runtime.GOARCH)
 	return create.Execute(ctx, repo)
 }
 
