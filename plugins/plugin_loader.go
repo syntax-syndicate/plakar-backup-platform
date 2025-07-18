@@ -26,16 +26,21 @@ import (
 )
 
 type Manifest struct {
-	Name       string `yaml:"name"`
-	Version    string `yaml:"version"`
+	Name        string   `yaml:"name"`
+	DisplayName string   `yaml:"display_name"`
+	Description string   `yaml:"description"`
+	Homepage    string   `yaml:"homepage"`
+	License     string   `yaml:"license"`
+	Tags        []string `yaml:"tags"`
+	APIVersion  string   `yaml:"api_version"`
+	Version     string   `yaml:"version"`
+
 	Connectors []struct {
 		Type          string   `yaml:"type"`
 		Protocols     []string `yaml:"protocols"`
 		LocationFlags []string `yaml:"location_flags"`
 		Executable    string   `yaml:"executable"`
 		ExtraFiles    []string `yaml:"extra_files"`
-		Homepage      string   `yaml:"homepage"`
-		License       string   `yaml:"license"`
 	} `yaml:"connectors"`
 }
 
