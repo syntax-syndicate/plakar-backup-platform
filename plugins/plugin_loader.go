@@ -41,8 +41,6 @@ type Manifest struct {
 		LocationFlags []string `yaml:"location_flags"`
 		Executable    string   `yaml:"executable"`
 		ExtraFiles    []string `yaml:"extra_files"`
-		Homepage      string   `yaml:"homepage,omitempty"`
-		License       string   `yaml:"license,omitempty"`
 	} `yaml:"connectors"`
 }
 
